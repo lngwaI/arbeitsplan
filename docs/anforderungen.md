@@ -19,6 +19,12 @@ BioPharma, Vollkonti-Betrieb. Altes "Arbeitsplan"-exe läuft aus. Dient zum Eint
 7. Später: Equipment-Status (z. B. "G2-F-1234-30") abfragen, Equipment farblich nach Status. Schnittstelle vorsehen, zunächst leer (`IEquipmentStatus`).
 8. Nur intern nutzbar; exe nach Hause kopiert → darf nichts Nutzbares passieren.
 
+## Ergänzung 2026-10-23 (Auszug; Umsetzung/Annahmen siehe CLAUDE.md)
+- Layout: oben `KWXX (XX.XX.XXXX - XX.XX.XXXX)`, je Spalte Datum als eigener Text, dann Blöcke. Einteilungsfeld (F/S/N) nur so hoch wie nötig, mind. 1 Zeile je Schicht, wächst bei vielen Kürzeln, nie abschneiden (Altsystem-Fehler).
+- Bearbeitungsmodus per Doppelklick mit Notizblock-/Stift-Symbol neben der Raumbezeichnung. Soft-Lock: Popup "Das Fenster <Überschrift> wird gerade von <Nutzer> bearbeitet." (OK), danach trotzdem speichern erlaubt. Anzeige WER (Vor-/Nachname aus Nutzer-DB via Windows-Login, sonst Windows-Name), Raum optional. Speichert ein PC nicht (System-PC): klare Meldung, nichts geht verloren, Änderung bleibt im Editor.
+- Nutzerverwaltung (DB): Vorname, Nachname, Windows-Login; Rechte als Checkboxen + Rechtepakete (Leser, Produktion, Admin), Paket-Klick vergibt Rechte, danach feinjustierbar, Paket wird automatisch markiert. Anlegen/Bearbeiten/Löschen nur mit Recht.
+- Equipment-Tabelle (Nummer, Status, Zeitstempel). Nummer im Blocktext + in Tabelle vorhanden → nur dieser Text-Teil in Statusfarbe. Farben konfigurierbar (nicht gereinigt/ohne Timer schwarz, gereinigt violett, regeneriert dunkelblau, sterilisiert rot, in Prozess grün, Freigabe hellblau, Quarantäne dunkelrot). Quelle später ein MES-System, Schnittstelle unbekannt → hinter Interface, jetzt Mock.
+
 ## Architektur (nicht entschieden, mit IT klären)
 - Bevorzugt: kleiner Server-Dienst (Daten z. B. SQLite) + Client-exe; Client spricht nur über internes Netz, kein Schreibzugriff nötig. Löst 2/3/4/5/6/8 zentral.
 - Fallback: gemeinsame Datendatei auf Netzlaufwerk (Schreibrechte für alle inkl. System-PCs nötig; Schutz gegen Kopieren schwächer).

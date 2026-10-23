@@ -9,9 +9,11 @@ Wochenplan-Anzeige/-Eingabe für BioPharma-Betrieb. Vollständige Anforderungen:
 - Mobile (Android/iOS): on hold. Später Server-API + Web-Client; deshalb `src/Core` ohne UI-Bezug halten.
 
 ## Struktur
-- `src/Core/` Modell + `IDataStore` (Versionen/Konflikte) + `IEquipmentStatus` (leer). Kein `System.Windows.Forms`.
-- `src/Win/` WinForms-UI, `Program.cs`.
-- Test: `bin\Arbeitsplan.exe --shot <png> [breite hoehe]` rendert die Ansicht als Bild (Datei danach mit Read ansehen; GUI-exe → ~3 s warten).
+- `src/Core/` ohne `System.Windows.Forms`: `Model.cs` (Entry, `IDataStore`, `MemoryStore`+Testdaten), `Users.cs` (`Perm`-Rechte, User, Rechtepakete, `UserDb`, `ILockService`), `Equipment.cs` (`IEquipmentStatusProvider`+Mock, `EquipmentMatcher`, `StatusColors`).
+- `src/Win/`: `MainForm.cs` (Wochenansicht, Bearbeitungsmodus), `UserAdminForm.cs`, `Program.cs`. `config/statuscolors.ini` wird von `build.cmd` nach `bin\` kopiert.
+- Aufruf/Test: `bin\Arbeitsplan.exe [--user <login>] [--nosave]`; Testbild: `--shot <png> [--size BxH] [--edit spalte,zeile] [--users]` (echter Bildschirmabzug, ~4 s warten, dann mit Read ansehen; DrawToBitmap zeichnet RichTextBox nicht).
+- Testnutzer: `mmuster` Admin, `ebeispiel` Leser, `pwerk` Produktion. Mock-Lock: Di, Raum A "wird von Paula Werk bearbeitet" (mit `--user mmuster` testen). `--nosave` simuliert System-PC ohne Speichern.
+- Typname `Right` nicht verwenden (kollidiert mit `Control.Right`) → `Perm`.
 
 ## Token-/Code-Effizienz (gilt für alle)
 - Erst gezielt suchen (Grep/Glob), dann nur nötige Zeilen lesen (offset/limit). Keine ganzen Dateien/Verzeichnisse einlesen.
@@ -34,9 +36,16 @@ Der Hauptagent plant, delegiert und prüft; er schreibt nur kleine Änderungen s
 - Parallel nur lesende oder dateidisjunkte Aufgaben. Zwei Schreiber nie an denselben Dateien.
 - Subagenten antworten kurz: geänderte Dateien, Ergebnis, offene Punkte (keine Code-Wiederholung).
 
-## Entscheidungen
-- 2026-10-23: Siehe Stack. Prototyp-Daten nur im Speicher (`MemoryStore`), Server nach IT-Klärung.
-- Wochenstart vorläufig Montag; Tag-Pfeile verschieben das 7-Tage-Fenster um 1 Tag.
+## Entscheidungen und Annahmen (Stand 2026-10-23)
+- Siehe Stack. Prototyp-Daten nur im Speicher (`MemoryStore`), Server nach IT-Klärung.
+- Wochenstart vorläufig Montag; "Heute" springt auf den Montag der Woche, Tag-Pfeile verschieben das Fenster um 1 Tag.
+- Layout: Kopf `KWxx (TT.MM.JJJJ - TT.MM.JJJJ)`, darunter Datum je Spalte (`Mo, 23.10.2026`), dann Blöcke. Block-Überschrift = Raumbezeichnung (frei editierbar, leer erlaubt). Eigene Layout-Berechnung in `Reflow()`: Zeilenhöhe = höchster Block; Einteilungsfeld mind. 3 Zeilen (F/S/N), wächst per Textmessung mit (kein Abschneiden).
+- Bearbeitung: Doppelklick auf Block = Bearbeitungsmodus (oranger Rahmen + Notizblock-Symbol), sonst nur lesbar. Ende: Strg+S (speichern), Esc (verwerfen, mit Rückfrage), anderer Block, Navigation, Schließen. Je Block eine Version; Konflikt → Ja (überschreiben) / Nein (im Editor bleiben).
+- Soft-Lock: nur Hinweis-Popup "Das Fenster <Überschrift> wird gerade von <Nutzer> bearbeitet.", danach trotzdem bearbeiten/speichern. Sperre verfällt nach 30 min (abgestürzte Clients). Anzeigename: Vor-/Nachname aus `UserDb` (Windows-Login), sonst Windows-Nutzername. Raum wird nicht ermittelt.
+- Speichern fehlgeschlagen (Exception): klare Meldung, Block bleibt im Bearbeitungsmodus, Navigation/Schließen werden blockiert bzw. fragen vor Verwerfen → nichts geht verloren.
+- Annahme (Prototyp): unbekannter Windows-Nutzer erhält Paket "Produktion". Später: nach IT-Antwort (Leser/abweisen).
+- Rechte: Lesen, Text ändern/löschen/hinzufügen, Farben/Textformat, Nutzer anlegen/bearbeiten/löschen. Pakete: Leser, Produktion, Admin. Paket gilt als "ausgewählt" nur bei **exakt** gleichen Rechten. Erzwungen sind bisher: Bearbeiten (ändern, oder hinzufügen bei leerem Block), "+ Zeile", Nutzerverwaltung. "Löschen" und "Format" noch nicht erzwungen/umgesetzt.
+- Equipment: Erkennung per Regex `[A-Z0-9]{2}-[A-Z]{1,2}-\d{3,5}-\d{2}` + Abgleich mit `IEquipmentStatusProvider` (Mock). Nur existierende Nummern werden eingefärbt, **nur die Nummer**, restlicher Text bleibt wie formatiert (Statusfarbe überschreibt manuelle Farbe nur dort). Farben konfigurierbar über `statuscolors.ini` (Standard: nicht gereinigt/ohne Timer schwarz, gereinigt violett, regeneriert dunkelblau, sterilisiert rot, in Prozess grün, Freigabe hellblau, Quarantäne dunkelrot). MES-System-8-/MES-Anbindung später als weiterer Provider, Schnittstelle unbekannt.
 
 ## Repo
 https://github.com/lngwaI/arbeitsplan – **öffentlich**: nur erfundene Testdaten, keine echten Kürzel, Produkte, Server- oder Netzwerknamen.
