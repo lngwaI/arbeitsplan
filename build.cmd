@@ -1,5 +1,8 @@
 @echo off
-rem Baut Arbeitsplan.exe mit dem in Windows enthaltenen .NET-Framework-Compiler (kein SDK, keine Installation noetig).
-set CSC=%WINDIR%\Microsoft.NET\Framework64\v4.0.30319\csc.exe
+rem Baut bin\Arbeitsplan.exe mit dem in Windows enthaltenen .NET-Framework-Compiler (kein SDK noetig).
+rem x86 + nur .NET-4.0-APIs: laeuft auf 32/64-Bit-Windows; ab XP SP3 mit installiertem .NET 4.0.
+set CSC=%WINDIR%\Microsoft.NET\Framework\v4.0.30319\csc.exe
+if not exist "%CSC%" set CSC=%WINDIR%\Microsoft.NET\Framework64\v4.0.30319\csc.exe
 if not exist bin mkdir bin
-"%CSC%" /nologo /target:winexe /codepage:65001 /optimize+ /out:bin\Arbeitsplan.exe /r:System.Windows.Forms.dll /r:System.Drawing.dll src\*.cs
+"%CSC%" /nologo /target:winexe /platform:x86 /codepage:65001 /optimize+ /out:bin\Arbeitsplan.exe /r:System.Windows.Forms.dll /r:System.Drawing.dll src\Core\*.cs src\Win\*.cs
+if errorlevel 1 (echo BUILD FEHLER) else (echo OK bin\Arbeitsplan.exe)

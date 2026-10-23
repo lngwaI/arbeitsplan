@@ -1,22 +1,25 @@
-# Aufgabenliste
+# Aufgaben (kurz halten; Details in docs/anforderungen.md)
 
 ## Erledigt
-- [x] CLAUDE.md, tasks.md, build.cmd, .gitignore
-- [x] Prototyp Wochenansicht: 7 Spalten, Zeilen mit Überschrift/Inhalt/Einteilung, Heute, Pfeile (Tag/Woche), "+ Zeile", lokale Testdaten, 4:3 und 16:9 geprüft
+- [x] Projektdateien, Build ohne SDK (`build.cmd`, x86, .NET-4.0-API)
+- [x] Prototyp Wochenansicht (7 Spalten, Zeilen, Heute, Tag-/Wochenpfeile, + Zeile), 4:3 und 16:9 geprüft
+- [x] Core/UI getrennt; `IDataStore` mit Version/Konflikt; `IEquipmentStatus` (leer)
+- [x] Subagenten (`.claude/agents/`) + token-effiziente CLAUDE.md
 
-## Prototyp – nächste Schritte
-- [ ] Lange Texte: Scrollbalken bzw. Zeilenhöhe wächst mit Inhalt
-- [ ] Lokale Speicherung der Testdaten (Datei) zum Ausprobieren
+## Prototyp, nächste Schritte
+- [ ] Lange Texte (Scrollbalken oder mitwachsende Zeilen)
+- [ ] Lokale Testdaten-Datei (nur Prototyp)
+- [ ] Textformat/Farbe pro Zelle
 - [ ] Zeile löschen/verschieben
-- [ ] Textformat pro Zelle (Schrift, Farbe, fett/kursiv, Hintergrundfarbe)
-- [ ] KW-Berechnung an Jahresgrenzen prüfen (ISO 8601)
+- [ ] Konfliktmeldung in UI bei `Save() == false`
 
 ## Nach IT-Klärung
-- [ ] Architektur festlegen (Server-Dienst + SQLite vs. Netzlaufwerk-Datei)
-- [ ] Datenmodell mit Version pro Eintrag, Konfliktmeldung, Hintergrund-Nachladen
-- [ ] Benutzerverwaltung (+), Einzelrechte, Rechtepaket, Identifikation am System-PC
-- [ ] Audit Trail (wer/wann/was)
-- [ ] Schutz gegen Nutzung außerhalb des Firmennetzes (Server-Erreichbarkeit/Token)
-- [ ] Schnittstelle Equipment-Status (zunächst leer) + Farbdarstellung
-- [ ] Übernahme alter Wochenpläne (falls gewünscht)
-- [ ] Test auf System-PC (Kartenleser-Anmeldung) und normalem PC, Start vom Server ohne Admin
+- [ ] Architektur festlegen (Server+SQLite vs. Netzlaufwerk-Datei) → `architekt`
+- [ ] Hintergrund-Nachladen, Benutzer/Rechte/Rechtepakete, Identifikation am System-PC
+- [ ] Audit Trail, Schutz gegen Nutzung außerhalb des Netzes
+- [ ] Equipment-Status + Farben
+- [ ] Übernahme alter Pläne (falls gewünscht)
+- [ ] Test auf System-PC (Kartenleser-Anmeldung), normalem PC und XP (falls relevant)
+
+## On hold
+- [ ] Android/iOS: Server-HTTP-API + Web-Client (PWA); erst nach Serverentscheidung
