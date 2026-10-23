@@ -12,7 +12,7 @@ namespace Arbeitsplan.Win
         readonly UserDb db;
         readonly User me;
         readonly ListBox list = new ListBox();
-        readonly TextBox tFirst = new TextBox(), tLast = new TextBox(), tLogin = new TextBox();
+        readonly TextBox tFirst = new TextBox(), tLast = new TextBox(), tLogin = new TextBox(), tKuerzel = new TextBox();
         readonly Button bNew = new Button(), bDel = new Button(), bSave = new Button();
         readonly List<CheckBox> pkBoxes = new List<CheckBox>();
         readonly Dictionary<string, CheckBox> rightBoxes = new Dictionary<string, CheckBox>();
@@ -28,40 +28,41 @@ namespace Arbeitsplan.Win
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MaximizeBox = MinimizeBox = false;
             StartPosition = FormStartPosition.CenterParent;
-            ClientSize = new Size(640, 470);
+            ClientSize = new Size(640, 520);
 
-            list.SetBounds(10, 10, 200, 380);
+            list.SetBounds(10, 10, 200, 430);
             list.SelectedIndexChanged += delegate { Select(list.SelectedItem as User); };
-            bNew.SetBounds(10, 400, 60, 30); bNew.Text = "+"; bNew.Enabled = me.Has(Perm.UserCreate);
+            bNew.SetBounds(10, 460, 60, 30); bNew.Text = "+"; bNew.Enabled = me.Has(Perm.UserCreate);
             bNew.Click += delegate { AddUser(); };
-            bDel.SetBounds(80, 400, 90, 30); bDel.Text = "Löschen"; bDel.Enabled = me.Has(Perm.UserDelete);
+            bDel.SetBounds(80, 460, 90, 30); bDel.Text = "Löschen"; bDel.Enabled = me.Has(Perm.UserDelete);
             bDel.Click += delegate { DeleteUser(); };
 
-            Label1("Vorname", 230, 14); tFirst.SetBounds(320, 10, 300, 22);
-            Label1("Nachname", 230, 44); tLast.SetBounds(320, 40, 300, 22);
-            Label1("Windows-Login", 230, 74); tLogin.SetBounds(320, 70, 300, 22);
-            Label1("Rechtepaket (ein Klick vergibt alle Rechte):", 230, 106);
+            Label1("Vorname", 230, 14); tFirst.SetBounds(450, 10, 170, 22);
+            Label1("Nachname", 230, 44); tLast.SetBounds(450, 40, 170, 22);
+            Label1("Windows-Login", 230, 74); tLogin.SetBounds(450, 70, 170, 22);
+            Label1("Kürzel (wird im Plan grün markiert)", 230, 104); tKuerzel.SetBounds(450, 100, 170, 22);
+            Label1("Rechtepaket (ein Klick vergibt alle Rechte):", 230, 134);
             int x = 230;
             foreach (RightsPackage p in db.Packages)
             {
                 CheckBox cb = new CheckBox();
-                cb.Text = p.Name; cb.Tag = p; cb.AutoCheck = false; cb.AutoSize = true; cb.Location = new Point(x, 126);
+                cb.Text = p.Name; cb.Tag = p; cb.AutoCheck = false; cb.AutoSize = true; cb.Location = new Point(x, 154);
                 cb.Click += OnPackageClick;
-                x += 110; pkBoxes.Add(cb); Controls.Add(cb);
+                x += 100; pkBoxes.Add(cb); Controls.Add(cb);
             }
-            Label1("Einzelrechte:", 230, 160);
-            int y = 182;
+            Label1("Einzelrechte:", 230, 184);
+            int y = 206;
             foreach (string r in Perm.All)
             {
                 CheckBox cb = new CheckBox();
                 cb.Text = Perm.Label(r); cb.Tag = r; cb.AutoSize = true; cb.Location = new Point(240, y);
                 cb.CheckedChanged += delegate { if (!loading) RefreshPackages(); };
-                y += 26; rightBoxes[r] = cb; Controls.Add(cb);
+                y += 24; rightBoxes[r] = cb; Controls.Add(cb);
             }
-            bSave.SetBounds(230, 400, 120, 30); bSave.Text = "Übernehmen";
+            bSave.SetBounds(230, 460, 120, 30); bSave.Text = "Übernehmen";
             bSave.Click += delegate { Apply(); };
 
-            Controls.AddRange(new Control[] { list, bNew, bDel, tFirst, tLast, tLogin, bSave });
+            Controls.AddRange(new Control[] { list, bNew, bDel, tFirst, tLast, tLogin, tKuerzel, bSave });
             Reload(null);
         }
 
@@ -85,12 +86,12 @@ namespace Arbeitsplan.Win
         {
             cur = u;
             loading = true;
-            tFirst.Text = u != null ? u.First : ""; tLast.Text = u != null ? u.Last : ""; tLogin.Text = u != null ? u.Login : "";
+            tFirst.Text = u != null ? u.First : ""; tLast.Text = u != null ? u.Last : ""; tLogin.Text = u != null ? u.Login : ""; tKuerzel.Text = u != null ? u.Kuerzel : "";
             foreach (KeyValuePair<string, CheckBox> kv in rightBoxes) kv.Value.Checked = u != null && u.Has(kv.Key);
             loading = false;
             RefreshPackages();
             bool canEdit = u != null && (me.Has(Perm.UserEdit) || (fresh.Contains(u) && me.Has(Perm.UserCreate)));
-            tFirst.Enabled = tLast.Enabled = tLogin.Enabled = bSave.Enabled = canEdit;
+            tFirst.Enabled = tLast.Enabled = tLogin.Enabled = tKuerzel.Enabled = bSave.Enabled = canEdit;
             foreach (CheckBox cb in pkBoxes) cb.Enabled = canEdit;
             foreach (CheckBox cb in rightBoxes.Values) cb.Enabled = canEdit;
             bDel.Enabled = u != null && u != me && me.Has(Perm.UserDelete);
@@ -147,7 +148,7 @@ namespace Arbeitsplan.Win
                 MessageBox.Show("Der Windows-Login muss ausgefüllt und eindeutig sein.", "Nutzerverwaltung", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
-            cur.First = tFirst.Text.Trim(); cur.Last = tLast.Text.Trim(); cur.Login = login;
+            cur.First = tFirst.Text.Trim(); cur.Last = tLast.Text.Trim(); cur.Login = login; cur.Kuerzel = tKuerzel.Text.Trim();
             cur.Rights = CheckedRights();
             fresh.Remove(cur);
             Reload(cur);

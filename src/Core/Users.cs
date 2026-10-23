@@ -6,9 +6,9 @@ namespace Arbeitsplan.Core
     public static class Perm
     {
         public const string Read = "Lesen", EditText = "TextAendern", DeleteText = "TextLoeschen", AddText = "TextHinzufuegen",
-            Format = "Format", UserCreate = "NutzerAnlegen", UserEdit = "NutzerBearbeiten", UserDelete = "NutzerLoeschen";
+            Format = "Format", EditNames = "BlockNamenAendern", EditHeight = "BlockhoeheAendern", UserCreate = "NutzerAnlegen", UserEdit = "NutzerBearbeiten", UserDelete = "NutzerLoeschen";
 
-        public static readonly string[] All = { Read, EditText, DeleteText, AddText, Format, UserCreate, UserEdit, UserDelete };
+        public static readonly string[] All = { Read, EditText, DeleteText, AddText, Format, EditNames, EditHeight, UserCreate, UserEdit, UserDelete };
 
         public static string Label(string r)
         {
@@ -19,6 +19,8 @@ namespace Arbeitsplan.Core
                 case DeleteText: return "Text löschen";
                 case AddText: return "Text hinzufügen";
                 case Format: return "Farben / Textformat";
+                case EditNames: return "Blockname / F-S-N ändern, Zeile hinzufügen";
+                case EditHeight: return "Blockhöhe einstellen";
                 case UserCreate: return "Nutzer anlegen";
                 case UserEdit: return "Nutzer bearbeiten";
                 case UserDelete: return "Nutzer löschen";
@@ -30,7 +32,7 @@ namespace Arbeitsplan.Core
     public class User
     {
         public int Id;
-        public string First = "", Last = "", Login = "";
+        public string First = "", Last = "", Login = "", Kuerzel = "";
         public HashSet<string> Rights = new HashSet<string>();
 
         public string Display
@@ -102,9 +104,9 @@ namespace Arbeitsplan.Core
             db.Packages.Add(new RightsPackage("Leser", Perm.Read));
             db.Packages.Add(new RightsPackage("Produktion", Perm.Read, Perm.EditText, Perm.DeleteText, Perm.AddText, Perm.Format));
             db.Packages.Add(new RightsPackage("Admin", Perm.All));
-            db.Add("Max", "Mustermann", "mmuster", "Admin");
-            db.Add("Erika", "Beispiel", "ebeispiel", "Leser");
-            db.Add("Paula", "Werk", "pwerk", "Produktion");
+            db.Add("Max", "Mustermann", "mmuster", "Admin").Kuerzel = "abc";
+            db.Add("Erika", "Beispiel", "ebeispiel", "Leser").Kuerzel = "ghi";
+            db.Add("Paula", "Werk", "pwerk", "Produktion").Kuerzel = "def";
             return db;
         }
     }
