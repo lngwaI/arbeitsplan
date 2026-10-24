@@ -16,6 +16,8 @@
 - [x] Paket-Editor v2: Bausteine (Packen vorgegeben, Lauf, Splitten, Mischen, TFF Flush), Equipment-Positionen mit validierten Geräten, Wiederholen/abwechselnd, Ausweich-Equipment, Platzhalter optional, Vorschau; Katalog einrichten (Recht PackageAdmin)
 - [x] Zeilenkopf: Überschrift in jeder Spalte, Pfeil rechts; schlichtes Rechtsklick-Menü in Schichtfeldern; Umlaute/Sonderzeichen überall
 
+- [x] UI-Modernisierung (Theme, Schalter UseModernTheme), (LKZ)-Kennzeichnung, Tastatur Esc/Strg+S/Umschalt+Enter, Release-Build ohne Testschalter, Härtung, PWA-Vorschau `web/`, Doku + Sicherheitsdossier (Branch gmail/ui-modern, gepusht)
+
 ## Als Nächstes
 - [ ] Rechte erzwingen: Text löschen (Inhalt leeren)
 - [ ] Paket-Editor: Schritte per Ziehen umsortieren, Vorlagenordner, Muster über mehrere Schritte wiederholen (z. B. Lauf A + Lauf B im Wechsel)

@@ -1,0 +1,8 @@
+# Handoff
+
+Jeder Eintrag beginnt mit `## JJJJ-MM-TT HH:MM – <Label>`.
+
+## 2026-10-25 01:53 – G-Mail / 2. Account
+- Branch `gmail/ui-modern` gepusht (16 Commits): moderner Look (Theme/DayLabel, Schalter `UseModernTheme`), "(LKZ)" im Zeilenkopf, Esc/Strg+S/Umschalt+Enter, Release-Build ohne Testschalter (`build_release.cmd`), Härtung (XML, Fehlerdialog, `Protected`), PWA-Vorschau `web/`, Doku (`docs/Anleitung_Windows.md`, `docs/Sicherheitsdossier.md`), Opus-Review-Korrekturen.
+- Branch `gmail/account-kennung` gepusht: nur Account-Kennung (Skript, Hook, CLAUDE.md-Abschnitt).
+- Offen: PBKDF2-Feinschliff in `Protected.cs`, dpiAware, Code-Signatur (IT), Export im modernen Look, PWA im Browser prüfen, Test auf Win 11/XP.
