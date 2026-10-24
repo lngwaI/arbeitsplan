@@ -36,7 +36,7 @@ namespace Arbeitsplan.Win
         readonly TextBox search = new TextBox();
         readonly Panel topBar = new Panel(), dateBar = new Panel(), bar = new Panel(), fmtBar = new Panel();
         readonly QuietPanel canvas = new QuietPanel();
-        readonly Label[] dateLabels = new Label[7];
+        readonly DayLabel[] dateLabels = new DayLabel[7];
         readonly FlowLayoutPanel nav = new FlowLayoutPanel();
         readonly Bitmap pencilIcon = MakePencil();
         readonly Font plainFont;
@@ -101,9 +101,7 @@ namespace Arbeitsplan.Win
             dateBar.Height = 26;
             for (int c = 0; c < 7; c++)
             {
-                Label l = new Label();
-                l.TextAlign = ContentAlignment.MiddleCenter;
-                l.Font = new Font(Font, FontStyle.Bold);
+                DayLabel l = new DayLabel(Font);
                 dateLabels[c] = l;
                 dateBar.Controls.Add(l);
             }
@@ -375,7 +373,7 @@ namespace Arbeitsplan.Win
             {
                 DateTime d = start.AddDays(c);
                 dateLabels[c].Text = d.ToString("ddd, dd.MM.yyyy", De);
-                dateLabels[c].BackColor = d == DateTime.Today ? Theme.DayHeadToday : Theme.DayHead;
+                dateLabels[c].Today = d == DateTime.Today; dateLabels[c].Invalidate();
             }
             int selRow = -1; DateTime selDay = DateTime.MinValue;
             if (view.Selected != null && view.Selected.RowIndex < rowInfo.Count) { selRow = rowInfo[view.Selected.RowIndex].Id; selDay = view.Selected.Day; }

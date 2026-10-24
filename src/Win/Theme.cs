@@ -44,8 +44,8 @@ namespace Arbeitsplan.Win
         // ---- Farben ----
         public static readonly Color Window = P(SystemColors.Control, SystemColors.Control);
         public static readonly Color CellBorder = P(C(150, 160, 175), C(150, 160, 175));
-        public static readonly Color DayHead = P(C(205, 218, 234), C(205, 218, 234));
-        public static readonly Color DayHeadToday = P(C(255, 224, 130), C(255, 224, 130));
+        public static readonly Color DayHead = P(C(205, 218, 234), C(228, 233, 241));
+        public static readonly Color DayHeadToday = P(C(255, 224, 130), C(255, 232, 160));
         public static readonly Color RowHead = P(C(205, 218, 234), C(238, 241, 246));
         public static readonly Color RowHeadToday = P(C(255, 224, 130), C(255, 240, 200));
         public static readonly Color CellBack = P(Color.White, Color.White);
@@ -54,8 +54,11 @@ namespace Arbeitsplan.Win
         public static readonly Color HeadText = P(Color.Black, C(45, 55, 75));
         public static readonly Color HeadTextCollapsed = P(C(70, 70, 70), C(95, 105, 125));
         public static readonly Color Arrow = P(C(70, 80, 100), C(130, 140, 158));
-        public static readonly Color DayWeekday = P(Color.Black, Color.Black);
-        public static readonly Color DayDate = P(Color.Black, Color.Black);
+        public static readonly Color DayWeekday = P(Color.Black, C(35, 45, 65));
+        public static readonly Color DayDate = P(Color.Black, C(125, 133, 148));
+        public static readonly Color DayTodayText = P(Color.Black, C(175, 100, 0));
+        public static readonly Color DayLine = P(C(205, 218, 234), C(205, 211, 222));          // nur moderner Look (Linie unter dem Tageskopf)
+        public static readonly Color DayLineToday = P(C(255, 224, 130), C(255, 175, 40));
         public static readonly Color Separator = P(C(200, 205, 215), C(200, 205, 215));   // Linie unter der LKZ-Zeile
         public static readonly Color LkzOn = P(C(150, 220, 150), C(150, 220, 150));
         public static readonly Color LkzText = P(Color.Black, Color.Black);
