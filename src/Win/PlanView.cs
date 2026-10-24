@@ -100,14 +100,14 @@ namespace Arbeitsplan.Win
             for (int i = 0; i < fore.Length; i++) fore[i] = Color.Black;
             foreach (ColorSpan sp in c.Cur.Spans)
                 for (int i = sp.Start; i < sp.Start + sp.Length && i < fore.Length; i++) fore[i] = Rgb(sp.Rgb);
-            if (Equip != null)
-                foreach (Match m in EquipmentMatcher.Pattern.Matches(text))
-                {
-                    EquipmentInfo info = Equip.Get(m.Value);
-                    if (info == null) continue;     // nur Nummern, die in der Tabelle existieren; nur die Nummer wird eingefaerbt
-                    Color col = Rgb(Colors.Get(info.Status));
-                    for (int i = m.Index; i < m.Index + m.Length; i++) fore[i] = col;
-                }
+            // Erkannte Equipment-Nummer: Statusfarbe; Status unbekannt/nicht abrufbar -> Standard schwarz (Lesbarkeit).
+            foreach (Match m in EquipmentMatcher.Pattern.Matches(text))
+            {
+                EquipmentInfo info = null;
+                try { if (Equip != null) info = Equip.Get(m.Value); } catch (Exception) { /* Quelle nicht erreichbar */ }
+                Color col = info != null ? Rgb(Colors.Get(info.Status)) : Color.Black;
+                for (int i = m.Index; i < m.Index + m.Length; i++) fore[i] = col;
+            }
             hits = MarkQuery(text, mode);
             return Group(text, fore, mode);
         }
