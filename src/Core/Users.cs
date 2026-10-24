@@ -24,7 +24,7 @@ namespace Arbeitsplan.Core
                 case SortRows: return "Zeilen sortieren";
                 case Export: return "Exportieren (Bild, PDF, Paket)";
                 case ImportPackage: return "Pakete importieren / in Plan übernehmen";
-                case PackageAdmin: return "Pakete einrichten (Equipment, Bausteine, Standardschritte)";
+                case PackageAdmin: return "Pakete einrichten (Equipment, Bausteine)";
                 case UserCreate: return "Nutzer anlegen";
                 case UserEdit: return "Nutzer bearbeiten";
                 case UserDelete: return "Nutzer löschen";

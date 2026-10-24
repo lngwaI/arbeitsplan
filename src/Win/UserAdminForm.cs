@@ -59,7 +59,11 @@ namespace Arbeitsplan.Win
                 cb.CheckedChanged += delegate { if (!loading) RefreshPackages(); };
                 y += 24; rightBoxes[r] = cb; Controls.Add(cb);
             }
-            bSave.SetBounds(230, 460, 120, 30); bSave.Text = "Übernehmen";
+            int by = y + 10;                         // Buttons unter der Rechteliste; Dialoghoehe richtet sich nach der Anzahl der Rechte
+            ClientSize = new Size(640, by + 46);
+            list.Height = by - 20;
+            bNew.Top = bDel.Top = by;
+            bSave.SetBounds(230, by, 120, 30); bSave.Text = "Übernehmen";
             bSave.Click += delegate { Apply(); };
 
             Controls.AddRange(new Control[] { list, bNew, bDel, tFirst, tLast, tLogin, tKuerzel, bSave });
