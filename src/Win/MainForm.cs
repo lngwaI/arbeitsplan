@@ -61,7 +61,8 @@ namespace Arbeitsplan.Win
             StartPosition = FormStartPosition.CenterScreen;
             ClientSize = new Size(1280, 720);
             MinimumSize = new Size(900, 600);
-            Font = SystemFonts.MessageBoxFont;    // Segoe UI ab Vista, Tahoma auf XP
+            Font = Theme.UiFont();    // alt: Systemschrift; modern: Segoe UI, Fallback Tahoma (XP)
+            BackColor = Theme.Window;
             plainFont = FontCache.Get(Font.Name, Font.SizeInPoints, FontStyle.Regular, Font);
             KeyPreview = true;
 
@@ -335,8 +336,8 @@ namespace Arbeitsplan.Win
             int i = Array.IndexOf(FontNames, f.Name);
             cbFont.SelectedIndex = f.Name == plainFont.Name ? 0 : (i > 0 ? i : 0);
             cbSize.SelectedItem = ((int)Math.Round(f.SizeInPoints)).ToString();
-            btnBold.BackColor = f.Bold ? Color.FromArgb(190, 210, 240) : SystemColors.Control;
-            btnItalic.BackColor = f.Italic ? Color.FromArgb(190, 210, 240) : SystemColors.Control;
+            btnBold.BackColor = f.Bold ? Theme.ButtonOn : Theme.ButtonBack;
+            btnItalic.BackColor = f.Italic ? Theme.ButtonOn : Theme.ButtonBack;
             syncingFormat = false;
         }
 
@@ -374,7 +375,7 @@ namespace Arbeitsplan.Win
             {
                 DateTime d = start.AddDays(c);
                 dateLabels[c].Text = d.ToString("ddd, dd.MM.yyyy", De);
-                dateLabels[c].BackColor = d == DateTime.Today ? Color.FromArgb(255, 224, 130) : Color.FromArgb(205, 218, 234);
+                dateLabels[c].BackColor = d == DateTime.Today ? Theme.DayHeadToday : Theme.DayHead;
             }
             int selRow = -1; DateTime selDay = DateTime.MinValue;
             if (view.Selected != null && view.Selected.RowIndex < rowInfo.Count) { selRow = rowInfo[view.Selected.RowIndex].Id; selDay = view.Selected.Day; }
@@ -553,7 +554,7 @@ namespace Arbeitsplan.Win
             loadingEditor = true;
             bool today = c.Day.Date == DateTime.Today;
             bool weekend = c.Day.DayOfWeek == DayOfWeek.Saturday || c.Day.DayOfWeek == DayOfWeek.Sunday;
-            Color back = today ? Color.FromArgb(255, 250, 230) : (weekend ? Color.FromArgb(244, 246, 250) : Color.White);
+            Color back = today ? Theme.CellBackToday : (weekend ? Theme.CellBackWeekend : Theme.CellBack);
             edContent.BackColor = back;
             edContent.Text = c.Cur.Content;
             edContent.SelectAll(); edContent.SelectionFont = plainFont; edContent.SelectionColor = Color.Black;
@@ -565,7 +566,7 @@ namespace Arbeitsplan.Win
                 edContent.SelectionColor = Color.FromArgb((sp.Rgb >> 16) & 255, (sp.Rgb >> 8) & 255, sp.Rgb & 255);
             }
             edContent.Select(edContent.TextLength, 0);
-            for (int s = 0; s < 3; s++) { edPpl[s].Text = Win(c.Cur.People[s]); edPpl[s].BackColor = PlanView.ShiftBack[s]; }
+            for (int s = 0; s < 3; s++) { edPpl[s].Text = Win(c.Cur.People[s]); edPpl[s].BackColor = Theme.ShiftBack[s]; }
             loadingEditor = false;
             SyncFormat();
         }

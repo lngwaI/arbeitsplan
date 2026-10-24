@@ -5,5 +5,6 @@ set CSC=%WINDIR%\Microsoft.NET\Framework\v4.0.30319\csc.exe
 if not exist "%CSC%" set CSC=%WINDIR%\Microsoft.NET\Framework64\v4.0.30319\csc.exe
 if not exist bin mkdir bin
 copy /y config\statuscolors.ini bin\ >nul
+if exist config\theme.ini copy /y config\theme.ini bin\ >nul
 "%CSC%" /nologo /target:winexe /platform:x86 /codepage:65001 /optimize+ /out:bin\Arbeitsplan.exe /r:System.Windows.Forms.dll /r:System.Drawing.dll src\Core\*.cs src\Win\*.cs
 if errorlevel 1 (echo BUILD FEHLER) else (echo OK bin\Arbeitsplan.exe)

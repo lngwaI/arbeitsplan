@@ -29,11 +29,10 @@ namespace Arbeitsplan.Win
     // Nur beim Bearbeiten legt MainForm Eingabefelder ueber Inhalt und Kuerzel des aktiven Blocks.
     class PlanView : Control
     {
-        public const int HeadH = 24, LkzH = 22, LW = 26, Pad = 4, Gap = 4, TP = 3, TV = 3, ShiftLines = 3;
-        public static readonly Color[] ShiftLabel = { Color.FromArgb(255, 225, 130), Color.FromArgb(255, 190, 130), Color.FromArgb(150, 175, 225) };
-        public static readonly Color[] ShiftBack = { Color.FromArgb(255, 248, 225), Color.FromArgb(255, 240, 225), Color.FromArgb(232, 238, 250) };
+        public const int TP = 3, TV = 3, ShiftLines = 3;
+        public static readonly int HeadH = Theme.HeadH, LkzH = Theme.LkzH, LW = Theme.LW, Pad = Theme.Pad, Gap = Theme.Gap;
         static readonly Regex Token = new Regex(@"[^\s,;/]+", RegexOptions.Compiled);
-        static readonly Color Yellow = Color.FromArgb(255, 235, 59), Green = Color.FromArgb(170, 235, 170), LkzGreen = Color.FromArgb(150, 220, 150);
+        static readonly Color Yellow = Color.FromArgb(255, 235, 59), Green = Color.FromArgb(170, 235, 170);
 
         public List<RowInfo> Rows = new List<RowInfo>();
         public List<CellData> Cells = new List<CellData>();
@@ -58,7 +57,7 @@ namespace Arbeitsplan.Win
             Font = f;
             bold = new Font(f, FontStyle.Bold);
             SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.UserPaint | ControlStyles.ResizeRedraw, true);
-            BackColor = SystemColors.Control;
+            BackColor = Theme.Window;
         }
 
         public int ColLeft(int col) { return Pad + col * (ColW + Gap); }
@@ -248,9 +247,9 @@ namespace Arbeitsplan.Win
         {
             bool today = c.Day.Date == DateTime.Today;
             bool weekend = c.Day.DayOfWeek == DayOfWeek.Saturday || c.Day.DayOfWeek == DayOfWeek.Sunday;
-            Color headBack = today ? Color.FromArgb(255, 224, 130) : Color.FromArgb(205, 218, 234);
-            Color back = today ? Color.FromArgb(255, 250, 230) : (weekend ? Color.FromArgb(244, 246, 250) : Color.White);
-            Color border = c.Editing ? Color.FromArgb(255, 140, 0) : (c == Selected ? Color.FromArgb(40, 100, 200) : Color.FromArgb(150, 160, 175));
+            Color headBack = today ? Theme.DayHeadToday : Theme.DayHead;
+            Color back = today ? Theme.CellBackToday : (weekend ? Theme.CellBackWeekend : Theme.CellBack);
+            Color border = c.Editing ? Color.FromArgb(255, 140, 0) : (c == Selected ? Color.FromArgb(40, 100, 200) : Theme.CellBorder);
             RowInfo ri = Rows[c.RowIndex];
 
             bool collapsed = Collapsed[c.RowIndex];
@@ -264,7 +263,7 @@ namespace Arbeitsplan.Win
             int ax = c.RHead.Right - 15, ay = c.RHead.Y + 8;
             Point[] tri = collapsed ? new Point[] { new Point(ax + 1, ay - 1), new Point(ax + 1, ay + 8), new Point(ax + 6, ay + 4) }
                                     : new Point[] { new Point(ax - 1, ay + 1), new Point(ax + 7, ay + 1), new Point(ax + 3, ay + 6) };
-            using (SolidBrush ab = new SolidBrush(Color.FromArgb(70, 80, 100))) g.FillPolygon(ab, tri);
+            using (SolidBrush ab = new SolidBrush(Theme.Arrow)) g.FillPolygon(ab, tri);
 
             int right = 18 + (c.Editing ? 20 : 0);                                   // Platz fuer Pfeil (+ Stift im Bearbeitungsmodus)
             Rectangle nr = new Rectangle(c.RHead.X + 3, c.RHead.Y, c.RHead.Width - 6 - right, c.RHead.Height);
@@ -274,18 +273,18 @@ namespace Arbeitsplan.Win
                 if (filled)   // zugeklappt, aber Inhalt vorhanden: Hinweispunkt vor dem Pfeil
                     using (SolidBrush db = new SolidBrush(Color.FromArgb(215, 100, 0))) g.FillEllipse(db, c.RHead.Right - 29, c.RHead.Y + 8, 8, 8);
                 nr.Width -= filled ? 12 : 0;
-                TextRenderer.DrawText(g, ri.Name, bold, nr, Color.FromArgb(70, 70, 70), tf | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
+                TextRenderer.DrawText(g, ri.Name, bold, nr, Theme.HeadTextCollapsed, tf | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
                 return;
             }
-            TextRenderer.DrawText(g, ri.Name, bold, nr, Color.Black, tf | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
+            TextRenderer.DrawText(g, ri.Name, bold, nr, Theme.HeadText, tf | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
             if (c.Editing && Pencil != null) g.DrawImage(Pencil, c.RHead.Right - 38, c.RHead.Y + 3, 18, 18);
 
             if (ri.HasLkz)
             {
-                Fill(g, c.Lkz ? LkzGreen : back, c.RLkz);
-                using (Pen p = new Pen(Color.FromArgb(200, 205, 215))) g.DrawLine(p, c.RLkz.X, c.RLkz.Bottom - 1, c.RLkz.Right, c.RLkz.Bottom - 1);
+                Fill(g, c.Lkz ? Theme.LkzOn : back, c.RLkz);
+                using (Pen p = new Pen(Theme.Separator)) g.DrawLine(p, c.RLkz.X, c.RLkz.Bottom - 1, c.RLkz.Right, c.RLkz.Bottom - 1);
                 Rectangle lr = new Rectangle(c.RLkz.X + TP, c.RLkz.Y, c.RLkz.Width - TP, c.RLkz.Height);
-                TextRenderer.DrawText(g, "LKZ gemessen?", Font, lr, Color.Black, tf | TextFormatFlags.VerticalCenter);
+                TextRenderer.DrawText(g, "LKZ gemessen?", Font, lr, Theme.LkzText, tf | TextFormatFlags.VerticalCenter);
                 int tw = TextRenderer.MeasureText(g, "LKZ gemessen?", Font, new Size(1000, 100), tf).Width;
                 CheckBoxRenderer.DrawCheckBox(g, new Point(c.RLkz.X + TP + tw + 6, c.RLkz.Y + (c.RLkz.Height - 13) / 2), c.Lkz ? CheckBoxState.CheckedNormal : CheckBoxState.UncheckedNormal);
             }
@@ -293,9 +292,9 @@ namespace Arbeitsplan.Win
             if (!c.Editing) c.CB.Draw(g, c.RContent.X + TP, c.RContent.Y + TV);
             for (int s = 0; s < 3; s++)
             {
-                Fill(g, ShiftLabel[s], c.RLbl[s]);
-                Fill(g, ShiftBack[s], c.RPpl[s]);
-                TextRenderer.DrawText(g, ri.Labels[s], bold, new Rectangle(c.RLbl[s].X, c.RLbl[s].Y + 1, c.RLbl[s].Width, c.RLbl[s].Height), Color.Black, tf | TextFormatFlags.HorizontalCenter);
+                Fill(g, Theme.ShiftLabel[s], c.RLbl[s]);
+                Fill(g, Theme.ShiftBack[s], c.RPpl[s]);
+                TextRenderer.DrawText(g, ri.Labels[s], bold, new Rectangle(c.RLbl[s].X, c.RLbl[s].Y + 1, c.RLbl[s].Width, c.RLbl[s].Height), Theme.ShiftLabelText, tf | TextFormatFlags.HorizontalCenter);
                 if (!c.Editing) c.PB[s].Draw(g, c.RPpl[s].X + TP, c.RPpl[s].Y + TV);
             }
         }
