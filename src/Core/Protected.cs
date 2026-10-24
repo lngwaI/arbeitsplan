@@ -23,7 +23,15 @@ namespace Arbeitsplan.Core
             }
         }
 
+        // Gruppenrichtlinie "FIPS-konforme Algorithmen" sperrt die hier genutzten Managed-Klassen.
+        static CryptographicException Fips() { return new CryptographicException("Verschlüsselung auf diesem PC nicht verfügbar (FIPS-Richtlinie)."); }
+
         public static byte[] Protect(string text, string password)
+        {
+            try { return ProtectCore(text, password); } catch (InvalidOperationException) { throw Fips(); }
+        }
+
+        static byte[] ProtectCore(string text, string password)
         {
             if (string.IsNullOrEmpty(password)) throw new ArgumentException("Passwort fehlt.");
             byte[] salt = new byte[16], iv = new byte[16], enc, mac, cipher;
@@ -51,6 +59,11 @@ namespace Arbeitsplan.Core
         // Wirft CryptographicException bei falschem Passwort, Manipulation oder fremdem Format (bewusst ohne Unterscheidung).
         public static string Unprotect(byte[] blob, string password)
         {
+            try { return UnprotectCore(blob, password); } catch (InvalidOperationException) { throw Fips(); }
+        }
+
+        static string UnprotectCore(byte[] blob, string password)
+        {
             if (blob == null || blob.Length < 4 + 16 + 16 + 16 + 32 || string.IsNullOrEmpty(password)) throw new CryptographicException("Ungültige Datei.");
             for (int i = 0; i < 4; i++) if (blob[i] != Magic[i]) throw new CryptographicException("Ungültige Datei.");
             byte[] salt = new byte[16], iv = new byte[16], enc, mac;
@@ -73,7 +86,13 @@ namespace Arbeitsplan.Core
             }
         }
 
-        public static void Save(string path, string text, string password) { File.WriteAllBytes(path, Protect(text, password)); }
+        public static void Save(string path, string text, string password)
+        {
+            string tmp = path + ".tmp";   // erst vollstaendig schreiben, dann ersetzen (Absturz beim Schreiben laesst die alte Datei heil)
+            File.WriteAllBytes(tmp, Protect(text, password));
+            if (File.Exists(path)) File.Delete(path);
+            File.Move(tmp, path);
+        }
         public static string Load(string path, string password) { return Unprotect(File.ReadAllBytes(path), password); }
     }
 }

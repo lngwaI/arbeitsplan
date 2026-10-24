@@ -130,10 +130,12 @@ namespace Arbeitsplan.Core
                     foreach (EquipAssign a in s.Equipment)
                     {
                         w.WriteStartElement("Equipment");
-                        List<string> wahl = new List<string>();
-                        foreach (EquipChoice ch in a.Choices) wahl.Add(ch.Short + "|" + ch.Id);
-                        w.WriteAttributeString("kurz", a.Short); w.WriteAttributeString("wahl", string.Join(";", wahl.ToArray()));
+                        w.WriteAttributeString("kurz", a.Short);
                         w.WriteAttributeString("abwechselnd", a.Alternate ? "1" : "0"); w.WriteAttributeString("ausweich", a.Fallback); w.WriteAttributeString("notiz", a.Note);
+                        foreach (EquipChoice ch in a.Choices)   // je Geraet ein Element: beliebige Zeichen in Kurzname/ID moeglich
+                        {
+                            w.WriteStartElement("Geraet"); w.WriteAttributeString("kurz", ch.Short); w.WriteAttributeString("id", ch.Id); w.WriteEndElement();
+                        }
                         w.WriteEndElement();
                     }
                     w.WriteEndElement();
@@ -169,6 +171,8 @@ namespace Arbeitsplan.Core
             foreach (XmlNode c in n.ChildNodes) { XmlElement e = c as XmlElement; if (e != null) yield return e; }
         }
 
+        static int Clamp(int v, int lo, int hi) { return v < lo ? lo : (v > hi ? hi : v); }
+
         public static Package Load(string path)
         {
             // Gehaertet: keine DTD/externen Entitaeten, keine Aufloesung externer Quellen, Groessenlimit (10 MB).
@@ -190,18 +194,25 @@ namespace Arbeitsplan.Core
                 {
                     PackageStep s = new PackageStep();
                     s.Title = e.GetAttribute("titel"); s.Source = e.GetAttribute("quelle"); s.Row = e.GetAttribute("block");
-                    s.Day = Math.Max(1, ToInt(e.GetAttribute("tag"), 1)); s.Count = Math.Max(1, ToInt(e.GetAttribute("anzahl"), 1));
-                    s.Interval = Math.Max(1, ToInt(e.GetAttribute("abstand"), 1)); s.StartNo = ToInt(e.GetAttribute("startnr"), 1);
+                    s.Day = Clamp(ToInt(e.GetAttribute("tag"), 1), 1, 366); s.Count = Clamp(ToInt(e.GetAttribute("anzahl"), 1), 1, 99);
+                    s.Interval = Clamp(ToInt(e.GetAttribute("abstand"), 1), 1, 30); s.StartNo = Clamp(ToInt(e.GetAttribute("startnr"), 1), 0, 999);
                     s.Text = e.GetAttribute("text"); s.Note = e.GetAttribute("notiz");
                     foreach (XmlElement q in Elements(e))
                         if (q.Name == "Equipment")
                         {
                             EquipAssign a = new EquipAssign();
                             a.Short = q.GetAttribute("kurz");
-                            foreach (string w in q.GetAttribute("wahl").Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries))
+                            foreach (XmlElement g in Elements(q))
+                                if (g.Name == "Geraet") a.Choices.Add(new EquipChoice(g.GetAttribute("kurz"), g.GetAttribute("id")));
+                            if (a.Choices.Count == 0)   // aeltere Pakete: "wahl" (Kurz|Id;...) bzw. "ids" (Id|Id|...)
                             {
-                                string[] kv = w.Split('|');
-                                a.Choices.Add(kv.Length > 1 ? new EquipChoice(kv[0], kv[1]) : new EquipChoice(a.Short, w));
+                                foreach (string w in q.GetAttribute("wahl").Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries))
+                                {
+                                    string[] kv = w.Split('|');
+                                    a.Choices.Add(kv.Length > 1 ? new EquipChoice(kv[0], kv[1]) : new EquipChoice(a.Short, w));
+                                }
+                                if (a.Choices.Count == 0)
+                                    foreach (string id in q.GetAttribute("ids").Split(new[] { '|' }, StringSplitOptions.RemoveEmptyEntries)) a.Choices.Add(new EquipChoice(a.Short, id));
                             }
                             a.Alternate = q.GetAttribute("abwechselnd") == "1"; a.Fallback = q.GetAttribute("ausweich"); a.Note = q.GetAttribute("notiz");
                             s.Equipment.Add(a);
@@ -211,7 +222,7 @@ namespace Arbeitsplan.Core
                 else if (e.Name == "Block")
                 {
                     PackageBlock b = new PackageBlock();
-                    b.Day = Math.Max(1, ToInt(e.GetAttribute("tag"), 1)); b.Row = e.GetAttribute("zeile"); b.Data.Lkz = e.GetAttribute("lkz") == "1";
+                    b.Day = Clamp(ToInt(e.GetAttribute("tag"), 1), 1, 366); b.Row = e.GetAttribute("zeile"); b.Data.Lkz = e.GetAttribute("lkz") == "1";
                     foreach (XmlElement c in Elements(e))
                     {
                         if (c.Name == "Inhalt") b.Data.Content = c.InnerText.Replace("\r\n", "\n");
@@ -219,8 +230,9 @@ namespace Arbeitsplan.Core
                         else if (c.Name == "Format")
                         {
                             FormatSpan f = new FormatSpan();
-                            f.Start = ToInt(c.GetAttribute("start"), 0); f.Length = ToInt(c.GetAttribute("laenge"), 0); f.Rgb = ToInt(c.GetAttribute("farbe"), 0);
+                            f.Start = Clamp(ToInt(c.GetAttribute("start"), 0), 0, 1000000); f.Length = Clamp(ToInt(c.GetAttribute("laenge"), 0), 0, 1000000); f.Rgb = ToInt(c.GetAttribute("farbe"), 0) & 0xFFFFFF;
                             float.TryParse(c.GetAttribute("groesse"), NumberStyles.Float, CultureInfo.InvariantCulture, out f.Size);
+                            if (!(f.Size >= 6f && f.Size <= 72f)) f.Size = 0;   // NaN/unsinnig: Standardgroesse
                             f.Bold = c.GetAttribute("fett") == "1"; f.Italic = c.GetAttribute("kursiv") == "1";
                             f.Font = c.GetAttribute("schrift").Length > 0 ? c.GetAttribute("schrift") : null;
                             b.Data.Spans.Add(f);

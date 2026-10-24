@@ -45,7 +45,6 @@ namespace Arbeitsplan.Win
         public int HitCount, ColW;
         public Action<CellData> CellActivated, LkzClicked;
         public Action<int> RowToggled;                      // Klick auf den Kopf einer Zeile: ein-/ausklappen (nur lokal)
-        public Action SelectionChanged;
         public bool[] Collapsed = new bool[0];              // je Zeile: zugeklappt (nur Kopfleiste sichtbar)
         public event EventHandler LayoutDone;
 
@@ -332,7 +331,7 @@ namespace Arbeitsplan.Win
             base.OnMouseDown(e);
             CellData c = CellAt(e.Location);
             if (c == null) return;
-            if (c != Selected) { Selected = c; Invalidate(); if (SelectionChanged != null) SelectionChanged(); }
+            if (c != Selected) { Selected = c; Invalidate(); }
             if (e.Clicks != 1 || e.Button != MouseButtons.Left) return;
             if (c.RHead.Contains(e.Location)) { if (RowToggled != null) RowToggled(c.RowIndex); return; }
             if (!Collapsed[c.RowIndex] && Rows[c.RowIndex].HasLkz && c.RLkz.Contains(e.Location) && LkzClicked != null) LkzClicked(c);

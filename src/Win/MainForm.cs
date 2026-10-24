@@ -60,7 +60,7 @@ namespace Arbeitsplan.Win
 #if TESTHOOKS
             Text = "Arbeitsplan (Prototyp, lokale Testdaten)";
 #else
-            Text = "Arbeitsplan";
+            Text = "Arbeitsplan (Testdaten, keine Speicherung)";
 #endif
             StartPosition = FormStartPosition.CenterScreen;
             ClientSize = new Size(1280, 720);
@@ -74,14 +74,20 @@ namespace Arbeitsplan.Win
             MemoryStore ms = MemoryStore.Sample(start);
             ms.FailSaves = failSaves;
             store = ms;
+#if TESTHOOKS
             locks.Acquire(start.AddDays(1), 1, "Paula Werk");   // Mock: Dienstag, Zeile 1 ist "in Bearbeitung"
+#endif
 
             me = users.FindByLogin(login);
             if (me == null)
             {
                 // Annahme (Prototyp): unbekannter Windows-Nutzer = Produktion mit Windows-Namen.
                 me = new User(); me.Login = login;
+#if TESTHOOKS
                 UserDb.ApplyPackage(me.Rights, users.Package("Produktion"));
+#else
+                UserDb.ApplyPackage(me.Rights, users.Package("Leser"));   // Release: unbekannte Nutzer nur lesend
+#endif
             }
 
             view = new PlanView(Font);

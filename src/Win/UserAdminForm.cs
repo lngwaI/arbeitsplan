@@ -24,7 +24,7 @@ namespace Arbeitsplan.Win
         {
             this.db = db; this.me = me;
             Text = "Nutzerverwaltung";
-            Font = SystemFonts.MessageBoxFont;
+            Font = Theme.UiFont();
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MaximizeBox = MinimizeBox = false;
             StartPosition = FormStartPosition.CenterParent;

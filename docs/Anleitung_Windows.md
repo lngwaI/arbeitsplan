@@ -2,7 +2,7 @@
 
 ## Starten
 - **Release** (`release\Arbeitsplan.exe`): Doppelklick. Läuft ohne Installation und ohne weitere Dateien (Win 10/11; ab XP SP3 mit .NET Framework 4.0). Angemeldet wird mit dem Windows-Namen.
-  Im Prototyp erhält ein unbekannter Windows-Nutzer das Rechtepaket "Produktion" (später per IT-Entscheidung: Leser/abweisen). Daten liegen nur im Speicher (Testdaten), nichts wird gespeichert.
+  Im Release gibt es keine Testnutzer: jeder Windows-Nutzer erhält nur Leserechte (Ansehen, Export). Zum Vorführen von Bearbeiten, Rechten und Katalog den Test-Build verwenden. Daten sind Testdaten und liegen nur im Speicher.
 - **Test-Build** (`bin\Arbeitsplan.exe`, nur Entwicklung): zusätzliche Schalter
   - `--user mmuster` (Admin) | `ebeispiel` (Leser) | `pwerk` (Produktion)
   - `--nosave` simuliert einen PC ohne Speichern

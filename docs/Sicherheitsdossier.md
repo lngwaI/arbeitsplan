@@ -28,7 +28,7 @@ Anzeige und Eingabe eines Wochenplans (WinForms). Prototyp: Daten nur im Arbeits
 `Core/Protected.cs`: AES-256-CBC, Schlüssel aus Passwort (PBKDF2, 100.000 Runden, zufälliges Salz), HMAC-SHA256 (Encrypt-then-MAC, zeitkonstanter Vergleich). Das Passwort steht nicht im Programm. Ohne Passwort ist die Datei weder lesbar noch unbemerkt änderbar. Ergänzend sollten NTFS-Rechte gesetzt werden (nur Admin schreibt).
 
 ## Bekannte Grenzen (offen)
-- Nutzer-DB/Rechte und Testnutzer (Beispielnamen) sind im Prototyp im Programm hinterlegt; Zentralisierung nach IT-Klärung.
+- Release: keine Testnutzer, keine Mock-Sperre; unbekannte Windows-Nutzer sind Leser (nur Ansehen/Export). Nutzer-DB und Rechte zentral folgen nach IT-Klärung.
 - Keine Authentifizierung über den Windows-Namen hinaus; kein Audit-Trail; Server/Sperren zentral folgen.
 - Code-Signatur der exe: durch die IT mit dem Firmenzertifikat.
 

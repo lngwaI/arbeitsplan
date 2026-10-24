@@ -12,6 +12,14 @@ namespace Arbeitsplan.Win
             return null;
         }
 
+#if !TESTHOOKS
+        static void Fatal()
+        {
+            try { MessageBox.Show("Es ist ein unerwarteter Fehler aufgetreten. Nicht gespeicherte Eingaben können verloren gehen.\nDas Programm wird beendet.", "Arbeitsplan", MessageBoxButtons.OK, MessageBoxIcon.Error); }
+            finally { Environment.Exit(1); }
+        }
+#endif
+
         // Aufruf: Arbeitsplan.exe [--user <login>] [--nosave] [--4x3 | --size BxH]
         //   Test:  --shot <png> [--size BxH] [--edit spalte,zeile]  (rendert die Ansicht als Bild und beendet)
         [STAThread]
@@ -58,7 +66,11 @@ namespace Arbeitsplan.Win
                 bmp.Save(shot, System.Drawing.Imaging.ImageFormat.Png);
             }
 #else
-            Application.Run(new MainForm(Environment.UserName, false));   // Release: keine Testschalter, Nutzer = Windows-Anmeldename
+            // Release: keine Testschalter, Nutzer = Windows-Anmeldename, neutrale Fehlermeldung statt Stacktrace-Dialog
+            Application.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException);
+            Application.ThreadException += delegate { Fatal(); };
+            AppDomain.CurrentDomain.UnhandledException += delegate { Fatal(); };
+            Application.Run(new MainForm(Environment.UserName, false));
 #endif
         }
     }

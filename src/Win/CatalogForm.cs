@@ -16,6 +16,7 @@ namespace Arbeitsplan.Win
         // Positionen
         readonly ListBox lbPos = new ListBox();
         readonly TextBox pName = new TextBox(), pShort = new TextBox(), pIds = new TextBox();
+        readonly CheckBox pRot = new CheckBox();
         // Bausteine
         readonly ListBox lbBau = new ListBox();
         readonly TextBox bName = new TextBox(), bText = new TextBox();
@@ -32,7 +33,7 @@ namespace Arbeitsplan.Win
         {
             cat = catalog.Clone(); this.rowNames = rowNames;
             Text = "Equipment-Positionen und Bausteine einrichten";
-            Font = SystemFonts.MessageBoxFont;
+            Font = Theme.UiFont();
             FormBorderStyle = FormBorderStyle.FixedDialog; MaximizeBox = MinimizeBox = false;
             StartPosition = FormStartPosition.CenterParent;
             ClientSize = new Size(760, 520);
@@ -73,6 +74,8 @@ namespace Arbeitsplan.Win
             pIds.Multiline = true; pIds.AcceptsReturn = true; pIds.ScrollBars = ScrollBars.Vertical; pIds.SetBounds(260, 136, 460, 200); p.Controls.Add(pIds);
             Label hint = L("Mehrere Geräte pro Position: im Paket-Editor wird das konkrete Gerät gewählt; ein Platzhalter (z. B. H1-X-020X) steht nur optional zur Verfügung.", 260, 344); hint.AutoSize = false; hint.SetBounds(260, 344, 460, 40); p.Controls.Add(hint);
             pName.TextChanged += delegate { if (!loading && lbPos.SelectedItem != null) { ((EquipPosition)lbPos.SelectedItem).Name = pName.Text; Refresh(lbPos); } };
+            pRot.Text = "Abwechselnd (reihum) im Paket-Editor erlauben"; pRot.AutoSize = true; pRot.Location = new Point(430, 84); p.Controls.Add(pRot);
+            pRot.CheckedChanged += delegate { if (!loading && lbPos.SelectedItem != null) ((EquipPosition)lbPos.SelectedItem).AllowRotation = pRot.Checked; };
             pShort.TextChanged += delegate { if (!loading && lbPos.SelectedItem != null) ((EquipPosition)lbPos.SelectedItem).Short = pShort.Text.Trim(); };
             pIds.TextChanged += delegate
             {
@@ -87,7 +90,7 @@ namespace Arbeitsplan.Win
         {
             EquipPosition e = lbPos.SelectedItem as EquipPosition;
             loading = true;
-            pName.Text = e != null ? e.Name : ""; pShort.Text = e != null ? e.Short : "";
+            pName.Text = e != null ? e.Name : ""; pShort.Text = e != null ? e.Short : ""; pRot.Checked = e != null && e.AllowRotation;
             pIds.Text = e != null ? string.Join("\r\n", e.Ids.ToArray()) : "";
             loading = false;
         }

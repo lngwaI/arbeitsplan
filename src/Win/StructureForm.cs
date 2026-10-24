@@ -19,7 +19,7 @@ namespace Arbeitsplan.Win
         {
             this.canNames = canNames; this.canHeight = canHeight; this.canSort = canSort;
             Text = "Blockstruktur";
-            Font = SystemFonts.MessageBoxFont;
+            Font = Theme.UiFont();
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MaximizeBox = MinimizeBox = false;
             StartPosition = FormStartPosition.CenterParent;

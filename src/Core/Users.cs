@@ -108,9 +108,11 @@ namespace Arbeitsplan.Core
             db.Packages.Add(new RightsPackage("Leser", Perm.Read, Perm.Export));
             db.Packages.Add(new RightsPackage("Produktion", Perm.Read, Perm.EditText, Perm.DeleteText, Perm.AddText, Perm.Format, Perm.Export, Perm.ImportPackage));
             db.Packages.Add(new RightsPackage("Admin", Perm.All));
+#if TESTHOOKS
             db.Add("Max", "Mustermann", "mmuster", "Admin").Kuerzel = "MUMA";
             db.Add("Erika", "Beispiel", "ebeispiel", "Leser").Kuerzel = "BEER";
             db.Add("Paula", "Werk", "pwerk", "Produktion").Kuerzel = "WEPA";
+#endif
             return db;
         }
     }

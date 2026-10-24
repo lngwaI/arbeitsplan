@@ -17,6 +17,8 @@ namespace Arbeitsplan.Win
             SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.UserPaint | ControlStyles.ResizeRedraw, true);
         }
 
+        protected override void Dispose(bool disposing) { if (disposing) bold.Dispose(); base.Dispose(disposing); }
+
         protected override void OnTextChanged(EventArgs e) { base.OnTextChanged(e); Invalidate(); }
 
         protected override void OnPaint(PaintEventArgs e)

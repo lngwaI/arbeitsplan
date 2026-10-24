@@ -37,7 +37,7 @@ namespace Arbeitsplan.Win
         {
             this.store = store; this.canApply = canApply; this.canAdmin = canAdmin;
             Text = "Paket-Editor";
-            Font = SystemFonts.MessageBoxFont;
+            Font = Theme.UiFont();
             StartPosition = FormStartPosition.CenterParent;
             ClientSize = new Size(1190, 700);
             MinimumSize = new Size(1190, 700);
@@ -366,7 +366,7 @@ namespace Arbeitsplan.Win
                 foreach (EquipChoice c in cat.Interchangeable(a.Short)) cbFb.Items.Add(c.Short == a.Short ? c.Id : c.Short + " " + c.Id);
                 chkAlt.Text = "abwechselnd"; chkAlt.SetBounds(382, 4, 100, 20);
                 bool rot = pos != null && pos.AllowRotation;      // nur wo der Admin Rotation hinterlegt hat (z. B. Abfüllskid)
-                chkAlt.Visible = btnAlt.Visible = rot; if (!rot) a.Alternate = false;
+                chkAlt.Visible = btnAlt.Visible = rot || a.Alternate;   // bereits gesetzte Rotation (Import) bleibt sicht- und aenderbar, nichts wird still veraendert
                 btnAlt.Text = "…"; btnAlt.SetBounds(486, 3, 30, 22);
                 TextBox note = new TextBox(); note.SetBounds(668, 3, 170, 22); Ui.SimpleMenu(note);
                 Button x = new Button(); x.Text = "x"; x.SetBounds(844, 3, 24, 22); x.Click += delegate { remove(a); };
@@ -441,7 +441,7 @@ namespace Arbeitsplan.Win
         {
             this.offered = offered; this.ownShort = ownShort;
             Text = "Abwechselnd verwenden";
-            Font = SystemFonts.MessageBoxFont;
+            Font = Theme.UiFont();
             FormBorderStyle = FormBorderStyle.FixedDialog; MaximizeBox = MinimizeBox = false; StartPosition = FormStartPosition.CenterParent;
             ClientSize = new Size(360, 400);
             Label l1 = new Label(); l1.Text = "Geräte ankreuzen, die sich abwechseln (A, B, A, B …). Angeboten werden alle Geräte, die laut Admin gleich eingesetzt werden können:"; l1.SetBounds(10, 8, 340, 48);

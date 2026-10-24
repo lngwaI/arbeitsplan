@@ -152,6 +152,7 @@ namespace Arbeitsplan.Core
             c.Bausteine.Add(Bau("Abfüllen", "", false, false, false, "AA", "AS", "BDS", "Schlauch"));
             c.Bausteine.Add(Bau("Freeze", "Freeze / Thaw", false, false, false, "FZ1", "FZ2", "FA", "Cycle"));
             c.Bausteine.Add(Bau("TFF Flush", "Suite 1", false, false, true, "TFF", "MH", "Pumpe", "VS", "Schlauch"));
+            c.Groups.Add(Grp("Freezetanks", "FZ1", "FZ2"));
             return c;
         }
 
