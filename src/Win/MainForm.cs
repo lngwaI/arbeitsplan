@@ -363,6 +363,7 @@ namespace Arbeitsplan.Win
             if (e.Control && (e.KeyCode == Keys.U || e.KeyCode == Keys.E || e.KeyCode == Keys.R || e.KeyCode == Keys.L || e.KeyCode == Keys.J)) { e.SuppressKeyPress = true; return; }
             if (e.Control && (e.KeyCode == Keys.B || e.KeyCode == Keys.I) && !me.Has(Perm.Format)) { e.SuppressKeyPress = true; return; }
             if ((e.Control && e.KeyCode == Keys.V) || (e.Shift && e.KeyCode == Keys.Insert)) { PastePlain(); e.SuppressKeyPress = true; }
+            if (e.Shift && !e.Control && e.KeyCode == Keys.Enter) { edContent.SelectedText = "\n"; e.SuppressKeyPress = true; }   // wie Enter (kein weicher Zeilenumbruch)
         }
 
         // ---------- Navigation ----------
@@ -691,7 +692,7 @@ namespace Arbeitsplan.Win
         static void ShowSaveError(Exception ex)
         {
             MessageBox.Show("Konnte nicht gespeichert werden.\n" + ex.Message +
-                "\n\nIhre Änderung ist NICHT verloren und bleibt im Editor sichtbar.\nSpeichern später erneut versuchen (Strg+S) oder mit Esc verwerfen.",
+                "\n\nIhre Änderung ist NICHT verloren und bleibt im Editor sichtbar.\nSpeichern später erneut versuchen (Strg+S) oder mit Esc beenden.",
                 "Speichern fehlgeschlagen", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
 
@@ -702,9 +703,11 @@ namespace Arbeitsplan.Win
             if (e.Control && e.KeyCode == Keys.S) { EndEdit(true); e.SuppressKeyPress = true; }
             else if (e.KeyCode == Keys.Escape)
             {
-                if (IsDirty(editCell) && MessageBox.Show("Änderungen verwerfen?", "Arbeitsplan", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
-                EndEdit(false);
                 e.SuppressKeyPress = true;
+                if (!IsDirty(editCell)) { EndEdit(false); return; }
+                DialogResult r = MessageBox.Show("Änderungen speichern?", "Arbeitsplan", MessageBoxButtons.YesNoCancel, MessageBoxIcon.Question);
+                if (r == DialogResult.Yes) EndEdit(true);          // schlaegt Speichern fehl, bleibt der Block im Editor
+                else if (r == DialogResult.No) EndEdit(false);
             }
         }
 

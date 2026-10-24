@@ -20,6 +20,6 @@
 ## Kurz testen
 1. Woche wechseln (« Woche, ‹ Tag, Heute, Tag ›, Woche »).
 2. Zeile auf-/zuklappen (Klick auf den Zeilenkopf); "(LKZ)" rot = noch zu messen, grün = gemessen.
-3. Doppelklick auf einen Block → Bearbeiten; Strg+S speichert, Esc verwirft. Formatleiste im Bearbeitungsmodus.
+3. Doppelklick auf einen Block → Bearbeiten; Strg+S speichert und beendet, Esc beendet (bei Änderungen Rückfrage: speichern Ja/Nein/Abbrechen); Enter und Umschalt+Enter = neue Zeile. Formatleiste im Bearbeitungsmodus.
 4. Suche (Strg+F), Enter springt zum nächsten Treffer; Groß-/Kleinschreibung egal.
 5. Menü Woche → Export (PNG/PDF/Zwischenablage/Paket); Menü Pakete → Paket-Editor.
