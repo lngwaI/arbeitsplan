@@ -279,9 +279,11 @@ namespace Arbeitsplan.Win
                     using (SolidBrush db = new SolidBrush(Color.FromArgb(215, 100, 0))) g.FillEllipse(db, c.RHead.Right - 29, c.RHead.Y + (c.RHead.Height - 7) / 2, 8, 8);
                 nr.Width -= filled ? 12 : 0;
                 TextRenderer.DrawText(g, ri.Name, bold, nr, Theme.HeadTextCollapsed, tf | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
+                LkzTag(g, c, ri, nr, tf);
                 return;
             }
             TextRenderer.DrawText(g, ri.Name, bold, nr, Theme.HeadText, tf | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
+            LkzTag(g, c, ri, nr, tf);
             if (c.Editing && Pencil != null) g.DrawImage(Pencil, c.RHead.Right - 38, c.RHead.Y + (c.RHead.Height - 17) / 2, 18, 18);
 
             if (ri.HasLkz)
@@ -305,6 +307,16 @@ namespace Arbeitsplan.Win
                 if (!c.Editing) c.PB[s].Draw(g, c.RPpl[s].X + TP, c.RPpl[s].Y + TV);
                 if (Theme.ShiftSep) using (Pen p = new Pen(Theme.ShiftLine)) g.DrawLine(p, c.RLbl[s].X, c.RLbl[s].Y, c.RPpl[s].Right - 1, c.RLbl[s].Y);
             }
+        }
+
+        // "(LKZ)" neben dem Zeilennamen: rot = noch zu messen, gruen = gemessen (nur Zeilen mit LKZ-Feld).
+        void LkzTag(Graphics g, CellData c, RowInfo ri, Rectangle nr, TextFormatFlags tf)
+        {
+            if (!ri.HasLkz) return;
+            int w = TextRenderer.MeasureText(g, ri.Name, bold, new Size(1000, 100), tf).Width;
+            int tw = TextRenderer.MeasureText(g, "(LKZ)", bold, new Size(1000, 100), tf).Width;
+            if (w + 6 + tw > nr.Width) return;
+            TextRenderer.DrawText(g, "(LKZ)", bold, new Rectangle(nr.X + w + 6, nr.Y, tw + 2, nr.Height), c.Lkz ? Color.FromArgb(30, 140, 60) : Color.FromArgb(200, 30, 30), tf | TextFormatFlags.VerticalCenter);
         }
 
         // ---------- Maus ----------
