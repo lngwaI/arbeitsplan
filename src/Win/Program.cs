@@ -34,6 +34,9 @@ namespace Arbeitsplan.Win
             f.Show();
             string edit = Arg(args, "--edit");
             if (edit != null) f.TestEdit(int.Parse(edit.Split(',')[0]), int.Parse(edit.Split(',')[1]));
+            if (Arg(args, "--search") != null) f.TestSearch(Arg(args, "--search"));
+            if (Arg(args, "--bench") != null) System.IO.File.WriteAllText(Arg(args, "--bench"), f.Bench(20).ToString("0.0") + " ms je Wechsel");
+            if (Arg(args, "--selftest") != null) System.IO.File.WriteAllText(Arg(args, "--selftest"), f.SelfTest());
             Form target = Array.IndexOf(args, "--users") >= 0 ? f.TestUsers() : f;
             for (int i = 0; i < 5; i++) { Application.DoEvents(); System.Threading.Thread.Sleep(100); }
             using (Bitmap bmp = new Bitmap(target.Width, target.Height))   // Bildschirmabzug (DrawToBitmap zeichnet RichTextBox nicht)

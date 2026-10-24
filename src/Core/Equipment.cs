@@ -32,14 +32,16 @@ namespace Arbeitsplan.Core
 
         public MockEquipmentProvider()
         {
-            Add("G2-F-1234-30", EquipStatus.Sterilisiert);
-            Add("G2-F-1900-12", EquipStatus.Gereinigt);
-            Add("G2-F-1750-02", EquipStatus.InProzess);
-            Add("G2-F-2010-01", EquipStatus.Freigabe);
-            Add("G2-F-1888-05", EquipStatus.Quarantaene);
-            Add("G2-F-1777-11", EquipStatus.Regeneriert);
-            Add("G2-F-1666-09", EquipStatus.NichtGereinigt);
-            Add("G2-F-1555-03", EquipStatus.NichtGereinigtOhneTimer);
+            Add("H1-X-0101", EquipStatus.Sterilisiert);
+            Add("H1-P-0101-05", EquipStatus.InProzess);
+            Add("H1-T-0102", EquipStatus.Gereinigt);
+            Add("H1-X-0103", EquipStatus.Freigabe);
+            Add("H1-F-0103-04", EquipStatus.Quarantaene);
+            Add("H1-T-0111", EquipStatus.Regeneriert);
+            Add("H1-T-0112", EquipStatus.NichtGereinigt);
+            Add("H1-T-0113", EquipStatus.NichtGereinigtOhneTimer);
+            Add("H2-T-0201", EquipStatus.InProzess);
+            Add("H2-F-0202-01", EquipStatus.Gereinigt);
         }
 
         void Add(string n, EquipStatus s) { table[n] = new EquipmentInfo(n, s, DateTime.Now); }
@@ -53,8 +55,8 @@ namespace Arbeitsplan.Core
 
     public static class EquipmentMatcher
     {
-        // Annahme: Nummer wie "G2-F-1234-30" (2 Zeichen, 1-2 Buchstaben, 3-5 Ziffern, 2 Ziffern).
-        public static readonly Regex Pattern = new Regex(@"\b[A-Z0-9]{2}-[A-Z]{1,2}-\d{3,5}-\d{2}\b", RegexOptions.Compiled);
+        // Schema: H<1/2>-<T/F/X/P>-<4 Ziffern> oder H<1/2>-<T/F/X/P>-<4 Ziffern>-<2 Ziffern> (z. B. H1-T-0111, H1-F-0103-04).
+        public static readonly Regex Pattern = new Regex(@"\bH[12]-[TFXP]-\d{4}(?:-\d{2})?\b", RegexOptions.Compiled);
     }
 
     // Status -> Farbe (0xRRGGBB), ueberschreibbar per statuscolors.ini ("Gereinigt=#7030A0").

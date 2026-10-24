@@ -6,9 +6,9 @@ namespace Arbeitsplan.Core
     public static class Perm
     {
         public const string Read = "Lesen", EditText = "TextAendern", DeleteText = "TextLoeschen", AddText = "TextHinzufuegen",
-            Format = "Format", EditNames = "BlockNamenAendern", EditHeight = "BlockhoeheAendern", UserCreate = "NutzerAnlegen", UserEdit = "NutzerBearbeiten", UserDelete = "NutzerLoeschen";
+            Format = "Format", SortRows = "ZeilenSortieren", EditNames = "BlockNamenAendern", EditHeight = "BlockhoeheAendern", UserCreate = "NutzerAnlegen", UserEdit = "NutzerBearbeiten", UserDelete = "NutzerLoeschen";
 
-        public static readonly string[] All = { Read, EditText, DeleteText, AddText, Format, EditNames, EditHeight, UserCreate, UserEdit, UserDelete };
+        public static readonly string[] All = { Read, EditText, DeleteText, AddText, Format, EditNames, EditHeight, SortRows, UserCreate, UserEdit, UserDelete };
 
         public static string Label(string r)
         {
@@ -21,6 +21,7 @@ namespace Arbeitsplan.Core
                 case Format: return "Farben / Textformat";
                 case EditNames: return "Blockname / F-S-N ändern, Zeile hinzufügen";
                 case EditHeight: return "Blockhöhe einstellen";
+                case SortRows: return "Zeilen sortieren";
                 case UserCreate: return "Nutzer anlegen";
                 case UserEdit: return "Nutzer bearbeiten";
                 case UserDelete: return "Nutzer löschen";
@@ -104,9 +105,9 @@ namespace Arbeitsplan.Core
             db.Packages.Add(new RightsPackage("Leser", Perm.Read));
             db.Packages.Add(new RightsPackage("Produktion", Perm.Read, Perm.EditText, Perm.DeleteText, Perm.AddText, Perm.Format));
             db.Packages.Add(new RightsPackage("Admin", Perm.All));
-            db.Add("Max", "Mustermann", "mmuster", "Admin").Kuerzel = "abc";
-            db.Add("Erika", "Beispiel", "ebeispiel", "Leser").Kuerzel = "ghi";
-            db.Add("Paula", "Werk", "pwerk", "Produktion").Kuerzel = "def";
+            db.Add("Max", "Mustermann", "mmuster", "Admin").Kuerzel = "MUMA";
+            db.Add("Erika", "Beispiel", "ebeispiel", "Leser").Kuerzel = "BEER";
+            db.Add("Paula", "Werk", "pwerk", "Produktion").Kuerzel = "WEPA";
             return db;
         }
     }

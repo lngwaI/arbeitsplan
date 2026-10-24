@@ -5,14 +5,14 @@ Wochenplan-Anzeige/-Eingabe für BioPharma-Betrieb. Vollständige Anforderungen:
 ## Stack (entschieden)
 - C# / WinForms, .NET Framework 4.0-API, x86, eine exe. Gebaut mit dem Windows-eigenen `csc` (kein SDK): `build.cmd` → `bin\Arbeitsplan.exe`.
 - Warum: läuft ohne Installation auf Win 10/11, ab XP SP3 mit .NET 4.0. Keine NuGet-/Fremdpakete.
-- Nur .NET-4.0-APIs, keine Segoe-UI-Pflicht (Systemschrift), kein `async`/`await`, kein C# > 5.
+- Nur .NET-4.0-APIs, Systemschrift, kein `async`/`await`, kein C# > 5 (csc 4.x lehnt neuere Syntax ab).
 - Mobile (Android/iOS): on hold. Später Server-API + Web-Client; deshalb `src/Core` ohne UI-Bezug halten.
 
 ## Struktur
-- `src/Core/` ohne `System.Windows.Forms`: `Model.cs` (`Entry` Inhalt+Kürzel je Schicht, `RowInfo` Name/F-S-N/Mindesthöhe je Zeile, `IDataStore`, `MemoryStore`+Testdaten), `Users.cs` (`Perm`-Rechte, User, Rechtepakete, `UserDb`, `ILockService`), `Equipment.cs` (`IEquipmentStatusProvider`+Mock, `EquipmentMatcher`, `StatusColors`).
-- `src/Win/`: `MainForm.cs` (Wochenansicht, Bearbeitungsmodus), `UserAdminForm.cs`, `Program.cs`. `config/statuscolors.ini` wird von `build.cmd` nach `bin\` kopiert.
-- Aufruf/Test: `bin\Arbeitsplan.exe [--user <login>] [--nosave]`; Testbild: `--shot <png> [--size BxH] [--edit spalte,zeile] [--users]` (echter Bildschirmabzug, ~4 s warten, dann mit Read ansehen; DrawToBitmap zeichnet RichTextBox nicht).
-- Testnutzer: `mmuster` Admin, `ebeispiel` Leser, `pwerk` Produktion. Mock-Lock: Di, Raum A "wird von Paula Werk bearbeitet" (mit `--user mmuster` testen). `--nosave` simuliert System-PC ohne Speichern.
+- `src/Core/` ohne `System.Windows.Forms`: `Model.cs` (`Entry` Inhalt+Farbbereiche+Kürzel je Schicht, `RowInfo` Id/Name/F-S-N/Mindesthöhe je Zeile, `IDataStore` inkl. Zeilen/Sortieren/`Find`, `MemoryStore`+Testdaten), `Users.cs` (`Perm`-Rechte, User, Rechtepakete, `UserDb`, `ILockService`), `Equipment.cs` (`IEquipmentStatusProvider`+Mock, `EquipmentMatcher`, `StatusColors`).
+- `src/Win/`: `PlanView.cs` (selbst gezeichnete Wochenansicht: Layout, Farben, Markierung, Maus), `TextLayout.cs` (Zeilenumbruch mehrfarbiger Texte), `MainForm.cs` (Leisten, Navigation, Suche, Bearbeitungsmodus), `UserAdminForm.cs`, `Program.cs`. `config/statuscolors.ini` wird von `build.cmd` nach `bin\` kopiert.
+- Aufruf: `bin\Arbeitsplan.exe [--user <login>] [--nosave]`. Testhilfen (GUI-exe, ~4–6 s warten): `--shot <png> [--size BxH] [--edit spalte,zeile] [--search text] [--users]` (echter Bildschirmabzug, Bild mit Read ansehen), `--bench <txt>` (ms je Wochenwechsel), `--selftest <txt>` (Admin: Bearbeiten/Farbe/Speichern/Zeile/Sortieren).
+- Testnutzer: `mmuster` Admin (Kürzel MUMA), `ebeispiel` Leser (BEER), `pwerk` Produktion (WEPA). Mock-Lock: Di, Zeile "Suite 1" "wird von Paula Werk bearbeitet" (mit `--user mmuster` testen). `--nosave` simuliert System-PC ohne Speichern.
 - Typname `Right` nicht verwenden (kollidiert mit `Control.Right`) → `Perm`.
 
 ## Token-/Code-Effizienz (gilt für alle)
@@ -36,16 +36,18 @@ Der Hauptagent plant, delegiert und prüft; er schreibt nur kleine Änderungen s
 - Parallel nur lesende oder dateidisjunkte Aufgaben. Zwei Schreiber nie an denselben Dateien.
 - Subagenten antworten kurz: geänderte Dateien, Ergebnis, offene Punkte (keine Code-Wiederholung).
 
-## Entscheidungen und Annahmen (Stand 2026-10-23)
-- Siehe Stack. Prototyp-Daten nur im Speicher (`MemoryStore`), Server nach IT-Klärung.
-- Wochenstart vorläufig Montag; "Heute" springt auf den Montag der Woche, Tag-Pfeile verschieben das Fenster um 1 Tag.
-- Layout: Kopf `KWxx (TT.MM.JJJJ - TT.MM.JJJJ)`, darunter Datum je Spalte, dann **10 Standardzeilen** (Suite 1, Mix / Split, Suite 2, Puffer, Freeze / Thaw, Einwaage, CIP / SIP, Raum CC + 2 leere). Blockname, Schichtbezeichnung (F/S/N) und Mindesthöhe gelten **je Zeile für alle Tage** (`RowInfo`). `Reflow()`: je Zeile sind Inhaltsfeld und jedes Schichtfeld in allen 7 Spalten gleich hoch (Maximum, nur so hoch wie nötig, kein Abschneiden). Schichten farbig (F gelb, S orange, N blau). Kürzel: eigenes (User.Kuerzel) grün, Treffer des Feldes "Kürzel markieren" gelb hinterlegt.
-- Bearbeitung: Doppelklick auf Block = Bearbeitungsmodus (oranger Rahmen + Notizblock-Symbol), sonst nur lesbar. Ende: Strg+S (speichern), Esc (verwerfen, mit Rückfrage), anderer Block, Navigation, Schließen. Je Block eine Version; Konflikt → Ja (überschreiben) / Nein (im Editor bleiben).
-- Soft-Lock: nur Hinweis-Popup "Das Fenster <Überschrift> wird gerade von <Nutzer> bearbeitet.", danach trotzdem bearbeiten/speichern. Sperre verfällt nach 30 min (abgestürzte Clients). Anzeigename: Vor-/Nachname aus `UserDb` (Windows-Login), sonst Windows-Nutzername. Raum wird nicht ermittelt.
-- Speichern fehlgeschlagen (Exception): klare Meldung, Block bleibt im Bearbeitungsmodus, Navigation/Schließen werden blockiert bzw. fragen vor Verwerfen → nichts geht verloren.
-- Annahme (Prototyp): unbekannter Windows-Nutzer erhält Paket "Produktion". Später: nach IT-Antwort (Leser/abweisen).
-- Rechte: Lesen, Text ändern/löschen/hinzufügen, Farben/Textformat, **Blockname/F-S-N ändern + Zeile hinzufügen** (`EditNames`), **Blockhöhe einstellen** (`EditHeight`, +/- im Bearbeitungsmodus), Nutzer anlegen/bearbeiten/löschen. Pakete: Leser, Produktion (ohne EditNames/EditHeight), Admin. Paket gilt als "ausgewählt" nur bei **exakt** gleichen Rechten. Erzwungen: Bearbeiten, Name/F-S-N/Höhe, "+ Zeile", Nutzerverwaltung. "Löschen" und "Format" noch nicht.
-- Equipment: Erkennung per Regex `[A-Z0-9]{2}-[A-Z]{1,2}-\d{3,5}-\d{2}` + Abgleich mit `IEquipmentStatusProvider` (Mock). Nur existierende Nummern werden eingefärbt, **nur die Nummer**, restlicher Text bleibt wie formatiert (Statusfarbe überschreibt manuelle Farbe nur dort). Farben konfigurierbar über `statuscolors.ini` (Standard: nicht gereinigt/ohne Timer schwarz, gereinigt violett, regeneriert dunkelblau, sterilisiert rot, in Prozess grün, Freigabe hellblau, Quarantäne dunkelrot). MES-System-8-/MES-Anbindung später als weiterer Provider, Schnittstelle unbekannt.
+## Entscheidungen und Annahmen (Stand 2026-10-24)
+- Prototyp-Daten nur im Speicher (`MemoryStore`), Server nach IT-Klärung. Wochenstart vorläufig Montag; "Heute" springt auf den Montag, Tag-Pfeile verschieben das Fenster um 1 Tag.
+- **Ansicht selbst gezeichnet** (`PlanView`), nicht als Steuerelemente: Wochenwechsel ~40 ms statt Aufbau von hunderten Controls. Nur der aktive Block bekommt Eingabefelder (`MainForm.edXxx`), sie werden nach jedem Layout über den Block gelegt (`PositionEditors`). `MeasureText` addiert einen festen Rand, `TextBlock` rechnet ihn heraus.
+- Layout: Kopf `KWxx (TT.MM.JJJJ - TT.MM.JJJJ)`, Datum je Spalte, **10 Standardzeilen** (Suite 1, Mix / Split, Suite 2, Puffer, Freeze / Thaw, Einwaage, CIP / SIP, Raum CC + 2 leere). Blockname, F/S/N-Bezeichnung und Mindesthöhe gelten je Zeile für alle Tage (`RowInfo`). Je Zeile sind Inhaltsfeld und jedes Schichtfeld in allen 7 Spalten gleich hoch. **Schichtfeld fest mind. 3 Textzeilen** (3 Reihen 4-stelliger Kürzel mit ", "), wächst nur bei mehr (kein Abschneiden). Schichten farbig (F gelb, S orange, N blau).
+- Markierung: eigenes Kürzel (`User.Kuerzel`, aus Nutzer-DB) grün; **Suchfeld** (oben rechts, Strg+F) markiert Treffer gelb in Inhalt/Equipment/Kürzel (nicht Raumnamen) und zählt sie für die Woche; Enter springt zum nächsten Treffer (`IDataStore.Find`, auch in anderen Wochen).
+- Bearbeitung: Doppelklick = Bearbeitungsmodus (oranger Rahmen + Notizblock-Symbol). Ende: Strg+S, Esc (verwerfen mit Rückfrage), anderer Block, Navigation, Schließen. Versionsprüfung je Block; Konflikt → Ja (überschreiben) / Nein (im Editor bleiben).
+- Soft-Lock: nur Popup "Das Fenster <Überschrift> wird gerade von <Nutzer> bearbeitet.", danach trotzdem bearbeiten/speichern; Sperre verfällt nach 30 min. Anzeigename: Vor-/Nachname aus `UserDb` (Windows-Login), sonst Windows-Nutzername; Raum wird nicht ermittelt.
+- Speichern fehlgeschlagen: klare Meldung, Block bleibt im Bearbeitungsmodus, Navigation/Schließen blockiert bzw. Rückfrage → nichts geht verloren.
+- Unbekannter Windows-Nutzer erhält im Prototyp Paket "Produktion" (später nach IT-Antwort: Leser/abweisen).
+- Rechte: Lesen, Text ändern/löschen/hinzufügen, **Farben/Textformat** (Schriftfarbe im Inhalt, Leiste "Schriftfarbe" im Bearbeitungsmodus), **Blockname/F-S-N ändern + Zeile hinzufügen** (`EditNames`), **Blockhöhe** (`EditHeight`, +/- im Bearbeitungsmodus), **Zeilen sortieren** (`SortRows`, Hoch/Runter für die angeklickte Zeile; nur "hohe" Rechte = Admin), Nutzer anlegen/bearbeiten/löschen. Pakete: Leser, Produktion (ohne EditNames/EditHeight/SortRows), Admin. Paket "ausgewählt" nur bei **exakt** gleichen Rechten. Zeilen **löschen: nein**. "Text löschen" noch nicht erzwungen.
+- Schriftfarbe: Farbbereiche (`Entry.Spans`, Start/Länge/RGB) nur im Inhaltstext; Standard (schwarz) = kein Bereich. Im Editor werden Statusfarben **nicht** angezeigt (nur manuelle Farben), damit beim Speichern nichts vermischt wird.
+- Equipment: Schema `H<1|2>-<T|F|X|P>-<4 Ziffern>` oder `…-<2 Ziffern>` (Regex in `EquipmentMatcher`) + Abgleich mit `IEquipmentStatusProvider` (Mock). Nur existierende Nummern, **nur die Nummer** wird in Statusfarbe gezeigt und **überschreibt** dort die manuelle Farbe. Farben in `statuscolors.ini` (Standard: nicht gereinigt/ohne Timer schwarz, gereinigt violett, regeneriert dunkelblau, sterilisiert rot, in Prozess grün, Freigabe hellblau, Quarantäne dunkelrot). ein MES-System später als weiterer Provider.
 
 ## Repo
-https://github.com/lngwaI/arbeitsplan – **öffentlich**: nur erfundene Testdaten, keine echten Kürzel, Produkte, Server- oder Netzwerknamen.
+https://github.com/lngwaI/arbeitsplan – **öffentlich**: nur erfundene Testdaten, keine echten Kürzel, Produkte, Equipment-/Server-/Netzwerknamen. Beispiele des Nutzers (echte Equipment-Nummern) nicht übernehmen, nur das Schema.
