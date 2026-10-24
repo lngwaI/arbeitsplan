@@ -43,3 +43,11 @@ BioPharma, Vollkonti-Betrieb. Altes "Arbeitsplan"-exe läuft aus. Dient zum Eint
 - Textformat im Editor direkt einstellbar: Schriftgröße, Schriftart, Schriftfarbe (Markieren + Rechtsklick und Leiste).
 - Pakete: Wochen als Bild/PDF (alle Zeilen) exportieren; Pakete importieren/exportieren; Paket-Editor für Kampagnen (wann, was, mit welchem Equipment, Auswahl + freie Eingabe, Ausweich-Equipment, Notizen).
 - Sortieren der Zeilen nur mit hohen Rechten; Zeilen löschen nicht vorgesehen.
+
+## Ergänzung 2026-10-24 (2) – Pakete/Kampagnen und Bedienung
+- Überschrift immer sichtbar (in jeder Spalte, auch zugeklappt); Pfeil zum Ein-/Ausklappen am rechten Rand.
+- Paket-Editor: Equipment-Positionen sichtbar (Prozesstank/Rez. Tank, Pumpe, TFF-Skid, Endverdünnungs-Skid, Reinigungstank, Verteilerstück, Schläuche mit optionaler Bezeichnung); Liste möglicher Geräte je Position einstellbar. Ein Equipment je Zeile: `<Name>: <ID> <Notiz>`.
+- Kampagnen folgen Mustern: Lauf einstellen und "wiederholen (abwechselnd)" (A, B, A, B …). Jede Kampagne enthält standardmäßig "Packen" (mit Recht löschbar/erneut einfügbar). "TFF Flush" ist ein Sonderereignis und als eigenes Paket anlegbar. Höhere Nutzer erstellen/speichern solche Bausteine.
+- Platzhalter (z. B. 020X bei mehreren validierten Skids) nur optional; stattdessen konkretes Gerät plus Ausweich-Equipment (Backup) für Unvorhergesehenes.
+- Zwei Nutzerebenen: Mitarbeiter (lesen, etwas schreiben/ändern) und höhere Nutzer (zusätzlich einrichten, erstellen).
+- Rechtsklick in der Schichteinteilung nur schlichtes Menü; dort nur normaler Text, aber mit Umlauten und Sonderzeichen (ü ö ä ß ? @ % " ! / ( ) , ; - .).

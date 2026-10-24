@@ -58,6 +58,8 @@ namespace Arbeitsplan.Core
         List<RowInfo> GetRows();                             // Kopien in Anzeigereihenfolge
         void SaveStructure(List<RowInfo> rows);              // Reihenfolge/Namen/Anzahl; Id <= 0 = neue Zeile; keine Zeile wird geloescht
         List<SearchHit> Find(string query);                  // Inhalt und Kuerzel (nicht Raumnamen), nach Datum/Zeile sortiert
+        Catalog GetCatalog();                                // Equipment-Positionen und Bausteine fuer Pakete (Kopie)
+        void SaveCatalog(Catalog catalog);
     }
 
     public class MemoryStore : IDataStore
@@ -82,6 +84,10 @@ namespace Arbeitsplan.Core
         static string Key(DateTime d, int r) { return d.ToString("yyyy-MM-dd") + "|" + r; }
         void CheckWrite() { if (FailSaves) throw new IOException("Kein Schreibzugriff (simulierter System-PC)."); }
         int IdOf(string name) { foreach (RowInfo r in rows) if (r.Name == name) return r.Id; return -1; }
+
+        Catalog catalog = Catalog.Default();
+        public Catalog GetCatalog() { return catalog.Clone(); }
+        public void SaveCatalog(Catalog c) { CheckWrite(); catalog = c.Clone(); }
 
         public List<RowInfo> GetRows() { List<RowInfo> l = new List<RowInfo>(); foreach (RowInfo r in rows) l.Add(r.Clone()); return l; }
 
@@ -149,14 +155,14 @@ namespace Arbeitsplan.Core
             int suite1 = s.IdOf("Suite 1"), mix = s.IdOf("Mix / Split"), cc = s.IdOf("Raum CC");
             string[] a = {
                 "Lauf 100001\nTFF: H1-X-0101\nPumpe: H1-P-0101-05\nPT: H1-T-0102\nSkid: H1-X-0103 (H1-F-0103-04)\n\nSplitten\nTank 1: H1-T-0111 (800L)",
-                "Probenahme Charge 4711\nH1-P-0101-05, H1-T-0112",
-                "Wartung Abfuellung (extern ab 08:00).\nTaegliche WFI Probe ziehen\nLKZ MESSEN",
+                "Probenahme Charge 4711 – Öl-Wechsel? 5 % (ü ö ä ß) @Tank \"A\"!\nH1-P-0101-05, H1-T-0112",
+                "Wartung Abfüllung (extern ab 08:00).\nTägliche WFI Probe ziehen\nLKZ MESSEN",
                 "Lauf 100002\nSkid: H1-X-0103, Tank: H2-T-0201",
-                "Reinigung und Ruesten\nH1-T-0113, H2-F-0202-01",
-                "Wochenendbetrieb: Ueberwachung", "Wochenendbetrieb: Ueberwachung" };
+                "Reinigung und Rüsten\nH1-T-0113, H2-F-0202-01",
+                "Wochenendbetrieb: Überwachung", "Wochenendbetrieb: Überwachung" };
             string[][] p = {
                 new[] { "MUMA, WEPA, BEER", "ABCD, EFGH, IJKL", "" }, new[] { "MUMA, WEPA", "BEER, ABCD", "EFGH" }, new[] { "IJKL, MNOP", "", "" },
-                new[] { "QRST, UVWX", "YZAB, CDEF", "GHIJ" }, new[] { "KLMN, OPQR", "STUV, WXYZ", "" }, new[] { "ABCD", "EFGH", "IJKL" }, new[] { "ABCD", "EFGH", "IJKL" } };
+                new[] { "QRST, UVWX", "YZAB, CDEF", "GÜAL, SÖNß" }, new[] { "KLMN, OPQR", "STUV, WXYZ", "" }, new[] { "ABCD", "EFGH", "IJKL" }, new[] { "ABCD", "EFGH", "IJKL" } };
             for (int d = 0; d < 7; d++)
             {
                 Entry e = new Entry(); e.Content = a[d]; e.People = p[d]; e.Lkz = d == 0 || d == 3;

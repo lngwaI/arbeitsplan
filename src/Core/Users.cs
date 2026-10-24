@@ -6,9 +6,9 @@ namespace Arbeitsplan.Core
     public static class Perm
     {
         public const string Read = "Lesen", EditText = "TextAendern", DeleteText = "TextLoeschen", AddText = "TextHinzufuegen",
-            Format = "Format", SortRows = "ZeilenSortieren", Export = "Exportieren", ImportPackage = "PaketeImportieren", EditNames = "BlockNamenAendern", EditHeight = "BlockhoeheAendern", UserCreate = "NutzerAnlegen", UserEdit = "NutzerBearbeiten", UserDelete = "NutzerLoeschen";
+            Format = "Format", SortRows = "ZeilenSortieren", PackageAdmin = "PaketeEinrichten", Export = "Exportieren", ImportPackage = "PaketeImportieren", EditNames = "BlockNamenAendern", EditHeight = "BlockhoeheAendern", UserCreate = "NutzerAnlegen", UserEdit = "NutzerBearbeiten", UserDelete = "NutzerLoeschen";
 
-        public static readonly string[] All = { Read, EditText, DeleteText, AddText, Format, EditNames, EditHeight, SortRows, Export, ImportPackage, UserCreate, UserEdit, UserDelete };
+        public static readonly string[] All = { Read, EditText, DeleteText, AddText, Format, EditNames, EditHeight, SortRows, Export, ImportPackage, PackageAdmin, UserCreate, UserEdit, UserDelete };
 
         public static string Label(string r)
         {
@@ -24,6 +24,7 @@ namespace Arbeitsplan.Core
                 case SortRows: return "Zeilen sortieren";
                 case Export: return "Exportieren (Bild, PDF, Paket)";
                 case ImportPackage: return "Pakete importieren / in Plan übernehmen";
+                case PackageAdmin: return "Pakete einrichten (Equipment, Bausteine, Standardschritte)";
                 case UserCreate: return "Nutzer anlegen";
                 case UserEdit: return "Nutzer bearbeiten";
                 case UserDelete: return "Nutzer löschen";

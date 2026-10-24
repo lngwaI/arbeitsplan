@@ -7,27 +7,85 @@ using System.Xml;
 
 namespace Arbeitsplan.Core
 {
-    // Kampagnen-Schritt: wann (Tag relativ zum Start, 1 = erster Tag), in welchem Block, was, mit welchem Equipment.
-    public class PackageStep
+    // Equipment einer Position in einem Schritt. Bei "abwechselnd" wird die ID-Liste reihum verteilt
+    // (Lauf 1 -> A, Lauf 2 -> B, Lauf 3 -> wieder A ...). "Fallback" ist das Ausweich-Equipment fuer Unvorhergesehenes.
+    public class EquipAssign
     {
-        public int Day = 1;
-        public string Row = "";
-        public string Text = "";
-        public string Equipment = "";       // Komma-getrennt, Auswahl und/oder eigene Eingabe
-        public string Fallback = "";        // Ausweich-Equipment
+        public string Short = "";
+        public List<string> Ids = new List<string>();
+        public bool Alternate;
+        public string Fallback = "";
         public string Note = "";
 
-        public bool IsEmpty { get { return Text.Length == 0 && Equipment.Length == 0 && Fallback.Length == 0 && Note.Length == 0; } }
+        public EquipAssign Clone() { EquipAssign a = (EquipAssign)MemberwiseClone(); a.Ids = new List<string>(Ids); return a; }
 
-        // Text, wie er im Block erscheint; Equipment-Nummern werden dort automatisch nach Status eingefaerbt.
-        public string Compose()
+        public string IdFor(int run)
         {
-            StringBuilder sb = new StringBuilder();
-            if (Text.Length > 0) sb.Append(Text);
-            if (Equipment.Length > 0) { if (sb.Length > 0) sb.Append('\n'); sb.Append("Equipment: ").Append(Equipment); }
-            if (Fallback.Length > 0) { if (sb.Length > 0) sb.Append('\n'); sb.Append("Ausweich: ").Append(Fallback); }
-            if (Note.Length > 0) { if (sb.Length > 0) sb.Append('\n'); sb.Append("Notiz: ").Append(Note); }
+            if (Ids.Count == 0) return "";
+            return Alternate ? Ids[run % Ids.Count] : Ids[0];
+        }
+
+        // Eigene Zeile: "<Kurzname>: <ID> (Ausweich: <ID>) <Notiz>"; ohne ID steht die Notiz (z. B. Schlauch-Bezeichnung) hinter dem Namen.
+        public string Line(int run)
+        {
+            string id = IdFor(run);
+            if (id.Length == 0 && Note.Length == 0 && Fallback.Length == 0) return "";
+            StringBuilder sb = new StringBuilder(Short).Append(':');
+            if (id.Length > 0) sb.Append(' ').Append(id);
+            if (Fallback.Length > 0) sb.Append(" (Ausweich: ").Append(Fallback).Append(')');
+            if (Note.Length > 0) sb.Append(' ').Append(Note);
             return sb.ToString();
+        }
+    }
+
+    // Ablaufschritt einer Kampagne: wann (Tag relativ zum Start), in welchem Block, was, mit welchem Equipment; optional wiederholt.
+    public class PackageStep
+    {
+        public string Title = "";           // z. B. "Lauf", "Packen"
+        public string Source = "";          // Name des Bausteins, aus dem der Schritt stammt
+        public string Row = "";
+        public int Day = 1;                 // 1 = erster Tag
+        public int Count = 1;               // Wiederholungen (z. B. 6 Laeufe)
+        public int Interval = 1;            // Abstand in Tagen
+        public int StartNo = 1;             // Nummer des ersten Laufs ("Lauf 1")
+        public string Text = "";
+        public string Note = "";
+        public List<EquipAssign> Equipment = new List<EquipAssign>();
+
+        public PackageStep Clone()
+        {
+            PackageStep s = (PackageStep)MemberwiseClone();
+            s.Equipment = new List<EquipAssign>();
+            foreach (EquipAssign a in Equipment) s.Equipment.Add(a.Clone());
+            return s;
+        }
+
+        public bool IsEmpty
+        {
+            get
+            {
+                if (Title.Length > 0 || Text.Length > 0 || Note.Length > 0) return false;
+                foreach (EquipAssign a in Equipment) if (a.Line(0).Length > 0) return false;
+                return true;
+            }
+        }
+
+        public string Compose(int run)
+        {
+            List<string> lines = new List<string>();
+            if (Title.Length > 0) lines.Add(Count > 1 ? Title + " " + (StartNo + run) : Title);
+            if (Text.Length > 0) lines.Add(Text);
+            foreach (EquipAssign a in Equipment) { string l = a.Line(run); if (l.Length > 0) lines.Add(l); }
+            if (Note.Length > 0) lines.Add("Notiz: " + Note);
+            return string.Join("\n", lines.ToArray());
+        }
+
+        // Alle Laeufe: Tag (1-basiert) und Text.
+        public List<KeyValuePair<int, string>> Runs()
+        {
+            List<KeyValuePair<int, string>> res = new List<KeyValuePair<int, string>>();
+            for (int i = 0; i < Math.Max(1, Count); i++) res.Add(new KeyValuePair<int, string>(Day + i * Math.Max(1, Interval), Compose(i)));
+            return res;
         }
     }
 
@@ -39,33 +97,41 @@ namespace Arbeitsplan.Core
         public Entry Data = new Entry();
     }
 
+    public enum ApplyMode { FillEmpty, Overwrite, Append }
+
     public class Package
     {
         public string Name = "";
         public List<PackageStep> Steps = new List<PackageStep>();
         public List<PackageBlock> Blocks = new List<PackageBlock>();
 
-        // ---------- Datei (XML) ----------
+        // ---------- Datei (XML, UTF-8: Umlaute und Sonderzeichen bleiben erhalten) ----------
 
         public void Save(string path)
         {
             XmlWriterSettings st = new XmlWriterSettings(); st.Indent = true; st.Encoding = new UTF8Encoding(false);
             using (XmlWriter w = XmlWriter.Create(path, st))
             {
-                w.WriteStartElement("Paket"); w.WriteAttributeString("name", Name); w.WriteAttributeString("version", "1");
+                w.WriteStartElement("Paket"); w.WriteAttributeString("name", Name); w.WriteAttributeString("version", "2");
                 foreach (PackageStep s in Steps)
                 {
                     w.WriteStartElement("Schritt");
-                    w.WriteAttributeString("tag", s.Day.ToString(CultureInfo.InvariantCulture)); w.WriteAttributeString("block", s.Row);
-                    w.WriteAttributeString("text", s.Text); w.WriteAttributeString("equipment", s.Equipment);
-                    w.WriteAttributeString("ausweich", s.Fallback); w.WriteAttributeString("notiz", s.Note);
+                    w.WriteAttributeString("titel", s.Title); w.WriteAttributeString("quelle", s.Source); w.WriteAttributeString("block", s.Row);
+                    w.WriteAttributeString("tag", I(s.Day)); w.WriteAttributeString("anzahl", I(s.Count)); w.WriteAttributeString("abstand", I(s.Interval)); w.WriteAttributeString("startnr", I(s.StartNo));
+                    w.WriteAttributeString("text", s.Text); w.WriteAttributeString("notiz", s.Note);
+                    foreach (EquipAssign a in s.Equipment)
+                    {
+                        w.WriteStartElement("Equipment");
+                        w.WriteAttributeString("kurz", a.Short); w.WriteAttributeString("ids", string.Join("|", a.Ids.ToArray()));
+                        w.WriteAttributeString("abwechselnd", a.Alternate ? "1" : "0"); w.WriteAttributeString("ausweich", a.Fallback); w.WriteAttributeString("notiz", a.Note);
+                        w.WriteEndElement();
+                    }
                     w.WriteEndElement();
                 }
                 foreach (PackageBlock b in Blocks)
                 {
                     w.WriteStartElement("Block");
-                    w.WriteAttributeString("tag", b.Day.ToString(CultureInfo.InvariantCulture)); w.WriteAttributeString("zeile", b.Row);
-                    w.WriteAttributeString("lkz", b.Data.Lkz ? "1" : "0");
+                    w.WriteAttributeString("tag", I(b.Day)); w.WriteAttributeString("zeile", b.Row); w.WriteAttributeString("lkz", b.Data.Lkz ? "1" : "0");
                     w.WriteElementString("Inhalt", b.Data.Content);
                     w.WriteStartElement("Kuerzel");
                     w.WriteAttributeString("f", b.Data.People[0]); w.WriteAttributeString("s", b.Data.People[1]); w.WriteAttributeString("n", b.Data.People[2]);
@@ -73,8 +139,8 @@ namespace Arbeitsplan.Core
                     foreach (FormatSpan f in b.Data.Spans)
                     {
                         w.WriteStartElement("Format");
-                        w.WriteAttributeString("start", f.Start.ToString(CultureInfo.InvariantCulture)); w.WriteAttributeString("laenge", f.Length.ToString(CultureInfo.InvariantCulture));
-                        w.WriteAttributeString("farbe", f.Rgb.ToString(CultureInfo.InvariantCulture)); w.WriteAttributeString("groesse", f.Size.ToString(CultureInfo.InvariantCulture));
+                        w.WriteAttributeString("start", I(f.Start)); w.WriteAttributeString("laenge", I(f.Length));
+                        w.WriteAttributeString("farbe", I(f.Rgb)); w.WriteAttributeString("groesse", f.Size.ToString(CultureInfo.InvariantCulture));
                         w.WriteAttributeString("fett", f.Bold ? "1" : "0"); w.WriteAttributeString("kursiv", f.Italic ? "1" : "0");
                         w.WriteAttributeString("schrift", f.Font ?? "");
                         w.WriteEndElement();
@@ -85,28 +151,47 @@ namespace Arbeitsplan.Core
             }
         }
 
+        static string I(int v) { return v.ToString(CultureInfo.InvariantCulture); }
+        static int ToInt(string s, int def) { int v; return int.TryParse(s, NumberStyles.Integer, CultureInfo.InvariantCulture, out v) ? v : def; }
+
+        static IEnumerable<XmlElement> Elements(XmlNode n)
+        {
+            foreach (XmlNode c in n.ChildNodes) { XmlElement e = c as XmlElement; if (e != null) yield return e; }
+        }
+
         public static Package Load(string path)
         {
             XmlDocument doc = new XmlDocument();
             doc.Load(path);
             XmlElement root = doc.DocumentElement;
-            if (root == null || root.Name != "Paket") throw new InvalidDataException("Keine gueltige Paketdatei.");
+            if (root == null || root.Name != "Paket") throw new InvalidDataException("Keine gültige Paketdatei.");
             Package p = new Package();
             p.Name = root.GetAttribute("name");
-            foreach (XmlElement e in root.ChildNodes.OfType())
+            foreach (XmlElement e in Elements(root))
             {
                 if (e.Name == "Schritt")
                 {
                     PackageStep s = new PackageStep();
-                    s.Day = Math.Max(1, ToInt(e.GetAttribute("tag"), 1)); s.Row = e.GetAttribute("block"); s.Text = e.GetAttribute("text");
-                    s.Equipment = e.GetAttribute("equipment"); s.Fallback = e.GetAttribute("ausweich"); s.Note = e.GetAttribute("notiz");
+                    s.Title = e.GetAttribute("titel"); s.Source = e.GetAttribute("quelle"); s.Row = e.GetAttribute("block");
+                    s.Day = Math.Max(1, ToInt(e.GetAttribute("tag"), 1)); s.Count = Math.Max(1, ToInt(e.GetAttribute("anzahl"), 1));
+                    s.Interval = Math.Max(1, ToInt(e.GetAttribute("abstand"), 1)); s.StartNo = ToInt(e.GetAttribute("startnr"), 1);
+                    s.Text = e.GetAttribute("text"); s.Note = e.GetAttribute("notiz");
+                    foreach (XmlElement q in Elements(e))
+                        if (q.Name == "Equipment")
+                        {
+                            EquipAssign a = new EquipAssign();
+                            a.Short = q.GetAttribute("kurz");
+                            foreach (string id in q.GetAttribute("ids").Split(new[] { '|' }, StringSplitOptions.RemoveEmptyEntries)) a.Ids.Add(id);
+                            a.Alternate = q.GetAttribute("abwechselnd") == "1"; a.Fallback = q.GetAttribute("ausweich"); a.Note = q.GetAttribute("notiz");
+                            s.Equipment.Add(a);
+                        }
                     p.Steps.Add(s);
                 }
                 else if (e.Name == "Block")
                 {
                     PackageBlock b = new PackageBlock();
                     b.Day = Math.Max(1, ToInt(e.GetAttribute("tag"), 1)); b.Row = e.GetAttribute("zeile"); b.Data.Lkz = e.GetAttribute("lkz") == "1";
-                    foreach (XmlElement c in e.ChildNodes.OfType())
+                    foreach (XmlElement c in Elements(e))
                     {
                         if (c.Name == "Inhalt") b.Data.Content = c.InnerText.Replace("\r\n", "\n");
                         else if (c.Name == "Kuerzel") { b.Data.People[0] = c.GetAttribute("f"); b.Data.People[1] = c.GetAttribute("s"); b.Data.People[2] = c.GetAttribute("n"); }
@@ -126,8 +211,6 @@ namespace Arbeitsplan.Core
             return p;
         }
 
-        static int ToInt(string s, int def) { int v; return int.TryParse(s, NumberStyles.Integer, CultureInfo.InvariantCulture, out v) ? v : def; }
-
         // ---------- Aus einer Woche erstellen / in eine Woche uebernehmen ----------
 
         public static Package FromWeek(IDataStore store, DateTime start, string name)
@@ -144,42 +227,50 @@ namespace Arbeitsplan.Core
             return p;
         }
 
-        // Ergebnis der Uebernahme (Meldung fuer den Nutzer).
-        public string Apply(IDataStore store, DateTime start, ApplyMode mode)
-        {
-            List<RowInfo> rows = store.GetRows();
-            int written = 0, skipped = 0, unknownRow = 0, conflicts = 0;
-            // Ziel (Tag|Zeile) -> neuer Block; Schritte desselben Ziels werden zusammengefasst
-            Dictionary<string, Entry> targets = new Dictionary<string, Entry>();
-            Dictionary<string, KeyValuePair<DateTime, int>> keys = new Dictionary<string, KeyValuePair<DateTime, int>>();
-            List<string> order = new List<string>();
+        // Vorschau/Uebernahme: je Ziel (Tag, Zeile) der neue Block. Schritte desselben Ziels werden zusammengefasst.
+        class Target { public DateTime Day; public int RowId; public Entry Data; }
 
+        List<Target> BuildTargets(List<RowInfo> rows, DateTime start, out int unknownRow)
+        {
+            unknownRow = 0;
+            Dictionary<string, Target> map = new Dictionary<string, Target>();
+            List<Target> order = new List<Target>();
             foreach (PackageBlock b in Blocks)
             {
                 int id = RowId(rows, b.Row);
                 if (id < 0) { unknownRow++; continue; }
                 DateTime day = start.AddDays(b.Day - 1);
                 string k = day.ToString("yyyyMMdd") + "|" + id;
-                targets[k] = b.Data.Clone(); keys[k] = new KeyValuePair<DateTime, int>(day, id); if (!order.Contains(k)) order.Add(k);
+                Target t = new Target(); t.Day = day; t.RowId = id; t.Data = b.Data.Clone();
+                if (!map.ContainsKey(k)) order.Add(t); else order[order.FindIndex(delegate(Target x) { return x == map[k]; })] = t;
+                map[k] = t;
             }
             foreach (PackageStep s in Steps)
             {
                 if (s.IsEmpty) continue;
                 int id = RowId(rows, s.Row);
                 if (id < 0) { unknownRow++; continue; }
-                DateTime day = start.AddDays(s.Day - 1);
-                string k = day.ToString("yyyyMMdd") + "|" + id;
-                Entry t;
-                if (!targets.TryGetValue(k, out t)) { t = new Entry(); targets[k] = t; keys[k] = new KeyValuePair<DateTime, int>(day, id); order.Add(k); }
-                string add = s.Compose();
-                t.Content = t.Content.Length > 0 ? t.Content + "\n\n" + add : add;
+                foreach (KeyValuePair<int, string> run in s.Runs())
+                {
+                    DateTime day = start.AddDays(run.Key - 1);
+                    string k = day.ToString("yyyyMMdd") + "|" + id;
+                    Target t;
+                    if (!map.TryGetValue(k, out t)) { t = new Target(); t.Day = day; t.RowId = id; t.Data = new Entry(); map[k] = t; order.Add(t); }
+                    t.Data.Content = t.Data.Content.Length > 0 ? t.Data.Content + "\n\n" + run.Value : run.Value;
+                }
             }
+            return order;
+        }
 
-            foreach (string k in order)
+        // Ergebnis der Uebernahme (Meldung fuer den Nutzer).
+        public string Apply(IDataStore store, DateTime start, ApplyMode mode)
+        {
+            List<RowInfo> rows = store.GetRows();
+            int written = 0, skipped = 0, unknownRow, conflicts = 0;
+            foreach (Target t in BuildTargets(rows, start, out unknownRow))
             {
-                Entry n = targets[k];
-                DateTime day = keys[k].Key; int id = keys[k].Value;
-                Entry cur = store.Get(day, id);
+                Entry n = t.Data;
+                Entry cur = store.Get(t.Day, t.RowId);
                 Entry result;
                 if (cur == null || cur.IsEmpty) result = n.Clone();
                 else if (mode == ApplyMode.FillEmpty) { skipped++; continue; }
@@ -189,21 +280,20 @@ namespace Arbeitsplan.Core
                     result = cur.Clone();
                     if (n.Content.Length > 0)
                     {
-                        int shift = result.Content.Length + 2;
+                        int shift = result.Content.Length > 0 ? result.Content.Length + 2 : 0;
                         result.Content = result.Content.Length > 0 ? result.Content + "\n\n" + n.Content : n.Content;
-                        if (result.Content == n.Content) shift = 0;
                         foreach (FormatSpan f in n.Spans) { FormatSpan c = f.Clone(); c.Start += shift; result.Spans.Add(c); }
                     }
                     for (int i = 0; i < 3; i++) if (n.People[i].Length > 0) result.People[i] = result.People[i].Length > 0 ? result.People[i] + ", " + n.People[i] : n.People[i];
                     result.Lkz = result.Lkz || n.Lkz;
                 }
                 result.Version = cur != null ? cur.Version : 0;
-                if (store.Save(day, id, result)) written++;
+                if (store.Save(t.Day, t.RowId, result)) written++;
                 else
                 {
-                    Entry again = store.Get(day, id);
+                    Entry again = store.Get(t.Day, t.RowId);
                     result.Version = again != null ? again.Version : 0;
-                    if (store.Save(day, id, result)) written++; else conflicts++;
+                    if (store.Save(t.Day, t.RowId, result)) written++; else conflicts++;
                 }
             }
             string msg = written + " Block/Blöcke geschrieben";
@@ -217,16 +307,6 @@ namespace Arbeitsplan.Core
         {
             foreach (RowInfo r in rows) if (string.Equals(r.Name, name, StringComparison.OrdinalIgnoreCase)) return r.Id;
             return -1;
-        }
-    }
-
-    public enum ApplyMode { FillEmpty, Overwrite, Append }
-
-    static class XmlExt
-    {
-        public static IEnumerable<XmlElement> OfType(this XmlNodeList list)
-        {
-            foreach (XmlNode n in list) { XmlElement e = n as XmlElement; if (e != null) yield return e; }
         }
     }
 }

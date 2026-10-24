@@ -260,21 +260,25 @@ namespace Arbeitsplan.Win
             const TextFormatFlags tf = TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix;
 
             // Pfeil (zu = nach rechts, offen = nach unten); Klick auf den Kopf klappt die Zeile um
-            int ax = c.RHead.X + 5, ay = c.RHead.Y + 8;
-            Point[] tri = collapsed ? new Point[] { new Point(ax, ay), new Point(ax, ay + 8), new Point(ax + 5, ay + 4) }
+            // Der Pfeil sitzt am rechten Rand, die Ueberschrift steht in jeder Spalte (auch zugeklappt).
+            int ax = c.RHead.Right - 15, ay = c.RHead.Y + 8;
+            Point[] tri = collapsed ? new Point[] { new Point(ax + 1, ay - 1), new Point(ax + 1, ay + 8), new Point(ax + 6, ay + 4) }
                                     : new Point[] { new Point(ax - 1, ay + 1), new Point(ax + 7, ay + 1), new Point(ax + 3, ay + 6) };
             using (SolidBrush ab = new SolidBrush(Color.FromArgb(70, 80, 100))) g.FillPolygon(ab, tri);
 
-            Rectangle nr = new Rectangle(c.RHead.X + 16, c.RHead.Y, c.RHead.Width - 18 - (c.Editing ? 20 : 0), c.RHead.Height);
+            int right = 18 + (c.Editing ? 20 : 0);                                   // Platz fuer Pfeil (+ Stift im Bearbeitungsmodus)
+            Rectangle nr = new Rectangle(c.RHead.X + 3, c.RHead.Y, c.RHead.Width - 6 - right, c.RHead.Height);
             if (collapsed)
             {
-                if (c.Col == 0) TextRenderer.DrawText(g, ri.Name, bold, nr, Color.FromArgb(90, 90, 90), tf | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
-                else if (!c.Cur.IsEmpty || c.Cur.Lkz)    // zugeklappt, aber Inhalt vorhanden: Hinweis
-                    TextRenderer.DrawText(g, "● Inhalt", bold, new Rectangle(c.RHead.X + 4, c.RHead.Y, c.RHead.Width - 6, c.RHead.Height), Color.FromArgb(190, 90, 0), tf | TextFormatFlags.VerticalCenter);
+                bool filled = !c.Cur.IsEmpty || c.Cur.Lkz;
+                if (filled)   // zugeklappt, aber Inhalt vorhanden: Hinweispunkt vor dem Pfeil
+                    using (SolidBrush db = new SolidBrush(Color.FromArgb(215, 100, 0))) g.FillEllipse(db, c.RHead.Right - 29, c.RHead.Y + 8, 8, 8);
+                nr.Width -= filled ? 12 : 0;
+                TextRenderer.DrawText(g, ri.Name, bold, nr, Color.FromArgb(70, 70, 70), tf | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
                 return;
             }
             TextRenderer.DrawText(g, ri.Name, bold, nr, Color.Black, tf | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
-            if (c.Editing && Pencil != null) g.DrawImage(Pencil, c.RHead.Right - 19, c.RHead.Y + 3, 18, 18);
+            if (c.Editing && Pencil != null) g.DrawImage(Pencil, c.RHead.Right - 38, c.RHead.Y + 3, 18, 18);
 
             if (ri.HasLkz)
             {

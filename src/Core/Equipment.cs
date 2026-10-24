@@ -43,6 +43,11 @@ namespace Arbeitsplan.Core
             Add("H1-T-0113", EquipStatus.NichtGereinigtOhneTimer);
             Add("H2-T-0201", EquipStatus.InProzess);
             Add("H2-F-0202-01", EquipStatus.Gereinigt);
+            Add("H1-X-0102", EquipStatus.Freigabe);
+            Add("H1-P-0102-05", EquipStatus.Gereinigt);
+            Add("H2-X-0201", EquipStatus.Sterilisiert);
+            Add("H2-X-0202", EquipStatus.NichtGereinigt);
+            Add("H1-F-0104-02", EquipStatus.Regeneriert);
         }
 
         void Add(string n, EquipStatus s) { table[n] = new EquipmentInfo(n, s, DateTime.Now); }

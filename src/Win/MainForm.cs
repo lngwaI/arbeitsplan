@@ -148,7 +148,8 @@ namespace Arbeitsplan.Win
             ToolStripMenuItem set = new ToolStripMenuItem("Einstellungen");
             ToolStripItem st = set.DropDownItems.Add("Blockstruktur…", null, delegate { EditStructure(); }); st.Enabled = structure;
             ToolStripItem us = set.DropDownItems.Add("Nutzerverwaltung…", null, delegate { using (UserAdminForm f = new UserAdminForm(users, me)) f.ShowDialog(this); }); us.Enabled = usr;
-            set.Visible = structure || usr;
+            ToolStripItem cf = set.DropDownItems.Add("Equipment && Bausteine…", null, delegate { EditCatalog(); }); cf.Enabled = me.Has(Perm.PackageAdmin);
+            set.Visible = structure || usr || me.Has(Perm.PackageAdmin);
 
             ms.Items.AddRange(new ToolStripItem[] { file, pk, set });
             ms.Dock = DockStyle.Top;
@@ -166,6 +167,7 @@ namespace Arbeitsplan.Win
             search.Width = 130; search.Location = new Point(searchLabel.PreferredWidth + 6, 6);
             hitsLabel.AutoSize = true; hitsLabel.Location = new Point(search.Right + 6, 9);
             search.TextChanged += delegate { OnSearchChanged(); };
+            Ui.SimpleMenu(search);
             search.KeyDown += delegate(object s, KeyEventArgs e) { if (e.KeyCode == Keys.Enter) { NextHit(); e.SuppressKeyPress = true; } };
             Panel sp = new Panel();
             sp.Dock = DockStyle.Right; sp.Width = search.Right + 130;
@@ -219,6 +221,7 @@ namespace Arbeitsplan.Win
                 int si = s;
                 TextBox t = edPpl[s];
                 t.BorderStyle = BorderStyle.None; t.AutoSize = false; t.Multiline = true; t.AcceptsReturn = true; t.Visible = false;
+                Ui.SimpleMenu(t);          // schlichtes Menue statt Windows-Standard (keine Unicode-/IME-Eintraege)
                 t.TextChanged += delegate { if (!loadingEditor && editCell != null) { editCell.People[si] = Norm(t.Text); editCell.Dirty = true; view.Relayout(); } };
                 view.Controls.Add(t); editors.Add(t);
             }
@@ -456,6 +459,17 @@ namespace Arbeitsplan.Win
                 try { store.SaveStructure(f.Result); } catch (Exception ex) { ShowSaveError(ex); return; }
             }
             Rebuild(false);
+        }
+
+        void EditCatalog()
+        {
+            List<string> names = new List<string>();
+            foreach (RowInfo r in store.GetRows()) if (r.Name.Length > 0) names.Add(r.Name);
+            using (CatalogForm f = new CatalogForm(store.GetCatalog(), names))
+            {
+                if (f.ShowDialog(this) != DialogResult.OK) return;
+                try { store.SaveCatalog(f.Result); } catch (Exception ex) { ShowSaveError(ex); }
+            }
         }
 
         // ---------- Suche ----------
@@ -735,7 +749,7 @@ namespace Arbeitsplan.Win
         void OpenPackageEditor(Package p)
         {
             if (!EndEdit(true)) return;
-            using (PackageForm f = new PackageForm(store, equip, start, p, me.Has(Perm.ImportPackage)))
+            using (PackageForm f = new PackageForm(store, equip, start, p, me.Has(Perm.ImportPackage), me.Has(Perm.PackageAdmin)))
             {
                 f.ShowDialog(this);
                 if (f.Applied) Rebuild(false);
@@ -765,10 +779,29 @@ namespace Arbeitsplan.Win
 
         public Form TestForm(string which)
         {
-            Form f = which == "structure" ? (Form)new StructureForm(store.GetRows(), true, true, true) : new PackageForm(store, equip, start, null, true);
+            Package demo = null;
+            if (which == "package2")   // Kampagne mit Packen + Lauf (3x, abwechselnd)
+            {
+                demo = new Package(); demo.Name = "Kampagne Beispiel";
+                Catalog cat = store.GetCatalog();
+                foreach (string bn in new[] { "Packen", "Lauf" })
+                {
+                    Baustein b = cat.Baustein_(bn);
+                    PackageStep s = new PackageStep(); s.Title = b.Name; s.Source = b.Name; s.Row = b.Row; s.Day = bn == "Packen" ? 1 : 2;
+                    foreach (string sh in b.Positions) { EquipAssign a = new EquipAssign(); a.Short = sh; s.Equipment.Add(a); }
+                    if (bn == "Lauf") { s.Count = 3; s.Equipment[2].Ids.AddRange(new[] { "H1-X-0101", "H1-X-0102" }); s.Equipment[2].Alternate = true; s.Equipment[2].Fallback = "H1-X-0103"; s.Equipment[0].Ids.Add("H1-T-0102"); s.Equipment[1].Ids.Add("H1-P-0101-05"); s.Equipment[3].Ids.Add("H2-X-0999"); }
+                    demo.Steps.Add(s);
+                }
+            }
+            Form f;
+            if (which == "structure") f = new StructureForm(store.GetRows(), true, true, true);
+            else if (which == "catalog") { List<string> nm = new List<string>(); foreach (RowInfo r in store.GetRows()) nm.Add(r.Name); f = new CatalogForm(store.GetCatalog(), nm); }
+            else f = new PackageForm(store, equip, start, demo, true, true);
             Hide();                                   // nur fuer das Testbild: Hauptfenster nicht dahinter
             f.StartPosition = FormStartPosition.Manual; f.Location = new Point(0, 0); f.TopMost = true;
             f.Show();
+            PackageForm pf = f as PackageForm;
+            if (pf != null && which == "package2") pf.SelectStep(1);
             return f;
         }
 
@@ -825,15 +858,23 @@ namespace Arbeitsplan.Win
             // Paket: Woche exportieren, Schritte anwenden
             string path = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "selftest.apkg");
             Package p = Package.FromWeek(store, start, "Test");
-            PackageStep st = new PackageStep(); st.Day = 2; st.Row = "Neu"; st.Text = "Lauf A"; st.Equipment = "H1-X-0101, H1-T-0102"; st.Fallback = "H1-T-0111"; st.Note = "nur wenn frei";
+            PackageStep st = new PackageStep(); st.Title = "Lauf"; st.Day = 2; st.Row = "Neu"; st.Count = 3; st.Interval = 1; st.Note = "nur wenn frei";
+            EquipAssign tff = new EquipAssign(); tff.Short = "TFF"; tff.Ids.Add("H1-X-0101"); tff.Ids.Add("H1-X-0102"); tff.Alternate = true; tff.Fallback = "H1-X-0103";
+            EquipAssign pt = new EquipAssign(); pt.Short = "PT"; pt.Ids.Add("H1-T-0102"); pt.Note = "Charge 7";
+            EquipAssign sl = new EquipAssign(); sl.Short = "Schlauch"; sl.Note = "S-12 (grün)";
+            st.Equipment.Add(pt); st.Equipment.Add(tff); st.Equipment.Add(sl);
             p.Steps.Add(st);
+            sb.AppendLine("Platzhalter TFF: " + store.GetCatalog().Position("TFF").Placeholder() + " | Pumpe: " + store.GetCatalog().Position("Pumpe").Placeholder());
             p.Save(path);
             Package q = Package.Load(path);
             PackageBlock fr = q.Blocks.Find(delegate(PackageBlock b) { return b.Row == "Suite 1A" && b.Day == 5; });
             sb.AppendLine("Paket: Blöcke=" + q.Blocks.Count + " Schritte=" + q.Steps.Count + " Format erhalten=" + (fr == null ? -1 : fr.Data.Spans.Count));
             sb.AppendLine("Apply: " + q.Apply(store, start.AddDays(7), ApplyMode.FillEmpty));
-            Entry ne = store.Get(start.AddDays(8), rowInfo[1].Id);
-            sb.AppendLine("Schritt-Text: [" + (ne == null ? "-" : ne.Content.Replace("\n", "|")) + "]");
+            for (int k = 0; k < 3; k++)
+            {
+                Entry ne = store.Get(start.AddDays(8 + k), rowInfo[1].Id);
+                sb.AppendLine("Lauf-Tag " + (k + 1) + ": [" + (ne == null ? "-" : ne.Content.Replace("\n", "|")) + "]");
+            }
             Rebuild(true);
             sb.AppendLine("Find 'TEST': " + store.Find("TEST").Count);
             return sb.ToString();
