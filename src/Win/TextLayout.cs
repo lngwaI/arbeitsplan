@@ -6,60 +6,81 @@ using System.Windows.Forms;
 
 namespace Arbeitsplan.Win
 {
-    // Textstueck mit Farbe und optionaler Hintergrundmarkierung.
-    class Piece
+    // Schriften werden gecacht (Font-Objekte werden nie freigegeben, es gibt nur wenige Kombinationen).
+    static class FontCache
     {
-        public string Text; public Color Fore; public bool HasBack; public Color Back;
-        public Piece(string text, Color fore, bool hasBack, Color back) { Text = text; Fore = fore; HasBack = hasBack; Back = back; }
+        static readonly Dictionary<string, Font> fonts = new Dictionary<string, Font>();
+
+        public static Font Get(string name, float size, FontStyle style, Font fallback)
+        {
+            string key = name + "|" + size + "|" + (int)style;
+            Font f;
+            if (!fonts.TryGetValue(key, out f))
+            {
+                try { f = new Font(name, size, style, GraphicsUnit.Point); }
+                catch (Exception) { f = new Font(fallback, style); }   // Schrift nicht vorhanden
+                fonts[key] = f;
+            }
+            return f;
+        }
     }
 
-    class Item { public string Text; public int X, W; public Color Fore; public bool HasBack; public Color Back; }
+    // Textstueck mit Schrift, Farbe und optionaler Hintergrundmarkierung.
+    class Piece
+    {
+        public string Text; public Font Font; public Color Fore; public bool HasBack; public Color Back;
+        public Piece(string text, Font font, Color fore, bool hasBack, Color back) { Text = text; Font = font; Fore = fore; HasBack = hasBack; Back = back; }
+    }
 
-    // Eigener Zeilenumbruch fuer mehrfarbigen Text (schnell, ohne Steuerelemente). Umbruch nur an Leerzeichen;
-    // zu lange Woerter werden zeichenweise umbrochen (nie abgeschnitten).
+    class Item { public string Text; public Font Font; public int X, W; public Color Fore; public bool HasBack; public Color Back; }
+
+    // Eigener Zeilenumbruch fuer mehrfarbigen/mehrgroessigen Text (schnell, ohne Steuerelemente). Umbruch nur an Leerzeichen;
+    // zu lange Woerter werden zeichenweise umbrochen (nie abgeschnitten). Zeilenhoehe = hoechste Schrift der Zeile.
     class TextBlock
     {
-        const TextFormatFlags Flags = TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix | TextFormatFlags.Left | TextFormatFlags.Top;
+        const TextFormatFlags Flags = TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix | TextFormatFlags.Left;
         static readonly Regex Tok = new Regex(@"\n|[ \t]+|[^\s]+", RegexOptions.Compiled);
-        static readonly Dictionary<string, int> widths = new Dictionary<string, int>();
-        static Font widthFont;
-        static int spaceW;
+
+        class Metrics { public int Pad, SpaceW; public Dictionary<string, int> W = new Dictionary<string, int>(); }
+        static readonly Dictionary<Font, Metrics> metrics = new Dictionary<Font, Metrics>();
 
         public readonly List<List<Item>> Lines = new List<List<Item>>();
-        public int LineH, Height;
-
-        static int pad;   // MeasureText addiert je Messung einen festen Rand; er wird herausgerechnet
+        public readonly List<int> LineH = new List<int>();
+        public int Height;
 
         static int Raw(Font f, string s)
         {
-            return TextRenderer.MeasureText(s, f, new Size(int.MaxValue, 100), Flags | TextFormatFlags.SingleLine).Width;
+            return TextRenderer.MeasureText(s, f, new Size(int.MaxValue, 200), Flags | TextFormatFlags.SingleLine | TextFormatFlags.Top).Width;
+        }
+
+        // MeasureText addiert je Messung einen festen Rand; er wird herausgerechnet.
+        static Metrics M(Font f)
+        {
+            Metrics m;
+            if (!metrics.TryGetValue(f, out m))
+            {
+                m = new Metrics();
+                int a = Raw(f, "a");
+                m.Pad = a - (Raw(f, "aa") - a);
+                m.SpaceW = Raw(f, " ") - m.Pad;
+                metrics[f] = m;
+            }
+            return m;
         }
 
         static int Width(Font f, string s)
         {
-            if (f != widthFont)
-            {
-                widthFont = f; widths.Clear();
-                int a = Raw(f, "a");
-                pad = a - (Raw(f, "aa") - a);              // Rand = Breite("a") - Vorschub("a")
-                spaceW = Raw(f, " ") - pad;
-            }
+            Metrics m = M(f);
             int w;
-            if (!widths.TryGetValue(s, out w))
-            {
-                w = Raw(f, s) - pad;
-                widths[s] = w;
-            }
+            if (!m.W.TryGetValue(s, out w)) { w = Raw(f, s) - m.Pad; m.W[s] = w; }
             return w;
         }
 
         class T { public int Kind; public string Text; public Piece P; public int W; }   // Kind: 0 Wort, 1 Leerraum, 2 Zeilenumbruch
 
-        public static TextBlock Build(List<Piece> pieces, Font f, int maxW)
+        public static TextBlock Build(List<Piece> pieces, Font baseFont, int maxW)
         {
             TextBlock b = new TextBlock();
-            b.LineH = f.Height;
-            Width(f, "a");                                        // initialisiert spaceW
             List<T> toks = new List<T>();
             foreach (Piece p in pieces)
                 foreach (Match m in Tok.Matches(p.Text))
@@ -67,15 +88,14 @@ namespace Arbeitsplan.Win
                     T t = new T(); t.Text = m.Value; t.P = p;
                     char c = m.Value[0];
                     t.Kind = c == '\n' ? 2 : (c == ' ' || c == '\t' ? 1 : 0);
-                    t.W = t.Kind == 0 ? Width(f, m.Value) : (t.Kind == 1 ? spaceW * m.Value.Length : 0);
+                    t.W = t.Kind == 0 ? Width(p.Font, m.Value) : (t.Kind == 1 ? M(p.Font).SpaceW * m.Value.Length : 0);
                     toks.Add(t);
                 }
 
             List<Item> cur = new List<Item>();
             b.Lines.Add(cur);
-            int x = 0;
+            int x = 0, i = 0;
             bool skipSpace = false;
-            int i = 0;
             while (i < toks.Count)
             {
                 T t = toks[i];
@@ -98,32 +118,40 @@ namespace Arbeitsplan.Win
                         for (; i < j; i++)                          // Wort laenger als die Spalte: zeichenweise
                             foreach (char ch in toks[i].Text)
                             {
-                                int cw = Width(f, ch.ToString());
+                                int cw = Width(toks[i].P.Font, ch.ToString());
                                 if (x > 0 && x + cw > maxW) { cur = new List<Item>(); b.Lines.Add(cur); x = 0; }
                                 Add(cur, toks[i], ch.ToString(), x, cw); x += cw;
                             }
                 }
             }
-            b.Height = b.Lines.Count * b.LineH;
+            foreach (List<Item> line in b.Lines)
+            {
+                int h = baseFont.Height;
+                foreach (Item it in line) h = Math.Max(h, it.Font.Height);
+                b.LineH.Add(h); b.Height += h;
+            }
             return b;
         }
 
         static void Add(List<Item> line, T t, string text, int x, int w)
         {
             Item it = new Item();
-            it.Text = text; it.X = x; it.W = w; it.Fore = t.P.Fore; it.HasBack = t.P.HasBack; it.Back = t.P.Back;
+            it.Text = text; it.Font = t.P.Font; it.X = x; it.W = w; it.Fore = t.P.Fore; it.HasBack = t.P.HasBack; it.Back = t.P.Back;
             line.Add(it);
         }
 
-        public void Draw(Graphics g, Font f, int x, int y)
+        public void Draw(Graphics g, int x, int y)
         {
             for (int l = 0; l < Lines.Count; l++)
+            {
                 foreach (Item it in Lines[l])
                 {
-                    int ty = y + l * LineH;
-                    if (it.HasBack) using (SolidBrush br = new SolidBrush(it.Back)) g.FillRectangle(br, x + it.X, ty, it.W, LineH);
-                    if (it.Text.Trim().Length > 0) TextRenderer.DrawText(g, it.Text, f, new Point(x + it.X, ty), it.Fore, Flags);
+                    if (it.HasBack) using (SolidBrush br = new SolidBrush(it.Back)) g.FillRectangle(br, x + it.X, y, it.W, LineH[l]);
+                    if (it.Text.Trim().Length > 0)
+                        TextRenderer.DrawText(g, it.Text, it.Font, new Rectangle(x + it.X, y, it.W + 4, LineH[l]), it.Fore, Flags | TextFormatFlags.Bottom | TextFormatFlags.SingleLine);
                 }
+                y += LineH[l];
+            }
         }
     }
 }

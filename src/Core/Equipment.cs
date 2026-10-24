@@ -23,6 +23,7 @@ namespace Arbeitsplan.Core
     public interface IEquipmentStatusProvider
     {
         EquipmentInfo Get(string number);   // null = Nummer unbekannt
+        List<string> ListNumbers();         // bekannte Nummern (Auswahl im Paket-Editor)
     }
 
     // Testdaten, bis die echte Quelle existiert.
@@ -45,6 +46,8 @@ namespace Arbeitsplan.Core
         }
 
         void Add(string n, EquipStatus s) { table[n] = new EquipmentInfo(n, s, DateTime.Now); }
+
+        public List<string> ListNumbers() { List<string> l = new List<string>(table.Keys); l.Sort(); return l; }
 
         public EquipmentInfo Get(string number)
         {

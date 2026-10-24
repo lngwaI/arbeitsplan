@@ -2,20 +2,23 @@
 
 ## Erledigt
 - [x] Projektdateien, Build ohne SDK (`build.cmd`, x86, .NET-4.0-API), Subagenten, CLAUDE.md
-- [x] Core/UI getrennt; `IDataStore` mit Version/Konflikt, Zeilen-IDs, Suche
-- [x] Layout: KW-Kopf, Datum je Spalte, 11 Standardzeilen (inkl. Versand), Inhalts-/Schichtfelder je Zeile in allen Spalten gleich hoch, Schichtfeld fest 3 Zeilen
-- [x] Bearbeitungsmodus (Doppelklick), Soft-Lock-Popup, Konfliktabfrage, Speicherfehler ohne Datenverlust
-- [x] Blockname/F-S-N nur mit Recht; Blockhöhe je Zeile (Recht); Zeilen sortieren (Recht, nur Admin); Zeile hinzufügen (Recht)
-- [x] Nutzer/Rechte/Pakete + Kürzel (Verwaltungsdialog), Paket-Auto-Markierung
-- [x] Equipment-Schema H1/H2-T/F/X/P, Provider-Interface + Mock, Statusfarben (ini)
-- [x] Schneller Wechsel: selbst gezeichnete Ansicht (~40 ms je Wochenwechsel)
-- [x] Suchfeld (Inhalt/Equipment/Kürzel, nicht Raumnamen), Treffer markiert, Enter = nächster Treffer auch wochenübergreifend
-- [x] Schriftfarbe im Inhaltstext (Recht Format), eigenes Kürzel grün
+- [x] Core/UI getrennt; `IDataStore` mit Version/Konflikt, Zeilen-IDs, Struktur, Suche
+- [x] Selbst gezeichnete Wochenansicht (~40 ms je Wechsel); Layout KW-Kopf, Datum je Spalte, Inhalts-/Schichtfelder je Zeile gleich hoch, Schichtfeld fest 3 Zeilen
+- [x] Bearbeitungsmodus, Soft-Lock-Popup, Konfliktabfrage, Speicherfehler ohne Datenverlust
+- [x] Blockstruktur nur über Einstellungen (Reihenfolge, Anzahl, Namen, F/S/N, Höhe, LKZ-Feld); 12 Standardzeilen inkl. Lyo
+- [x] LKZ-gemessen-Feld mit Haken (grün), Klick speichert sofort
+- [x] Zu-/Aufklappen je Zeile (lokal, nicht synchronisiert; leere Zeilen standardmäßig zu)
+- [x] Textformat: Schriftart, Größe, fett/kursiv, Farbe (Leiste + Rechtsklick-Menü), Nur-Text-Einfügen
+- [x] Suche (Inhalt/Equipment/Kürzel), Kürzel-Markierung, Enter = nächster Treffer auch wochenübergreifend
+- [x] Nutzer/Rechte/Pakete (+ Kürzel), neue Rechte Export/ImportPackage/SortRows/EditNames/EditHeight
+- [x] Equipment-Schema H1/H2-T/F/X/P, Provider-Interface + Mock, Statusfarben (ini), unbekannt = schwarz
+- [x] Export Woche (alle Zeilen): PNG, PDF, Zwischenablage; Pakete (.apkg): Wochen-Export, Paket-Editor (Schritte mit Equipment-Auswahl/Ausweich/Notiz), Übernehmen in 3 Modi
 
 ## Als Nächstes
 - [ ] Rechte erzwingen: Text löschen (Inhalt leeren)
-- [ ] Weitere Textformate (fett/kursiv, Schriftart), falls gewünscht
-- [ ] Mausrad/Tastatur: Bearbeitungsmodus ohne Maus, Tab-Reihenfolge
+- [ ] Paket-Editor: Schritt duplizieren/verschieben, Vorlagenordner, Läufe wiederholen (z. B. "alle 3 Tage")
+- [ ] PDF: mehrere Seiten statt einer langen Seite (falls gedruckt werden soll)
+- [ ] Tastatur-Bedienung: Bearbeitungsmodus ohne Maus, Tab-Reihenfolge, Zeile per Tastatur ein-/ausklappen
 - [ ] Lokale Testdaten-Datei
 - [ ] Hintergrund-Nachladen (Timer + Versionsvergleich, ohne Eingabe zu stören)
 - [ ] DPI-Awareness (nur wenn XP-sicher: `SetProcessDPIAware` per Vista+-Check)

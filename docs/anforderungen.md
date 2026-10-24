@@ -36,3 +36,10 @@ BioPharma, Vollkonti-Betrieb. Altes "Arbeitsplan"-exe läuft aus. Dient zum Eint
 - Windows-Version der Rechner; unsignierte exe erlaubt? Läuft wirklich noch XP (dann .NET 4.0 dort vorhanden)?
 - Alte Wochenpläne übernehmen?
 - Woche immer Mo–So?
+
+## Ergänzung 2026-10-24 (Auszug; Umsetzung/Annahmen siehe CLAUDE.md)
+- Grundlegende Änderungen (Reihenfolge, Anzahl, Namen der Blöcke) nur in separaten Einstellungen. Zeile "Lyo" über "Freeze / Thaw". Bei Suite 1, Mix / Split, Suite 2, Lyo: Feld "LKZ gemessen?" mit Haken zwischen Titel und erstem Block (gesetzt = grün).
+- Zeilen ohne Inhalt im angezeigten Zeitraum zugeklappt, mit Inhalt aufgeklappt (Standard); ein-/ausklappbar, nur lokal je Instanz, nicht synchronisiert.
+- Textformat im Editor direkt einstellbar: Schriftgröße, Schriftart, Schriftfarbe (Markieren + Rechtsklick und Leiste).
+- Pakete: Wochen als Bild/PDF (alle Zeilen) exportieren; Pakete importieren/exportieren; Paket-Editor für Kampagnen (wann, was, mit welchem Equipment, Auswahl + freie Eingabe, Ausweich-Equipment, Notizen).
+- Sortieren der Zeilen nur mit hohen Rechten; Zeilen löschen nicht vorgesehen.
