@@ -57,7 +57,11 @@ namespace Arbeitsplan.Win
 
         public MainForm(string login, bool failSaves)
         {
+#if TESTHOOKS
             Text = "Arbeitsplan (Prototyp, lokale Testdaten)";
+#else
+            Text = "Arbeitsplan";
+#endif
             StartPosition = FormStartPosition.CenterScreen;
             ClientSize = new Size(1280, 720);
             MinimumSize = new Size(900, 600);
@@ -779,6 +783,7 @@ namespace Arbeitsplan.Win
             }
         }
 
+#if TESTHOOKS
         // ---------- Testhilfen (--shot) ----------
 
         public Form TestUsers()
@@ -904,6 +909,7 @@ namespace Arbeitsplan.Win
             sb.AppendLine("Find 'TEST': " + store.Find("TEST").Count);
             return sb.ToString();
         }
+#endif
 
         // Notizblock mit Stift, per GDI+ gezeichnet (keine Bilddatei, keine Sonderzeichen-Schrift noetig).
         static Bitmap MakePencil()

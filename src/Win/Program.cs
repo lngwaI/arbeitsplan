@@ -20,6 +20,7 @@ namespace Arbeitsplan.Win
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
 
+#if TESTHOOKS
             string login = Arg(args, "--user") ?? Environment.UserName;
             bool nosave = Array.IndexOf(args, "--nosave") >= 0;
             string shot = Arg(args, "--shot");
@@ -55,6 +56,9 @@ namespace Arbeitsplan.Win
                 else using (Graphics g = Graphics.FromImage(bmp)) g.CopyFromScreen(target.Location, Point.Empty, target.Size);
                 bmp.Save(shot, System.Drawing.Imaging.ImageFormat.Png);
             }
+#else
+            Application.Run(new MainForm(Environment.UserName, false));   // Release: keine Testschalter, Nutzer = Windows-Anmeldename
+#endif
         }
     }
 }
