@@ -11,26 +11,34 @@ namespace Arbeitsplan.Core
     // (Lauf 1 -> A, Lauf 2 -> B, Lauf 3 -> wieder A ...). "Fallback" ist das Ausweich-Equipment fuer Unvorhergesehenes.
     public class EquipAssign
     {
-        public string Short = "";
-        public List<string> Ids = new List<string>();
+        public string Short = "";                                   // Position, fuer die die Zeile angelegt wurde
+        public List<EquipChoice> Choices = new List<EquipChoice>();  // gewaehlte Geraete (bei "abwechselnd" auch von Positionen derselben Austausch-Gruppe)
         public bool Alternate;
         public string Fallback = "";
         public string Note = "";
 
-        public EquipAssign Clone() { EquipAssign a = (EquipAssign)MemberwiseClone(); a.Ids = new List<string>(Ids); return a; }
-
-        public string IdFor(int run)
+        public EquipAssign Clone()
         {
-            if (Ids.Count == 0) return "";
-            return Alternate ? Ids[run % Ids.Count] : Ids[0];
+            EquipAssign a = (EquipAssign)MemberwiseClone();
+            a.Choices = new List<EquipChoice>();
+            foreach (EquipChoice c in Choices) a.Choices.Add(c.Clone());
+            return a;
+        }
+
+        public EquipChoice ChoiceFor(int run)
+        {
+            if (Choices.Count == 0) return null;
+            return Alternate ? Choices[run % Choices.Count] : Choices[0];
         }
 
         // Eigene Zeile: "<Kurzname>: <ID> (Ausweich: <ID>) <Notiz>"; ohne ID steht die Notiz (z. B. Schlauch-Bezeichnung) hinter dem Namen.
+        // Bei Geraeten einer anderen Position der Gruppe (Freezetank 2 statt 1) steht deren Kurzname.
         public string Line(int run)
         {
-            string id = IdFor(run);
+            EquipChoice c = ChoiceFor(run);
+            string id = c != null ? c.Id : "";
             if (id.Length == 0 && Note.Length == 0 && Fallback.Length == 0) return "";
-            StringBuilder sb = new StringBuilder(Short).Append(':');
+            StringBuilder sb = new StringBuilder(c != null && c.Short.Length > 0 ? c.Short : Short).Append(':');
             if (id.Length > 0) sb.Append(' ').Append(id);
             if (Fallback.Length > 0) sb.Append(" (Ausweich: ").Append(Fallback).Append(')');
             if (Note.Length > 0) sb.Append(' ').Append(Note);
@@ -122,7 +130,9 @@ namespace Arbeitsplan.Core
                     foreach (EquipAssign a in s.Equipment)
                     {
                         w.WriteStartElement("Equipment");
-                        w.WriteAttributeString("kurz", a.Short); w.WriteAttributeString("ids", string.Join("|", a.Ids.ToArray()));
+                        List<string> wahl = new List<string>();
+                        foreach (EquipChoice ch in a.Choices) wahl.Add(ch.Short + "|" + ch.Id);
+                        w.WriteAttributeString("kurz", a.Short); w.WriteAttributeString("wahl", string.Join(";", wahl.ToArray()));
                         w.WriteAttributeString("abwechselnd", a.Alternate ? "1" : "0"); w.WriteAttributeString("ausweich", a.Fallback); w.WriteAttributeString("notiz", a.Note);
                         w.WriteEndElement();
                     }
@@ -181,7 +191,11 @@ namespace Arbeitsplan.Core
                         {
                             EquipAssign a = new EquipAssign();
                             a.Short = q.GetAttribute("kurz");
-                            foreach (string id in q.GetAttribute("ids").Split(new[] { '|' }, StringSplitOptions.RemoveEmptyEntries)) a.Ids.Add(id);
+                            foreach (string w in q.GetAttribute("wahl").Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries))
+                            {
+                                string[] kv = w.Split('|');
+                                a.Choices.Add(kv.Length > 1 ? new EquipChoice(kv[0], kv[1]) : new EquipChoice(a.Short, w));
+                            }
                             a.Alternate = q.GetAttribute("abwechselnd") == "1"; a.Fallback = q.GetAttribute("ausweich"); a.Note = q.GetAttribute("notiz");
                             s.Equipment.Add(a);
                         }

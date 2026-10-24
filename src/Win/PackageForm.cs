@@ -27,7 +27,7 @@ namespace Arbeitsplan.Win
         readonly ComboBox cbRow = new ComboBox();
         readonly NumericUpDown nDay = new NumericUpDown(), nCount = new NumericUpDown(), nInterval = new NumericUpDown(), nStartNo = new NumericUpDown();
         readonly Panel equipPanel = new Panel();
-        readonly Label info = new Label();
+        readonly Label info = new Label(), rowHint = new Label();
         readonly ContextMenuStrip menuBau = new ContextMenuStrip(), menuPos = new ContextMenuStrip();
         PackageStep cur;
         bool loading;
@@ -69,6 +69,7 @@ namespace Arbeitsplan.Win
             Add(L("Titel:", x, 62)); tTitle.SetBounds(x + 38, 58, 190, 22); Controls.Add(tTitle);
             Add(L("Block (Raum):", x + 250, 62)); cbRow.DropDownStyle = ComboBoxStyle.DropDownList; cbRow.SetBounds(x + 335, 58, 170, 22); cbRow.Items.AddRange(rowNames.ToArray()); Controls.Add(cbRow);
             Add(L("Tag:", x + 525, 62)); Num(nDay, x + 560, 58, 55, 1, 366); Controls.Add(nDay);
+            rowHint.Text = "Block weicht vom Standard ab (Sonderaktion)"; rowHint.ForeColor = Color.DarkOrange; rowHint.AutoSize = true; rowHint.Location = new Point(x + 625, 62); rowHint.Visible = false; Controls.Add(rowHint);
             Add(L("Wiederholen:", x, 96)); Num(nCount, x + 80, 92, 55, 1, 99); Controls.Add(nCount);
             Add(L("mal, alle", x + 142, 96)); Num(nInterval, x + 200, 92, 55, 1, 30); Controls.Add(nInterval);
             Add(L("Tag(e), erste Nummer:", x + 262, 96)); Num(nStartNo, x + 402, 92, 55, 0, 999); Controls.Add(nStartNo);
@@ -217,7 +218,7 @@ namespace Arbeitsplan.Win
                 tNote.Text = s.Note;
                 int y = 4;
                 if (s.Equipment.Count == 0) { Label l = L("Keine Equipment-Positionen. Mit \"+ Position\" hinzufügen.", 6, 8); equipPanel.Controls.Add(l); }
-                foreach (EquipAssign a in s.Equipment) { EquipRow r = new EquipRow(a, cat.Position(a.Short), delegate { UpdatePreview(); }, RemoveAssign); r.Top = y; equipPanel.Controls.Add(r); y += r.Height + 2; }
+                foreach (EquipAssign a in s.Equipment) { EquipRow r = new EquipRow(a, cat, delegate { UpdatePreview(); }, RemoveAssign); r.Top = y; equipPanel.Controls.Add(r); y += r.Height + 2; }
             }
             else { tTitle.Text = ""; tNote.Text = ""; }
             loading = false;
@@ -234,8 +235,15 @@ namespace Arbeitsplan.Win
 
         void RemoveAssign(EquipAssign a) { if (cur == null) return; cur.Equipment.Remove(a); Bind(cur); }
 
+        void UpdateRowHint()
+        {
+            Baustein b = cur != null ? cat.Baustein_(cur.Source) : null;
+            rowHint.Visible = b != null && b.Row.Length > 0 && cur.Row.Length > 0 && cur.Row != b.Row;   // z. B. Packen in Suite 2
+        }
+
         void UpdatePreview()
         {
+            UpdateRowHint();
             if (cur == null) { tPreview.Text = ""; return; }
             System.Text.StringBuilder sb = new System.Text.StringBuilder();
             int run = 0;
@@ -336,56 +344,70 @@ namespace Arbeitsplan.Win
         {
             readonly EquipAssign a;
             readonly EquipPosition pos;
+            readonly Catalog cat;
             readonly Action changed;
             readonly ComboBox cbId = new ComboBox(), cbFb = new ComboBox();
             readonly CheckBox chkAlt = new CheckBox();
             readonly Button btnAlt = new Button();
             bool loading;
 
-            public EquipRow(EquipAssign a, EquipPosition pos, Action changed, Action<EquipAssign> remove)
+            public EquipRow(EquipAssign a, Catalog cat, Action changed, Action<EquipAssign> remove)
             {
-                this.a = a; this.pos = pos; this.changed = changed;
+                this.a = a; this.cat = cat; this.pos = cat.Position(a.Short); this.changed = changed;
                 Height = 28; Width = 870;
                 Label name = new Label(); name.Text = pos != null && pos.Name != a.Short ? pos.Name + " (" + a.Short + ")" : a.Short; name.SetBounds(2, 5, 220, 20); name.AutoEllipsis = true;
                 Controls.Add(name);
 
-                List<string> ids = pos != null ? pos.Ids : new List<string>();
+                List<string> own = pos != null ? pos.Ids : new List<string>();
                 string ph = pos != null ? pos.Placeholder() : "";
                 cbId.DropDownStyle = ComboBoxStyle.DropDown; cbId.SetBounds(226, 3, 150, 22);   // frei eintippbar (Notfall-/Ausweichgeraet)
-                cbId.Items.AddRange(ids.ToArray()); if (ph.Length > 0) cbId.Items.Add(ph);
-                cbFb.DropDownStyle = ComboBoxStyle.DropDown; cbFb.SetBounds(522, 3, 140, 22); cbFb.Items.AddRange(ids.ToArray());
+                cbId.Items.AddRange(own.ToArray()); if (ph.Length > 0) cbId.Items.Add(ph);
+                cbFb.DropDownStyle = ComboBoxStyle.DropDown; cbFb.SetBounds(522, 3, 140, 22);
+                foreach (EquipChoice c in cat.Interchangeable(a.Short)) cbFb.Items.Add(c.Short == a.Short ? c.Id : c.Short + " " + c.Id);
                 chkAlt.Text = "abwechselnd"; chkAlt.SetBounds(382, 4, 100, 20);
+                bool rot = pos != null && pos.AllowRotation;      // nur wo der Admin Rotation hinterlegt hat (z. B. Abfüllskid)
+                chkAlt.Visible = btnAlt.Visible = rot; if (!rot) a.Alternate = false;
                 btnAlt.Text = "…"; btnAlt.SetBounds(486, 3, 30, 22);
                 TextBox note = new TextBox(); note.SetBounds(668, 3, 170, 22); Ui.SimpleMenu(note);
                 Button x = new Button(); x.Text = "x"; x.SetBounds(844, 3, 24, 22); x.Click += delegate { remove(a); };
                 Controls.AddRange(new Control[] { cbId, chkAlt, btnAlt, cbFb, note, x });
-                new ToolTip().SetToolTip(cbId, "Gerät aus der validierten Liste wählen oder eigenes eintippen (nicht validierte Eingabe wird orange).");
-                new ToolTip().SetToolTip(chkAlt, "Läufe wechseln reihum zwischen den gewählten Geräten (Lauf 1 → A, Lauf 2 → B, Lauf 3 → wieder A …).");
-                new ToolTip().SetToolTip(cbFb, "Ausweich-Equipment (Backup) für Unvorhergesehenes.");
+                ToolTip tip = new ToolTip();
+                tip.SetToolTip(cbId, "Gerät aus der validierten Liste wählen oder eigenes eintippen (nicht validierte Eingabe wird orange).");
+                tip.SetToolTip(chkAlt, "Läufe wechseln reihum zwischen den gewählten Geräten (Lauf 1 → A, Lauf 2 → B, Lauf 3 → wieder A …). Zur Auswahl stehen alle Geräte, die laut Admin gleich eingesetzt werden können.");
+                tip.SetToolTip(cbFb, "Ausweich-Equipment (Backup) für Unvorhergesehenes.");
 
                 loading = true;
                 chkAlt.Checked = a.Alternate; cbFb.Text = a.Fallback; note.Text = a.Note;
                 Refill();
                 loading = false;
 
-                cbId.TextChanged += delegate { if (loading || chkAlt.Checked) return; a.Ids.Clear(); if (cbId.Text.Trim().Length > 0) a.Ids.Add(cbId.Text.Trim()); Warn(); changed(); };
+                cbId.TextChanged += delegate
+                {
+                    if (loading || chkAlt.Checked) return;
+                    a.Choices.Clear();
+                    if (cbId.Text.Trim().Length > 0) a.Choices.Add(new EquipChoice(a.Short, cbId.Text.Trim()));
+                    Warn(); changed();
+                };
                 cbFb.TextChanged += delegate { if (!loading) { a.Fallback = cbFb.Text.Trim(); changed(); } };
                 note.TextChanged += delegate { if (!loading) { a.Note = note.Text.Trim(); changed(); } };
                 chkAlt.CheckedChanged += delegate
                 {
                     if (loading) return;
                     a.Alternate = chkAlt.Checked;
-                    if (a.Alternate && a.Ids.Count < 2) PickAlternatives();
-                    if (!a.Alternate && a.Ids.Count > 1) a.Ids.RemoveRange(1, a.Ids.Count - 1);
+                    if (a.Alternate && a.Choices.Count < 2) PickAlternatives();
+                    if (!a.Alternate && a.Choices.Count > 1) a.Choices.RemoveRange(1, a.Choices.Count - 1);
                     loading = true; Refill(); loading = false; changed();
                 };
                 btnAlt.Click += delegate { PickAlternatives(); loading = true; Refill(); loading = false; changed(); };
             }
 
+            string Display(EquipChoice c) { return c.Short == a.Short ? c.Id : c.ToString(); }
+
             void Refill()
             {
                 cbId.Enabled = !chkAlt.Checked; btnAlt.Enabled = chkAlt.Checked;
-                cbId.Text = chkAlt.Checked ? string.Join(" / ", a.Ids.ToArray()) : (a.Ids.Count > 0 ? a.Ids[0] : "");
+                if (chkAlt.Checked) { List<string> d = new List<string>(); foreach (EquipChoice c in a.Choices) d.Add(Display(c)); cbId.Text = string.Join(" / ", d.ToArray()); }
+                else cbId.Text = a.Choices.Count > 0 ? a.Choices[0].Id : "";
                 Warn();
             }
 
@@ -398,44 +420,52 @@ namespace Arbeitsplan.Win
 
             void PickAlternatives()
             {
-                using (AlternativesPicker p = new AlternativesPicker(pos != null ? pos.Ids : new List<string>(), a.Ids))
-                    if (p.ShowDialog(this) == DialogResult.OK) { a.Ids = p.Result; if (a.Ids.Count < 2) { a.Alternate = false; loading = true; chkAlt.Checked = false; loading = false; } }
-                    else if (a.Ids.Count < 2) { a.Alternate = false; loading = true; chkAlt.Checked = false; loading = false; }
+                using (AlternativesPicker p = new AlternativesPicker(cat.Interchangeable(a.Short), a.Choices, a.Short))
+                    if (p.ShowDialog(this) == DialogResult.OK) a.Choices = p.Result;
+                if (a.Choices.Count < 2) { a.Alternate = false; loading = true; chkAlt.Checked = false; loading = false; }
             }
         }
     }
 
-    // Reihum-Verteilung: Geraete ankreuzen (Reihenfolge wie in der Liste); eigene Eintraege sind moeglich.
+    // Reihum-Verteilung: Geraete ankreuzen, die sich abwechseln. Angeboten werden alle Geraete, die laut Admin-Hinterlegung
+    // (Austausch-Gruppen) gleich eingesetzt werden koennen; eigene Eintraege sind moeglich.
     class AlternativesPicker : Form
     {
         readonly CheckedListBox list = new CheckedListBox();
         readonly TextBox own = new TextBox();
-        public List<string> Result = new List<string>();
+        readonly List<EquipChoice> offered;
+        readonly string ownShort;
+        public List<EquipChoice> Result = new List<EquipChoice>();
 
-        public AlternativesPicker(List<string> known, List<string> current)
+        public AlternativesPicker(List<EquipChoice> offered, List<EquipChoice> current, string ownShort)
         {
+            this.offered = offered; this.ownShort = ownShort;
             Text = "Abwechselnd verwenden";
             Font = SystemFonts.MessageBoxFont;
             FormBorderStyle = FormBorderStyle.FixedDialog; MaximizeBox = MinimizeBox = false; StartPosition = FormStartPosition.CenterParent;
-            ClientSize = new Size(330, 370);
-            Label l1 = new Label(); l1.Text = "Geräte ankreuzen, die sich abwechseln (A, B, A, B …):"; l1.SetBounds(10, 8, 310, 32);
-            list.SetBounds(10, 42, 310, 200); list.CheckOnClick = true;
+            ClientSize = new Size(360, 400);
+            Label l1 = new Label(); l1.Text = "Geräte ankreuzen, die sich abwechseln (A, B, A, B …). Angeboten werden alle Geräte, die laut Admin gleich eingesetzt werden können:"; l1.SetBounds(10, 8, 340, 48);
+            list.SetBounds(10, 60, 340, 220); list.CheckOnClick = true;
             List<string> extras = new List<string>();
-            foreach (string c in current) if (!known.Contains(c)) extras.Add(c);
-            foreach (string k in known) list.Items.Add(k, current.Contains(k));
-            Label l2 = new Label(); l2.Text = "Weitere (Komma getrennt):"; l2.SetBounds(10, 252, 310, 18);
-            own.SetBounds(10, 272, 310, 22); own.Text = string.Join(", ", extras.ToArray()); Ui.SimpleMenu(own);
-            Button ok = new Button(); ok.Text = "Übernehmen"; ok.SetBounds(120, 326, 95, 30); ok.Click += delegate { Commit(); };
-            Button cancel = new Button(); cancel.Text = "Abbrechen"; cancel.SetBounds(225, 326, 95, 30); cancel.DialogResult = DialogResult.Cancel;
+            foreach (EquipChoice c in offered) list.Items.Add(c.ToString(), current.Exists(delegate(EquipChoice x) { return x.Short == c.Short && x.Id == c.Id; }));
+            foreach (EquipChoice c in current) if (!offered.Exists(delegate(EquipChoice x) { return x.Short == c.Short && x.Id == c.Id; })) extras.Add(c.Id);
+            Label l2 = new Label(); l2.Text = "Weitere (Komma getrennt):"; l2.SetBounds(10, 290, 340, 18);
+            own.SetBounds(10, 310, 340, 22); own.Text = string.Join(", ", extras.ToArray()); Ui.SimpleMenu(own);
+            Button ok = new Button(); ok.Text = "Übernehmen"; ok.SetBounds(150, 356, 95, 30); ok.Click += delegate { Commit(); };
+            Button cancel = new Button(); cancel.Text = "Abbrechen"; cancel.SetBounds(255, 356, 95, 30); cancel.DialogResult = DialogResult.Cancel;
             CancelButton = cancel;
             Controls.AddRange(new Control[] { l1, list, l2, own, ok, cancel });
         }
 
         void Commit()
         {
-            Result = new List<string>();
-            foreach (object o in list.CheckedItems) Result.Add(o.ToString());
-            foreach (string t in own.Text.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries)) { string v = t.Trim(); if (v.Length > 0 && !Result.Contains(v)) Result.Add(v); }
+            Result = new List<EquipChoice>();
+            for (int i = 0; i < offered.Count; i++) if (list.GetItemChecked(i)) Result.Add(offered[i].Clone());
+            foreach (string t in own.Text.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries))
+            {
+                string v = t.Trim();
+                if (v.Length > 0 && !Result.Exists(delegate(EquipChoice x) { return x.Id == v; })) Result.Add(new EquipChoice(ownShort, v));
+            }
             DialogResult = DialogResult.OK;
         }
     }

@@ -789,7 +789,14 @@ namespace Arbeitsplan.Win
                     Baustein b = cat.Baustein_(bn);
                     PackageStep s = new PackageStep(); s.Title = b.Name; s.Source = b.Name; s.Row = b.Row; s.Day = bn == "Packen" ? 1 : 2;
                     foreach (string sh in b.Positions) { EquipAssign a = new EquipAssign(); a.Short = sh; s.Equipment.Add(a); }
-                    if (bn == "Lauf") { s.Count = 3; s.Equipment[2].Ids.AddRange(new[] { "H1-X-0101", "H1-X-0102" }); s.Equipment[2].Alternate = true; s.Equipment[2].Fallback = "H1-X-0103"; s.Equipment[0].Ids.Add("H1-T-0102"); s.Equipment[1].Ids.Add("H1-P-0101-05"); s.Equipment[3].Ids.Add("H2-X-0999"); }
+                    if (bn == "Lauf")
+                    {
+                        s.Count = 3;
+                        s.Equipment[0].Choices.Add(new EquipChoice("PT", "H1-T-0102")); s.Equipment[1].Choices.Add(new EquipChoice("Pumpe", "H1-P-0101-05"));
+                        s.Equipment[2].Choices.Add(new EquipChoice("TFF", "H1-X-0101")); s.Equipment[2].Choices.Add(new EquipChoice("TFF", "H1-X-0102"));
+                        s.Equipment[2].Alternate = true; s.Equipment[2].Fallback = "H1-X-0103";
+                        s.Equipment[3].Choices.Add(new EquipChoice("MH", "H2-X-0999")); s.Equipment[3].Note = "neu validieren";   // nicht validiert -> orange
+                    }
                     demo.Steps.Add(s);
                 }
             }
@@ -859,11 +866,17 @@ namespace Arbeitsplan.Win
             string path = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "selftest.apkg");
             Package p = Package.FromWeek(store, start, "Test");
             PackageStep st = new PackageStep(); st.Title = "Lauf"; st.Day = 2; st.Row = "Neu"; st.Count = 3; st.Interval = 1; st.Note = "nur wenn frei";
-            EquipAssign tff = new EquipAssign(); tff.Short = "TFF"; tff.Ids.Add("H1-X-0101"); tff.Ids.Add("H1-X-0102"); tff.Alternate = true; tff.Fallback = "H1-X-0103";
-            EquipAssign pt = new EquipAssign(); pt.Short = "PT"; pt.Ids.Add("H1-T-0102"); pt.Note = "Charge 7";
+            EquipAssign tff = new EquipAssign(); tff.Short = "TFF"; tff.Choices.Add(new EquipChoice("TFF", "H1-X-0101")); tff.Choices.Add(new EquipChoice("TFF", "H1-X-0102")); tff.Alternate = true; tff.Fallback = "H1-X-0103";
+            EquipAssign pt = new EquipAssign(); pt.Short = "PT"; pt.Choices.Add(new EquipChoice("PT", "H1-T-0102")); pt.Note = "Charge 7 mit einer sehr langen Notiz, die umbrechen muss und eingerückt weiterlaufen soll";
             EquipAssign sl = new EquipAssign(); sl.Short = "Schlauch"; sl.Note = "S-12 (grün)";
             st.Equipment.Add(pt); st.Equipment.Add(tff); st.Equipment.Add(sl);
             p.Steps.Add(st);
+            // Austausch-Gruppe: Freezetank 1 und 2 wechseln sich ab (Positions-Kurzname folgt dem gewaehlten Geraet)
+            PackageStep fz = new PackageStep(); fz.Title = "Freeze"; fz.Day = 6; fz.Row = "Neu"; fz.Count = 3;
+            EquipAssign fa = new EquipAssign(); fa.Short = "FZ1"; fa.Alternate = true;
+            fa.Choices.Add(new EquipChoice("FZ1", "H2-T-0251")); fa.Choices.Add(new EquipChoice("FZ2", "H2-T-0252"));
+            fz.Equipment.Add(fa); p.Steps.Add(fz);
+            sb.AppendLine("Austausch FZ1: " + store.GetCatalog().Interchangeable("FZ1").Count + " Geräte, Positionen=" + store.GetCatalog().Positions.Count);
             sb.AppendLine("Platzhalter TFF: " + store.GetCatalog().Position("TFF").Placeholder() + " | Pumpe: " + store.GetCatalog().Position("Pumpe").Placeholder());
             p.Save(path);
             Package q = Package.Load(path);

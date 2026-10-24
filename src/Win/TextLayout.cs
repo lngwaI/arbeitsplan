@@ -36,6 +36,8 @@ namespace Arbeitsplan.Win
 
     // Eigener Zeilenumbruch fuer mehrfarbigen/mehrgroessigen Text (schnell, ohne Steuerelemente). Umbruch nur an Leerzeichen;
     // zu lange Woerter werden zeichenweise umbrochen (nie abgeschnitten). Zeilenhoehe = hoechste Schrift der Zeile.
+    // Absaetze, die mit "Kurzname:" beginnen (z. B. "PT: H1-T-0102 Notiz ..."), werden haengend eingerueckt: Fortsetzungszeilen
+    // beginnen unter dem Text nach dem Doppelpunkt, damit lange Notizen uebersichtlich bleiben.
     class TextBlock
     {
         const TextFormatFlags Flags = TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix | TextFormatFlags.Left;
@@ -78,6 +80,16 @@ namespace Arbeitsplan.Win
 
         class T { public int Kind; public string Text; public Piece P; public int W; }   // Kind: 0 Wort, 1 Leerraum, 2 Zeilenumbruch
 
+        // Einrueckung eines Absatzes, der bei Token i beginnt: Breite von "Kurzname:" plus Leerzeichen, sonst 0.
+        static int HangingIndent(List<T> toks, int i, int maxW)
+        {
+            if (i >= toks.Count || toks[i].Kind != 0) return 0;
+            string w = toks[i].Text;
+            if (w.Length < 2 || w.Length > 16 || w[w.Length - 1] != ':' || char.IsDigit(w[0])) return 0;
+            int ind = toks[i].W + M(toks[i].P.Font).SpaceW;
+            return ind < maxW / 2 ? ind : 0;
+        }
+
         public static TextBlock Build(List<Piece> pieces, Font baseFont, int maxW)
         {
             TextBlock b = new TextBlock();
@@ -94,32 +106,33 @@ namespace Arbeitsplan.Win
 
             List<Item> cur = new List<Item>();
             b.Lines.Add(cur);
-            int x = 0, i = 0;
+            int i = 0, indent = HangingIndent(toks, 0, maxW), x = 0;
             bool skipSpace = false;
             while (i < toks.Count)
             {
                 T t = toks[i];
-                if (t.Kind == 2) { cur = new List<Item>(); b.Lines.Add(cur); x = 0; skipSpace = false; i++; }
+                if (t.Kind == 2) { cur = new List<Item>(); b.Lines.Add(cur); x = 0; skipSpace = false; i++; indent = HangingIndent(toks, i, maxW); }
                 else if (t.Kind == 1)
                 {
                     i++;
-                    if (skipSpace && x == 0) continue;
-                    if (x + t.W > maxW) { cur = new List<Item>(); b.Lines.Add(cur); x = 0; skipSpace = true; continue; }
+                    if (skipSpace && cur.Count == 0) continue;
+                    if (x + t.W > maxW) { cur = new List<Item>(); b.Lines.Add(cur); x = indent; skipSpace = true; continue; }
                     Add(cur, t, t.Text, x, t.W); x += t.W;
                 }
                 else
                 {
                     int j = i, total = 0;
                     while (j < toks.Count && toks[j].Kind == 0) { total += toks[j].W; j++; }
-                    if (x > 0 && x + total > maxW) { cur = new List<Item>(); b.Lines.Add(cur); x = 0; }
+                    if (cur.Count > 0 && x + total > maxW) { cur = new List<Item>(); b.Lines.Add(cur); x = indent; }
                     skipSpace = false;
-                    if (total <= maxW) { for (; i < j; i++) { Add(cur, toks[i], toks[i].Text, x, toks[i].W); x += toks[i].W; } }
+                    if (cur.Count == 0 && x > 0 && x + total > maxW) x = 0;   // Wort passt nicht hinter die Einrueckung: ohne Einrueckung setzen
+                    if (x + total <= maxW || (cur.Count == 0 && total <= maxW)) { for (; i < j; i++) { Add(cur, toks[i], toks[i].Text, x, toks[i].W); x += toks[i].W; } }
                     else
                         for (; i < j; i++)                          // Wort laenger als die Spalte: zeichenweise
                             foreach (char ch in toks[i].Text)
                             {
                                 int cw = Width(toks[i].P.Font, ch.ToString());
-                                if (x > 0 && x + cw > maxW) { cur = new List<Item>(); b.Lines.Add(cur); x = 0; }
+                                if (cur.Count > 0 && x + cw > maxW) { cur = new List<Item>(); b.Lines.Add(cur); x = indent; }
                                 Add(cur, toks[i], ch.ToString(), x, cw); x += cw;
                             }
                 }

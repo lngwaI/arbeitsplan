@@ -22,6 +22,10 @@ namespace Arbeitsplan.Win
         readonly ComboBox bRow = new ComboBox();
         readonly CheckedListBox bPos = new CheckedListBox();
         readonly CheckBox bUnique = new CheckBox(), bDefault = new CheckBox(), bSpecial = new CheckBox();
+        // Austausch-Gruppen
+        readonly ListBox lbGrp = new ListBox();
+        readonly TextBox gName = new TextBox();
+        readonly CheckedListBox gPos = new CheckedListBox();
         bool loading;
 
         public CatalogForm(Catalog catalog, List<string> rowNames)
@@ -35,9 +39,10 @@ namespace Arbeitsplan.Win
 
             TabControl tabs = new TabControl(); tabs.SetBounds(8, 8, 744, 462);
             TabPage t1 = new TabPage("Equipment-Positionen"), t2 = new TabPage("Bausteine (Ablaufschritte)");
-            tabs.SelectedIndexChanged += delegate { if (tabs.SelectedIndex == 1) { RefillPos(); LoadBau(); } };
-            tabs.TabPages.Add(t1); tabs.TabPages.Add(t2);
-            BuildPositions(t1); BuildBausteine(t2);
+            tabs.SelectedIndexChanged += delegate { if (tabs.SelectedIndex == 1) { RefillPos(); LoadBau(); } else if (tabs.SelectedIndex == 2) { RefillGroupPos(); LoadGrp(); } };
+            TabPage t3 = new TabPage("Austausch-Gruppen");
+            tabs.TabPages.Add(t1); tabs.TabPages.Add(t2); tabs.TabPages.Add(t3);
+            BuildPositions(t1); BuildBausteine(t2); BuildGroups(t3);
 
             Button ok = new Button(); ok.Text = "Speichern"; ok.SetBounds(560, 480, 95, 30); ok.Click += delegate { Commit(); };
             Button cancel = new Button(); cancel.Text = "Abbrechen"; cancel.SetBounds(660, 480, 95, 30); cancel.DialogResult = DialogResult.Cancel;
@@ -153,6 +158,54 @@ namespace Arbeitsplan.Win
             bText.Text = b != null ? b.Text : "";
             bUnique.Checked = b != null && b.Unique; bDefault.Checked = b != null && b.DefaultInCampaign; bSpecial.Checked = b != null && b.Special;
             for (int i = 0; i < bPos.Items.Count; i++) bPos.SetItemChecked(i, b != null && b.Positions.Contains(cat.Positions[i].Short));
+            loading = false;
+        }
+
+        // ---------- Austausch-Gruppen ----------
+        // Geraete der angekreuzten Positionen koennen sich gegenseitig vertreten bzw. abwechselnd fuer denselben Zweck eingesetzt werden.
+
+        void BuildGroups(TabPage p)
+        {
+            p.Controls.Add(L("Austausch-Gruppen (z. B. Freezetanks):", 8, 8));
+            lbGrp.SetBounds(8, 28, 230, 360);
+            foreach (EquipGroup g in cat.Groups) lbGrp.Items.Add(g);
+            lbGrp.SelectedIndexChanged += delegate { LoadGrp(); };
+            p.Controls.Add(lbGrp);
+            p.Controls.Add(Btn("+ Neu", 8, 394, 70, delegate { EquipGroup g = new EquipGroup(); g.Name = "Neue Gruppe"; cat.Groups.Add(g); lbGrp.Items.Add(g); lbGrp.SelectedIndex = lbGrp.Items.Count - 1; }));
+            p.Controls.Add(Btn("Entfernen", 82, 394, 72, delegate { RemoveSel(lbGrp, cat.Groups); }));
+
+            p.Controls.Add(L("Name der Gruppe:", 260, 8)); gName.SetBounds(260, 28, 460, 22); p.Controls.Add(gName);
+            p.Controls.Add(L("Diese Positionen können sich gegenseitig vertreten:", 260, 62));
+            gPos.SetBounds(260, 82, 460, 250); gPos.CheckOnClick = true; p.Controls.Add(gPos);
+            Label hint = L("Im Paket-Editor stehen beim \"abwechselnd\" und beim Ausweich-Equipment dann alle Geräte dieser Positionen zur Auswahl (z. B. Freezetank 1 → Freezetank 2).", 260, 340);
+            hint.AutoSize = false; hint.SetBounds(260, 340, 460, 40); p.Controls.Add(hint);
+            gName.TextChanged += delegate { if (!loading && lbGrp.SelectedItem != null) { ((EquipGroup)lbGrp.SelectedItem).Name = gName.Text; Refresh(lbGrp); } };
+            gPos.ItemCheck += delegate(object s, ItemCheckEventArgs e)
+            {
+                if (loading || lbGrp.SelectedItem == null) return;
+                EquipGroup g = (EquipGroup)lbGrp.SelectedItem;
+                string sh = cat.Positions[e.Index].Short;
+                g.Shorts.RemoveAll(delegate(string x) { return x == sh; });
+                if (e.NewValue == CheckState.Checked) g.Shorts.Add(sh);
+            };
+            RefillGroupPos();
+            if (lbGrp.Items.Count > 0) lbGrp.SelectedIndex = 0;
+        }
+
+        void RefillGroupPos()
+        {
+            loading = true;
+            gPos.Items.Clear();
+            foreach (EquipPosition e in cat.Positions) gPos.Items.Add(e.Short + "  –  " + e.Name);
+            loading = false;
+        }
+
+        void LoadGrp()
+        {
+            EquipGroup g = lbGrp.SelectedItem as EquipGroup;
+            loading = true;
+            gName.Text = g != null ? g.Name : "";
+            for (int i = 0; i < gPos.Items.Count; i++) gPos.SetItemChecked(i, g != null && g.Shorts.Contains(cat.Positions[i].Short));
             loading = false;
         }
 
