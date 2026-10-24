@@ -37,7 +37,7 @@ namespace Arbeitsplan.Win
         static Color C(int r, int g, int b) { return Color.FromArgb(r, g, b); }
 
         // ---- Masse (Pixel) ----
-        public static readonly int HeadH = P(24, 27), LkzH = P(22, 22), LW = P(26, 26), Pad = P(4, 4), Gap = P(4, 4);
+        public static readonly int HeadH = P(24, 27), LkzH = P(22, 22), LW = P(26, 18), Pad = P(4, 4), Gap = P(4, 4);
         public static readonly int HeadTextX = P(3, 9);      // Abstand der Ueberschrift vom linken Rand
         public static readonly int ArrowSize = P(1, 0);      // 1 = bisheriger Pfeil, 0 = kleiner
 
@@ -62,15 +62,15 @@ namespace Arbeitsplan.Win
         public static readonly Color Separator = P(C(200, 205, 215), C(200, 205, 215));   // Linie unter der LKZ-Zeile
         public static readonly Color LkzOn = P(C(150, 220, 150), C(150, 220, 150));
         public static readonly Color LkzText = P(Color.Black, Color.Black);
-        public static readonly bool ShiftSep = P(false, false);                          // duenne Trennlinien zwischen den Schichten
-        public static readonly Color ShiftLine = P(C(200, 205, 215), C(200, 205, 215));
-        public static readonly Color ShiftLabelText = P(Color.Black, Color.Black);
+        public static readonly bool ShiftSep = P(false, true);                          // duenne Trennlinien zwischen den Schichten
+        public static readonly Color ShiftLine = P(C(200, 205, 215), C(226, 229, 235));
+        public static readonly Color ShiftLabelText = P(Color.Black, C(70, 75, 90));
         public static readonly Color[] ShiftLabel = P(
             new Color[] { C(255, 225, 130), C(255, 190, 130), C(150, 175, 225) },
-            new Color[] { C(255, 225, 130), C(255, 190, 130), C(150, 175, 225) });
+            new Color[] { C(255, 233, 165), C(255, 211, 170), C(180, 198, 234) });
         public static readonly Color[] ShiftBack = P(
             new Color[] { C(255, 248, 225), C(255, 240, 225), C(232, 238, 250) },
-            new Color[] { C(255, 248, 225), C(255, 240, 225), C(232, 238, 250) });
+            new Color[] { C(255, 251, 238), C(255, 246, 238), C(242, 246, 253) });
 
         // Schaltflaechen / Leisten
         public static readonly bool FlatButtons = P(false, false);

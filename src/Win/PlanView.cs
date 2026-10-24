@@ -299,8 +299,9 @@ namespace Arbeitsplan.Win
             {
                 Fill(g, Theme.ShiftLabel[s], c.RLbl[s]);
                 Fill(g, Theme.ShiftBack[s], c.RPpl[s]);
-                TextRenderer.DrawText(g, ri.Labels[s], bold, new Rectangle(c.RLbl[s].X, c.RLbl[s].Y + 1, c.RLbl[s].Width, c.RLbl[s].Height), Theme.ShiftLabelText, tf | TextFormatFlags.HorizontalCenter);
+                TextRenderer.DrawText(g, ri.Labels[s], bold, new Rectangle(c.RLbl[s].X, c.RLbl[s].Y + 1, c.RLbl[s].Width, c.RLbl[s].Height), Theme.ShiftLabelText, tf | TextFormatFlags.HorizontalCenter | TextFormatFlags.EndEllipsis);
                 if (!c.Editing) c.PB[s].Draw(g, c.RPpl[s].X + TP, c.RPpl[s].Y + TV);
+                if (Theme.ShiftSep) using (Pen p = new Pen(Theme.ShiftLine)) g.DrawLine(p, c.RLbl[s].X, c.RLbl[s].Y, c.RPpl[s].Right - 1, c.RLbl[s].Y);
             }
         }
 
