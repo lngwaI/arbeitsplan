@@ -12,7 +12,7 @@ namespace Arbeitsplan.Win
             return null;
         }
 
-        // Aufruf: Arbeitsplan.exe [--user <login>] [--nosave]
+        // Aufruf: Arbeitsplan.exe [--user <login>] [--nosave] [--4x3 | --size BxH]
         //   Test:  --shot <png> [--size BxH] [--edit spalte,zeile]  (rendert die Ansicht als Bild und beendet)
         [STAThread]
         static void Main(string[] args)
@@ -23,7 +23,15 @@ namespace Arbeitsplan.Win
             string login = Arg(args, "--user") ?? Environment.UserName;
             bool nosave = Array.IndexOf(args, "--nosave") >= 0;
             string shot = Arg(args, "--shot");
-            if (shot == null) { Application.Run(new MainForm(login, nosave)); return; }
+            // Test: --4x3 startet im Fenster 1024x768 (4:3), --size BxH beliebig (auch ohne --shot)
+            string sz = Arg(args, "--size") ?? (Array.IndexOf(args, "--4x3") >= 0 ? "1024x768" : null);
+            if (shot == null)
+            {
+                MainForm m = new MainForm(login, nosave);
+                if (sz != null) m.ClientSize = new Size(int.Parse(sz.Split('x')[0]), int.Parse(sz.Split('x')[1]));
+                Application.Run(m);
+                return;
+            }
 
             MainForm f = new MainForm(login, nosave);
             f.StartPosition = FormStartPosition.Manual;
