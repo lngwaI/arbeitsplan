@@ -37,21 +37,23 @@ namespace Arbeitsplan.Win
         static Color C(int r, int g, int b) { return Color.FromArgb(r, g, b); }
 
         // ---- Masse (Pixel) ----
-        public static readonly int HeadH = P(24, 24), LkzH = P(22, 22), LW = P(26, 26), Pad = P(4, 4), Gap = P(4, 4);
-        public static readonly int HeadTextX = P(3, 3);      // Abstand der Ueberschrift vom linken Rand
-        public static readonly int ArrowSize = P(1, 1);      // 1 = bisheriger Pfeil, 0 = kleiner
+        public static readonly int HeadH = P(24, 27), LkzH = P(22, 22), LW = P(26, 26), Pad = P(4, 4), Gap = P(4, 4);
+        public static readonly int HeadTextX = P(3, 9);      // Abstand der Ueberschrift vom linken Rand
+        public static readonly int ArrowSize = P(1, 0);      // 1 = bisheriger Pfeil, 0 = kleiner
 
         // ---- Farben ----
         public static readonly Color Window = P(SystemColors.Control, SystemColors.Control);
         public static readonly Color CellBorder = P(C(150, 160, 175), C(150, 160, 175));
         public static readonly Color DayHead = P(C(205, 218, 234), C(205, 218, 234));
         public static readonly Color DayHeadToday = P(C(255, 224, 130), C(255, 224, 130));
+        public static readonly Color RowHead = P(C(205, 218, 234), C(238, 241, 246));
+        public static readonly Color RowHeadToday = P(C(255, 224, 130), C(255, 240, 200));
         public static readonly Color CellBack = P(Color.White, Color.White);
         public static readonly Color CellBackWeekend = P(C(244, 246, 250), C(244, 246, 250));
         public static readonly Color CellBackToday = P(C(255, 250, 230), C(255, 250, 230));
-        public static readonly Color HeadText = P(Color.Black, Color.Black);
-        public static readonly Color HeadTextCollapsed = P(C(70, 70, 70), C(70, 70, 70));
-        public static readonly Color Arrow = P(C(70, 80, 100), C(70, 80, 100));
+        public static readonly Color HeadText = P(Color.Black, C(45, 55, 75));
+        public static readonly Color HeadTextCollapsed = P(C(70, 70, 70), C(95, 105, 125));
+        public static readonly Color Arrow = P(C(70, 80, 100), C(130, 140, 158));
         public static readonly Color DayWeekday = P(Color.Black, Color.Black);
         public static readonly Color DayDate = P(Color.Black, Color.Black);
         public static readonly Color Separator = P(C(200, 205, 215), C(200, 205, 215));   // Linie unter der LKZ-Zeile

@@ -247,37 +247,42 @@ namespace Arbeitsplan.Win
         {
             bool today = c.Day.Date == DateTime.Today;
             bool weekend = c.Day.DayOfWeek == DayOfWeek.Saturday || c.Day.DayOfWeek == DayOfWeek.Sunday;
-            Color headBack = today ? Theme.DayHeadToday : Theme.DayHead;
             Color back = today ? Theme.CellBackToday : (weekend ? Theme.CellBackWeekend : Theme.CellBack);
             Color border = c.Editing ? Color.FromArgb(255, 140, 0) : (c == Selected ? Color.FromArgb(40, 100, 200) : Theme.CellBorder);
             RowInfo ri = Rows[c.RowIndex];
 
             bool collapsed = Collapsed[c.RowIndex];
             Fill(g, border, c.R);
-            Fill(g, headBack, c.RHead);
+            Fill(g, today ? Theme.RowHeadToday : Theme.RowHead, c.RHead);
             if (!collapsed) Fill(g, back, c.RContent);
             const TextFormatFlags tf = TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix;
 
             // Pfeil (zu = nach rechts, offen = nach unten); Klick auf den Kopf klappt die Zeile um
             // Der Pfeil sitzt am rechten Rand, die Ueberschrift steht in jeder Spalte (auch zugeklappt).
-            int ax = c.RHead.Right - 15, ay = c.RHead.Y + 8;
+            int ax = c.RHead.Right - 15, ay = c.RHead.Y + (c.RHead.Height - 7) / 2;
             Point[] tri = collapsed ? new Point[] { new Point(ax + 1, ay - 1), new Point(ax + 1, ay + 8), new Point(ax + 6, ay + 4) }
                                     : new Point[] { new Point(ax - 1, ay + 1), new Point(ax + 7, ay + 1), new Point(ax + 3, ay + 6) };
+            if (Theme.ArrowSize == 0)   // moderner Look: kleinerer Pfeil, mittig in der Kopfleiste
+            {
+                ay = c.RHead.Y + (c.RHead.Height - 5) / 2;
+                tri = collapsed ? new Point[] { new Point(ax + 2, ay - 1), new Point(ax + 2, ay + 6), new Point(ax + 6, ay + 3) }
+                                : new Point[] { new Point(ax, ay + 1), new Point(ax + 7, ay + 1), new Point(ax + 3, ay + 5) };
+            }
             using (SolidBrush ab = new SolidBrush(Theme.Arrow)) g.FillPolygon(ab, tri);
 
             int right = 18 + (c.Editing ? 20 : 0);                                   // Platz fuer Pfeil (+ Stift im Bearbeitungsmodus)
-            Rectangle nr = new Rectangle(c.RHead.X + 3, c.RHead.Y, c.RHead.Width - 6 - right, c.RHead.Height);
+            Rectangle nr = new Rectangle(c.RHead.X + Theme.HeadTextX, c.RHead.Y, c.RHead.Width - 2 * Theme.HeadTextX - right, c.RHead.Height);
             if (collapsed)
             {
                 bool filled = !c.Cur.IsEmpty || c.Cur.Lkz;
                 if (filled)   // zugeklappt, aber Inhalt vorhanden: Hinweispunkt vor dem Pfeil
-                    using (SolidBrush db = new SolidBrush(Color.FromArgb(215, 100, 0))) g.FillEllipse(db, c.RHead.Right - 29, c.RHead.Y + 8, 8, 8);
+                    using (SolidBrush db = new SolidBrush(Color.FromArgb(215, 100, 0))) g.FillEllipse(db, c.RHead.Right - 29, c.RHead.Y + (c.RHead.Height - 7) / 2, 8, 8);
                 nr.Width -= filled ? 12 : 0;
                 TextRenderer.DrawText(g, ri.Name, bold, nr, Theme.HeadTextCollapsed, tf | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
                 return;
             }
             TextRenderer.DrawText(g, ri.Name, bold, nr, Theme.HeadText, tf | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
-            if (c.Editing && Pencil != null) g.DrawImage(Pencil, c.RHead.Right - 38, c.RHead.Y + 3, 18, 18);
+            if (c.Editing && Pencil != null) g.DrawImage(Pencil, c.RHead.Right - 38, c.RHead.Y + (c.RHead.Height - 17) / 2, 18, 18);
 
             if (ri.HasLkz)
             {
