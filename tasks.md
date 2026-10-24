@@ -25,7 +25,7 @@
 - [ ] Architektur festlegen (Server+SQLite vs. Netzlaufwerk-Datei) → `architekt`
 - [ ] Echter Lock-Dienst und Nutzer-DB zentral; Identifikation am System-PC (Kartenleser-Anmeldung)
 - [ ] Audit Trail; Schutz gegen Nutzung außerhalb des Netzes
-- [ ] Equipment-Provider für ein MES-System; Statuszeitstempel anzeigen (Tooltip)
+- [ ] Equipment-Provider für ein MES-System
 - [ ] Übernahme alter Pläne (falls gewünscht)
 - [ ] Test auf System-PC, normalem PC und XP (falls relevant)
 
