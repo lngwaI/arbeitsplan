@@ -137,7 +137,7 @@ namespace Arbeitsplan.Core
             MemoryStore s = new MemoryStore();
             string[] a = {
                 "Lauf 100001\nTFF: H1-X-0101\nPumpe: H1-P-0101-05\nPT: H1-T-0102\nSkid: H1-X-0103 (H1-F-0103-04)\n\nSplitten\nTank 1: H1-T-0111 (800L)",
-                "Probenahme Charge 4711\nH1-P-0101-05 in Prozess, H1-T-0112 gesperrt",
+                "Probenahme Charge 4711\nH1-P-0101-05, H1-T-0112",
                 "Wartung Abfuellung (extern ab 08:00).\nTaegliche WFI Probe ziehen\nLKZ MESSEN",
                 "Lauf 100002\nSkid: H1-X-0103, Tank: H2-T-0201",
                 "Reinigung und Ruesten\nH1-T-0113, H2-F-0202-01",
