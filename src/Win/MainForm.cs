@@ -200,6 +200,7 @@ namespace Arbeitsplan.Win
             Button b = new Button();
             b.Text = text; b.AutoSize = true; b.MinimumSize = new Size(86, 34); b.Margin = new Padding(3, 0, 3, 0);
             b.Click += click;
+            Theme.StyleButton(b);
             nav.Controls.Add(b);
         }
 
@@ -252,11 +253,13 @@ namespace Arbeitsplan.Win
                 Button b = new Button();
                 b.SetBounds(x, 5, 22, 22); x += 24; b.FlatStyle = FlatStyle.Flat; b.TabStop = false;
                 b.BackColor = Color.FromArgb((col >> 16) & 255, (col >> 8) & 255, col & 255);
-                b.Click += delegate { ApplyColor(col); };
+                b.Click += delegate { ApplyColor(col); MarkSwatch(b); };
+                if (Theme.FlatButtons) { b.Size = new Size(20, 20); b.Top = 6; b.FlatAppearance.BorderColor = Theme.SwatchBorder; b.FlatAppearance.BorderSize = 1; b.FlatAppearance.MouseOverBackColor = b.BackColor; b.FlatAppearance.MouseDownBackColor = b.BackColor; }
                 fmtBar.Controls.Add(b); fmtControls.Add(b);
             }
             Button more = new Button(); more.Text = "Farbe…"; more.SetBounds(x + 4, 4, 62, 24); more.Click += delegate { PickColor(); }; x += 70;
             Button clear = new Button(); clear.Text = "Standardformat"; clear.SetBounds(x, 4, 110, 24); clear.Click += delegate { ClearFormat(); };
+            foreach (Button sb in new Button[] { btnBold, btnItalic, more, clear }) Theme.StyleButton(sb);
             fmtBar.Controls.Add(more); fmtBar.Controls.Add(clear);
             fmtControls.AddRange(new Control[] { cbFont, cbSize, btnBold, btnItalic, more, clear });
             foreach (Control c in fmtControls) c.Enabled = false;
@@ -303,6 +306,16 @@ namespace Arbeitsplan.Win
         void ToggleStyle(FontStyle s)
         {
             ChangeFont(delegate(Font f) { return MakeFont(f.Name, f.SizeInPoints, (f.Style & s) != 0 ? f.Style & ~s : f.Style | s); });
+        }
+
+        Button markedSwatch;
+        // Moderner Look: das zuletzt gewaehlte Farbfeld bekommt einen Auswahlrahmen.
+        void MarkSwatch(Button b)
+        {
+            if (!Theme.FlatButtons) return;
+            if (markedSwatch != null) { markedSwatch.FlatAppearance.BorderColor = Theme.SwatchBorder; markedSwatch.FlatAppearance.BorderSize = 1; }
+            markedSwatch = b;
+            b.FlatAppearance.BorderColor = Theme.SwatchSelected; b.FlatAppearance.BorderSize = 2;
         }
 
         void ApplyColor(int rgb)
