@@ -291,7 +291,9 @@ namespace Arbeitsplan.Win
                 Rectangle lr = new Rectangle(c.RLkz.X + TP, c.RLkz.Y, c.RLkz.Width - TP, c.RLkz.Height);
                 TextRenderer.DrawText(g, "LKZ gemessen?", Font, lr, Theme.LkzText, tf | TextFormatFlags.VerticalCenter);
                 int tw = TextRenderer.MeasureText(g, "LKZ gemessen?", Font, new Size(1000, 100), tf).Width;
-                CheckBoxRenderer.DrawCheckBox(g, new Point(c.RLkz.X + TP + tw + 6, c.RLkz.Y + (c.RLkz.Height - 13) / 2), c.Lkz ? CheckBoxState.CheckedNormal : CheckBoxState.UncheckedNormal);
+                Point cp = new Point(c.RLkz.X + TP + tw + 6, c.RLkz.Y + (c.RLkz.Height - 13) / 2);
+                if (!Theme.Modern) CheckBoxRenderer.DrawCheckBox(g, cp, c.Lkz ? CheckBoxState.CheckedNormal : CheckBoxState.UncheckedNormal);
+                else Theme.DrawCheck(g, cp, c.Lkz);
             }
 
             if (!c.Editing) c.CB.Draw(g, c.RContent.X + TP, c.RContent.Y + TV);
