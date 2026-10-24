@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#2b6cb0">
+<title>Arbeitsplan</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg">
+<link rel="apple-touch-icon" href="icon.svg">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <div id="kw"></div>
+  <div class="nav">
+    <button id="pw" aria-label="Vorherige Woche">&laquo;</button>
+    <button id="pd" aria-label="Vorheriger Tag">&lsaquo;</button>
+    <button id="today">Heute</button>
+    <button id="nd" aria-label="Nächster Tag">&rsaquo;</button>
+    <button id="nw" aria-label="Nächste Woche">&raquo;</button>
+  </div>
+  <div class="search"><input id="q" type="search" placeholder="Suchen (Inhalt, Equipment, Kürzel)"><span id="cnt"></span></div>
+</header>
+<main id="days"></main>
+<footer>Nur Ansicht (Testdaten)</footer>
+<script src="data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

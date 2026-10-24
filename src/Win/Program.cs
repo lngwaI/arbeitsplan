@@ -26,10 +26,12 @@ namespace Arbeitsplan.Win
             string shot = Arg(args, "--shot");
             // Test: --4x3 startet im Fenster 1024x768 (4:3), --size BxH beliebig (auch ohne --shot)
             string sz = Arg(args, "--size") ?? (Array.IndexOf(args, "--4x3") >= 0 ? "1024x768" : null);
+            Size cs = new Size(1280, 720);
+            if (sz != null) cs = new Size(int.Parse(sz.Split('x')[0]), int.Parse(sz.Split('x')[1]));
             if (shot == null)
             {
                 MainForm m = new MainForm(login, nosave);
-                if (sz != null) m.ClientSize = new Size(int.Parse(sz.Split('x')[0]), int.Parse(sz.Split('x')[1]));
+                if (sz != null) m.ClientSize = cs;
                 Application.Run(m);
                 return;
             }
@@ -37,8 +39,7 @@ namespace Arbeitsplan.Win
             MainForm f = new MainForm(login, nosave);
             f.StartPosition = FormStartPosition.Manual;
             f.Location = new Point(0, 0);
-            string size = Arg(args, "--size");
-            f.ClientSize = size != null ? new Size(int.Parse(size.Split('x')[0]), int.Parse(size.Split('x')[1])) : new Size(1280, 720);
+            f.ClientSize = cs;
             f.TopMost = true;
             f.Show();
             string edit = Arg(args, "--edit");

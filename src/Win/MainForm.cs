@@ -256,7 +256,7 @@ namespace Arbeitsplan.Win
                 int col = rgb;
                 Button b = new Button();
                 b.SetBounds(x, 5, 22, 22); x += 24; b.FlatStyle = FlatStyle.Flat; b.TabStop = false;
-                b.BackColor = Color.FromArgb((col >> 16) & 255, (col >> 8) & 255, col & 255);
+                b.BackColor = Ui.Rgb(col);
                 b.Click += delegate { ApplyColor(col); MarkSwatch(b); };
                 if (Theme.FlatButtons) { b.Size = new Size(20, 20); b.Top = 6; b.FlatAppearance.BorderColor = Theme.SwatchBorder; b.FlatAppearance.BorderSize = 1; b.FlatAppearance.MouseOverBackColor = b.BackColor; b.FlatAppearance.MouseDownBackColor = b.BackColor; }
                 fmtBar.Controls.Add(b); fmtControls.Add(b);
@@ -286,7 +286,7 @@ namespace Arbeitsplan.Win
             {
                 int rgb = Swatches[i];
                 ToolStripItem it = col.DropDownItems.Add(names[i], null, delegate { ApplyColor(rgb); });
-                it.ForeColor = Color.FromArgb((rgb >> 16) & 255, (rgb >> 8) & 255, rgb & 255);
+                it.ForeColor = Ui.Rgb(rgb);
             }
             col.DropDownItems.Add("Weitere Farben…", null, delegate { PickColor(); });
             m.Items.Add(size); m.Items.Add(fnt); m.Items.Add(col);
@@ -325,7 +325,7 @@ namespace Arbeitsplan.Win
         void ApplyColor(int rgb)
         {
             if (editCell == null || !me.Has(Perm.Format)) return;
-            edContent.SelectionColor = Color.FromArgb((rgb >> 16) & 255, (rgb >> 8) & 255, rgb & 255);
+            edContent.SelectionColor = Ui.Rgb(rgb);
             edContent.Focus();
         }
 
@@ -578,7 +578,7 @@ namespace Arbeitsplan.Win
                 if (sp.Start < 0 || sp.Start + sp.Length > edContent.TextLength) continue;
                 edContent.Select(sp.Start, sp.Length);
                 edContent.SelectionFont = PlanView.SpanFont(sp, plainFont);
-                edContent.SelectionColor = Color.FromArgb((sp.Rgb >> 16) & 255, (sp.Rgb >> 8) & 255, sp.Rgb & 255);
+                edContent.SelectionColor = Ui.Rgb(sp.Rgb);
             }
             edContent.Select(edContent.TextLength, 0);
             for (int s = 0; s < 3; s++) { edPpl[s].Text = Win(c.Cur.People[s]); edPpl[s].BackColor = Theme.ShiftBack[s]; }
@@ -907,6 +907,13 @@ namespace Arbeitsplan.Win
             }
             Rebuild(true);
             sb.AppendLine("Find 'TEST': " + store.Find("TEST").Count);
+            byte[] blob = Protected.Protect("Geheim äöü", "pw1");
+            bool wrong = false, tampered = false;
+            try { Protected.Unprotect(blob, "pw2"); } catch (System.Security.Cryptography.CryptographicException) { wrong = true; }
+            blob[40] ^= 1;
+            try { Protected.Unprotect(blob, "pw1"); } catch (System.Security.Cryptography.CryptographicException) { tampered = true; }
+            blob[40] ^= 1;
+            sb.AppendLine("Protected: ok=" + (Protected.Unprotect(blob, "pw1") == "Geheim äöü") + " falschesPw=" + wrong + " manipuliert=" + tampered);
             return sb.ToString();
         }
 #endif

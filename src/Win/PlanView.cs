@@ -65,7 +65,7 @@ namespace Arbeitsplan.Win
 
         // ---------- Textstuecke (Schrift, Farben, Markierungen) ----------
 
-        static Color Rgb(int rgb) { return Color.FromArgb((rgb >> 16) & 255, (rgb >> 8) & 255, rgb & 255); }
+        static Color Rgb(int rgb) { return Ui.Rgb(rgb); }
 
         List<Piece> Group(string text, Color[] fore, Font[] fnt, int[] mode)
         {

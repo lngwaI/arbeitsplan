@@ -171,8 +171,15 @@ namespace Arbeitsplan.Core
 
         public static Package Load(string path)
         {
+            // Gehaertet: keine DTD/externen Entitaeten, keine Aufloesung externer Quellen, Groessenlimit (10 MB).
+            if (new FileInfo(path).Length > 10 * 1024 * 1024) throw new InvalidDataException("Paketdatei ist zu groß.");
+            XmlReaderSettings rs = new XmlReaderSettings();
+            rs.DtdProcessing = DtdProcessing.Prohibit;
+            rs.XmlResolver = null;
+            rs.MaxCharactersInDocument = 20 * 1000 * 1000;
             XmlDocument doc = new XmlDocument();
-            doc.Load(path);
+            doc.XmlResolver = null;
+            using (XmlReader xr = XmlReader.Create(path, rs)) doc.Load(xr);
             XmlElement root = doc.DocumentElement;
             if (root == null || root.Name != "Paket") throw new InvalidDataException("Keine gültige Paketdatei.");
             Package p = new Package();

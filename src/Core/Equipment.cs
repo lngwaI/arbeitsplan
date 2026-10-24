@@ -90,7 +90,9 @@ namespace Arbeitsplan.Core
         {
             StatusColors c = new StatusColors();
             if (!File.Exists(path)) return c;
-            foreach (string line in File.ReadAllLines(path))
+            string[] lines;
+            try { lines = File.ReadAllLines(path); } catch (Exception) { return c; }   // nicht lesbar: Standardfarben
+            foreach (string line in lines)
             {
                 int eq = line.IndexOf('=');
                 if (eq < 1 || line.TrimStart().StartsWith(";")) continue;
