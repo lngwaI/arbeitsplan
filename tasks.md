@@ -3,7 +3,7 @@
 ## Erledigt
 - [x] Projektdateien, Build ohne SDK (`build.cmd`, x86, .NET-4.0-API), Subagenten, CLAUDE.md
 - [x] Core/UI getrennt; `IDataStore` mit Version/Konflikt, Zeilen-IDs, Suche
-- [x] Layout: KW-Kopf, Datum je Spalte, 10 Standardzeilen, Inhalts-/Schichtfelder je Zeile in allen Spalten gleich hoch, Schichtfeld fest 3 Zeilen
+- [x] Layout: KW-Kopf, Datum je Spalte, 11 Standardzeilen (inkl. Versand), Inhalts-/Schichtfelder je Zeile in allen Spalten gleich hoch, Schichtfeld fest 3 Zeilen
 - [x] Bearbeitungsmodus (Doppelklick), Soft-Lock-Popup, Konfliktabfrage, Speicherfehler ohne Datenverlust
 - [x] Blockname/F-S-N nur mit Recht; Blockhöhe je Zeile (Recht); Zeilen sortieren (Recht, nur Admin); Zeile hinzufügen (Recht)
 - [x] Nutzer/Rechte/Pakete + Kürzel (Verwaltungsdialog), Paket-Auto-Markierung

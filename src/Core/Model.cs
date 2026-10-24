@@ -56,7 +56,7 @@ namespace Arbeitsplan.Core
 
     public class MemoryStore : IDataStore
     {
-        public static readonly string[] DefaultRows = { "Suite 1", "Mix / Split", "Suite 2", "Puffer", "Freeze / Thaw", "Einwaage", "CIP / SIP", "Raum CC", "", "" };
+        public static readonly string[] DefaultRows = { "Suite 1", "Mix / Split", "Suite 2", "Puffer", "Freeze / Thaw", "Versand", "Einwaage", "CIP / SIP", "Raum CC", "", "" };
 
         readonly Dictionary<string, Entry> items = new Dictionary<string, Entry>();
         readonly List<RowInfo> rows = new List<RowInfo>();
@@ -164,7 +164,7 @@ namespace Arbeitsplan.Core
                 s.Save(monday.AddDays(d), 2, e);
             }
             Entry cc = new Entry(); cc.Content = "Raumreinigung"; cc.People = new[] { "BEER, WEPA", "", "" };
-            s.Save(monday.AddDays(2), 8, cc);
+            s.Save(monday.AddDays(2), 9, cc);   // Id 9 = Raum CC
             return s;
         }
     }
