@@ -35,6 +35,7 @@
 - [ ] Equipment-Provider für ein MES-System
 - [ ] Übernahme alter Pläne (falls gewünscht)
 - [ ] Test auf System-PC, normalem PC und XP (falls relevant)
+- [ ] exe signieren oder durch IT freigeben (Smart App Control / Application Control blockt unsignierte exe gelegentlich)
 
 ## On hold
 - [ ] Android/iOS: Server-HTTP-API + Web-Client (PWA); erst nach Serverentscheidung
