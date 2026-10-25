@@ -15,8 +15,8 @@ namespace Arbeitsplan.Win
         public float FontSize;
         public Color Window, Bar, Head, HeadToday, Cell, CellToday, CellWeekend, Border, BorderSel, BorderEdit, Arrow, Dot, LkzOn;
         public Color[] ShiftLabel, ShiftBack;
-        public bool Gradient, FlatButtons;
-        public int ButtonH, BarH;
+        public bool Glossy, Shadow, Stripe, FlatButtons;   // Glanz-Kopfleiste + Schlagschatten (win7), Akzentstreifen + 2-px-Auswahl (win10)
+        public int ButtonH, BarH, Pad, Gap;
 
         static Color C(int r, int g, int b) { return Color.FromArgb(r, g, b); }
 
@@ -24,39 +24,32 @@ namespace Arbeitsplan.Win
         {
             Theme t = new Theme();
             t.Name = name;
-            if (name == "xp")          // Luna: Tahoma, beige Flaechen, blaue Kopfleisten mit Verlauf
+            t.ShiftLabel = new Color[] { C(255, 225, 130), C(255, 190, 130), C(150, 175, 225) };
+            t.ShiftBack = new Color[] { C(255, 248, 225), C(255, 240, 225), C(232, 238, 250) };
+            t.Cell = Color.White; t.CellToday = C(255, 250, 230); t.BorderEdit = C(255, 140, 0); t.Arrow = C(70, 80, 100); t.Dot = C(215, 100, 0); t.LkzOn = C(150, 220, 150);
+            if (name == "xp")          // der urspruengliche Look: Tahoma, Systemgrau, schlicht, eckig
             {
-                t.FontName = "Tahoma"; t.FontSize = 8.25f; t.Gradient = true; t.ButtonH = 24; t.BarH = 30;
-                t.Window = C(236, 233, 216); t.Bar = C(236, 233, 216);
-                t.Head = C(196, 211, 240); t.HeadToday = C(255, 222, 140);
-                t.Cell = Color.White; t.CellToday = C(255, 250, 230); t.CellWeekend = C(245, 244, 238);
-                t.Border = C(127, 157, 185); t.BorderSel = C(0, 60, 200); t.BorderEdit = C(255, 140, 0);
-                t.Arrow = C(60, 70, 110); t.Dot = C(215, 100, 0); t.LkzOn = C(150, 220, 150);
-                t.ShiftLabel = new Color[] { C(255, 225, 130), C(255, 190, 130), C(150, 175, 225) };
-                t.ShiftBack = new Color[] { C(255, 248, 225), C(255, 240, 225), C(232, 238, 250) };
+                t.FontName = "Tahoma"; t.FontSize = 8.25f; t.ButtonH = 30; t.BarH = 34; t.Pad = 4; t.Gap = 4;
+                t.Window = SystemColors.Control; t.Bar = SystemColors.Control;
+                t.Head = C(205, 218, 234); t.HeadToday = C(255, 224, 130); t.CellWeekend = C(244, 246, 250);
+                t.Border = C(150, 160, 175); t.BorderSel = C(40, 100, 200);
             }
-            else if (name == "win10")  // flach: keine Verlaeufe, helle Flaechen, Akzentblau
+            else if (name == "win10")  // flach und luftig: viel Weissraum, duenne helle Rahmen, Akzentstreifen, 2-px-Auswahl, flache Menues/Buttons
             {
-                t.FontName = "Segoe UI"; t.FontSize = 9f; t.Gradient = false; t.FlatButtons = true; t.ButtonH = 32; t.BarH = 40;
-                t.Window = C(243, 243, 243); t.Bar = C(255, 255, 255);
-                t.Head = C(221, 232, 245); t.HeadToday = C(255, 232, 160);
-                t.Cell = Color.White; t.CellToday = C(255, 251, 237); t.CellWeekend = C(248, 248, 248);
-                t.Border = C(200, 200, 200); t.BorderSel = C(0, 120, 215); t.BorderEdit = C(255, 140, 0);
-                t.Arrow = C(90, 90, 90); t.Dot = C(232, 110, 0); t.LkzOn = C(160, 225, 160);
-                t.ShiftLabel = new Color[] { C(255, 228, 140), C(255, 200, 150), C(160, 190, 235) };
-                t.ShiftBack = new Color[] { C(255, 250, 232), C(255, 243, 232), C(236, 242, 252) };
+                t.FontName = "Segoe UI"; t.FontSize = 9f; t.Stripe = true; t.FlatButtons = true; t.ButtonH = 34; t.BarH = 42; t.Pad = 10; t.Gap = 8;
+                t.Window = C(243, 243, 243); t.Bar = Color.White;
+                t.Head = C(232, 238, 246); t.HeadToday = C(255, 244, 204); t.CellToday = C(255, 252, 240); t.CellWeekend = C(250, 250, 250);
+                t.Border = C(214, 214, 214); t.BorderSel = C(0, 120, 215); t.Arrow = C(100, 100, 100); t.Dot = C(232, 110, 0); t.LkzOn = C(166, 226, 166);
+                t.ShiftLabel = new Color[] { C(255, 233, 150), C(255, 208, 160), C(170, 198, 240) };
+                t.ShiftBack = new Color[] { C(255, 251, 238), C(255, 245, 236), C(238, 243, 252) };
             }
-            else                       // win7 (Aero): Segoe UI, dezente Verlaeufe, hellgraue Flaechen
+            else                       // win7 (Aero): Segoe UI, Glanz-Kopfleisten, Schlagschatten, leicht bläuliche Flaechen
             {
                 t.Name = "win7";
-                t.FontName = "Segoe UI"; t.FontSize = 9f; t.Gradient = true; t.ButtonH = 28; t.BarH = 36;
-                t.Window = C(240, 240, 240); t.Bar = C(245, 247, 250);
-                t.Head = C(205, 218, 234); t.HeadToday = C(255, 224, 130);
-                t.Cell = Color.White; t.CellToday = C(255, 250, 230); t.CellWeekend = C(244, 246, 250);
-                t.Border = C(150, 160, 175); t.BorderSel = C(40, 100, 200); t.BorderEdit = C(255, 140, 0);
-                t.Arrow = C(70, 80, 100); t.Dot = C(215, 100, 0); t.LkzOn = C(150, 220, 150);
-                t.ShiftLabel = new Color[] { C(255, 225, 130), C(255, 190, 130), C(150, 175, 225) };
-                t.ShiftBack = new Color[] { C(255, 248, 225), C(255, 240, 225), C(232, 238, 250) };
+                t.FontName = "Segoe UI"; t.FontSize = 9f; t.Glossy = true; t.Shadow = true; t.ButtonH = 30; t.BarH = 38; t.Pad = 6; t.Gap = 6;
+                t.Window = C(228, 234, 243); t.Bar = C(240, 244, 250);
+                t.Head = C(190, 208, 234); t.HeadToday = C(255, 220, 120); t.CellWeekend = C(240, 244, 250);
+                t.Border = C(120, 140, 170); t.BorderSel = C(40, 100, 200);
             }
             return t;
         }
@@ -85,14 +78,21 @@ namespace Arbeitsplan.Win
             return SystemFonts.MessageBoxFont;
         }
 
-        public static Color Lighten(Color c, int d) { return Color.FromArgb(Math.Min(255, c.R + d), Math.Min(255, c.G + d), Math.Min(255, c.B + d)); }
+        public static Color Lighten(Color c, int d) { return Color.FromArgb(Math.Max(0, Math.Min(255, c.R + d)), Math.Max(0, Math.Min(255, c.G + d)), Math.Max(0, Math.Min(255, c.B + d))); }
 
-        // Kopfleiste: Verlauf (XP, Win7) oder flache Farbe (Win10)
+        // Kopfleiste: Glanzverlauf (win7), sonst flache Farbe
         public void FillHead(Graphics g, Rectangle r, Color c)
         {
-            if (!Gradient || r.Width < 1 || r.Height < 1) { using (SolidBrush b = new SolidBrush(c)) g.FillRectangle(b, r); return; }
-            using (LinearGradientBrush b = new LinearGradientBrush(r, Lighten(c, Name == "xp" ? 38 : 28), c, LinearGradientMode.Vertical))
+            if (!Glossy || r.Width < 1 || r.Height < 2) { using (SolidBrush b = new SolidBrush(c)) g.FillRectangle(b, r); return; }
+            using (LinearGradientBrush b = new LinearGradientBrush(r, Lighten(c, 45), c, LinearGradientMode.Vertical))
+            {
+                ColorBlend cb = new ColorBlend(4);
+                cb.Positions = new float[] { 0f, 0.5f, 0.5f, 1f };
+                cb.Colors = new Color[] { Lighten(c, 55), Lighten(c, 25), c, Lighten(c, -14) };
+                b.InterpolationColors = cb;
                 g.FillRectangle(b, r);
+            }
+            using (Pen p = new Pen(Color.FromArgb(150, 255, 255, 255))) g.DrawLine(p, r.X, r.Y, r.Right - 1, r.Y);   // Glanzkante
         }
 
         // Fenster, Leisten, Schaltflaechen einheitlich einfaerben (rekursiv; selbst gestaltete Steuerelemente bleiben unberuehrt).

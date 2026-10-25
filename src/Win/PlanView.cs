@@ -29,7 +29,9 @@ namespace Arbeitsplan.Win
     // Nur beim Bearbeiten legt MainForm Eingabefelder ueber Inhalt und Kuerzel des aktiven Blocks.
     class PlanView : Control
     {
-        public const int HeadH = 24, LkzH = 22, LW = 26, Pad = 4, Gap = 4, TP = 3, TV = 3, ShiftLines = 3;
+        public const int HeadH = 24, LkzH = 22, LW = 26, TP = 3, TV = 3, ShiftLines = 3;
+        static int Pad { get { return Theme.Current.Pad; } }
+        static int Gap { get { return Theme.Current.Gap; } }
         public static Color[] ShiftLabel { get { return Theme.Current.ShiftLabel; } }
         public static Color[] ShiftBack { get { return Theme.Current.ShiftBack; } }
         static readonly Regex Token = new Regex(@"[^\s,;/]+", RegexOptions.Compiled);
@@ -241,7 +243,26 @@ namespace Arbeitsplan.Win
             Graphics g = e.Graphics;
             g.Clear(BackColor);
             foreach (CellData c in Cells)
-                if (c.R.IntersectsWith(e.ClipRectangle)) PaintCell(g, c);
+                if (c.R.IntersectsWith(e.ClipRectangle)) { PaintCell(g, c); Overlay(g, c); }
+        }
+
+        // Modellabhaengiges: Schlagschatten (win7), Akzentstreifen und 2-px-Auswahlrahmen (win10)
+        void Overlay(Graphics g, CellData c)
+        {
+            Theme th = Theme.Current;
+            if (th.Shadow)
+                using (SolidBrush b = new SolidBrush(Color.FromArgb(46, 20, 40, 80)))
+                {
+                    g.FillRectangle(b, c.R.Right, c.R.Y + 3, 3, c.R.Height - 1);
+                    g.FillRectangle(b, c.R.X + 3, c.R.Bottom, c.R.Width, 3);
+                }
+            if (!th.Stripe) return;
+            bool today = c.Day.Date == DateTime.Today;
+            Color a = c.Editing ? th.BorderEdit : (c == Selected ? th.BorderSel : (today ? th.Dot : Color.Empty));
+            if (a.IsEmpty) return;
+            Fill(g, a, new Rectangle(c.R.X, c.R.Y, c.R.Width, 3));                       // Streifen oben
+            if (c.Editing || c == Selected)
+                using (Pen p = new Pen(a, 2)) g.DrawRectangle(p, c.R.X + 1, c.R.Y + 1, c.R.Width - 3, c.R.Height - 3);
         }
 
         void PaintCell(Graphics g, CellData c)
