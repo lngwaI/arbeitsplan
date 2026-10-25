@@ -57,7 +57,7 @@ namespace Arbeitsplan.Win
 
         public MainForm(string login, bool failSaves)
         {
-            Text = "Arbeitsplan (Prototyp, lokale Testdaten)";
+            Text = "Arbeitsplan (Prototyp, lokale Testdaten) - Oberfläche: " + Theme.Current.Name;
             StartPosition = FormStartPosition.CenterScreen;
             ClientSize = new Size(1280, 720);
             MinimumSize = new Size(900, 600);

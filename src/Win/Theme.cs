@@ -70,7 +70,8 @@ namespace Arbeitsplan.Win
 
         public static void Select(string name)
         {
-            if (name == null || (name != "xp" && name != "win7" && name != "win10")) name = Detect();
+            name = name == null ? "" : name.ToLowerInvariant().Replace("windows", "").Replace("win", "").Replace(" ", "");   // winXP, Win7, windows10, 10 ...
+            name = name == "xp" ? "xp" : (name == "7" ? "win7" : (name == "10" ? "win10" : Detect()));
             Current = Make(name);
             ToolStripManager.Renderer = Current.Name == "win10" ? (ToolStripRenderer)new FlatRenderer() : new ToolStripProfessionalRenderer();
         }
