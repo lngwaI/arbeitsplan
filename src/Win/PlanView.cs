@@ -250,12 +250,15 @@ namespace Arbeitsplan.Win
         void Overlay(Graphics g, CellData c)
         {
             Theme th = Theme.Current;
-            if (th.Shadow)
-                using (SolidBrush b = new SolidBrush(Color.FromArgb(46, 20, 40, 80)))
+            if (th.ShadowSize > 0)
+                using (SolidBrush b = new SolidBrush(Color.FromArgb(th.ShadowAlpha, 20, 40, 80)))
                 {
-                    g.FillRectangle(b, c.R.Right, c.R.Y + 3, 3, c.R.Height - 1);
-                    g.FillRectangle(b, c.R.X + 3, c.R.Bottom, c.R.Width, 3);
+                    int n = th.ShadowSize;
+                    g.FillRectangle(b, c.R.Right, c.R.Y + n, n, c.R.Height - 1);
+                    g.FillRectangle(b, c.R.X + n, c.R.Bottom, c.R.Width, n);
                 }
+            if (th.InnerLight)
+                using (Pen p = new Pen(Color.FromArgb(150, 255, 255, 255))) g.DrawRectangle(p, c.R.X + 1, c.R.Y + 1, c.R.Width - 3, c.R.Height - 3);   // helle Innenkante
             if (!th.Stripe) return;
             bool today = c.Day.Date == DateTime.Today;
             Color a = c.Editing ? th.BorderEdit : (c == Selected ? th.BorderSel : (today ? th.Dot : Color.Empty));
