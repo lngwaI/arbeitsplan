@@ -12,7 +12,7 @@ namespace Arbeitsplan.Win
             return null;
         }
 
-        // Aufruf: Arbeitsplan.exe [--user <login>] [--nosave]
+        // Aufruf: Arbeitsplan.exe [--user <login>] [--nosave] [--theme xp|win7|win10]
         //   Test:  --shot <png> [--size BxH] [--edit spalte,zeile]  (rendert die Ansicht als Bild und beendet)
         [STAThread]
         static void Main(string[] args)
@@ -20,6 +20,7 @@ namespace Arbeitsplan.Win
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
 
+            Theme.Select(Arg(args, "--theme"));   // xp | win7 | win10, sonst passend zum Betriebssystem
             string login = Arg(args, "--user") ?? Environment.UserName;
             bool nosave = Array.IndexOf(args, "--nosave") >= 0;
             string shot = Arg(args, "--shot");

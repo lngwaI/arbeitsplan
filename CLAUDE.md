@@ -6,6 +6,7 @@ Wochenplan-Anzeige/-Eingabe für BioPharma-Betrieb. Vollständige Anforderungen:
 - C# / WinForms, .NET Framework 4.0-API, x86, eine exe. Gebaut mit dem Windows-eigenen `csc` (kein SDK): `build.cmd` → `bin\Arbeitsplan.exe`.
 - Warum: läuft ohne Installation auf Win 10/11, ab XP SP3 mit .NET 4.0. Keine NuGet-/Fremdpakete.
 - Nur .NET-4.0-APIs, Systemschrift, kein `async`/`await`, kein C# > 5 (csc 4.x lehnt neuere Syntax ab).
+- **Mindestsystem jetzt Win 7 (evtl. Win 10)**, XP bleibt lauffähig. Drei Oberflächenmodelle in `src/Win/Theme.cs`: `--theme xp|win7|win10` (ohne Angabe passend zum OS). xp = Tahoma 8,25, Luna-Beige/Blau mit Verlauf; win7 = Segoe UI 9, Aero-grau mit dezentem Verlauf; win10 = Segoe UI 9, flach, Akzentblau, flache Menüs/Buttons. Farben/Schrift/Höhen nur über `Theme.Current`, keine festen Farben in der Oberfläche.
 - Mobile (Android/iOS): on hold. Später Server-API + Web-Client; deshalb `src/Core` ohne UI-Bezug halten.
 
 ## Struktur

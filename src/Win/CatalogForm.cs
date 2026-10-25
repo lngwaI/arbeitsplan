@@ -28,7 +28,7 @@ namespace Arbeitsplan.Win
         {
             cat = catalog.Clone(); this.rowNames = rowNames;
             Text = "Equipment-Positionen und Bausteine einrichten";
-            Font = SystemFonts.MessageBoxFont;
+            Font = Theme.Current.UiFont();
             FormBorderStyle = FormBorderStyle.FixedDialog; MaximizeBox = MinimizeBox = false;
             StartPosition = FormStartPosition.CenterParent;
             ClientSize = new Size(760, 520);

@@ -37,7 +37,7 @@ namespace Arbeitsplan.Win
         {
             this.store = store; this.canApply = canApply; this.canAdmin = canAdmin;
             Text = "Paket-Editor";
-            Font = SystemFonts.MessageBoxFont;
+            Font = Theme.Current.UiFont();
             StartPosition = FormStartPosition.CenterParent;
             ClientSize = new Size(1190, 700);
             MinimumSize = new Size(1190, 700);
@@ -415,7 +415,7 @@ namespace Arbeitsplan.Win
         public AlternativesPicker(List<string> known, List<string> current)
         {
             Text = "Abwechselnd verwenden";
-            Font = SystemFonts.MessageBoxFont;
+            Font = Theme.Current.UiFont();
             FormBorderStyle = FormBorderStyle.FixedDialog; MaximizeBox = MinimizeBox = false; StartPosition = FormStartPosition.CenterParent;
             ClientSize = new Size(330, 370);
             Label l1 = new Label(); l1.Text = "Geräte ankreuzen, die sich abwechseln (A, B, A, B …):"; l1.SetBounds(10, 8, 310, 32);
