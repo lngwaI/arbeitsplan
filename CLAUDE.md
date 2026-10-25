@@ -60,3 +60,12 @@ Der Hauptagent plant, delegiert und prüft; er schreibt nur kleine Änderungen s
 
 ## Repo
 https://github.com/lngwaI/arbeitsplan – **öffentlich**: nur erfundene Testdaten, keine echten Kürzel, Produkte, Equipment-/Server-/Netzwerknamen. Beispiele des Nutzers (echte Equipment-Nummern) nicht übernehmen, nur das Schema.
+
+## Account-Kennung
+- Das Label (welcher Claude-Account) steht zu Sessionbeginn im Kontext. Falls nicht: `node scripts/claude-account.js` ausführen.
+- Branches heißen `<slug>/<kurzbeschreibung>` (Slug per `node scripts/claude-account.js --slug`).
+- Commits bekommen automatisch die Zeile `Claude-Account: <Label>` (Hook `.githooks/prepare-commit-msg`, `core.hooksPath` = `.githooks`).
+- In tasks.md hat jede Aufgabe Label, Status, Zeitstempel, z. B. `- [ ] Login-Seite (GMX / Haupt-Account, in Arbeit, 2026-10-25 01:40)`.
+- Jeder Eintrag in docs/HANDOFF.md beginnt mit Datum, Uhrzeit und Label, z. B. `## 2026-10-25 01:40 – GMX / Haupt-Account`.
+- Vor dem Arbeiten prüfen, ob eine Aufgabe schon von einem anderen Account beansprucht ist; dann nicht parallel daran arbeiten.
+- Ist das Label "Unbekannt", erst beim Nutzer nachfragen.

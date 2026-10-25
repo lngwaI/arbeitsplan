@@ -1,0 +1,5 @@
+#!/bin/sh
+# Haengt "Claude-Account: <Label>" an, falls noch nicht vorhanden.
+grep -q '^Claude-Account:' "$1" && exit 0
+T=$(node "$(git rev-parse --show-toplevel)/scripts/claude-account.js" --trailer) || exit 0
+printf '\n%s\n' "$T" >> "$1"
