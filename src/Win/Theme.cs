@@ -16,6 +16,8 @@ namespace Arbeitsplan.Win
         public Color Window, Bar, Head, HeadToday, Cell, CellToday, CellWeekend, Border, BorderSel, BorderEdit, Arrow, Dot, LkzOn;
         public Color[] ShiftLabel, ShiftBack;
         public bool Glossy, InnerLight, Stripe, FlatButtons;   // Glanz-Kopfleiste + Schlagschatten (win7), Akzentstreifen + 2-px-Auswahl (win10)
+        public Color HeadLine = Color.Empty;
+        public int LabelW = 26;
         public int ButtonH, BarH, Pad, Gap, ShadowSize, ShadowAlpha;   // ShadowSize 0 = kein Schatten
 
         static Color C(int r, int g, int b) { return Color.FromArgb(r, g, b); }
@@ -37,10 +39,10 @@ namespace Arbeitsplan.Win
             else if (name == "win10")  // flach und luftig: viel Weissraum, duenne helle Rahmen, Akzentstreifen, 2-px-Auswahl, flache Menues/Buttons
             {
                 t.FontName = "Segoe UI"; t.FontSize = 9f; t.Stripe = true; t.FlatButtons = true; t.ShadowSize = 2; t.ShadowAlpha = 24; t.ButtonH = 34; t.BarH = 42; t.Pad = 10; t.Gap = 8;
-                t.Window = C(243, 243, 243); t.Bar = Color.White;
-                t.Head = C(232, 238, 246); t.HeadToday = C(255, 244, 204); t.CellToday = C(255, 252, 240); t.CellWeekend = C(250, 250, 250);
-                t.Border = C(224, 224, 224); t.BorderSel = C(0, 120, 215); t.Arrow = C(100, 100, 100); t.Dot = C(232, 110, 0); t.LkzOn = C(166, 226, 166);
-                t.ShiftLabel = new Color[] { C(255, 233, 150), C(255, 208, 160), C(170, 198, 240) };
+                t.Window = C(238, 238, 238); t.Bar = Color.White;
+                t.Head = C(250, 251, 253); t.HeadToday = C(255, 244, 204); t.HeadLine = C(196, 214, 238); t.LabelW = 20; t.CellToday = C(255, 252, 240); t.CellWeekend = C(250, 250, 250);
+                t.Border = C(228, 228, 228); t.BorderSel = C(0, 120, 215); t.Arrow = C(100, 100, 100); t.Dot = C(232, 110, 0); t.LkzOn = C(166, 226, 166);
+                t.ShiftLabel = new Color[] { C(255, 236, 160), C(255, 214, 170), C(180, 205, 242) };
                 t.ShiftBack = new Color[] { C(255, 251, 238), C(255, 245, 236), C(238, 243, 252) };
             }
             else                       // win7 (Aero): Segoe UI, Glanz-Kopfleisten, Schlagschatten, leicht bläuliche Flaechen
@@ -48,7 +50,7 @@ namespace Arbeitsplan.Win
                 t.Name = "win7";
                 t.FontName = "Segoe UI"; t.FontSize = 9f; t.Glossy = true; t.InnerLight = true; t.ShadowSize = 4; t.ShadowAlpha = 70; t.ButtonH = 30; t.BarH = 38; t.Pad = 6; t.Gap = 6;
                 t.Window = C(228, 234, 243); t.Bar = C(240, 244, 250);
-                t.Head = C(190, 208, 234); t.HeadToday = C(255, 220, 120); t.CellWeekend = C(240, 244, 250);
+                t.Head = C(168, 191, 224); t.HeadToday = C(255, 210, 100); t.CellWeekend = C(240, 244, 250);
                 t.Border = C(120, 140, 170); t.BorderSel = C(40, 100, 200);
             }
             return t;

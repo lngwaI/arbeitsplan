@@ -29,7 +29,8 @@ namespace Arbeitsplan.Win
     // Nur beim Bearbeiten legt MainForm Eingabefelder ueber Inhalt und Kuerzel des aktiven Blocks.
     class PlanView : Control
     {
-        public const int HeadH = 24, LkzH = 22, LW = 26, TP = 3, TV = 3, ShiftLines = 3;
+        public const int HeadH = 24, LkzH = 22, TP = 3, TV = 3, ShiftLines = 3;
+        static int LW { get { return Theme.Current.LabelW; } }
         static int Pad { get { return Theme.Current.Pad; } }
         static int Gap { get { return Theme.Current.Gap; } }
         public static Color[] ShiftLabel { get { return Theme.Current.ShiftLabel; } }
@@ -281,6 +282,7 @@ namespace Arbeitsplan.Win
             bool collapsed = Collapsed[c.RowIndex];
             Fill(g, border, c.R);
             th.FillHead(g, c.RHead, headBack);
+            if (!th.HeadLine.IsEmpty) Fill(g, th.HeadLine, new Rectangle(c.RHead.X, c.RHead.Bottom - 2, c.RHead.Width, 2));   // win10: weisse Kopfzeile mit feiner Linie
             if (!collapsed) Fill(g, back, c.RContent);
             const TextFormatFlags tf = TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix;
 
