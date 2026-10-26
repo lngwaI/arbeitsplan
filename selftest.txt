@@ -1,0 +1,38 @@
+Zeilen=12 Standard offen(o)/zu(z): oozzzzzzzozz | Lyo vor Freeze / Thaw
+Geändert-Flag: sauber=OK Text=OK zurück=OK Format=OK
+Save=True [Neuer Text LKZ ABC] Spans=11,3,16711680,14,True,True,Arial; F=[TEST, ABCD] Lkz=True Ver=2
+Lkz nach Klick: False
+Lkz-Konflikt: Inhalt behalten=OK
+Struktur: Suite 1A/5, Neu (Id 13), Zeilen=13
+Austausch FZ1: 2 Geräte, Positionen=26
+Platzhalter TFF: H1-X-010X | Pumpe: H1-P-010X-05
+Paket: Blöcke=13 Schritte=2 Format erhalten=1
+Apply: 16 Block/Blöcke geschrieben, 3 übersprungen (bereits belegt).
+Lauf-Tag 1: [Lauf 1|PT: H1-T-0102 Charge 7 mit einer sehr langen Notiz, die umbrechen muss und eingerückt weiterlaufen soll|TFF: H1-X-0101 (Ausweich: H1-X-0103)|Schlauch: S-12 (grün)|Notiz: nur wenn frei]
+Lauf-Tag 2: [Lauf 2|PT: H1-T-0102 Charge 7 mit einer sehr langen Notiz, die umbrechen muss und eingerückt weiterlaufen soll|TFF: H1-X-0102 (Ausweich: H1-X-0103)|Schlauch: S-12 (grün)|Notiz: nur wenn frei]
+Lauf-Tag 3: [Lauf 3|PT: H1-T-0102 Charge 7 mit einer sehr langen Notiz, die umbrechen muss und eingerückt weiterlaufen soll|TFF: H1-X-0101 (Ausweich: H1-X-0103)|Schlauch: S-12 (grün)|Notiz: nur wenn frei]
+Produkt: Nummern=OK Unterlauf=OK Umnummern=OK [Splitten|Unterlauf 13574186 (aus 13570030)|Unterlauf 13574187 (aus 13570030)]
+Produkt-Datei: Roundtrip=OK altesPaket=OK
+Kampagne: Dialog/Mitverschieben=OK Überschreibung=OK früheKampagne=OK (letzter 43, Abstand 2) 9 Block/Blöcke geschrieben.
+Rhythmus/Raum: Abstände=OK [2,2,3] Rhythmus=OK RaumDialog=OK RaumÜbernahme=OK
+Testpaket: Roundtrip=OK PA rot=OK Tage=OK 18 Block/Blöcke geschrieben.
+Find 'TEST': 2
+Löschen erkannt: kürzer=OK Kürzel=OK nurErgänzt=OK gleichlang überschrieben=OK zusammengezogen=OK Wort ersetzt=OK Recht Produktion=OK
+Protected: ok=True falschesPw=True manipuliert=True
+Nutzerverwaltung: eigene Rechte gesperrt=OK nur eigene Rechte vergebbar=OK letzter Admin bleibt=OK Admin herabstufen (2 Admins)=OK ohne Änderung nichts=OK leerer Neuer verworfen=OK Domänen nur Admin/kein Aussperren=OK
+Protokoll: schreiben/lesen=OK unveränderlich=OK Version wiederherstellen=OK (Einträge 3)
+Sicherung: Roundtrip=OK Version weiterzählen=OK Protokoll erhalten=OK Jahr zurück=OK (3030 Byte)
+Sicherung APBAK2: Roundtrip verschlüsselt=OK falscher Schlüssel abgelehnt=OK Byte verändert abgelehnt=OK APBAK1 lesbar=OK 200-MB-Grenze=OK
+Sicherung manipuliert abgelehnt: Byte=OK Inhalt=OK | behalten=14 (soll 14)
+Nutzer/Rechte: parallel zusammengeführt=OK Admins= nur Ersteinrichtung=OK
+Schlüssel: key-Datei erzeugt/gelesen=OK apdb ohne key->Offline=OK falsche/kaputte key->Offline=OK Cache eigener Schlüssel/abgelaufen=OK
+Datendatei: Erststart=OK Neustart=OK kein Klartext=OK Refresh=OK Konflikt=OK Historie=OK bak=OK (1540 Byte, Speichern+Protokoll 59 ms)
+Datendatei: NurLesen=OK manipuliert->Cache=OK fremd->leer=OK unerreichbar=OK wieder erreichbar=OK Sperrdatei=OK kein stilles Überschreiben=OK
+Umgebung: Muster=OK Domäne=OK kopierte exe=OK Laufwerk-Aufbau=OK nicht eingerichtet=OK Einrichtung=OK Einrichter=OK fremde Domäne=OK unbekannter Nutzer=OK NurLesenFuer=OK Pilot=OK Datei weg->kein Neuanlegen=OK neueres Format=OK Verknüpfung=OK (hier: runnervmdaln5)
+Mehrplatz: Zeilen=OK gleicheZeile=OK Kürzel=OK Format/LKZ=OK neu=OK Editor zusammengeführt=OK Vorschlag=OK Abbrechen/Meine=OK Paket-Übernahme mit Konflikt=OK
+Kampagnenstart: Datum ohne Jahr abgelehnt=OK TT.MM.JJJJ=OK direkt startbar=OK unbekannter Raum->Editor=OK
+Equipment: Nummern erkannt=OK (6 von 6) Status/Farbe=OK Wechsel/Ausweich geprüft=OK
+Paket-Editor Ablauf: Schritte 6 -> +2 = 8 -> -2 = 6 ok, leeres Paket ok, neues Paket ok, Prüfhinweise ok, Ziehen ok
+A: 40 Durchgänge, Konflikte=6, Sperre belegt=0
+B: 40 Durchgänge, Konflikte=5, Sperre belegt=0
+Mehrplatz-Prozesse: eigene Blöcke=OK Zähler=OK (80) Zusammenführen=OK (80 Zeilen) Offline=OK
