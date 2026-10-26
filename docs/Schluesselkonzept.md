@@ -38,3 +38,17 @@ Ziel: Keine Geheimnisse im Repo und nicht in der exe. Eine kopierte exe oder Dat
 - Es gibt noch keine echten Daten -> frisch beginnen, kein Umschlüsseln nötig.
 - Nutzer kann am Laufwerk keine Rechte setzen. Ordnerrechte (kopieren ja, verschieben/löschen nein) nur über IT; App-seitiger Ersatz: `.bak1..3`, Sicherungen, Änderungsprotokoll.
 - Pfade: `Datenordner=` immer als UNC (z. B. Server und Freigabe als Doppel-Backslash-Pfad), nie Laufwerksbuchstabe; gleiche ini für alle PCs.
+
+## Ordnerstruktur auf dem Laufwerk (Vorschlag)
+Laufwerk: `...\Formulierung\Arbeitsplan\` (Name/Server variabel, siehe ini)
+```
+Arbeitsplan  Programm\    Arbeitsplan.exe, Arbeitsplan.ini, statuscolors.ini, LIESMICH.txt   (alle starten von hier; Verknüpfung auf dem Desktop)
+  daten\       arbeitsplan.apdb, .bak1..3, sperren  schluessel\  arbeitsplan.key
+  Pakete\      .apkg (gemeinsam)
+  sicherung\   .apbak (nur Admin)
+```
+- Nichts muss kopiert werden: Nutzer starten die exe direkt vom Laufwerk. Ohne Zugriff aufs Laufwerk startet sie zwar, zeigt aber nichts.
+- Alle Pfade relativ zur exe (`..\daten`, `..\schluessel`, `..\Pakete`, `..\sicherung`); keine absoluten Pfade und keine Laufwerksbuchstaben in der ini nötig. Die ini kann sie bei Bedarf überschreiben.
+- Rechte-Wunsch an die IT (je Ordner einmal): Programm = nur Lesen; daten, Pakete = Lesen+Schreiben; schluessel = nur Lesen (Schreiben nur Admin); sicherung = nur Admin/PackageAdmin. Ohne diese Rechte funktioniert alles trotzdem, nur der Schutz ist schwächer.
+- Falls ein PC keine exe von der Freigabe starten darf: nur den Ordner `Programm` lokal kopieren und in der ini den Pfad zum Laufwerk eintragen.
+
