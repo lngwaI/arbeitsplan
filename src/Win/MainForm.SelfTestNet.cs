@@ -132,8 +132,26 @@ namespace Arbeitsplan.Win
             quietChoice = ConflictForm.Choice.Mine;
             bool mine = EndEdit(true) && store.Get(day, ri.Id).Content == "Nur meins";
             quietChoice = ConflictForm.Choice.Merge;
+
+            // Paket-Uebernahme auf PC A, waehrend PC B einen Zielblock aendert (A hat noch den alten Stand): nichts geht verloren
+            string pdir = Path.Combine(Path.GetTempPath(), "apmulti_selftest");
+            if (Directory.Exists(pdir)) Directory.Delete(pdir, true);
+            Directory.CreateDirectory(pdir);
+            FileStore pa = new FileStore(pdir, false, null, 0), pb = new FileStore(pdir, false, null, 0);
+            Package pk = Package.SampleCampaign("Mehrplatz");
+            DateTime ps = new DateTime(2026, 3, 2);
+            RunDate r0 = pk.Schedule()[0];
+            RowInfo row0 = pb.GetRows().Find(delegate(RowInfo x) { return x.Name == r0.Row; });
+            bool okPkg = row0 != null;
+            if (okPkg)
+            {
+                Entry eb = new Entry(); eb.Content = "Von PC B"; pb.Save(ps.AddDays(r0.Day - 1), row0.Id, eb);
+                string res = pk.Apply(pa, ps, ApplyMode.Append, null, me);
+                Entry got = new FileStore(pdir, true, null, 0).Get(ps.AddDays(r0.Day - 1), row0.Id);
+                okPkg = got != null && got.Content.StartsWith("Von PC B") && got.Content.Length > "Von PC B".Length && !res.Contains("Konflikt");
+            }
             sb.AppendLine("Mehrplatz: Zeilen=" + Ok(okLines) + " gleicheZeile=" + Ok(okSame) + " Kürzel=" + Ok(okPpl) + " Format/LKZ=" + Ok(okFmt) + " neu=" + Ok(okNew)
-                + " Editor zusammengeführt=" + Ok(okEd) + " Vorschlag=" + Ok(okProp) + " Abbrechen/Meine=" + Ok(cancel && mine));
+                + " Editor zusammengeführt=" + Ok(okEd) + " Vorschlag=" + Ok(okProp) + " Abbrechen/Meine=" + Ok(cancel && mine) + " Paket-Übernahme mit Konflikt=" + Ok(okPkg));
         }
 
         // Kampagnenstart: Datum nur vollstaendig (TT.MM.JJJJ); direkt startbar nur mit bekannten Raeumen
