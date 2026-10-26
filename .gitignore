@@ -23,3 +23,6 @@ sicherung/
 sicherung.ini
 sperren/
 cache.apdb
+
+# Lokale Notizen (nie ins oeffentliche Repo)
+*.local.md

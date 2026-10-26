@@ -13,5 +13,5 @@ Jeder Eintrag beginnt mit `## JJJJ-MM-TT HH:MM – <Label>`.
 ## 2026-10-26 18:36 – GMX / Haupt-Account
 - Gesamtprüfung (3 Reviews) und Umsetzung in 4 Runden auf `main`: Datenverlust-Risiken, Sicherheit, Repo-Bereinigung, Performance/Aufräumen (Commits 2ebb9b0 … c5f56cd).
 - Der Schalter `UseModernTheme` (Eintrag vom 2026-10-25) ist ersetzt durch `--theme xp|win7|win10`.
-- Offen: siehe tasks.md, Abschnitt "Offen aus der Gesamtprüfung". Git-Historie enthält noch alte echte Werte (bewusst nicht umgeschrieben); Schlüssel noch im Repo.
+- Offen: siehe tasks.md, Abschnitt "Nächste Session" (Reihenfolge = Priorität). Die Git-Historie enthält noch alte echte Werte; die Bereinigung ist vom Nutzer beauftragt und steht dort an erster Stelle (Mapping nur lokal in docs/historie-mapping.local.md).
 - Test-Hinweis: unsignierte exe wird von Application Control zeitweise blockiert; nicht umgehen, IT-Ausnahme/Signatur nötig.
