@@ -352,8 +352,13 @@ namespace Arbeitsplan.Win
                 if (s.Row.Length == 0) h.Add(new Hint(n + " (" + TitleOf(s) + ") hat keinen Raum.", s, cbRow));
                 else if (!rowNames.Contains(s.Row)) h.Add(new Hint(n + ": Raum „" + s.Row + "“ gibt es im Plan nicht.", s, cbRow));
                 if (s.Kind == StepKind.SubRun && s.SubNos.Trim().Length == 0) h.Add(new Hint(n + ": Unterlauf-Nummern fehlen.", s, tSubNos));
+                else if (s.Kind == StepKind.SubRun && s.SubNos.Split(',').Length != s.Count)
+                    h.Add(new Hint(n + ": Unterlauf-Nummern für " + s.SubNos.Split(',').Length + " Lauf/Läufe, aber " + s.Count + " Wiederholung(en) (Komma = nächster Lauf).", s, tSubNos));
+                int idents = s.Ident.Trim().Length == 0 ? 0 : s.Ident.Split(',').Length;
+                if (idents > 0 && idents != s.Count) h.Add(new Hint(n + ": " + idents + " Kennung(en), aber " + s.Count + " Wiederholung(en) (Komma = nächster Lauf).", s, tIdent));
+                if (s.Numbered && s.StartNo + s.Count - 1 > 9999) h.Add(new Hint(n + ": Laufnummer über 9999 – kleinere erste Nummer wählen.", s, nStartNo));
                 foreach (EquipAssign a in s.Equipment)
-                    if (!EquipRow.Known(a, cat)) h.Add(new Hint(n + ": Gerät " + a.Choices[0].Id + " (" + a.Short + ") ist nicht validiert.", s, null));
+                    foreach (string id in EquipRow.Unvalidated(a, cat)) h.Add(new Hint(n + ": Gerät " + id + " (" + a.Short + ") ist nicht validiert.", s, null));
             }
             bool ok = h.Count == 0;
             if (ok) h.Add(new Hint("Keine Auffälligkeiten – das Muster kann übernommen werden.", null, null));

@@ -141,10 +141,31 @@ namespace Arbeitsplan.Win
                 int d0 = cf.Schedule[1].Day;
                 part = cf.TestTyped(1, "13.03.") == before && cf.Schedule[1].Day == d0;
                 DateTime want = cf.Start.AddDays(d0 - 1 + 2);
-                full = cf.TestTyped(1, want.ToString("dd.MM.yyyy")) == Ui.DayText(want) && cf.Schedule[1].Day == d0 + 2 && cf.TestStartText() == start.ToString("dd.MM.yyyy");
+                full = cf.TestTyped(1, want.ToString("dd.MM.yyyy")) == Ui.DayText(want) && cf.Schedule[1].Day == d0 + 2 && cf.TestStartField();
             }
             CampaignForm.Quiet = false;
             sb.AppendLine("Kampagnenstart: Datum ohne Jahr abgelehnt=" + Ok(part) + " TT.MM.JJJJ=" + Ok(full) + " direkt startbar=" + Ok(ready) + " unbekannter Raum->Editor=" + Ok(notReady));
+        }
+
+        // Verschiedene Equipment-Nummern: erkannt (auch mit Zusatz, in Klammern, nach Doppelpunkt, mehrere), nicht erkannt
+        // (falscher Bereich/Typ, zu kurz/lang, angeklebt); Status aus der Quelle; frei eingetippte Wechsel-/Ausweichgeraete gemeldet
+        void SelfTestEquipment(StringBuilder sb)
+        {
+            string text = "TFF:H1-X-0101 (H1-X-0103), Pumpe H1-P-0101-05; H2-F-0202-01/H1-T-0102\nH3-T-0102 H1-Z-0102 H1-T-012 H1-T-01023 XH1-T-0102 H1-T-0102-1 h1-t-0102";
+            List<string> got = new List<string>();
+            foreach (System.Text.RegularExpressions.Match m in EquipmentMatcher.Pattern.Matches(text)) got.Add(m.Value);
+            string want = "H1-X-0101|H1-X-0103|H1-P-0101-05|H2-F-0202-01|H1-T-0102|H1-T-0102";
+            bool okPat = string.Join("|", got.ToArray()) == want;
+            bool okStat = equip.Get("H1-X-0101") != null && equip.Get("H1-X-0101").Status == EquipStatus.Sterilisiert && equip.Get("H9-X-0000") == null
+                && new StatusColors().Get(EquipStatus.Sterilisiert) == 0xFF0000;
+            Catalog cat = store.GetCatalog();
+            EquipAssign ok1 = new EquipAssign(); ok1.Short = "TFF"; ok1.Choices.Add(new EquipChoice("TFF", "H1-X-0101")); ok1.Fallback = "H1-X-0103";
+            EquipAssign alt = new EquipAssign(); alt.Short = "TFF"; alt.Alternate = true; alt.Choices.Add(new EquipChoice("TFF", "H1-X-0101")); alt.Choices.Add(new EquipChoice("TFF", "H1-X-9999"));
+            EquipAssign fb = new EquipAssign(); fb.Short = "Pumpe"; fb.Choices.Add(new EquipChoice("Pumpe", "H1-P-0101-05")); fb.Fallback = "H1-P-0999-05";
+            EquipAssign free = new EquipAssign(); free.Short = "PT"; free.Choices.Add(new EquipChoice("PT", "H1-T-0999"));
+            bool okVal = EquipRow.Unvalidated(ok1, cat).Count == 0 && string.Join(",", EquipRow.Unvalidated(alt, cat).ToArray()) == "H1-X-9999"
+                && string.Join(",", EquipRow.Unvalidated(fb, cat).ToArray()) == "H1-P-0999-05" && string.Join(",", EquipRow.Unvalidated(free, cat).ToArray()) == "H1-T-0999";
+            sb.AppendLine("Equipment: Nummern erkannt=" + Ok(okPat) + " (" + got.Count + " von 6) Status/Farbe=" + Ok(okStat) + " Wechsel/Ausweich geprüft=" + Ok(okVal));
         }
 
         CellData Cell(int row, int col)

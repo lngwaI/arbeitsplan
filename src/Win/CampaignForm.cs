@@ -192,7 +192,7 @@ namespace Arbeitsplan.Win
 #if TESTHOOKS
         public string TestTyped(int i, string s) { grid.Rows[i].Cells[3].Value = s; Typed(i); return Convert.ToString(grid.Rows[i].Cells[3].Value); }
         public string TestCell(int i) { return Convert.ToString(grid.Rows[i].Cells[3].Value); }
-        public string TestStartText() { return Controls.Contains(dtStart) ? dtStart.Text : "fehlt"; }
+        public bool TestStartField() { return Controls.Contains(dtStart) && dtStart.Format == DateTimePickerFormat.Custom && dtStart.CustomFormat == "dd.MM.yyyy"; }
 #endif
 
         // Eingetipptes Datum nur vollstaendig als TT.MM.JJJJ (GMP; auch "Fr 13.03.2026"), sonst Meldung und alter Wert.

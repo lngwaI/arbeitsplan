@@ -93,6 +93,21 @@ namespace Arbeitsplan.Win
             return p != null && (p.Ids.Contains(t) || t == p.Placeholder());
         }
 
+        // Frei eingetippte (nicht validierte) Geraete einer Zeile: Geraet, Wechselgeraete, Ausweich-Geraet (Austausch-Gruppe)
+        public static List<string> Unvalidated(EquipAssign a, Catalog cat)
+        {
+            List<string> r = new List<string>();
+            if (!Known(a, cat)) r.Add(a.Choices[0].Id);
+            List<EquipChoice> grp = cat.Interchangeable(a.Short);
+            EquipPosition p = cat.Position(a.Short);
+            List<string> more = new List<string>();
+            if (a.Alternate) foreach (EquipChoice c in a.Choices) more.Add(c.Id);
+            if (a.Fallback.Length > 0) more.Add(a.Fallback);
+            foreach (string id in more)
+                if (id.Length > 0 && !r.Contains(id) && (p == null || id != p.Placeholder()) && !grp.Exists(delegate(EquipChoice c) { return c.Id == id; })) r.Add(id);
+            return r;
+        }
+
         public void Arrange(int w)
         {
             int[] x = Cols(w);
