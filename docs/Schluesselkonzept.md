@@ -34,6 +34,7 @@ Ziel: Keine Geheimnisse im Repo und nicht in der exe. Eine kopierte exe oder Dat
 6. Release-Build enthält keinen Schlüssel mehr; Verteilordner enthält ihn nicht (nur `daten\schluessel` im Produktivordner).
 7. Vorhandene Pilot-Daten: einmalig umschlüsseln (braucht den alten Schlüssel) oder neu beginnen.
 
-## Fragen an den Nutzer
-- Gibt es schon echte Release-Daten (`arbeitsplan.apdb`), die erhalten bleiben müssen?
-- Dürfen Sie auf dem Ziel-Laufwerk selbst Ordnerrechte setzen?
+## Entscheidungen des Nutzers (2026-10-26)
+- Es gibt noch keine echten Daten -> frisch beginnen, kein Umschlüsseln nötig.
+- Nutzer kann am Laufwerk keine Rechte setzen. Ordnerrechte (kopieren ja, verschieben/löschen nein) nur über IT; App-seitiger Ersatz: `.bak1..3`, Sicherungen, Änderungsprotokoll.
+- Pfade: `Datenordner=` immer als UNC (`\serverreigabe\...`), nie Laufwerksbuchstabe; gleiche ini für alle PCs.
