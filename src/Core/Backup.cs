@@ -92,7 +92,8 @@ namespace Arbeitsplan.Core
             string path = Path.Combine(folder, Prefix + DateTime.Now.ToString("yyyy-MM-dd_HHmmss", Inv) + (tag != null ? "_" + tag : "") + Ext);
             Write(store.Snapshot(), path, key);
             string[] f = Files(folder);
-            for (int i = 0; i < f.Length - Keep; i++) File.Delete(f[i]);
+            for (int i = 0; i < f.Length - Keep; i++)
+                try { File.Delete(f[i]); } catch (Exception) { }   // ohne Loeschrecht (Ordnerrechte der IT) bleiben aeltere liegen
             return path;
         }
 

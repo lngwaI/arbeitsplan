@@ -129,8 +129,9 @@ namespace Arbeitsplan.Win
         void SelfTestCampaignStart(StringBuilder sb)
         {
             Package p = Package.SampleCampaign("Start");
+            foreach (PackageStep s in p.Steps) s.Row = rowInfo[1].Name;   // Raeume, die es im (umbenannten) Testplan gibt
             bool ready = PackageForm.Ready(p, store);
-            Package q = Package.SampleCampaign("Raum"); q.Steps[0].Row = "Gibt es nicht";
+            Package q = Package.SampleCampaign("Raum"); foreach (PackageStep s in q.Steps) s.Row = rowInfo[1].Name; q.Steps[0].Row = "Gibt es nicht";
             bool notReady = !PackageForm.Ready(q, store) && !PackageForm.Ready(new Package(), store);
             CampaignForm.Quiet = true;
             bool part, full;
@@ -165,6 +166,7 @@ namespace Arbeitsplan.Win
             DateTime d0 = new DateTime(2026, 1, 5), dc = new DateTime(2026, 1, 1), dm = new DateTime(2026, 1, 2);
             User u = new User(); u.Login = name;
             int conflicts = 0, busy = 0;
+            Random rnd = new Random(name.GetHashCode());   // "Bearbeitungszeit" zwischen Lesen und Speichern: so entstehen echte Konflikte
             for (int i = 0; i < n; i++)
             {
                 Entry e = new Entry(); e.Content = name + " " + i;
@@ -173,11 +175,13 @@ namespace Arbeitsplan.Win
                 {
                     Entry c = fs.Get(dc, shared.Id) ?? new Entry();
                     int v; int.TryParse(c.Content, out v); c.Content = (v + 1).ToString();
+                    System.Threading.Thread.Sleep(rnd.Next(0, 30));
                     if (fs.Save(dc, shared.Id, c)) return true;
                     conflicts++; return false;
                 }, ref busy);
                 Entry bas = fs.Get(dm, shared.Id) ?? new Entry();
                 Entry mine = bas.Clone(); mine.Content = (bas.Content.Length > 0 ? bas.Content + "\n" : "") + name + i;
+                System.Threading.Thread.Sleep(rnd.Next(0, 30));
                 Retry(delegate
                 {
                     if (Audit.Save(fs, dm, shared, u, mine)) return true;

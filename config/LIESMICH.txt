@@ -1,67 +1,55 @@
-﻿ARBEITSPLAN - Pilotversion (vor Freigabe durch die IT)
-=======================================================
+﻿ARBEITSPLAN - Kurzanleitung
+===========================
 
-AUFBAU AUF DEM LAUFWERK (so wird ausgeliefert)
+FÜR ALLE MITARBEITER
+- Starten: auf dem Laufwerk in den Ordner Arbeitsplan\Programm gehen und Arbeitsplan.exe doppelklicken.
+  NICHTS kopieren (keine Ordner, keine Dateien auf C:, keine Sicherungen, keine Schlüssel).
+- Beim ersten Start fragt das Programm: "Verknüpfung auf dem Desktop anlegen?" -> Ja.
+  Liegt Ihr Desktop in OneDrive, ist die Verknüpfung danach an JEDEM PC da, an dem Sie sich anmelden.
+  Die Verknüpfung zeigt direkt auf das Laufwerk (\\Server\...), ein verbundener Laufwerksbuchstabe ist nicht nötig.
+  Später jederzeit: Menü Hilfe > "Verknüpfung auf dem Desktop anlegen".
+- Anmeldung: automatisch mit Ihrer Windows-Anmeldung. Der Startbildschirm begrüßt Sie mit Namen, unten links steht,
+  wer angemeldet ist. Sie können genau das, was Ihre Rechte erlauben (Lesen hat jeder angelegte Nutzer).
+- Meldung "noch nicht als Nutzer angelegt": Vorgesetzten oder einen Admin des Arbeitsplans bitten, Sie unter
+  Einstellungen > Nutzerverwaltung mit Ihrem Windows-Anmeldenamen anzulegen (steht in der Meldung).
+- Mehrere PCs gleichzeitig: Änderungen anderer erscheinen spätestens nach 30 Sekunden (beim Blättern sofort).
+  Haben zwei Personen denselben Block geändert, führt das Programm beide Änderungen zusammen. Nur wenn beide
+  dieselbe Stelle geändert haben, zeigt es beide Fassungen und einen Vorschlag; überschrieben wird nie ohne Rückfrage.
+- Titel zeigt "OFFLINE": Laufwerk nicht erreichbar, es wird der letzte Stand dieses PCs angezeigt (nur Lesen).
+- Titel zeigt "NEUE VERSION": Programm schließen und neu starten.
+- Probleme: Menü Hilfe > Info zeigt Version, Datenordner, Nutzer und Domäne (für den Admin/die IT).
+
+AUFBAU AUF DEM LAUFWERK
   Arbeitsplan\
-    Programm\    Arbeitsplan.exe (+ optional Arbeitsplan.ini)
-    daten\       Plandaten, Schlüsseldatei, Pakete\, sicherung\  (bleibt IMMER auf dem Laufwerk)
+    LIESMICH.txt
+    Programm\    Arbeitsplan.exe, Arbeitsplan.ini        (Mitarbeiter: nur lesen/ausführen)
+    daten\       wird versteckt; Plandaten (verschlüsselt), Schlüsseldatei (versteckt), Pakete\, sicherung\
+                 Hier nichts kopieren, verschieben oder löschen. Zugriff nur über das Programm.
 
-INSTALLATION
-- Einfachste Variante: Nichts kopieren. Arbeitsplan.exe direkt vom Laufwerk starten, Verknüpfung auf den Desktop
-  (Rechtsklick > "Senden an" > "Desktop (Verknüpfung erstellen)"). Die exe findet den Ordner "daten" selbst.
-- Lokale Kopie (falls ein PC die exe nicht vom Laufwerk starten darf): nur Arbeitsplan.exe kopieren und daneben eine
-  Arbeitsplan.ini mit der Zeile Datenordner=<Pfad zum Ordner daten auf dem Laufwerk> ablegen.
-- Keine Installation, keine Adminrechte. Voraussetzung: Windows 7/10/11 mit .NET Framework 4.
-- Die exe ist allein lauffähig: Arbeitsplan.ini und statuscolors.ini sind optional (ohne sie gelten Standardwerte).
+FÜR DEN ADMIN
+- Einrichten (einmalig): Ordner Arbeitsplan auf das Laufwerk kopieren, in Programm\Arbeitsplan.ini unter
+  Admins= den eigenen Windows-Anmeldenamen eintragen, Arbeitsplan.exe starten, "Neuen Arbeitsplan einrichten" mit Ja
+  bestätigen. Das legt die verschlüsselte Datendatei und den Schlüssel an, versteckt den Ordner daten und bindet die
+  Daten an die Windows-Domäne der Firma (Liste in der Nutzerverwaltung, unten).
+- Nutzer anlegen: Einstellungen > Nutzerverwaltung > "+" (Windows-Anmeldename, Kürzel, Rechtepaket).
+- Systemrechner (Anzeige, nie speichern): ihren Windows-Anmeldenamen bzw. Rechnernamen in Arbeitsplan.ini unter
+  NurLesenFuer= eintragen (z. B. View-Only*) oder sie als Nutzer mit Paket "Leser" anlegen.
+- Schlüsseldatei daten\arbeitsplan.key: ohne sie sind Daten und Sicherungen unlesbar. Eine Kopie getrennt und sicher
+  aufbewahren (z. B. bei der IT), niemals neu erzeugen lassen.
+- Neue Programmversion: Arbeitsplan.exe in Programm\ umbenennen (z. B. Arbeitsplan_alt.exe; meist auch möglich, während
+  sie läuft, sonst zu einer ruhigen Zeit), die neue Arbeitsplan.exe hineinlegen. Laufende Programme zeigen "NEUE VERSION"; neue Starts nutzen die neue exe.
+  Ältere Versionen schreiben nie über Daten einer neueren (sie zeigen dann nur an).
+- Datei beschädigt: im Ordner daten liegen die letzten Stände als arbeitsplan.apdb.bak1 (neuester) bis .bak3.
+  Ältere Stände: Einstellungen > Sicherung (tägliche Sicherung, 14 Stück).
 
-EINSTELLUNGEN (Arbeitsplan.ini)
-- Datenordner=        leer = Ordner "daten" neben der exe; sonst Pfad, z. B. \\Server\Freigabe\Arbeitsplan\daten
-- NurLesen=1          Systemrechner/Anzeige: nur ansehen, nie speichern
-- Pilot=1             unbekannte Windows-Nutzer dürfen bearbeiten (0 = nur lesen)
-- Admins=             Windows-Anmeldenamen mit allen Rechten, z. B. Admins=mmuster,ebeispiel
-- Abfrage=30          alle 30 Sekunden werden Änderungen anderer PCs übernommen
-- Sicherungsordner=   leer = <Datenordner>\sicherung (tägliche Sicherung beim Beenden, 14 Stück)
-- Paketordner=        leer = <Datenordner>\Pakete (gemeinsame Pakete; Menü Pakete zeigt deren Liste)
+SCHUTZ (ehrlich)
+- Die exe allein (z. B. per E-Mail nach Hause geschickt) startet nicht: ohne das Laufwerk gibt es keine Daten, und
+  das Programm legt außerhalb nie eigene Daten an. Kopierte Daten öffnen sich nur in der freigegebenen Windows-Domäne.
+- Die Daten sind verschlüsselt und gegen Veränderung geprüft (Editor/Excel sehen nur Zeichensalat; jede Manipulation
+  wird erkannt). Wer im Ordner daten Schreibrechte hat, kann Dateien trotzdem kopieren oder löschen: die IT soll die
+  Ordnerrechte so setzen, wie in docs/IT-Freigabe.md beschrieben. Änderungsprotokoll und Sicherungen sichern ab.
 
-DATEN MIT KOLLEGEN TEILEN
-- Alle Kopien müssen in ihrer Arbeitsplan.ini auf DENSELBEN Datenordner zeigen
-  (Netzlaufwerk/Freigabe, für alle mit Schreibrecht). Dann sieht jeder die Änderungen der anderen
-  nach spätestens "Abfrage" Sekunden. Zwei gleichzeitige Änderungen am selben Block werden erkannt (Rückfrage).
-- Einfacher: das Programm EINMAL auf das Laufwerk legen und alle starten es von dort
-  (Verknüpfung auf dem Desktop). Dann reicht "Datenordner=" leer (automatisch).
-- NICHT geeignet: den Datenordner per OneDrive auf mehreren PCs synchronisieren lassen
-  (keine Sperren, Konfliktkopien). Das Programm selbst darf in OneDrive liegen.
-- Systemrechner (Anzeige): eigene Kopie mit NurLesen=1 und demselben Datenordner.
-
-DATENSCHUTZ / SICHERHEIT (ehrlich)
-- Die Daten liegen in EINER verschlüsselten Datei (daten\arbeitsplan.apdb). Sie lässt sich nicht mit
-  Editor oder Excel lesen und nicht unbemerkt ändern (Änderung = Datei wird abgelehnt).
-- Das ist ein Schutz gegen Neugier und versehentliches Ändern, KEIN Schutz gegen einen gezielten Angriff:
-  der Schlüssel liegt als versteckte Datei arbeitsplan.key im Datenordner (nicht im Programm). Wer Zugriff auf
-  den Datenordner hat, kann Daten und Schlüssel lesen oder löschen: Ordnerrechte entsprechend setzen.
-  Ohne arbeitsplan.key sind die Daten UNLESBAR (Programm zeigt OFFLINE, nichts wird überschrieben):
-  eine Kopie der Schlüsseldatei getrennt vom Datenordner aufbewahren, nie neu erzeugen lassen.
-  Echter Schutz (Rechte, Audit-Trail im GMP-Sinn) erst mit Server/Datenbank der IT.
-- Die tägliche Sicherung (sicherung\*.apbak) ist mit dem Datenschlüssel (arbeitsplan.key) verschlüsselt und gegen Veränderung
-  geprüft; ohne diesen Schlüssel lässt sie sich nicht wiederherstellen. Ältere Sicherungen bleiben lesbar.
-- Wer bearbeitet, steht kurz als Datei in daten\sperren\ (nur Name, verfällt nach 30 Minuten).
-- Lokale Kopie des letzten Stands: %LOCALAPPDATA%\Arbeitsplan\cache.apdb (für OFFLINE-Anzeige), mit eigenem,
-  nur für diesen Windows-Nutzer lesbaren Schlüssel (cache.key). Gültig CacheTage=7 Tage (0 = keine Kopie), danach gelöscht.
-
-WENN ETWAS NICHT GEHT
-- Titel zeigt "OFFLINE": Datenordner nicht erreichbar oder Datei beschädigt. Es wird der letzte Stand
-  dieses PCs angezeigt, Speichern ist gesperrt. Netz/Laufwerk prüfen; das Programm verbindet sich
-  von selbst wieder (zum Bearbeiten neu starten).
-- Datei beschädigt: im Datenordner liegen die letzten 3 Stände als arbeitsplan.apdb.bak1 (neuester) bis .bak3.
-  Programm überall schließen, arbeitsplan.apdb wegsichern, arbeitsplan.apdb.bak1 in arbeitsplan.apdb umbenennen.
-  Ältere Stände: Menü Einstellungen > Sicherung (Admin).
-- Meldung "Ordner nicht beschreibbar": das Programm liegt in einem geschützten Ordner. Die Daten liegen dann nur
-  auf diesem PC (%LOCALAPPDATA%\Arbeitsplan\daten). Abhilfe: Datenordner= in der ini setzen.
-- Meldung "durch eine Richtlinie zur Anwendungssteuerung blockiert" / "Application Control" / SmartScreen:
-  Die Firma erlaubt keine unbekannten Programme. NICHT umgehen. Die IT muss das Programm freigeben
-  (Prüfung, Signatur mit Firmenzertifikat oder Freigabe des Ordners). Unterlagen: Sicherheitsdossier im Quellcode.
-
-BEKANNTE GRENZEN (Pilot)
-- Nutzer werden über den Windows-Anmeldenamen erkannt, keine eigene Anmeldung.
-- Eine Datei für alles: bei sehr vielen gleichzeitigen Nutzern oder langsamem Netz kann Speichern kurz dauern.
-- Nach Klärung mit der IT folgt ein zentraler Server/Datenbank; dann wird nur die Datenquelle umgestellt.
+WENN WINDOWS DAS PROGRAMM BLOCKIERT
+- Meldung "durch eine Richtlinie blockiert", "Application Control", "Smart App Control" oder SmartScreen:
+  NICHT umgehen. Die IT muss das Programm freigeben (Signatur mit Firmenzertifikat oder Regel für den Ordner
+  Programm). Unterlagen für die IT: docs/IT-Freigabe.md im Quellcode.
