@@ -18,6 +18,7 @@ namespace Arbeitsplan.Core
         public List<StoredEntry> Entries = new List<StoredEntry>();
         public Catalog Catalog = new Catalog();
         public List<AuditEntry> Audit = new List<AuditEntry>();
+        public UserDb Users;                 // nur in der Datendatei (FileStore), nie in Sicherungen
     }
 
     // Datensicherung als eine Datei (.apbak): GZip( "APBAK1\n" + SHA-256-Hex des XML + "\n" + XML ).
@@ -135,7 +136,7 @@ namespace Arbeitsplan.Core
         static string I(long v) { return v.ToString(Inv); }
         static string B(bool v) { return v ? "1" : "0"; }
 
-        static byte[] ToXml(StoreData d)
+        internal static byte[] ToXml(StoreData d)
         {
             XmlWriterSettings st = new XmlWriterSettings(); st.Indent = true; st.Encoding = Utf8;
             using (MemoryStream ms = new MemoryStream())
@@ -166,6 +167,7 @@ namespace Arbeitsplan.Core
                         w.WriteEndElement();
                     }
                     w.WriteEndElement();
+                    if (d.Users != null) d.Users.WriteXml(w);
                     w.WriteEndElement();
                 }
                 return ms.ToArray();
@@ -220,7 +222,7 @@ namespace Arbeitsplan.Core
         static bool Bool(XmlElement e, string a) { return e.GetAttribute(a) == "1"; }
         static DateTime Day(XmlElement e) { return DateTime.ParseExact(e.GetAttribute("tag"), "yyyy-MM-dd", Inv); }
 
-        static StoreData FromXml(byte[] xml)
+        internal static StoreData FromXml(byte[] xml)
         {
             XmlDocument doc = new XmlDocument();
             XmlReaderSettings rs = new XmlReaderSettings(); rs.DtdProcessing = DtdProcessing.Prohibit; rs.XmlResolver = null;
@@ -270,6 +272,8 @@ namespace Arbeitsplan.Core
                     if (n != null) a.After = ReadEntry(n);
                     d.Audit.Add(a);
                 }
+            XmlElement nu = Kid(root, "Nutzer");
+            if (nu != null) d.Users = UserDb.ReadXml(nu);
             return d;
         }
 

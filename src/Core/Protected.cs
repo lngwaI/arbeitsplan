@@ -7,16 +7,19 @@ namespace Arbeitsplan.Core
 {
     // Passwortgeschuetzte Einstellungsdatei (z. B. spaeter Katalog, Nutzer-DB, Serveradresse).
     // Format: "APS1" | Salt(16) | IV(16) | AES-256-CBC(UTF-8-Text) | HMAC-SHA256 ueber alles davor (Encrypt-then-MAC).
-    // Schluessel aus Passwort: PBKDF2 (Rfc2898, 100.000 Runden). Das Passwort steht NICHT im Programm.
+    // Schluessel aus Passwort: PBKDF2 (Rfc2898, 100.000 Runden). Das Passwort steht NICHT im Programm
+    // (Ausnahme: Datendatei des FileStore, dort verschleiert eingebettet, siehe dort).
     // Wer das Passwort nicht kennt, kann die Datei weder lesen noch unbemerkt aendern.
     public static class Protected
     {
         static readonly byte[] Magic = Encoding.ASCII.GetBytes("APS1");
         const int Iterations = 100000;
 
-        static void Keys(string password, byte[] salt, out byte[] enc, out byte[] mac)
+        static readonly UTF8Encoding Utf8 = new UTF8Encoding(false);
+
+        static void Keys(string password, byte[] salt, int iterations, out byte[] enc, out byte[] mac)
         {
-            using (Rfc2898DeriveBytes kdf = new Rfc2898DeriveBytes(password, salt, Iterations))
+            using (Rfc2898DeriveBytes kdf = new Rfc2898DeriveBytes(password, salt, iterations))
             {
                 enc = kdf.GetBytes(32);
                 mac = kdf.GetBytes(32);
@@ -26,21 +29,23 @@ namespace Arbeitsplan.Core
         // Gruppenrichtlinie "FIPS-konforme Algorithmen" sperrt die hier genutzten Managed-Klassen.
         static CryptographicException Fips() { return new CryptographicException("Verschlüsselung auf diesem PC nicht verfügbar (FIPS-Richtlinie)."); }
 
-        public static byte[] Protect(string text, string password)
+        public static byte[] Protect(string text, string password) { return ProtectBytes(Utf8.GetBytes(text), password, Iterations); }
+
+        // iterations: weniger Runden nur, wenn das Passwort selbst schon zufaellig/lang ist (Datendatei, siehe FileStore)
+        public static byte[] ProtectBytes(byte[] plain, string password, int iterations)
         {
-            try { return ProtectCore(text, password); } catch (InvalidOperationException) { throw Fips(); }
+            try { return ProtectCore(plain, password, iterations); } catch (InvalidOperationException) { throw Fips(); }
         }
 
-        static byte[] ProtectCore(string text, string password)
+        static byte[] ProtectCore(byte[] plain, string password, int iterations)
         {
             if (string.IsNullOrEmpty(password)) throw new ArgumentException("Passwort fehlt.");
             byte[] salt = new byte[16], iv = new byte[16], enc, mac, cipher;
             using (RNGCryptoServiceProvider rng = new RNGCryptoServiceProvider()) { rng.GetBytes(salt); rng.GetBytes(iv); }
-            Keys(password, salt, out enc, out mac);
+            Keys(password, salt, iterations, out enc, out mac);
             using (AesManaged aes = new AesManaged())
             {
                 aes.Key = enc; aes.IV = iv; aes.Mode = CipherMode.CBC; aes.Padding = PaddingMode.PKCS7;
-                byte[] plain = new UTF8Encoding(false).GetBytes(text);
                 using (ICryptoTransform t = aes.CreateEncryptor()) cipher = t.TransformFinalBlock(plain, 0, plain.Length);
             }
             byte[] body = new byte[Magic.Length + 16 + 16 + cipher.Length];
@@ -57,19 +62,21 @@ namespace Arbeitsplan.Core
         }
 
         // Wirft CryptographicException bei falschem Passwort, Manipulation oder fremdem Format (bewusst ohne Unterscheidung).
-        public static string Unprotect(byte[] blob, string password)
+        public static string Unprotect(byte[] blob, string password) { return Utf8.GetString(UnprotectBytes(blob, password, Iterations)); }
+
+        public static byte[] UnprotectBytes(byte[] blob, string password, int iterations)
         {
-            try { return UnprotectCore(blob, password); } catch (InvalidOperationException) { throw Fips(); }
+            try { return UnprotectCore(blob, password, iterations); } catch (InvalidOperationException) { throw Fips(); }
         }
 
-        static string UnprotectCore(byte[] blob, string password)
+        static byte[] UnprotectCore(byte[] blob, string password, int iterations)
         {
             if (blob == null || blob.Length < 4 + 16 + 16 + 16 + 32 || string.IsNullOrEmpty(password)) throw new CryptographicException("Ungültige Datei.");
             for (int i = 0; i < 4; i++) if (blob[i] != Magic[i]) throw new CryptographicException("Ungültige Datei.");
             byte[] salt = new byte[16], iv = new byte[16], enc, mac;
             Buffer.BlockCopy(blob, 4, salt, 0, 16);
             Buffer.BlockCopy(blob, 20, iv, 0, 16);
-            Keys(password, salt, out enc, out mac);
+            Keys(password, salt, iterations, out enc, out mac);
             int bodyLen = blob.Length - 32;
             byte[] body = new byte[bodyLen], tag = new byte[32], calc;
             Buffer.BlockCopy(blob, 0, body, 0, bodyLen);
@@ -82,7 +89,7 @@ namespace Arbeitsplan.Core
             {
                 aes.Key = enc; aes.IV = iv; aes.Mode = CipherMode.CBC; aes.Padding = PaddingMode.PKCS7;
                 using (ICryptoTransform t = aes.CreateDecryptor())
-                    return new UTF8Encoding(false).GetString(t.TransformFinalBlock(blob, 36, bodyLen - 36));
+                    return t.TransformFinalBlock(blob, 36, bodyLen - 36);
             }
         }
 

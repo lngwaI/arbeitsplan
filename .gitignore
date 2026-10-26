@@ -6,3 +6,4 @@ release/
 
 .claude/settings.local.json
 testpakete/
+dist/

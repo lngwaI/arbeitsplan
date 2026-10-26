@@ -10,8 +10,8 @@ namespace Arbeitsplan.Win
     partial class MainForm
     {
         static string BackupIni { get { return Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "sicherung.ini"); } }
-        // Standard: Unterordner "sicherung" neben den Daten (Prototyp: neben der exe)
-        static string BackupFolder { get { return Backup.LoadFolder(BackupIni, Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "sicherung")); } }
+        // Standard: Sicherungsordner aus Arbeitsplan.ini bzw. <Datenordner>\sicherung (Testdaten: neben der exe); Auswahl im Dialog (sicherung.ini) hat Vorrang
+        string BackupFolder { get { return Backup.LoadFolder(BackupIni, cfg != null ? cfg.BackupFolder : Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "sicherung")); } }
 
         void InitData()
         {

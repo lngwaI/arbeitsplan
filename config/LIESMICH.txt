@@ -1,0 +1,62 @@
+﻿ARBEITSPLAN - Pilotversion (vor Freigabe durch die IT)
+=======================================================
+
+INSTALLATION
+- Den ganzen Ordner "Arbeitsplan" kopieren (Laufwerk, OneDrive, Desktop, Laptop).
+  Keine Installation, keine Adminrechte nötig. Voraussetzung: Windows 7/10/11 mit .NET Framework 4.
+- Starten: Arbeitsplan.exe doppelklicken. Für den Desktop: Rechtsklick auf
+  Arbeitsplan.exe > "Senden an" > "Desktop (Verknüpfung erstellen)".
+- Der Ordner muss zusammenbleiben: Arbeitsplan.exe, Arbeitsplan.ini, statuscolors.ini.
+
+INHALT
+- Arbeitsplan.exe     Programm
+- Arbeitsplan.ini     Einstellungen (mit Editor öffnen, Erklärung steht in der Datei)
+- statuscolors.ini    Farben für den Equipment-Status
+- daten\              Plandaten (Standard, wenn in der ini kein Datenordner steht)
+- Vorlagen\           Beispiel-Pakete (.apkg), über Menü Pakete > "Paket aus Datei importieren"
+
+EINSTELLUNGEN (Arbeitsplan.ini)
+- Datenordner=        leer = Ordner "daten" neben der exe; sonst Pfad, z. B. \\Server\Freigabe\Arbeitsplan\daten
+- NurLesen=1          Systemrechner/Anzeige: nur ansehen, nie speichern
+- Pilot=1             unbekannte Windows-Nutzer dürfen bearbeiten (0 = nur lesen)
+- Admins=             Windows-Anmeldenamen mit allen Rechten, z. B. Admins=mmuster,ebeispiel
+- Abfrage=30          alle 30 Sekunden werden Änderungen anderer PCs übernommen
+- Sicherungsordner=   leer = <Datenordner>\sicherung (tägliche Sicherung beim Beenden, 14 Stück)
+
+DATEN MIT KOLLEGEN TEILEN
+- Alle Kopien müssen in ihrer Arbeitsplan.ini auf DENSELBEN Datenordner zeigen
+  (Netzlaufwerk/Freigabe, für alle mit Schreibrecht). Dann sieht jeder die Änderungen der anderen
+  nach spätestens "Abfrage" Sekunden. Zwei gleichzeitige Änderungen am selben Block werden erkannt (Rückfrage).
+- Einfacher: das Programm EINMAL auf das Laufwerk legen und alle starten es von dort
+  (Verknüpfung auf dem Desktop). Dann reicht "Datenordner=" leer.
+- NICHT geeignet: den Datenordner per OneDrive auf mehreren PCs synchronisieren lassen
+  (keine Sperren, Konfliktkopien). Das Programm selbst darf in OneDrive liegen.
+- Systemrechner (Anzeige): eigene Kopie mit NurLesen=1 und demselben Datenordner.
+
+DATENSCHUTZ / SICHERHEIT (ehrlich)
+- Die Daten liegen in EINER verschlüsselten Datei (daten\arbeitsplan.apdb). Sie lässt sich nicht mit
+  Editor oder Excel lesen und nicht unbemerkt ändern (Änderung = Datei wird abgelehnt).
+- Das ist ein Schutz gegen Neugier und versehentliches Ändern, KEIN Schutz gegen einen gezielten Angriff:
+  der Schlüssel steckt im Programm. Wer Schreibrecht auf den Datenordner hat, kann die Datei auch löschen.
+  Echter Schutz (Rechte, Audit-Trail im GMP-Sinn) erst mit Server/Datenbank der IT.
+- Die tägliche Sicherung (sicherung\*.apbak) ist gepackt und gegen Veränderung geprüft, aber NICHT verschlüsselt.
+- Wer bearbeitet, steht kurz als Datei in daten\sperren\ (nur Name, verfällt nach 30 Minuten).
+- Lokale Kopie des letzten Stands: %LOCALAPPDATA%\Arbeitsplan\cache.apdb (für OFFLINE-Anzeige).
+
+WENN ETWAS NICHT GEHT
+- Titel zeigt "OFFLINE": Datenordner nicht erreichbar oder Datei beschädigt. Es wird der letzte Stand
+  dieses PCs angezeigt, Speichern ist gesperrt. Netz/Laufwerk prüfen; das Programm verbindet sich
+  von selbst wieder (zum Bearbeiten neu starten).
+- Datei beschädigt: im Datenordner liegen die letzten 3 Stände als arbeitsplan.apdb.bak1 (neuester) bis .bak3.
+  Programm überall schließen, arbeitsplan.apdb wegsichern, arbeitsplan.apdb.bak1 in arbeitsplan.apdb umbenennen.
+  Ältere Stände: Menü Einstellungen > Sicherung (Admin).
+- Meldung "Ordner nicht beschreibbar": das Programm liegt in einem geschützten Ordner. Die Daten liegen dann nur
+  auf diesem PC (%LOCALAPPDATA%\Arbeitsplan\daten). Abhilfe: Datenordner= in der ini setzen.
+- Meldung "durch eine Richtlinie zur Anwendungssteuerung blockiert" / "Application Control" / SmartScreen:
+  Die Firma erlaubt keine unbekannten Programme. NICHT umgehen. Die IT muss das Programm freigeben
+  (Prüfung, Signatur mit Firmenzertifikat oder Freigabe des Ordners). Unterlagen: Sicherheitsdossier im Quellcode.
+
+BEKANNTE GRENZEN (Pilot)
+- Nutzer werden über den Windows-Anmeldenamen erkannt, keine eigene Anmeldung.
+- Eine Datei für alles: bei sehr vielen gleichzeitigen Nutzern oder langsamem Netz kann Speichern kurz dauern.
+- Nach Klärung mit der IT folgt ein zentraler Server/Datenbank; dann wird nur die Datenquelle umgestellt.

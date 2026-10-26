@@ -38,7 +38,12 @@ namespace Arbeitsplan.Win
         static void RunMain(MainForm m, Splash s, DateTime start)
         {
             while ((DateTime.Now - start).TotalMilliseconds < 1000) { Application.DoEvents(); System.Threading.Thread.Sleep(15); }
-            m.Shown += delegate { s.Close(); };
+            m.Shown += delegate
+            {
+                s.Close();
+                string msg = m.StartMessage;   // Datenordner nicht erreichbar, Ausweichordner …
+                if (msg != null) m.BeginInvoke((MethodInvoker)delegate { MessageBox.Show(m, msg, "Arbeitsplan - Daten", MessageBoxButtons.OK, MessageBoxIcon.Warning); });
+            };
             Application.Run(m);
         }
 
@@ -76,13 +81,20 @@ namespace Arbeitsplan.Win
                 return Icon.FromHandle(b.GetHicon());
             }
         }
-        // Aufruf: Arbeitsplan.exe [--theme xp|win7|win10] [--user <login>] [--nosave] [--4x3 | --size BxH]
+        // Aufruf: Arbeitsplan.exe [--theme xp|win7|win10] [--user <login>] [--nosave] [--data <ordner>] [--4x3 | --size BxH]
+        //   Release: Daten laut Arbeitsplan.ini neben der exe (FileStore); Test-Build ohne --data: Testdaten im Speicher
         //   Test:  --shot <png> [--size BxH] [--edit spalte,zeile]  (rendert die Ansicht als Bild und beendet)
         [STAThread]
         static void Main(string[] args)
         {
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
+#if !TESTHOOKS
+            // Release: neutrale Fehlermeldung statt Stacktrace-Dialog; muss vor dem ersten Fenster/Timer stehen (sonst InvalidOperationException)
+            Application.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException);
+            Application.ThreadException += delegate { Fatal(); };
+            AppDomain.CurrentDomain.UnhandledException += delegate { Fatal(); };
+#endif
 
             Theme.Select(Arg(args, "--theme"));
             InstallIcon();
@@ -96,6 +108,16 @@ namespace Arbeitsplan.Win
             Size cs = new Size(1280, 720);
             if (sz != null) cs = new Size(int.Parse(sz.Split('x')[0]), int.Parse(sz.Split('x')[1]));
             if (Arg(args, "--weeks") == "2") MainForm.TestWeeks = 2;
+            // Test: --data <ordner> nutzt die verschluesselte Datendatei (wie Release) statt der Testdaten; Testadmin mmuster
+            Arbeitsplan.Core.AppConfig cfg = null;
+            if (Arg(args, "--data") != null)
+            {
+                cfg = Arbeitsplan.Core.AppConfig.Load(AppDomain.CurrentDomain.BaseDirectory);
+                cfg.DataFolder = System.IO.Path.GetFullPath(Arg(args, "--data")); cfg.Note = null;
+                cfg.BackupFolder = System.IO.Path.Combine(cfg.DataFolder, "sicherung");
+                cfg.CachePath = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "arbeitsplan_testcache.apdb");
+                cfg.ReadOnly |= nosave; cfg.Admins.Add("mmuster");
+            }
             if (Arg(args, "--splash") != null)   // Test: Startbildschirm als Bild
             {
                 Splash sp = StartSplash();
@@ -108,13 +130,13 @@ namespace Arbeitsplan.Win
             if (shot == null)
             {
                 Splash sp = StartSplash();
-                MainForm m = new MainForm(login, nosave);
+                MainForm m = new MainForm(login, nosave, cfg);
                 if (sz != null) m.ClientSize = cs; else m.FitToCursorScreen();
                 RunMain(m, sp, t0);
                 return;
             }
 
-            MainForm f = new MainForm(login, nosave);
+            MainForm f = new MainForm(login, nosave, cfg);
             f.StartPosition = FormStartPosition.Manual;
             f.Location = new Point(0, 0);
             f.ClientSize = cs;
@@ -137,12 +159,9 @@ namespace Arbeitsplan.Win
                 bmp.Save(shot, System.Drawing.Imaging.ImageFormat.Png);
             }
 #else
-            // Release: keine Testschalter, Nutzer = Windows-Anmeldename, neutrale Fehlermeldung statt Stacktrace-Dialog
-            Application.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException);
-            Application.ThreadException += delegate { Fatal(); };
-            AppDomain.CurrentDomain.UnhandledException += delegate { Fatal(); };
+            // Release: keine Testschalter, Nutzer = Windows-Anmeldename (Fehlerbehandlung siehe Anfang von Main)
             Splash sp = StartSplash();
-            MainForm rm = new MainForm(Environment.UserName, false); rm.FitToCursorScreen();
+            MainForm rm = new MainForm(Environment.UserName, false, Arbeitsplan.Core.AppConfig.Load(AppDomain.CurrentDomain.BaseDirectory)); rm.FitToCursorScreen();
             RunMain(rm, sp, t0);
 #endif
         }

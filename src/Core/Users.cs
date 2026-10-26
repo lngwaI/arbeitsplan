@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
+using System.Xml;
 
 namespace Arbeitsplan.Core
 {
@@ -58,7 +60,6 @@ namespace Arbeitsplan.Core
     {
         public readonly List<User> Users = new List<User>();
         public readonly List<RightsPackage> Packages = new List<RightsPackage>();
-        int nextId = 1;
 
         public User FindByLogin(string login)
         {
@@ -76,7 +77,8 @@ namespace Arbeitsplan.Core
         public User Add(string first, string last, string login, string package)
         {
             User u = new User();
-            u.Id = nextId++; u.First = first; u.Last = last; u.Login = login;
+            foreach (User x in Users) u.Id = Math.Max(u.Id, x.Id);
+            u.Id++; u.First = first; u.Last = last; u.Login = login;
             ApplyPackage(u.Rights, Package(package));
             Users.Add(u);
             return u;
@@ -102,12 +104,59 @@ namespace Arbeitsplan.Core
             return null;
         }
 
-        public static UserDb Sample()
+        // Nur Rechtepakete, keine Nutzer (Erststart der Datendatei)
+        public static UserDb Default()
         {
             UserDb db = new UserDb();
             db.Packages.Add(new RightsPackage("Leser", Perm.Read, Perm.Export));
             db.Packages.Add(new RightsPackage("Produktion", Perm.Read, Perm.EditText, Perm.DeleteText, Perm.AddText, Perm.Format, Perm.Export, Perm.ImportPackage));
             db.Packages.Add(new RightsPackage("Admin", Perm.All));
+            return db;
+        }
+
+        public void WriteXml(XmlWriter w)
+        {
+            w.WriteStartElement("Nutzer");
+            foreach (RightsPackage p in Packages)
+            {
+                w.WriteStartElement("Paket"); w.WriteAttributeString("name", p.Name);
+                foreach (string r in p.Rights) { w.WriteStartElement("R"); w.WriteAttributeString("v", r); w.WriteEndElement(); }
+                w.WriteEndElement();
+            }
+            foreach (User u in Users)
+            {
+                w.WriteStartElement("Person"); w.WriteAttributeString("id", u.Id.ToString(CultureInfo.InvariantCulture));
+                w.WriteAttributeString("vorname", u.First); w.WriteAttributeString("nachname", u.Last); w.WriteAttributeString("login", u.Login); w.WriteAttributeString("kuerzel", u.Kuerzel);
+                foreach (string r in u.Rights) { w.WriteStartElement("R"); w.WriteAttributeString("v", r); w.WriteEndElement(); }
+                w.WriteEndElement();
+            }
+            w.WriteEndElement();
+        }
+
+        public static UserDb ReadXml(XmlElement e)
+        {
+            UserDb db = new UserDb();
+            foreach (XmlNode n in e.ChildNodes)
+            {
+                XmlElement x = n as XmlElement;
+                if (x == null) continue;
+                List<string> rights = new List<string>();
+                foreach (XmlNode r in x.ChildNodes) { XmlElement re = r as XmlElement; if (re != null && re.Name == "R") rights.Add(re.GetAttribute("v")); }
+                if (x.Name == "Paket") db.Packages.Add(new RightsPackage(x.GetAttribute("name"), rights.ToArray()));
+                else if (x.Name == "Person")
+                {
+                    User u = new User(); u.Id = int.Parse(x.GetAttribute("id"), CultureInfo.InvariantCulture);
+                    u.First = x.GetAttribute("vorname"); u.Last = x.GetAttribute("nachname"); u.Login = x.GetAttribute("login"); u.Kuerzel = x.GetAttribute("kuerzel");
+                    foreach (string r in rights) u.Rights.Add(r);
+                    db.Users.Add(u);
+                }
+            }
+            return db;
+        }
+
+        public static UserDb Sample()
+        {
+            UserDb db = Default();
 #if TESTHOOKS
             db.Add("Max", "Mustermann", "mmuster", "Admin").Kuerzel = "MUMA";
             db.Add("Erika", "Beispiel", "ebeispiel", "Leser").Kuerzel = "BEER";

@@ -25,8 +25,10 @@ namespace Arbeitsplan.Win
         [DllImport("user32.dll")] static extern int SendMessage(IntPtr h, int msg, int w, int l);
 
         readonly IDataStore store;
-        readonly ILockService locks = new MemoryLockService();
-        readonly UserDb users = UserDb.Sample();
+        readonly ILockService locks;
+        UserDb users;
+        readonly FileStore fstore;   // null = Testdaten im Speicher
+        readonly AppConfig cfg;
         readonly IEquipmentStatusProvider equip = new MockEquipmentProvider();
         readonly User me;
         readonly List<RowInfo> rowInfo = new List<RowInfo>();
@@ -55,13 +57,10 @@ namespace Arbeitsplan.Win
         bool loadingEditor, inResize, syncingFormat, systemPc;
         int hitPos = -1;
 
-        public MainForm(string login, bool failSaves)
+        // cfg == null: Testdaten im Speicher (nur Test-Build); sonst verschluesselte Datendatei im Datenordner (FileStore)
+        public MainForm(string login, bool failSaves, AppConfig cfg)
         {
-#if TESTHOOKS
-            Text = "Arbeitsplan (Prototyp, lokale Testdaten) - Oberfläche: " + Theme.Current.Name;
-#else
-            Text = "Arbeitsplan (Testdaten, keine Speicherung) - Oberfläche: " + Theme.Current.Name;
-#endif
+            this.cfg = cfg;
             StartPosition = FormStartPosition.CenterScreen;
             ClientSize = new Size(1280, 720);
             MinimumSize = new Size(900, 600);
@@ -71,24 +70,22 @@ namespace Arbeitsplan.Win
             KeyPreview = true;
 
             start = MondayOf(DateTime.Today);
-            MemoryStore ms = MemoryStore.Sample(start);
-            ms.FailSaves = failSaves; systemPc = failSaves;
-            store = ms;
-#if TESTHOOKS
-            locks.Acquire(start.AddDays(1), 1, "Paula Werk");   // Mock: Dienstag, Zeile 1 ist "in Bearbeitung"
-#endif
-
-            me = users.FindByLogin(login);
-            if (me == null)
+            if (cfg == null)
             {
-                // Annahme (Prototyp): unbekannter Windows-Nutzer = Produktion mit Windows-Namen.
-                me = new User(); me.Login = login;
+                MemoryStore ms = MemoryStore.Sample(start);
+                ms.FailSaves = failSaves; systemPc = failSaves;
+                store = ms; users = UserDb.Sample(); locks = new MemoryLockService();
 #if TESTHOOKS
-                UserDb.ApplyPackage(me.Rights, users.Package("Produktion"));
-#else
-                UserDb.ApplyPackage(me.Rights, users.Package("Leser"));   // Release: unbekannte Nutzer nur lesend
+                locks.Acquire(start.AddDays(1), 1, "Paula Werk");   // Mock: Dienstag, Zeile 1 ist "in Bearbeitung"
 #endif
             }
+            else
+            {
+                fstore = new FileStore(cfg.DataFolder, cfg.ReadOnly, cfg.CachePath);
+                store = fstore; users = fstore.Users; locks = new FileLockService(cfg.DataFolder);
+                systemPc = fstore.ReadOnly;
+            }
+            me = ResolveUser(login);
 
             view = new PlanView(Font);
             view.Equip = equip;
@@ -133,6 +130,7 @@ namespace Arbeitsplan.Win
             KeyDown += OnKey;
             FormClosing += OnClosing;
             InitData();   // Verlauf-Menue, Sicherung beim Beenden (MainForm.Data.cs)
+            StartPolling();   // Datendatei regelmaessig auf Aenderungen pruefen (MainForm.Storage.cs)
             Theme.Current.Style(this);
             Rebuild(true);
 #if TESTHOOKS
@@ -164,7 +162,7 @@ namespace Arbeitsplan.Win
 
             ToolStripMenuItem set = new ToolStripMenuItem("Einstellungen");
             ToolStripItem st = set.DropDownItems.Add("Blockstruktur…", null, delegate { EditStructure(); }); st.Enabled = structure;
-            ToolStripItem us = set.DropDownItems.Add("Nutzerverwaltung…", null, delegate { using (UserAdminForm f = new UserAdminForm(users, me)) f.ShowDialog(this); }); us.Enabled = usr;
+            ToolStripItem us = set.DropDownItems.Add("Nutzerverwaltung…", null, delegate { RefreshUsers(); using (UserAdminForm f = new UserAdminForm(users, me)) f.ShowDialog(this); SaveUsers(); }); us.Enabled = usr;
             ToolStripItem cf = set.DropDownItems.Add("Equipment && Bausteine…", null, delegate { EditCatalog(); }); cf.Enabled = me.Has(Perm.PackageAdmin);
             ToolStripItem bk = set.DropDownItems.Add("Sicherung…", null, delegate { OpenBackup(); }); bk.Enabled = me.Has(Perm.PackageAdmin);
             set.Visible = structure || usr || me.Has(Perm.PackageAdmin);
@@ -216,7 +214,7 @@ namespace Arbeitsplan.Win
             userLabel.AutoSize = true;
             userLabel.Location = new Point(10, 16);
             userLabel.Text = "Angemeldet: " + me.Display + " (" + (users.PackageOf(me) != null ? users.PackageOf(me).Name : "benutzerdefiniert") + ")";
-            Text += " - Nutzer: " + me.Display + " (" + (users.PackageOf(me) != null ? users.PackageOf(me).Name : "benutzerdefiniert") + ")" + (systemPc ? " - System-PC, kein Speichern" : "");
+            UpdateTitle();
             bar.Controls.Add(nav); bar.Controls.Add(userLabel);
             bar.Resize += delegate { CenterBar(); };
             Shown += delegate { CenterBar(); };
@@ -1095,6 +1093,7 @@ namespace Arbeitsplan.Win
             blob[40] ^= 1;
             sb.AppendLine("Protected: ok=" + (Protected.Unprotect(blob, "pw1") == "Geheim äöü") + " falschesPw=" + wrong + " manipuliert=" + tampered);
             if (systemPc) sb.AppendLine("Protokoll/Sicherung: übersprungen (Systemrechner, Speichern nicht möglich)"); else SelfTestData(sb);
+            SelfTestFiles(sb);
             quiet = false;
             return sb.ToString();
         }

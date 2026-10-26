@@ -13,6 +13,8 @@ Ziel: Programm als portabler Ordner (OneDrive/Desktop/Laufwerk), alle Daten für
 
 Empfehlung: A, sonst B. Prototyp: Jet-`.mdb` hinter `IDataStore` (gleiches Schema später auf SQL Server, nur Store-Klasse tauschen). Echte Daten erst mit A oder B.
 
+**Umgesetzt (Pilot, statt Jet):** `FileStore` = eine verschlüsselte Datei `arbeitsplan.apdb` im Datenordner (ini `Datenordner=`), Sperrdatei + Neu-Einlesen vor jedem Schreiben, `.bak1..3`, Abfrage-Timer, OFFLINE mit lokalem Cache, Soft-Locks als Dateien. Grenzen siehe Sicherheitsdossier.
+
 ## Datenquelle finden
 - `Arbeitsplan.ini` neben der exe (`Datenquelle=…`, `Abfrage=30`); kein fester Pfad im Code (Repo öffentlich).
 - Nicht erreichbar: Meldung + Stand von <Zeit> nur lesen, Titel "OFFLINE", Bearbeiten gesperrt.
