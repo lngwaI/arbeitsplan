@@ -60,7 +60,8 @@ namespace Arbeitsplan.Win
             Ui.Dialog(this, 720, 540, false);
 
             Controls.Add(L("Startdatum (Tag 1):", 10, 14));
-            dtStart.Format = DateTimePickerFormat.Custom; dtStart.CustomFormat = "dd.MM.yyyy"; dtStart.Value = start;   // immer TT.MM.JJJJ (GMP) dtStart.SetBounds(130, 10, 110, 22); Controls.Add(dtStart);
+            dtStart.Format = DateTimePickerFormat.Custom; dtStart.CustomFormat = "dd.MM.yyyy";   // immer TT.MM.JJJJ (GMP), unabhaengig von der Windows-Einstellung
+            dtStart.Value = start; dtStart.SetBounds(130, 10, 110, 22); Controls.Add(dtStart);
             Controls.Add(L("Erster Lauf:" + (Package.IsCode4(p.ProductCode) ? "  " + p.ProductCode : ""), 265, 14));
             nFirst.SetBounds(375, 10, 65, 22); nFirst.Minimum = 0; nFirst.Maximum = 9999; Controls.Add(nFirst);
             lFirst.SetBounds(448, 14, 262, 18); Controls.Add(lFirst);
@@ -191,6 +192,7 @@ namespace Arbeitsplan.Win
 #if TESTHOOKS
         public string TestTyped(int i, string s) { grid.Rows[i].Cells[3].Value = s; Typed(i); return Convert.ToString(grid.Rows[i].Cells[3].Value); }
         public string TestCell(int i) { return Convert.ToString(grid.Rows[i].Cells[3].Value); }
+        public string TestStartText() { return Controls.Contains(dtStart) ? dtStart.Text : "fehlt"; }
 #endif
 
         // Eingetipptes Datum nur vollstaendig als TT.MM.JJJJ (GMP; auch "Fr 13.03.2026"), sonst Meldung und alter Wert.

@@ -50,6 +50,7 @@ jobs:
             @('paket-4x3', '--size','1024x768','--form','package2'),
             @('paket-neu', '--form','package'),
             @('kampagne', '--form','campaign'),
+            @('kampagne-bildschirm', '--form','campaign','--screen'),
             @('nutzer', '--users')
           )
           foreach ($r in $runs) {

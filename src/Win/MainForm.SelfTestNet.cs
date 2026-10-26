@@ -141,7 +141,7 @@ namespace Arbeitsplan.Win
                 int d0 = cf.Schedule[1].Day;
                 part = cf.TestTyped(1, "13.03.") == before && cf.Schedule[1].Day == d0;
                 DateTime want = cf.Start.AddDays(d0 - 1 + 2);
-                full = cf.TestTyped(1, want.ToString("dd.MM.yyyy")) == Ui.DayText(want) && cf.Schedule[1].Day == d0 + 2;
+                full = cf.TestTyped(1, want.ToString("dd.MM.yyyy")) == Ui.DayText(want) && cf.Schedule[1].Day == d0 + 2 && cf.TestStartText() == start.ToString("dd.MM.yyyy");
             }
             CampaignForm.Quiet = false;
             sb.AppendLine("Kampagnenstart: Datum ohne Jahr abgelehnt=" + Ok(part) + " TT.MM.JJJJ=" + Ok(full) + " direkt startbar=" + Ok(ready) + " unbekannter Raum->Editor=" + Ok(notReady));
