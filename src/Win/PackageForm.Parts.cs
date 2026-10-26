@@ -222,9 +222,7 @@ namespace Arbeitsplan.Win
         public BausteinPicker(Catalog cat, List<PackageStep> steps)
         {
             Text = "Schritt hinzufügen";
-            Font = Theme.Current.UiFont();
-            FormBorderStyle = FormBorderStyle.FixedDialog; MaximizeBox = MinimizeBox = false; ShowInTaskbar = false; StartPosition = FormStartPosition.CenterParent;
-            ClientSize = new Size(520, 430);
+            Ui.Dialog(this, 520, 430, false);
             Label l = new Label(); l.Text = "Welche Art von Schritt soll in den Ablauf? Vorlagen (Bausteine) bringen Raum und Equipment-Positionen schon mit."; l.SetBounds(12, 10, 496, 34);
             list.SetBounds(12, 48, 496, 330); list.DrawMode = DrawMode.OwnerDrawFixed; list.ItemHeight = Font.Height * 2 + 10; list.IntegralHeight = false;
             foreach (Baustein b in cat.Bausteine) if (!b.Special) Add(b, steps);

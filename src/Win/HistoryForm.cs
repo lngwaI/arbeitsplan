@@ -21,11 +21,7 @@ namespace Arbeitsplan.Win
         {
             this.labels = labels; this.canRestore = canRestore;
             Text = "Verlauf – " + title;
-            Font = Theme.Current.UiFont();
-            FormBorderStyle = FormBorderStyle.FixedDialog;
-            MaximizeBox = MinimizeBox = false;
-            StartPosition = FormStartPosition.CenterParent;
-            ClientSize = new Size(760, 520);
+            Ui.Dialog(this, 760, 520);
 
             Label hint = new Label();
             hint.Text = audit.Count == 0 ? "Für diesen Block wurden noch keine Änderungen protokolliert."

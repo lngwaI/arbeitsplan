@@ -11,7 +11,6 @@ namespace Arbeitsplan.Win
     // Export der ganzen Woche (alle Zeilen, nicht nur der sichtbare Ausschnitt) als Bild oder PDF.
     static class Export
     {
-        static readonly CultureInfo De = new CultureInfo("de-DE");
 
         public static Bitmap RenderWeek(PlanView view, string title, DateTime start)
         {
@@ -31,7 +30,7 @@ namespace Arbeitsplan.Win
                         DateTime d = start.AddDays(c);
                         Rectangle r = new Rectangle(view.ColLeft(c), top, view.ColW, dates - 4);
                         g.FillRectangle(Theme.Current.Brush(d == DateTime.Today ? Theme.Current.DayHeadToday : Theme.Current.DayHead), r);
-                        TextRenderer.DrawText(g, d.ToString("ddd, dd.MM.yyyy", De), df, r, Color.Black, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
+                        TextRenderer.DrawText(g, d.ToString("ddd, dd.MM.yyyy", Ui.De), df, r, Color.Black, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
                     }
                     view.DrawToBitmap(body, new Rectangle(0, 0, view.Width, view.Height));
                     g.DrawImageUnscaled(body, 0, top + dates);

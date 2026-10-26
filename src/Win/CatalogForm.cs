@@ -33,10 +33,7 @@ namespace Arbeitsplan.Win
         {
             cat = catalog.Clone(); this.rowNames = rowNames;
             Text = "Equipment-Positionen und Bausteine einrichten";
-            Font = Theme.Current.UiFont();
-            FormBorderStyle = FormBorderStyle.FixedDialog; MaximizeBox = MinimizeBox = false;
-            StartPosition = FormStartPosition.CenterParent;
-            ClientSize = new Size(760, 520);
+            Ui.Dialog(this, 760, 520);
 
             TabControl tabs = new TabControl(); tabs.SetBounds(8, 8, 744, 462);
             TabPage t1 = new TabPage("Equipment-Positionen"), t2 = new TabPage("Bausteine (Ablaufschritte)");

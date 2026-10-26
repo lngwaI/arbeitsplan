@@ -143,9 +143,7 @@ namespace Arbeitsplan.Win
         {
             this.offered = offered; this.ownShort = ownShort;
             Text = "Abwechselnd verwenden";
-            Font = Theme.Current.UiFont();
-            FormBorderStyle = FormBorderStyle.FixedDialog; MaximizeBox = MinimizeBox = false; StartPosition = FormStartPosition.CenterParent;
-            ClientSize = new Size(360, 400);
+            Ui.Dialog(this, 360, 400);
             Label l1 = new Label(); l1.Text = "Geräte ankreuzen, die sich abwechseln (A, B, A, B …). Angeboten werden alle Geräte, die laut Admin gleich eingesetzt werden können:"; l1.SetBounds(10, 8, 340, 48);
             list.SetBounds(10, 60, 340, 220); list.CheckOnClick = true;
             List<string> extras = new List<string>();

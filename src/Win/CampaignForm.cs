@@ -12,7 +12,6 @@ namespace Arbeitsplan.Win
     // wandern nur mit "Folgende mitverschieben" mit. Je Lauf ist der Block (Raum) waehlbar; das Equipment bleibt gleich.
     class CampaignForm : Form
     {
-        static readonly CultureInfo De = new CultureInfo("de-DE");
         static readonly Color Orange = Color.FromArgb(255, 228, 190);   // abweichend vom Vorschlag
         readonly Package pkg;
         readonly DateTimePicker dtStart = new DateTimePicker();
@@ -34,9 +33,8 @@ namespace Arbeitsplan.Win
         // Rhythmus der frueheren Kampagne verwenden (nur sichtbar, wenn eine gefunden wurde).
         public bool UseRhythm { get { return chkRhythm.Checked; } set { chkRhythm.Checked = value; } }
 
-        static long K(RunDate d) { return (long)d.Step * 100000 + d.Run; }
-        int Off(int i) { int v; return offs.TryGetValue(K(sched[i]), out v) ? v : 0; }
-        string Room(int i) { string r; return rooms.TryGetValue(K(sched[i]), out r) ? r : sched[i].Row; }
+        int Off(int i) { int v; return offs.TryGetValue(sched[i].Key(), out v) ? v : 0; }
+        string Room(int i) { string r; return rooms.TryGetValue(sched[i].Key(), out r) ? r : sched[i].Row; }
 
         // Tag und Block je Lauf inklusive Verschiebungen/Raumwechsel, fuer Package.Apply.
         public List<RunDate> Schedule
@@ -58,10 +56,7 @@ namespace Arbeitsplan.Win
         {
             pkg = p;
             Text = "Kampagne starten – " + (p.Name.Length > 0 ? p.Name : "Paket");
-            Font = Theme.Current.UiFont();
-            StartPosition = FormStartPosition.CenterParent;
-            FormBorderStyle = FormBorderStyle.FixedDialog; MaximizeBox = false; MinimizeBox = false; ShowInTaskbar = false;
-            ClientSize = new Size(720, 540);
+            Ui.Dialog(this, 720, 540, false);
 
             Controls.Add(L("Startdatum (Tag 1):", 10, 14));
             dtStart.Format = DateTimePickerFormat.Short; dtStart.Value = start; dtStart.SetBounds(130, 10, 110, 22); Controls.Add(dtStart);
@@ -72,17 +67,17 @@ namespace Arbeitsplan.Win
             int first = p.FirstRunNo;
             nFirst.Enabled = first >= 0;
             if (first >= 0) nFirst.Value = first;
-            int no, interval; DateTime last;
-            if (Package.LastRun(store, p.ProductCode, out no, out last, out interval))
+            Package.RunHistory h = Package.History(store, p.ProductCode, start);   // nur Laeufe vor dem Kampagnenstart
+            if (h.Found)
             {
-                info.Text = "Im Plan gefunden: letzter Lauf " + p.ProductCode + no.ToString("0000") + " am " + last.ToString("ddd dd.MM.yyyy", De)
-                    + (interval > 0 ? ", Abstand meist " + interval + " Tag(e)" : "") + ". Vorschlag: nächste Nummer.";
-                if (first >= 0 && no < 9999) nFirst.Value = no + 1;
+                info.Text = "Im Plan gefunden: letzter Lauf " + p.ProductCode + h.No.ToString("0000") + " am " + Ui.DayText(h.Day)
+                    + (h.Interval > 0 ? ", Abstand meist " + h.Interval + " Tag(e)" : "") + ". Vorschlag: nächste Nummer.";
+                if (first >= 0 && h.No < 9999) nFirst.Value = h.No + 1;
             }
             else info.Text = Package.IsCode4(p.ProductCode) ? "Keine früheren Läufe dieses Produkts im Plan gefunden." : "Paket ohne Produktcode: Läufe werden einfach durchnummeriert.";
             info.SetBounds(10, 40, 700, 18); Controls.Add(info);
 
-            gaps = Package.PastGaps(store, p.ProductCode);
+            gaps = h.Gaps;
             chkRhythm.Text = "Rhythmus aus früherer Kampagne übernommen (Abstände " + string.Join(", ", gaps.ConvertAll(delegate(int g) { return g.ToString(); }).ToArray()) + " …)";
             chkRhythm.Checked = chkRhythm.Visible = gaps.Count > 0;
             chkRhythm.SetBounds(10, 60, 700, 22); Controls.Add(chkRhythm);
@@ -138,8 +133,6 @@ namespace Arbeitsplan.Win
             grid.Columns.Add(c);
         }
 
-        static string Fmt(DateTime d) { return d.ToString("ddd dd.MM.yyyy", De); }
-
         DateTime Proposed(int i) { return Start.AddDays(sched[i].Day - 1); }
 
         // Vorschlaege neu berechnen (Start/erste Nummer/Rhythmus geaendert); eigene Verschiebungen und Raeume bleiben je Lauf erhalten.
@@ -155,7 +148,7 @@ namespace Arbeitsplan.Win
             grid.Rows.Clear();
             for (int i = 0; i < sched.Count; i++)
             {
-                grid.Rows.Add(sched[i].Label, Room(i), Fmt(Proposed(i)), "");
+                grid.Rows.Add(sched[i].Label, Room(i), Ui.DayText(Proposed(i)), "");
                 UpdateRow(i);
             }
             filling = false;
@@ -165,7 +158,7 @@ namespace Arbeitsplan.Win
         {
             bool was = filling; filling = true;
             DataGridViewCell c = grid.Rows[i].Cells[3];
-            c.Value = Fmt(Proposed(i).AddDays(Off(i)));
+            c.Value = Ui.DayText(Proposed(i).AddDays(Off(i)));
             c.Style.BackColor = Off(i) != 0 ? Orange : Color.Empty;
             DataGridViewCell r = grid.Rows[i].Cells[1];
             r.Value = Room(i);
@@ -177,7 +170,7 @@ namespace Arbeitsplan.Win
         public void Shift(int i, int delta)
         {
             if (delta == 0 || i < 0 || i >= sched.Count) return;
-            for (int j = i; j < sched.Count && (j == i || chkShift.Checked); j++) { offs[K(sched[j])] = Off(j) + delta; UpdateRow(j); }
+            for (int j = i; j < sched.Count && (j == i || chkShift.Checked); j++) { offs[sched[j].Key()] = Off(j) + delta; UpdateRow(j); }
         }
 
         // Block der Zeile i aendern: gilt fuer alle Zeilen desselben Laufs im selben Raum (z. B. Lauf, Mischen, Backfill),
@@ -189,7 +182,7 @@ namespace Arbeitsplan.Win
             for (int j = 0; j < sched.Count; j++)
             {
                 if (j != i && (sched[j].Row != orig || !((all && j > i) || (g >= 0 && sched[j].Group == g)))) continue;
-                if (room == sched[j].Row) rooms.Remove(K(sched[j])); else rooms[K(sched[j])] = room;
+                if (room == sched[j].Row) rooms.Remove(sched[j].Key()); else rooms[sched[j].Key()] = room;
                 UpdateRow(j);
             }
         }

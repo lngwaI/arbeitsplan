@@ -11,7 +11,6 @@ namespace Arbeitsplan.Win
     class PersonForm : Form
     {
         const int Days = 28;
-        static readonly CultureInfo De = CultureInfo.GetCultureInfo("de-DE");
         readonly IDataStore store;
         readonly DateTime from;
         readonly TextBox tbKz = new TextBox();
@@ -22,11 +21,7 @@ namespace Arbeitsplan.Win
         {
             this.store = store; this.from = from;
             Text = "Meine Schichten";
-            Font = Theme.Current.UiFont();
-            FormBorderStyle = FormBorderStyle.FixedDialog;
-            MaximizeBox = MinimizeBox = false;
-            StartPosition = FormStartPosition.CenterParent;
-            ClientSize = new Size(520, 480);
+            Ui.Dialog(this, 520, 480);
 
             Label l = new Label(); l.Text = "Kürzel:"; l.SetBounds(10, 14, 50, 20);
             tbKz.SetBounds(64, 10, 100, 24); tbKz.Text = kuerzel ?? "";
@@ -53,11 +48,11 @@ namespace Arbeitsplan.Win
             if (k.Length == 0) { info.Text = "Bitte Kürzel eingeben."; return; }
             List<PersonShift> sh = PersonPlan.Collect(store, store.GetRows(), k, from, Days);
             foreach (PersonShift p in sh)
-                list.Items.Add(new ListViewItem(new string[] { p.Day.ToString("ddd dd.MM.yyyy", De), PersonPlan.ShiftNames[p.Shift], p.Block }));
+                list.Items.Add(new ListViewItem(new string[] { Ui.DayText(p.Day), PersonPlan.ShiftNames[p.Shift], p.Block }));
             List<string> w = PersonPlan.Warnings(sh);
             foreach (string s in w) warn.Items.Add(s);
             if (w.Count == 0) { ListViewItem ok = warn.Items.Add("Keine Warnungen."); ok.ForeColor = SystemColors.WindowText; }
-            info.Text = sh.Count + " Schichten, " + w.Count + " Warnung(en), " + from.ToString("dd.MM.", De) + " - " + from.AddDays(Days - 1).ToString("dd.MM.yyyy", De);
+            info.Text = sh.Count + " Schichten, " + w.Count + " Warnung(en), " + from.ToString("dd.MM.", Ui.De) + " - " + from.AddDays(Days - 1).ToString("dd.MM.yyyy", Ui.De);
         }
     }
 }

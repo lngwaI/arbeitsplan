@@ -37,7 +37,6 @@ namespace Arbeitsplan.Win
         public static int LW { get { return Theme.Current.LW; } }
         public static int Pad { get { return Theme.Current.Pad; } }
         public static int Gap { get { return Theme.Current.Gap; } }
-        static readonly Regex Token = new Regex(@"[^\s,;/]+", RegexOptions.Compiled);
         static readonly Color Yellow = Color.FromArgb(255, 235, 59), Green = Color.FromArgb(170, 235, 170);
 
         public List<RowInfo> Rows = new List<RowInfo>();
@@ -69,6 +68,37 @@ namespace Arbeitsplan.Win
         }
 
         public int ColLeft(int col) { return Pad + col * (ColW + Gap); }
+
+        // Kopf "KWxx (TT.MM.JJJJ - TT.MM.JJJJ)" der Woche ab start.
+        public static string WeekTitle(DateTime start)
+        {
+            return "KW" + Ui.De.Calendar.GetWeekOfYear(start, System.Globalization.CalendarWeekRule.FirstFourDayWeek, DayOfWeek.Monday)
+                + " (" + start.ToString("dd.MM.yyyy", Ui.De) + " - " + start.AddDays(6).ToString("dd.MM.yyyy", Ui.De) + ")";
+        }
+
+        // Woche ab start aus dem Bestand laden (Rows muss gesetzt sein); die Auswahl wird aufgehoben.
+        public void LoadCells(IDataStore store, DateTime start)
+        {
+            Start = start; Cells.Clear(); Selected = null;
+            for (int r = 0; r < Rows.Count; r++)
+                for (int c = 0; c < 7; c++)
+                {
+                    CellData d = new CellData();
+                    d.Day = start.AddDays(c); d.Col = c; d.RowIndex = r;
+                    d.Cur = store.Get(d.Day, Rows[r].Id) ?? new Entry();
+                    d.Content = d.Cur.Content; d.People = (string[])d.Cur.People.Clone(); d.Lkz = d.Cur.Lkz;
+                    Cells.Add(d);
+                }
+        }
+
+        // Standard-Zuklappen: Zeile ohne Inhalt und ohne LKZ-Haken im angezeigten Zeitraum ist zugeklappt.
+        public bool[] DefaultFold()
+        {
+            bool[] d = new bool[Rows.Count];
+            for (int r = 0; r < d.Length; r++) d[r] = true;
+            foreach (CellData c in Cells) if (c.RowIndex < d.Length && (!c.Cur.IsEmpty || c.Cur.Lkz)) d[c.RowIndex] = false;
+            return d;
+        }
         // Alle Bloecke neu umbrechen; Equipment-Status wird dabei neu abgefragt.
         public void MarkAllDirty() { equipCache.Clear(); foreach (CellData c in Cells) c.Dirty = true; }
 
@@ -153,7 +183,7 @@ namespace Arbeitsplan.Win
             Font plain = FontCache.Get(Font.Name, Font.SizeInPoints, FontStyle.Regular, Font);
             for (int i = 0; i < fore.Length; i++) { fore[i] = Color.Black; fnt[i] = plain; }
             if (MyKuerzel.Length > 0)
-                foreach (Match m in Token.Matches(text))
+                foreach (Match m in PersonPlan.Token.Matches(text))
                     if (string.Equals(m.Value, MyKuerzel, StringComparison.OrdinalIgnoreCase))
                         for (int i = m.Index; i < m.Index + m.Length; i++) mode[i] = 2;
             hits = MarkQuery(text, mode);
@@ -313,9 +343,8 @@ namespace Arbeitsplan.Win
         void PaintCell(Graphics g, CellData c)
         {
             bool today = c.Day.Date == DateTime.Today;
-            bool weekend = c.Day.DayOfWeek == DayOfWeek.Saturday || c.Day.DayOfWeek == DayOfWeek.Sunday;
             Theme th = Theme.Current;
-            Color back = today ? th.CellBackToday : (weekend ? th.CellBackWeekend : th.CellBack);
+            Color back = th.CellBackFor(c.Day);
             Color border = c.Editing ? th.BorderEdit : (c == Selected ? th.BorderSel : th.CellBorder);
             RowInfo ri = Rows[c.RowIndex];
 

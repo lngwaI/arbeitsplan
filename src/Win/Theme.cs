@@ -132,6 +132,13 @@ namespace Arbeitsplan.Win
         readonly System.Collections.Generic.Dictionary<long, Pen> pens = new System.Collections.Generic.Dictionary<long, Pen>();
         readonly System.Collections.Generic.Dictionary<long, LinearGradientBrush> grads = new System.Collections.Generic.Dictionary<long, LinearGradientBrush>();
 
+        // Zellhintergrund: heute, Wochenende oder normal.
+        public Color CellBackFor(DateTime day)
+        {
+            if (day.Date == DateTime.Today) return CellBackToday;
+            return day.DayOfWeek == DayOfWeek.Saturday || day.DayOfWeek == DayOfWeek.Sunday ? CellBackWeekend : CellBack;
+        }
+
         public SolidBrush Brush(Color c)
         {
             SolidBrush b;

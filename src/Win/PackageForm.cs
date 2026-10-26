@@ -177,7 +177,7 @@ namespace Arbeitsplan.Win
         int No(PackageStep s) { return Ordered().IndexOf(s) + 1; }
         string Product { get { return tProduct.Text.Trim(); } }
         static string TitleOf(PackageStep s) { return s.Title.Length > 0 ? s.Title : "(ohne Titel)"; }
-        static string DaysOf(PackageStep s) { return s.Count > 1 ? s.Day + "–" + (s.Day + (s.Count - 1) * Math.Max(1, s.Interval)) : s.Day.ToString(); }
+        static string DaysOf(PackageStep s) { return s.Count > 1 ? s.Day + "–" + s.DayOf(s.Count - 1) : s.Day.ToString(); }
         static string RepeatOf(PackageStep s) { return s.Count > 1 ? s.Count + "× alle " + s.Interval + (s.Interval == 1 ? " Tag" : " Tage") : "einmal"; }
 
         void FillList()
@@ -209,7 +209,7 @@ namespace Arbeitsplan.Win
         int NextDay()
         {
             int d = 0;
-            foreach (PackageStep s in steps) d = Math.Max(d, s.Day + (Math.Max(1, s.Count) - 1) * Math.Max(1, s.Interval));
+            foreach (PackageStep s in steps) d = Math.Max(d, s.DayOf(Math.Max(1, s.Count) - 1));
             return d + 1;
         }
 

@@ -14,7 +14,8 @@ namespace Arbeitsplan.Core
     // Schichten eines Kuerzels ueber mehrere Tage (nur lesend) samt Warnungen.
     public static class PersonPlan
     {
-        static readonly Regex Token = new Regex(@"[^\s,;/]+", RegexOptions.Compiled);
+        // Woerter/Kuerzel getrennt durch Leerraum , ; / (auch fuer Suche, Markierung und Text-loeschen-Pruefung in der UI).
+        public static readonly Regex Token = new Regex(@"[^\s,;/]+", RegexOptions.Compiled);
         public static readonly string[] ShiftNames = { "F", "S", "N" };
 
         static bool Has(string text, string k)

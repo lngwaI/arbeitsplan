@@ -19,11 +19,7 @@ namespace Arbeitsplan.Win
         {
             this.canNames = canNames; this.canHeight = canHeight; this.canSort = canSort;
             Text = "Blockstruktur";
-            Font = Theme.Current.UiFont();
-            FormBorderStyle = FormBorderStyle.FixedDialog;
-            MaximizeBox = MinimizeBox = false;
-            StartPosition = FormStartPosition.CenterParent;
-            ClientSize = new Size(700, 460);
+            Ui.Dialog(this, 700, 460);
 
             Label hint = new Label();
             hint.Text = "Gilt für alle Tage. Neue Zeilen erscheinen am Ende und lassen sich mit \"Hoch\" verschieben.";

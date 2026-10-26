@@ -22,11 +22,7 @@ namespace Arbeitsplan.Win
         {
             this.store = store; this.iniPath = iniPath; this.folder = folder;
             Text = "Datensicherung";
-            Font = Theme.Current.UiFont();
-            FormBorderStyle = FormBorderStyle.FixedDialog;
-            MaximizeBox = MinimizeBox = false;
-            StartPosition = FormStartPosition.CenterParent;
-            ClientSize = new Size(620, 420);
+            Ui.Dialog(this, 620, 420);
 
             Label lf = new Label(); lf.Text = "Ordner:"; lf.SetBounds(10, 14, 60, 18);
             tbFolder.SetBounds(72, 11, 430, 22); tbFolder.ReadOnly = true; Ui.SimpleMenu(tbFolder);

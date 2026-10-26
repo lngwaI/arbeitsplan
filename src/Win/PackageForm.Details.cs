@@ -340,7 +340,7 @@ namespace Arbeitsplan.Win
             foreach (PackageStep s in Ordered())
                 for (int r = 0; r < Math.Max(1, s.Count); r++)
                 {
-                    PlanStrip.Item it = new PlanStrip.Item(); it.Step = s; it.Day = s.Day + r * Math.Max(1, s.Interval);
+                    PlanStrip.Item it = new PlanStrip.Item(); it.Step = s; it.Day = s.DayOf(r);
                     it.Title = TitleOf(s); it.Missing = s.Row.Length == 0;
                     it.Sub = (s.Row.Length > 0 ? s.Row : "Raum fehlt") + (s.Numbered ? " · " + s.RunNo(Product, r) : "");
                     items.Add(it);

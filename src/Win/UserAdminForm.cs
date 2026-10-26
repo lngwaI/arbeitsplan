@@ -26,11 +26,7 @@ namespace Arbeitsplan.Win
             this.db = db; this.me = me;
             FormClosed += delegate { foreach (User u in fresh) db.Users.Remove(u); fresh.Clear(); };   // nie uebernommen (ohne Login) = verwerfen
             Text = "Nutzerverwaltung";
-            Font = Theme.Current.UiFont();
-            FormBorderStyle = FormBorderStyle.FixedDialog;
-            MaximizeBox = MinimizeBox = false;
-            StartPosition = FormStartPosition.CenterParent;
-            ClientSize = new Size(640, 520);
+            Ui.Dialog(this, 640, 520);
 
             list.SetBounds(10, 10, 200, 430);
             list.SelectedIndexChanged += delegate { Select(list.SelectedItem as User); };
