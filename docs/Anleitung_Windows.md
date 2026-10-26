@@ -15,7 +15,7 @@
 - Beide mit dem in Windows enthaltenen Compiler, kein SDK nötig.
 
 ## Look umschalten
-`UseModernTheme=true|false` in `theme.ini` neben der exe (optional; fehlt die Datei, gilt der moderne Look).
+Startparameter `--theme xp|win7|win10` (ohne Angabe passend zum Betriebssystem; Win 10/11 = heller Look). Das Modell steht im Fenstertitel.
 
 ## Kurz testen
 1. Woche wechseln (« Woche, ‹ Tag, Heute, Tag ›, Woche »).

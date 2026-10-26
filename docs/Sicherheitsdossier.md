@@ -15,7 +15,7 @@ Anzeige und Eingabe eines Wochenplans (WinForms). Prototyp: Daten nur im Arbeits
 |---|---|
 | Netzwerk | keine (kein Socket/HTTP-Code im Programm) |
 | Prozesse | keine Aufrufe anderer Programme |
-| Dateien lesen | optional `theme.ini`, `statuscolors.ini` neben der exe (Standardwerte im Programm); Paketdateien `.apkg` nur nach Dialogauswahl |
+| Dateien lesen | optional `statuscolors.ini` neben der exe (Standardwerte im Programm); Paketdateien `.apkg` nur nach Dialogauswahl |
 | Dateien schreiben | nur auf Dialogauswahl des Nutzers: PNG/PDF-Export, Paket speichern |
 | Benutzer | Windows-Anmeldename; im Release nicht übersteuerbar (Testschalter nur im Test-Build) |
 

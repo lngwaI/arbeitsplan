@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Windows.Forms;
@@ -24,7 +24,7 @@ namespace Arbeitsplan.Win
         {
             this.db = db; this.me = me;
             Text = "Nutzerverwaltung";
-            Font = Theme.UiFont();
+            Font = Theme.Current.UiFont();
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MaximizeBox = MinimizeBox = false;
             StartPosition = FormStartPosition.CenterParent;

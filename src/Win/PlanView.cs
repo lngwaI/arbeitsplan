@@ -30,7 +30,11 @@ namespace Arbeitsplan.Win
     class PlanView : Control
     {
         public const int TP = 3, TV = 3, ShiftLines = 3;
-        public static readonly int HeadH = Theme.HeadH, LkzH = Theme.LkzH, LW = Theme.LW, Pad = Theme.Pad, Gap = Theme.Gap;
+        public static int HeadH { get { return Theme.Current.HeadH; } }
+        public static int LkzH { get { return Theme.Current.LkzH; } }
+        public static int LW { get { return Theme.Current.LW; } }
+        public static int Pad { get { return Theme.Current.Pad; } }
+        public static int Gap { get { return Theme.Current.Gap; } }
         static readonly Regex Token = new Regex(@"[^\s,;/]+", RegexOptions.Compiled);
         static readonly Color Yellow = Color.FromArgb(255, 235, 59), Green = Color.FromArgb(170, 235, 170);
 
@@ -56,7 +60,7 @@ namespace Arbeitsplan.Win
             Font = f;
             bold = new Font(f, FontStyle.Bold);
             SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.UserPaint | ControlStyles.ResizeRedraw, true);
-            BackColor = Theme.Window;
+            BackColor = Theme.Current.Window;
         }
 
         public int ColLeft(int col) { return Pad + col * (ColW + Gap); }
@@ -239,20 +243,34 @@ namespace Arbeitsplan.Win
             Graphics g = e.Graphics;
             g.Clear(BackColor);
             foreach (CellData c in Cells)
-                if (c.R.IntersectsWith(e.ClipRectangle)) PaintCell(g, c);
+                if (c.R.IntersectsWith(e.ClipRectangle)) { PaintCell(g, c); Overlay(g, c); }
+        }
+
+        // Modellabhaengiges: Akzentstreifen und 2-px-Auswahlrahmen (win10)
+        void Overlay(Graphics g, CellData c)
+        {
+            Theme th = Theme.Current;
+            if (!th.Stripe) return;
+            bool today = c.Day.Date == DateTime.Today;
+            Color a = c.Editing ? th.BorderEdit : (c == Selected ? th.BorderSel : (today ? th.Dot : Color.Empty));
+            if (a.IsEmpty) return;
+            Fill(g, a, new Rectangle(c.R.X, c.R.Y, c.R.Width, 3));                       // Streifen oben
+            if (c.Editing || c == Selected)
+                using (Pen p = new Pen(a, 2)) g.DrawRectangle(p, c.R.X + 1, c.R.Y + 1, c.R.Width - 3, c.R.Height - 3);
         }
 
         void PaintCell(Graphics g, CellData c)
         {
             bool today = c.Day.Date == DateTime.Today;
             bool weekend = c.Day.DayOfWeek == DayOfWeek.Saturday || c.Day.DayOfWeek == DayOfWeek.Sunday;
-            Color back = today ? Theme.CellBackToday : (weekend ? Theme.CellBackWeekend : Theme.CellBack);
-            Color border = c.Editing ? Color.FromArgb(255, 140, 0) : (c == Selected ? Color.FromArgb(40, 100, 200) : Theme.CellBorder);
+            Theme th = Theme.Current;
+            Color back = today ? th.CellBackToday : (weekend ? th.CellBackWeekend : th.CellBack);
+            Color border = c.Editing ? th.BorderEdit : (c == Selected ? th.BorderSel : th.CellBorder);
             RowInfo ri = Rows[c.RowIndex];
 
             bool collapsed = Collapsed[c.RowIndex];
             Fill(g, border, c.R);
-            Fill(g, today ? Theme.RowHeadToday : Theme.RowHead, c.RHead);
+            th.FillHead(g, c.RHead, today ? th.RowHeadToday : th.RowHead);
             if (!collapsed) Fill(g, back, c.RContent);
             const TextFormatFlags tf = TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix;
 
@@ -261,50 +279,50 @@ namespace Arbeitsplan.Win
             int ax = c.RHead.Right - 15, ay = c.RHead.Y + (c.RHead.Height - 7) / 2;
             Point[] tri = collapsed ? new Point[] { new Point(ax + 1, ay - 1), new Point(ax + 1, ay + 8), new Point(ax + 6, ay + 4) }
                                     : new Point[] { new Point(ax - 1, ay + 1), new Point(ax + 7, ay + 1), new Point(ax + 3, ay + 6) };
-            if (Theme.ArrowSize == 0)   // moderner Look: kleinerer Pfeil, mittig in der Kopfleiste
+            if (th.Modern)   // heller Look: kleinerer Pfeil, mittig in der Kopfleiste
             {
                 ay = c.RHead.Y + (c.RHead.Height - 5) / 2;
                 tri = collapsed ? new Point[] { new Point(ax + 2, ay - 1), new Point(ax + 2, ay + 6), new Point(ax + 6, ay + 3) }
                                 : new Point[] { new Point(ax, ay + 1), new Point(ax + 7, ay + 1), new Point(ax + 3, ay + 5) };
             }
-            using (SolidBrush ab = new SolidBrush(Theme.Arrow)) g.FillPolygon(ab, tri);
+            using (SolidBrush ab = new SolidBrush(th.Arrow)) g.FillPolygon(ab, tri);
 
             int right = 18 + (c.Editing ? 20 : 0);                                   // Platz fuer Pfeil (+ Stift im Bearbeitungsmodus)
-            Rectangle nr = new Rectangle(c.RHead.X + Theme.HeadTextX, c.RHead.Y, c.RHead.Width - 2 * Theme.HeadTextX - right, c.RHead.Height);
+            Rectangle nr = new Rectangle(c.RHead.X + th.HeadTextX, c.RHead.Y, c.RHead.Width - 2 * th.HeadTextX - right, c.RHead.Height);
             if (collapsed)
             {
                 bool filled = !c.Cur.IsEmpty || c.Cur.Lkz;
                 if (filled)   // zugeklappt, aber Inhalt vorhanden: Hinweispunkt vor dem Pfeil
-                    using (SolidBrush db = new SolidBrush(Color.FromArgb(215, 100, 0))) g.FillEllipse(db, c.RHead.Right - 29, c.RHead.Y + (c.RHead.Height - 7) / 2, 8, 8);
+                    using (SolidBrush db = new SolidBrush(th.Dot)) g.FillEllipse(db, c.RHead.Right - 29, c.RHead.Y + (c.RHead.Height - 7) / 2, 8, 8);
                 nr.Width -= filled ? 12 : 0;
-                TextRenderer.DrawText(g, ri.Name, bold, nr, Theme.HeadTextCollapsed, tf | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
+                TextRenderer.DrawText(g, ri.Name, bold, nr, th.HeadTextCollapsed,tf | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
                 LkzTag(g, c, ri, nr, tf);
                 return;
             }
-            TextRenderer.DrawText(g, ri.Name, bold, nr, Theme.HeadText, tf | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
+            TextRenderer.DrawText(g, ri.Name, bold, nr, th.HeadText,tf | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
             LkzTag(g, c, ri, nr, tf);
             if (c.Editing && Pencil != null) g.DrawImage(Pencil, c.RHead.Right - 38, c.RHead.Y + (c.RHead.Height - 17) / 2, 18, 18);
 
             if (ri.HasLkz)
             {
-                Fill(g, c.Lkz ? Theme.LkzOn : back, c.RLkz);
-                using (Pen p = new Pen(Theme.Separator)) g.DrawLine(p, c.RLkz.X, c.RLkz.Bottom - 1, c.RLkz.Right, c.RLkz.Bottom - 1);
+                Fill(g, c.Lkz ? th.LkzOn : back, c.RLkz);
+                using (Pen p = new Pen(th.Separator)) g.DrawLine(p, c.RLkz.X, c.RLkz.Bottom - 1, c.RLkz.Right, c.RLkz.Bottom - 1);
                 Rectangle lr = new Rectangle(c.RLkz.X + TP, c.RLkz.Y, c.RLkz.Width - TP, c.RLkz.Height);
-                TextRenderer.DrawText(g, "LKZ gemessen?", Font, lr, Theme.LkzText, tf | TextFormatFlags.VerticalCenter);
+                TextRenderer.DrawText(g, "LKZ gemessen?", Font, lr, th.LkzText, tf | TextFormatFlags.VerticalCenter);
                 int tw = TextRenderer.MeasureText(g, "LKZ gemessen?", Font, new Size(1000, 100), tf).Width;
                 Point cp = new Point(c.RLkz.X + TP + tw + 6, c.RLkz.Y + (c.RLkz.Height - 13) / 2);
-                if (!Theme.Modern) CheckBoxRenderer.DrawCheckBox(g, cp, c.Lkz ? CheckBoxState.CheckedNormal : CheckBoxState.UncheckedNormal);
-                else Theme.DrawCheck(g, cp, c.Lkz);
+                if (!th.Modern) CheckBoxRenderer.DrawCheckBox(g, cp, c.Lkz ? CheckBoxState.CheckedNormal : CheckBoxState.UncheckedNormal);
+                else th.DrawCheck(g, cp, c.Lkz);
             }
 
             if (!c.Editing) c.CB.Draw(g, c.RContent.X + TP, c.RContent.Y + TV);
             for (int s = 0; s < 3; s++)
             {
-                Fill(g, Theme.ShiftLabel[s], c.RLbl[s]);
-                Fill(g, Theme.ShiftBack[s], c.RPpl[s]);
-                TextRenderer.DrawText(g, ri.Labels[s], bold, new Rectangle(c.RLbl[s].X, c.RLbl[s].Y + 1, c.RLbl[s].Width, c.RLbl[s].Height), Theme.ShiftLabelText, tf | TextFormatFlags.HorizontalCenter | TextFormatFlags.EndEllipsis);
+                Fill(g, th.ShiftLabel[s], c.RLbl[s]);
+                Fill(g, th.ShiftBack[s], c.RPpl[s]);
+                TextRenderer.DrawText(g, ri.Labels[s], bold, new Rectangle(c.RLbl[s].X, c.RLbl[s].Y + 1, c.RLbl[s].Width, c.RLbl[s].Height), th.ShiftLabelText, tf | TextFormatFlags.HorizontalCenter | TextFormatFlags.EndEllipsis);
                 if (!c.Editing) c.PB[s].Draw(g, c.RPpl[s].X + TP, c.RPpl[s].Y + TV);
-                if (Theme.ShiftSep) using (Pen p = new Pen(Theme.ShiftLine)) g.DrawLine(p, c.RLbl[s].X, c.RLbl[s].Y, c.RPpl[s].Right - 1, c.RLbl[s].Y);
+                if (th.ShiftSep) using (Pen p = new Pen(th.ShiftLine)) g.DrawLine(p, c.RLbl[s].X, c.RLbl[s].Y, c.RPpl[s].Right - 1, c.RLbl[s].Y);
             }
         }
 

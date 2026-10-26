@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Drawing;
 using System.Windows.Forms;
 
@@ -26,22 +26,22 @@ namespace Arbeitsplan.Win
             Graphics g = e.Graphics;
             const TextFormatFlags tf = TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix | TextFormatFlags.VerticalCenter;
             Rectangle r = ClientRectangle;
-            if (!Theme.Modern)
+            if (!Theme.Current.Modern)
             {
-                using (SolidBrush b = new SolidBrush(Today ? Theme.DayHeadToday : Theme.DayHead)) g.FillRectangle(b, r);
-                TextRenderer.DrawText(g, Text, bold, r, Theme.DayWeekday, tf | TextFormatFlags.HorizontalCenter);
+                Theme.Current.FillHead(g, r, Today ? Theme.Current.DayHeadToday : Theme.Current.DayHead);
+                TextRenderer.DrawText(g, Text, bold, r, Theme.Current.DayWeekday, tf | TextFormatFlags.HorizontalCenter);
                 return;
             }
-            g.Clear(Parent != null ? Parent.BackColor : Theme.Window);
+            g.Clear(Parent != null ? Parent.BackColor : Theme.Current.Window);
             int i = Text.IndexOf(", ");
             string wd = i > 0 ? Text.Substring(0, i) : Text, dt = i > 0 ? Text.Substring(i + 2) : "";
             Size sw = TextRenderer.MeasureText(g, wd, bold, new Size(1000, 100), tf | TextFormatFlags.NoPadding);
             Size sd = TextRenderer.MeasureText(g, dt, Font, new Size(1000, 100), tf | TextFormatFlags.NoPadding);
             int x = r.X + Math.Max(0, (r.Width - sw.Width - 8 - sd.Width) / 2);
             Rectangle rw = new Rectangle(x, r.Y, sw.Width + 2, r.Height - 3);
-            TextRenderer.DrawText(g, wd, bold, rw, Today ? Theme.DayTodayText : Theme.DayWeekday, tf);
-            TextRenderer.DrawText(g, dt, Font, new Rectangle(rw.Right + 6, r.Y, sd.Width + 4, r.Height - 3), Theme.DayDate, tf);
-            using (SolidBrush b = new SolidBrush(Today ? Theme.DayLineToday : Theme.DayLine)) g.FillRectangle(b, r.X, r.Bottom - (Today ? 2 : 1), r.Width, Today ? 2 : 1);
+            TextRenderer.DrawText(g, wd, bold, rw, Today ? Theme.Current.DayTodayText : Theme.Current.DayWeekday, tf);
+            TextRenderer.DrawText(g, dt, Font, new Rectangle(rw.Right + 6, r.Y, sd.Width + 4, r.Height - 3), Theme.Current.DayDate, tf);
+            using (SolidBrush b = new SolidBrush(Today ? Theme.Current.DayLineToday : Theme.Current.DayLine)) g.FillRectangle(b, r.X, r.Bottom - (Today ? 2 : 1), r.Width, Today ? 2 : 1);
         }
     }
 }

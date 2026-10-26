@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Globalization;
@@ -58,15 +58,15 @@ namespace Arbeitsplan.Win
         public MainForm(string login, bool failSaves)
         {
 #if TESTHOOKS
-            Text = "Arbeitsplan (Prototyp, lokale Testdaten)";
+            Text = "Arbeitsplan (Prototyp, lokale Testdaten) - Oberfläche: " + Theme.Current.Name;
 #else
-            Text = "Arbeitsplan (Testdaten, keine Speicherung)";
+            Text = "Arbeitsplan (Testdaten, keine Speicherung) - Oberfläche: " + Theme.Current.Name;
 #endif
             StartPosition = FormStartPosition.CenterScreen;
             ClientSize = new Size(1280, 720);
             MinimumSize = new Size(900, 600);
-            Font = Theme.UiFont();    // alt: Systemschrift; modern: Segoe UI, Fallback Tahoma (XP)
-            BackColor = Theme.Window;
+            Font = Theme.Current.UiFont();    // je Modell Segoe UI / Tahoma (Rueckfall: Systemschrift)
+            BackColor = Theme.Current.Window;
             plainFont = FontCache.Get(Font.Name, Font.SizeInPoints, FontStyle.Regular, Font);
             KeyPreview = true;
 
@@ -130,6 +130,7 @@ namespace Arbeitsplan.Win
 
             KeyDown += OnKey;
             FormClosing += OnClosing;
+            Theme.Current.Style(this);
             Rebuild(true);
         }
 
@@ -182,7 +183,7 @@ namespace Arbeitsplan.Win
             sp.Dock = DockStyle.Right; sp.Width = search.Right + 130;
             sp.Controls.Add(searchLabel); sp.Controls.Add(search); sp.Controls.Add(hitsLabel);
 
-            topBar.Dock = DockStyle.Top; topBar.Height = 34;
+            topBar.Dock = DockStyle.Top; topBar.Height = Theme.Current.BarH;
             topBar.Controls.Add(weekLabel);
             topBar.Controls.Add(sp);
         }
@@ -190,7 +191,7 @@ namespace Arbeitsplan.Win
         void BuildBottomBar()
         {
             bar.Dock = DockStyle.Bottom;
-            bar.Height = 48;
+            bar.Height = Theme.Current.ButtonH + 18;
             nav.AutoSize = true; nav.WrapContents = false; nav.Top = 6;
             AddNav("«  Woche", delegate { Go(-7); });
             AddNav("‹  Tag", delegate { Go(-1); });
@@ -208,9 +209,9 @@ namespace Arbeitsplan.Win
         void AddNav(string text, EventHandler click)
         {
             Button b = new Button();
-            b.Text = text; b.AutoSize = true; b.MinimumSize = new Size(86, 34); b.Margin = new Padding(3, 0, 3, 0);
+            b.Text = text; b.AutoSize = true; b.MinimumSize = new Size(86, Theme.Current.ButtonH + 4); b.Margin = new Padding(3, 0, 3, 0);
             b.Click += click;
-            Theme.StyleButton(b);
+            Theme.Current.StyleButton(b);
             nav.Controls.Add(b);
         }
 
@@ -264,12 +265,12 @@ namespace Arbeitsplan.Win
                 b.SetBounds(x, 5, 22, 22); x += 24; b.FlatStyle = FlatStyle.Flat; b.TabStop = false;
                 b.BackColor = Ui.Rgb(col);
                 b.Click += delegate { ApplyColor(col); MarkSwatch(b); };
-                if (Theme.FlatButtons) { b.Size = new Size(20, 20); b.Top = 6; b.FlatAppearance.BorderColor = Theme.SwatchBorder; b.FlatAppearance.BorderSize = 1; b.FlatAppearance.MouseOverBackColor = b.BackColor; b.FlatAppearance.MouseDownBackColor = b.BackColor; }
+                if (Theme.Current.FlatButtons) { b.Size = new Size(20, 20); b.Top = 6; b.FlatAppearance.BorderColor = Theme.Current.SwatchBorder; b.FlatAppearance.BorderSize = 1; b.FlatAppearance.MouseOverBackColor = b.BackColor; b.FlatAppearance.MouseDownBackColor = b.BackColor; }
                 fmtBar.Controls.Add(b); fmtControls.Add(b);
             }
             Button more = new Button(); more.Text = "Farbe…"; more.SetBounds(x + 4, 4, 62, 24); more.Click += delegate { PickColor(); }; x += 70;
             Button clear = new Button(); clear.Text = "Standardformat"; clear.SetBounds(x, 4, 110, 24); clear.Click += delegate { ClearFormat(); };
-            foreach (Button sb in new Button[] { btnBold, btnItalic, more, clear }) Theme.StyleButton(sb);
+            foreach (Button sb in new Button[] { btnBold, btnItalic, more, clear }) Theme.Current.StyleButton(sb);
             fmtBar.Controls.Add(more); fmtBar.Controls.Add(clear);
             fmtControls.AddRange(new Control[] { cbFont, cbSize, btnBold, btnItalic, more, clear });
             foreach (Control c in fmtControls) c.Enabled = false;
@@ -322,10 +323,10 @@ namespace Arbeitsplan.Win
         // Moderner Look: das zuletzt gewaehlte Farbfeld bekommt einen Auswahlrahmen.
         void MarkSwatch(Button b)
         {
-            if (!Theme.FlatButtons) return;
-            if (markedSwatch != null) { markedSwatch.FlatAppearance.BorderColor = Theme.SwatchBorder; markedSwatch.FlatAppearance.BorderSize = 1; }
+            if (!Theme.Current.FlatButtons) return;
+            if (markedSwatch != null) { markedSwatch.FlatAppearance.BorderColor = Theme.Current.SwatchBorder; markedSwatch.FlatAppearance.BorderSize = 1; }
             markedSwatch = b;
-            b.FlatAppearance.BorderColor = Theme.SwatchSelected; b.FlatAppearance.BorderSize = 2;
+            b.FlatAppearance.BorderColor = Theme.Current.SwatchSelected; b.FlatAppearance.BorderSize = 2;
         }
 
         void ApplyColor(int rgb)
@@ -357,8 +358,8 @@ namespace Arbeitsplan.Win
             int i = Array.IndexOf(FontNames, f.Name);
             cbFont.SelectedIndex = f.Name == plainFont.Name ? 0 : (i > 0 ? i : 0);
             cbSize.SelectedItem = ((int)Math.Round(f.SizeInPoints)).ToString();
-            btnBold.BackColor = f.Bold ? Theme.ButtonOn : Theme.ButtonBack;
-            btnItalic.BackColor = f.Italic ? Theme.ButtonOn : Theme.ButtonBack;
+            btnBold.BackColor = f.Bold ? Theme.Current.ButtonOn : Theme.Current.ButtonBack;
+            btnItalic.BackColor = f.Italic ? Theme.Current.ButtonOn : Theme.Current.ButtonBack;
             syncingFormat = false;
         }
 
@@ -576,7 +577,7 @@ namespace Arbeitsplan.Win
             loadingEditor = true;
             bool today = c.Day.Date == DateTime.Today;
             bool weekend = c.Day.DayOfWeek == DayOfWeek.Saturday || c.Day.DayOfWeek == DayOfWeek.Sunday;
-            Color back = today ? Theme.CellBackToday : (weekend ? Theme.CellBackWeekend : Theme.CellBack);
+            Color back = today ? Theme.Current.CellBackToday : (weekend ? Theme.Current.CellBackWeekend : Theme.Current.CellBack);
             edContent.BackColor = back;
             edContent.Text = c.Cur.Content;
             edContent.SelectAll(); edContent.SelectionFont = plainFont; edContent.SelectionColor = Color.Black;
@@ -588,7 +589,7 @@ namespace Arbeitsplan.Win
                 edContent.SelectionColor = Ui.Rgb(sp.Rgb);
             }
             edContent.Select(edContent.TextLength, 0);
-            for (int s = 0; s < 3; s++) { edPpl[s].Text = Win(c.Cur.People[s]); edPpl[s].BackColor = Theme.ShiftBack[s]; }
+            for (int s = 0; s < 3; s++) { edPpl[s].Text = Win(c.Cur.People[s]); edPpl[s].BackColor = Theme.Current.ShiftBack[s]; }
             loadingEditor = false;
             SyncFormat();
         }

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Windows.Forms;
@@ -33,7 +33,7 @@ namespace Arbeitsplan.Win
         {
             cat = catalog.Clone(); this.rowNames = rowNames;
             Text = "Equipment-Positionen und Bausteine einrichten";
-            Font = Theme.UiFont();
+            Font = Theme.Current.UiFont();
             FormBorderStyle = FormBorderStyle.FixedDialog; MaximizeBox = MinimizeBox = false;
             StartPosition = FormStartPosition.CenterParent;
             ClientSize = new Size(760, 520);

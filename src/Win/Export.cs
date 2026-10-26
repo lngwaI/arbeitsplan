@@ -20,14 +20,14 @@ namespace Arbeitsplan.Win
             using (Graphics g = Graphics.FromImage(bmp))
             using (Bitmap body = new Bitmap(view.Width, view.Height))
             {
-                g.Clear(Theme.Window);
+                g.Clear(Theme.Current.Window);
                 Font tf = new Font(view.Font.FontFamily, 12f, FontStyle.Bold), df = new Font(view.Font, FontStyle.Bold);
                 TextRenderer.DrawText(g, title, tf, new Rectangle(0, 0, bmp.Width, top), Color.Black, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
                 for (int c = 0; c < 7; c++)
                 {
                     DateTime d = start.AddDays(c);
                     Rectangle r = new Rectangle(view.ColLeft(c), top, view.ColW, dates - 4);
-                    using (SolidBrush b = new SolidBrush(d == DateTime.Today ? Theme.DayHeadToday : Theme.DayHead)) g.FillRectangle(b, r);
+                    using (SolidBrush b = new SolidBrush(d == DateTime.Today ? Theme.Current.DayHeadToday : Theme.Current.DayHead)) g.FillRectangle(b, r);
                     TextRenderer.DrawText(g, d.ToString("ddd, dd.MM.yyyy", De), df, r, Color.Black, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
                 }
                 view.DrawToBitmap(body, new Rectangle(0, 0, view.Width, view.Height));

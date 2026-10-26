@@ -16,7 +16,8 @@
 - [x] Paket-Editor v2: Bausteine (Packen vorgegeben, Lauf, Splitten, Mischen, TFF Flush), Equipment-Positionen mit validierten Geräten, Wiederholen/abwechselnd, Ausweich-Equipment, Platzhalter optional, Vorschau; Katalog einrichten (Recht PackageAdmin)
 - [x] Zeilenkopf: Überschrift in jeder Spalte, Pfeil rechts; schlichtes Rechtsklick-Menü in Schichtfeldern; Umlaute/Sonderzeichen überall
 
-- [x] UI-Modernisierung (Theme, Schalter UseModernTheme), (LKZ)-Kennzeichnung, Tastatur Esc/Strg+S/Umschalt+Enter, Release-Build ohne Testschalter, Härtung, PWA-Vorschau `web/`, Doku + Sicherheitsdossier (Branch gmail/ui-modern, gepusht)
+- [x] UI-Modernisierung (Theme), (LKZ)-Kennzeichnung, Tastatur Esc/Strg+S/Umschalt+Enter, Release-Build ohne Testschalter, Härtung, PWA-Vorschau `web/`, Doku + Sicherheitsdossier (Branch gmail/ui-modern, gepusht)
+- [x] Oberflächenmodelle xp / win7 / win10 (`--theme`), zusammengeführt mit UI-Umbau (Branch integration/alles): win10 = heller Umbau-Look, win7 dezent bläulich, xp = Original; `theme.ini` entfällt
 
 ## Als Nächstes
 - [ ] Rechte erzwingen: Text löschen (Inhalt leeren)
@@ -35,6 +36,7 @@
 - [ ] Equipment-Provider für ein MES-System
 - [ ] Übernahme alter Pläne (falls gewünscht)
 - [ ] Test auf System-PC, normalem PC und XP (falls relevant)
+- [ ] exe signieren oder durch IT freigeben (Smart App Control / Application Control blockt unsignierte exe gelegentlich)
 
 ## On hold
 - [ ] Android/iOS: Server-HTTP-API + Web-Client (PWA); erst nach Serverentscheidung

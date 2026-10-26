@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Windows.Forms;
@@ -19,7 +19,7 @@ namespace Arbeitsplan.Win
         {
             this.canNames = canNames; this.canHeight = canHeight; this.canSort = canSort;
             Text = "Blockstruktur";
-            Font = Theme.UiFont();
+            Font = Theme.Current.UiFont();
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MaximizeBox = MinimizeBox = false;
             StartPosition = FormStartPosition.CenterParent;
