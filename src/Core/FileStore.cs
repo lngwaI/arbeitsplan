@@ -90,27 +90,22 @@ namespace Arbeitsplan.Core
         static StoreData Decode(byte[] blob)
         {
             byte[] z = Protected.UnprotectBytes(blob, Key(), Rounds);
-            using (MemoryStream ms = new MemoryStream())
-            {
-                using (GZipStream gz = new GZipStream(new MemoryStream(z), CompressionMode.Decompress)) gz.CopyTo(ms);
-                return Backup.FromXml(ms.ToArray());
-            }
+            using (MemoryStream ms = Backup.Unzip(new MemoryStream(z))) return Backup.FromXml(ms);
         }
 
         static byte[] Encode(StoreData d) { return Encode(d, Key()); }
         static byte[] Encode(StoreData d, string key)
         {
-            byte[] xml = Backup.ToXml(d);
             using (MemoryStream ms = new MemoryStream())
-            {
-                using (GZipStream gz = new GZipStream(ms, CompressionMode.Compress, true)) gz.Write(xml, 0, xml.Length);
+            {   // XML ohne Einrueckung direkt in den GZip-Strom (aeltere, eingerueckte Dateien bleiben lesbar)
+                using (GZipStream gz = new GZipStream(ms, CompressionMode.Compress, true)) Backup.ToXml(gz, d, false);
                 return Protected.ProtectBytes(ms.ToArray(), key, Rounds);
             }
         }
 
         void Apply(StoreData d)
         {
-            MemoryStore m = new MemoryStore(); m.Restore(d);
+            MemoryStore m = new MemoryStore(); m.Adopt(d);   // d ist frisch dekodiert: ohne Kopie uebernehmen
             mem = m; users = d.Users ?? UserDb.Default();
         }
 
@@ -153,7 +148,7 @@ namespace Arbeitsplan.Core
 
         void WriteFile()
         {
-            StoreData d = mem.Snapshot(); d.Users = users;
+            StoreData d = mem.Snapshot(false); d.Users = users;   // nur serialisieren: keine Kopie noetig
             byte[] nb = Encode(d);
             string tmp = path + ".tmp", b1 = path + ".bak1", b2 = path + ".bak2", b3 = path + ".bak3";
             File.WriteAllBytes(tmp, nb);
@@ -249,6 +244,22 @@ namespace Arbeitsplan.Core
             if (!Write(delegate(MemoryStore m) { return a == null ? m.Save(day, rowId, c) : m.SaveWithAudit(day, rowId, c, a); })) return false;
             e.Version = c.Version;
             return true;
+        }
+        // Alle Bloecke (z. B. Paket-Uebernahme) in EINEM Schreibvorgang; Ergebnis/Version erst nach dem Schreiben uebernehmen.
+        public int SaveManyWithAudit(IList<SaveItem> items)
+        {
+            foreach (SaveItem it in items) it.Saved = false;
+            if (items.Count == 0) return 0;
+            List<SaveItem> cs = new List<SaveItem>();
+            foreach (SaveItem it in items)
+            {
+                SaveItem c = new SaveItem(); c.Day = it.Day; c.RowId = it.RowId; c.Data = it.Data.Clone(); c.Audit = it.Audit;
+                cs.Add(c);
+            }
+            int n = 0;
+            if (!Write(delegate(MemoryStore m) { n = m.SaveManyWithAudit(cs); return n > 0; })) return 0;
+            for (int i = 0; i < items.Count; i++) if (cs[i].Saved) { items[i].Saved = true; items[i].Data.Version = cs[i].Data.Version; }
+            return n;
         }
         public List<RowInfo> GetRows() { return mem.GetRows(); }
         public void SaveStructure(List<RowInfo> rows) { Write(delegate(MemoryStore m) { m.SaveStructure(rows); return true; }); }

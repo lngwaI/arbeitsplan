@@ -11,6 +11,8 @@ namespace Arbeitsplan.Win
         string name;
         int tick;
         readonly string greet;
+        readonly Font big, small;
+        readonly StringFormat sf = new StringFormat();
 
         public Splash()
         {
@@ -23,6 +25,11 @@ namespace Arbeitsplan.Win
             SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.UserPaint, true);
             int h = DateTime.Now.Hour;
             greet = h < 10 ? "Guten Morgen" : (h < 18 ? "Guten Tag" : "Guten Abend");
+            string fn;   // Modellschrift mit Ersatz (Tahoma, Systemschrift) wie im Hauptfenster
+            using (Font uf = t.UiFont()) fn = uf.Name;
+            big = new Font(fn, 15f, FontStyle.Bold);
+            small = new Font(fn, 9f);
+            sf.Alignment = StringAlignment.Center; sf.Trimming = StringTrimming.EllipsisCharacter;
             timer.Interval = 40;
             timer.Tick += delegate { tick++; Invalidate(); };
             timer.Start();
@@ -60,11 +67,8 @@ namespace Arbeitsplan.Win
             using (Pen p = new Pen(t.CellBorder)) g.DrawRectangle(p, 0, 0, Width - 1, Height - 1);
             if (t.Stripe) using (Brush b = new SolidBrush(t.BorderSel)) g.FillRectangle(b, 0, 0, Width, 4);
             string text = name != null ? greet + " " + name : greet;
-            using (Font big = new Font(t.FontName, 15f, FontStyle.Bold))
-            using (Font small = new Font(t.FontName, 9f))
             using (Brush fg = new SolidBrush(SystemColors.WindowText))
             {
-                StringFormat sf = new StringFormat(); sf.Alignment = StringAlignment.Center; sf.Trimming = StringTrimming.EllipsisCharacter;
                 g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
                 g.DrawString(text, big, fg, new RectangleF(10, 24, Width - 20, 34), sf);
                 g.DrawString("Arbeitsplan wird geladen …", small, fg, new RectangleF(10, 66, Width - 20, 20), sf);
@@ -78,7 +82,7 @@ namespace Arbeitsplan.Win
             using (Brush b = new SolidBrush(t.BorderSel)) g.FillRectangle(b, seg);
         }
 
-        protected override void Dispose(bool disposing) { if (disposing) timer.Dispose(); base.Dispose(disposing); }
+        protected override void Dispose(bool disposing) { if (disposing) { timer.Dispose(); big.Dispose(); small.Dispose(); sf.Dispose(); } base.Dispose(disposing); }
     }
 }
 

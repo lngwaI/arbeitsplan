@@ -17,23 +17,27 @@ namespace Arbeitsplan.Win
         {
             const int top = 36, dates = 28;
             Bitmap bmp = new Bitmap(view.Width, top + dates + view.Height);
-            using (Graphics g = Graphics.FromImage(bmp))
-            using (Bitmap body = new Bitmap(view.Width, view.Height))
+            try
             {
-                g.Clear(Theme.Current.Window);
-                Font tf = new Font(view.Font.FontFamily, 12f, FontStyle.Bold), df = new Font(view.Font, FontStyle.Bold);
-                TextRenderer.DrawText(g, title, tf, new Rectangle(0, 0, bmp.Width, top), Color.Black, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
-                for (int c = 0; c < 7; c++)
+                using (Graphics g = Graphics.FromImage(bmp))
+                using (Bitmap body = new Bitmap(view.Width, view.Height))
+                using (Font tf = new Font(view.Font.FontFamily, 12f, FontStyle.Bold))
+                using (Font df = new Font(view.Font, FontStyle.Bold))
                 {
-                    DateTime d = start.AddDays(c);
-                    Rectangle r = new Rectangle(view.ColLeft(c), top, view.ColW, dates - 4);
-                    using (SolidBrush b = new SolidBrush(d == DateTime.Today ? Theme.Current.DayHeadToday : Theme.Current.DayHead)) g.FillRectangle(b, r);
-                    TextRenderer.DrawText(g, d.ToString("ddd, dd.MM.yyyy", De), df, r, Color.Black, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
+                    g.Clear(Theme.Current.Window);
+                    TextRenderer.DrawText(g, title, tf, new Rectangle(0, 0, bmp.Width, top), Color.Black, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
+                    for (int c = 0; c < 7; c++)
+                    {
+                        DateTime d = start.AddDays(c);
+                        Rectangle r = new Rectangle(view.ColLeft(c), top, view.ColW, dates - 4);
+                        g.FillRectangle(Theme.Current.Brush(d == DateTime.Today ? Theme.Current.DayHeadToday : Theme.Current.DayHead), r);
+                        TextRenderer.DrawText(g, d.ToString("ddd, dd.MM.yyyy", De), df, r, Color.Black, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
+                    }
+                    view.DrawToBitmap(body, new Rectangle(0, 0, view.Width, view.Height));
+                    g.DrawImageUnscaled(body, 0, top + dates);
                 }
-                view.DrawToBitmap(body, new Rectangle(0, 0, view.Width, view.Height));
-                g.DrawImageUnscaled(body, 0, top + dates);
-                tf.Dispose(); df.Dispose();
             }
+            catch (Exception) { bmp.Dispose(); throw; }   // z. B. zu wenig Speicher: kein halbes Bild liegen lassen
             return bmp;
         }
 
@@ -47,9 +51,11 @@ namespace Arbeitsplan.Win
             {
                 ImageCodecInfo codec = null;
                 foreach (ImageCodecInfo c in ImageCodecInfo.GetImageEncoders()) if (c.MimeType == "image/jpeg") codec = c;
-                EncoderParameters ep = new EncoderParameters(1);
-                ep.Param[0] = new EncoderParameter(System.Drawing.Imaging.Encoder.Quality, 92L);
-                bmp.Save(ms, codec, ep);
+                using (EncoderParameters ep = new EncoderParameters(1))
+                {
+                    ep.Param[0] = new EncoderParameter(System.Drawing.Imaging.Encoder.Quality, 92L);
+                    bmp.Save(ms, codec, ep);
+                }
                 jpg = ms.ToArray();
             }
             double pw = 842.0, ph = Math.Round(pw * bmp.Height / bmp.Width, 2);

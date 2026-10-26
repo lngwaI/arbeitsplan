@@ -139,11 +139,14 @@ namespace Arbeitsplan.Core
             return string.Join("\n", lines.ToArray());
         }
 
+        // Tag (1-basiert, Paket-Rhythmus) der Wiederholung run (0-basiert).
+        public int DayOf(int run) { return Day + run * Math.Max(1, Interval); }
+
         // Alle Laeufe: Tag (1-basiert, Paket-Rhythmus) und Text.
         public List<KeyValuePair<int, string>> Runs(string product)
         {
             List<KeyValuePair<int, string>> res = new List<KeyValuePair<int, string>>();
-            for (int i = 0; i < Math.Max(1, Count); i++) res.Add(new KeyValuePair<int, string>(Day + i * Math.Max(1, Interval), Compose(i, product)));
+            for (int i = 0; i < Math.Max(1, Count); i++) res.Add(new KeyValuePair<int, string>(DayOf(i), Compose(i, product)));
             return res;
         }
     }
@@ -154,6 +157,10 @@ namespace Arbeitsplan.Core
         public int Step, Run, Day;          // Step = Index in Package.Steps, Run = Wiederholung (0-basiert)
         public int Group = -1;              // zugehoeriger Hauptlauf (Wiederholung des Lauf-Schritts), -1 = davor (z. B. Packen)
         public string Label = "", Row = ""; // Row: Block (Raum), im Kampagnenstart je Lauf aenderbar
+
+        // Eindeutiger Schluessel (Schritt, Lauf), z. B. fuer Woerterbuecher.
+        public long Key() { return KeyOf(Step, Run); }
+        public static long KeyOf(int step, int run) { return (long)step * 100000 + run; }
     }
 
     // Kompletter Block (Export einer Woche): Inhalt mit Formatierung, Kuerzel, LKZ.
@@ -217,7 +224,7 @@ namespace Arbeitsplan.Core
                 PackageStep m = Steps[main]; int iv = Math.Max(1, m.Interval);
                 for (int r = 0; r < Math.Max(1, m.Count); r++)
                 {
-                    mainDay.Add(m.Day + r * iv);
+                    mainDay.Add(m.DayOf(r));
                     shift.Add(r == 0 ? 0 : shift[r - 1] + (gaps != null && r - 1 < gaps.Count ? gaps[r - 1] : iv) - iv);
                 }
             }
@@ -228,7 +235,7 @@ namespace Arbeitsplan.Core
                 if (s.IsEmpty) continue;
                 for (int r = 0; r < Math.Max(1, s.Count); r++)
                 {
-                    RunDate d = new RunDate(); d.Step = i; d.Run = r; d.Day = s.Day + r * Math.Max(1, s.Interval);
+                    RunDate d = new RunDate(); d.Step = i; d.Run = r; d.Day = s.DayOf(r);
                     d.Label = s.Label(ProductCode, r); d.Row = s.Row;
                     for (int k = 0; k < mainDay.Count; k++) if (mainDay[k] <= d.Day) d.Group = k;
                     if (i == main) d.Group = r;
@@ -240,25 +247,22 @@ namespace Arbeitsplan.Core
         }
 
         // Hauptlauf-Nummern (ZZZZ) desselben Produkts im Plan mit erstem Datum, nach Nummer sortiert. Unterlauf-Zeilen zaehlen nicht.
-        public static List<KeyValuePair<int, DateTime>> PastRuns(IDataStore store, string product)
+        // before: nur Laeufe vor diesem Tag (Kampagnenstart); default = ganzer Bestand. Parser: RunNumbers.Find.
+        public static List<KeyValuePair<int, DateTime>> PastRuns(IDataStore store, string product, DateTime before = default(DateTime))
         {
             List<KeyValuePair<int, DateTime>> res = new List<KeyValuePair<int, DateTime>>();
             if (!IsCode4(product)) return res;
             Dictionary<int, DateTime> seen = new Dictionary<int, DateTime>();
-            System.Text.RegularExpressions.Regex rx = new System.Text.RegularExpressions.Regex("(?<![0-9])" + product + "([0-9]{4})(?![0-9])");
             foreach (SearchHit h in store.Find(product))
             {
+                if (before != default(DateTime) && h.Day >= before.Date) continue;
                 Entry e = store.Get(h.Day, h.RowId);
                 if (e == null) continue;
-                foreach (string line in e.Content.Split('\n'))
+                foreach (RunRef r in RunNumbers.Find(e.Content, product))
                 {
-                    if (line.TrimStart().StartsWith("Unterlauf", StringComparison.OrdinalIgnoreCase)) continue;
-                    foreach (System.Text.RegularExpressions.Match m in rx.Matches(line))
-                    {
-                        int n = int.Parse(m.Groups[1].Value, CultureInfo.InvariantCulture);
-                        DateTime t;
-                        if (!seen.TryGetValue(n, out t) || h.Day < t) seen[n] = h.Day;
-                    }
+                    int n = int.Parse(r.Run, CultureInfo.InvariantCulture);
+                    DateTime t;
+                    if (!seen.TryGetValue(n, out t) || h.Day < t) seen[n] = h.Day;
                 }
             }
             res.AddRange(seen);
@@ -266,11 +270,33 @@ namespace Arbeitsplan.Core
             return res;
         }
 
+        // Frueherer Kampagnen-Stand eines Produkts mit EINER Suche im Bestand (fuer LastRun und PastGaps zugleich).
+        public class RunHistory
+        {
+            public bool Found;
+            public int No = -1, Interval;           // hoechste Hauptlauf-Nummer (ZZZZ), haeufigster Abstand (0 = unbekannt)
+            public DateTime Day = DateTime.MinValue;
+            public List<int> Gaps = new List<int>();
+        }
+
+        public static RunHistory History(IDataStore store, string product, DateTime before = default(DateTime))
+        {
+            List<KeyValuePair<int, DateTime>> runs = PastRuns(store, product, before);
+            RunHistory h = new RunHistory();
+            h.Gaps = GapsOf(runs);
+            h.Found = LastOf(runs, out h.No, out h.Day, out h.Interval);
+            return h;
+        }
+
         // Abstaende (Tage) zwischen aufeinanderfolgenden Laeufen der letzten Kampagne (fortlaufende Nummern bis zur hoechsten,
         // hoechstens 30 Tage auseinander), aeltester zuerst. Leer = keine frueheren Laeufe.
-        public static List<int> PastGaps(IDataStore store, string product)
+        public static List<int> PastGaps(IDataStore store, string product, DateTime before = default(DateTime))
         {
-            List<KeyValuePair<int, DateTime>> runs = PastRuns(store, product);
+            return GapsOf(PastRuns(store, product, before));
+        }
+
+        static List<int> GapsOf(List<KeyValuePair<int, DateTime>> runs)
+        {
             List<int> gaps = new List<int>();
             for (int i = runs.Count - 1; i > 0; i--)
             {
@@ -283,10 +309,14 @@ namespace Arbeitsplan.Core
 
         // Fruehere Kampagnen desselben Produkts im Plan: hoechste Hauptlauf-Nummer (ZZZZ) mit Datum und haeufigster Abstand
         // zwischen aufeinanderfolgenden Nummern (0 = unbekannt). false = nichts gefunden.
-        public static bool LastRun(IDataStore store, string product, out int no, out DateTime day, out int interval)
+        public static bool LastRun(IDataStore store, string product, out int no, out DateTime day, out int interval, DateTime before = default(DateTime))
+        {
+            return LastOf(PastRuns(store, product, before), out no, out day, out interval);
+        }
+
+        static bool LastOf(List<KeyValuePair<int, DateTime>> runs, out int no, out DateTime day, out int interval)
         {
             no = -1; day = DateTime.MinValue; interval = 0;
-            List<KeyValuePair<int, DateTime>> runs = PastRuns(store, product);
             if (runs.Count == 0) return false;
             no = runs[runs.Count - 1].Key; day = runs[runs.Count - 1].Value;
             Dictionary<int, int> gaps = new Dictionary<int, int>();
@@ -434,6 +464,9 @@ namespace Arbeitsplan.Core
                             b.Data.Spans.Add(f);
                         }
                     }
+                    int len = b.Data.Content.Length;   // Formatbereiche nie ueber den Text hinaus
+                    b.Data.Spans.RemoveAll(delegate(FormatSpan f) { return f.Start > len; });
+                    foreach (FormatSpan f in b.Data.Spans) f.Length = Math.Min(f.Length, len - f.Start);
                     p.Blocks.Add(b);
                 }
             }
@@ -462,7 +495,7 @@ namespace Arbeitsplan.Core
         List<Target> BuildTargets(List<RowInfo> rows, DateTime start, List<RunDate> schedule, out int unknownRow)
         {
             Dictionary<long, RunDate> over = new Dictionary<long, RunDate>();   // (Schritt, Lauf) -> Tag/Block aus dem Kampagnenstart-Dialog
-            if (schedule != null) foreach (RunDate d in schedule) over[(long)d.Step * 100000 + d.Run] = d;
+            if (schedule != null) foreach (RunDate d in schedule) over[d.Key()] = d;
             unknownRow = 0;
             Dictionary<string, Target> map = new Dictionary<string, Target>();
             List<Target> order = new List<Target>();
@@ -471,7 +504,7 @@ namespace Arbeitsplan.Core
                 int id = RowId(rows, b.Row);
                 if (id < 0) { unknownRow++; continue; }
                 DateTime day = start.AddDays(b.Day - 1);
-                string k = day.ToString("yyyyMMdd") + "|" + id;
+                string k = day.ToString("yyyyMMdd", CultureInfo.InvariantCulture) + "|" + id;
                 Target t = new Target(); t.Day = day; t.RowId = id; t.Data = b.Data.Clone();
                 if (!map.ContainsKey(k)) order.Add(t); else order[order.FindIndex(delegate(Target x) { return x == map[k]; })] = t;
                 map[k] = t;
@@ -485,11 +518,11 @@ namespace Arbeitsplan.Core
                 {
                     KeyValuePair<int, string> run = runs[ri];
                     RunDate rd;
-                    bool has = over.TryGetValue((long)si * 100000 + ri, out rd);
+                    bool has = over.TryGetValue(RunDate.KeyOf(si, ri), out rd);
                     int id = RowId(rows, has && rd.Row.Length > 0 ? rd.Row : s.Row);   // Raumwechsel je Lauf; Equipment bleibt
                     if (id < 0) { unknownRow++; continue; }
                     DateTime day = start.AddDays((has ? rd.Day : run.Key) - 1);
-                    string k = day.ToString("yyyyMMdd") + "|" + id;
+                    string k = day.ToString("yyyyMMdd", CultureInfo.InvariantCulture) + "|" + id;
                     Target t;
                     if (!map.TryGetValue(k, out t)) { t = new Target(); t.Day = day; t.RowId = id; t.Data = new Entry(); map[k] = t; order.Add(t); }
                     t.Data.Content = t.Data.Content.Length > 0 ? t.Data.Content + "\n\n" + run.Value : run.Value;
@@ -500,12 +533,22 @@ namespace Arbeitsplan.Core
             return order;
         }
 
-        // Speichern mit Protokolleintrag, wenn der Nutzer bekannt ist (Paket-Uebernahme erscheint im Verlauf)
-        static bool SaveAudited(IDataStore store, List<RowInfo> rows, Target t, Entry result, User by)
+        // Block fuer SaveManyWithAudit; mit Protokolleintrag, wenn der Nutzer bekannt ist (Paket-Uebernahme erscheint im Verlauf)
+        static SaveItem Item(List<RowInfo> rows, Target t, Entry result, User by)
         {
-            if (by == null) return store.Save(t.Day, t.RowId, result);
-            foreach (RowInfo r in rows) if (r.Id == t.RowId) return Audit.Save(store, t.Day, r, by, result);
-            return store.Save(t.Day, t.RowId, result);
+            SaveItem it = new SaveItem(); it.Day = t.Day; it.RowId = t.RowId; it.Data = result;
+            if (by != null) foreach (RowInfo r in rows) if (r.Id == t.RowId) { it.Audit = Audit.New(t.Day, r, by); break; }
+            return it;
+        }
+
+        // Ergebnis aus dem aktuellen Stand; null = ueberspringen (Modus FillEmpty und Block belegt)
+        static SaveItem Prepare(IDataStore store, List<RowInfo> rows, Target t, ApplyMode mode, User by)
+        {
+            Entry cur = store.Get(t.Day, t.RowId);
+            Entry result = Merge(cur, t.Data, mode);
+            if (result == null) return null;
+            result.Version = cur != null ? cur.Version : 0;
+            return Item(rows, t, result, by);
         }
 
         // Neuer Blockinhalt aus vorhandenem (cur) und Paket-Block (n); null = ueberspringen. Kuerzel und LKZ-Haken des vorhandenen Blocks bleiben erhalten.
@@ -540,23 +583,24 @@ namespace Arbeitsplan.Core
         {
             List<RowInfo> rows = store.GetRows();
             int written = 0, skipped = 0, unknownRow, conflicts = 0;
+            // Alle Bloecke in EINEM Schreibvorgang (Versionspruefung je Block)
+            List<SaveItem> batch = new List<SaveItem>(); List<Target> src = new List<Target>();
             foreach (Target t in BuildTargets(rows, start, schedule, out unknownRow))
             {
-                Entry n = t.Data;
-                Entry cur = store.Get(t.Day, t.RowId);
-                Entry result = Merge(cur, n, mode);
-                if (result == null) { skipped++; continue; }
-                result.Version = cur != null ? cur.Version : 0;
-                if (SaveAudited(store, rows, t, result, by)) written++;
-                else
-                {   // Konflikt: Ergebnis aus dem neuen Stand mit derselben Modus-Logik neu berechnen
-                    Entry again = store.Get(t.Day, t.RowId);
-                    result = Merge(again, n, mode);
-                    if (result == null) { skipped++; continue; }
-                    result.Version = again != null ? again.Version : 0;
-                    if (SaveAudited(store, rows, t, result, by)) written++; else conflicts++;
-                }
+                SaveItem it = Prepare(store, rows, t, mode, by);
+                if (it == null) { skipped++; continue; }
+                batch.Add(it); src.Add(t);
             }
+            if (batch.Count > 0) written += store.SaveManyWithAudit(batch);
+            // Konflikte: Ergebnis aus dem neuen Stand mit derselben Modus-Logik neu berechnen, zweiter Durchgang nur fuer diese
+            List<SaveItem> again = new List<SaveItem>();
+            for (int i = 0; i < batch.Count; i++)
+            {
+                if (batch[i].Saved) continue;
+                SaveItem it = Prepare(store, rows, src[i], mode, by);
+                if (it == null) skipped++; else again.Add(it);
+            }
+            if (again.Count > 0) { int w = store.SaveManyWithAudit(again); written += w; conflicts += again.Count - w; }
             string msg = written + " Block/Blöcke geschrieben";
             if (skipped > 0) msg += ", " + skipped + " übersprungen (bereits belegt)";
             if (unknownRow > 0) msg += ", " + unknownRow + " mit unbekanntem Blocknamen ignoriert";

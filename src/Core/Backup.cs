@@ -98,35 +98,46 @@ namespace Arbeitsplan.Core
 
         public static StoreData Read(string path)
         {
-            byte[] all;
+            byte[] all; int len;
             try
             {
                 using (FileStream fs = File.OpenRead(path))
-                using (GZipStream gz = new GZipStream(fs, CompressionMode.Decompress))
-                using (MemoryStream ms = new MemoryStream())
-                {
-                    byte[] buf = new byte[65536]; int n;
-                    while ((n = gz.Read(buf, 0, buf.Length)) > 0) ms.Write(buf, 0, n);
-                    all = ms.ToArray();
-                }
+                using (MemoryStream ms = Unzip(fs)) { all = ms.GetBuffer(); len = (int)ms.Length; }
             }
             catch (InvalidDataException) { throw Bad(); }
-            int a = Array.IndexOf(all, (byte)'\n'), b = a < 0 ? -1 : Array.IndexOf(all, (byte)'\n', a + 1);
+            int a = Array.IndexOf(all, (byte)'\n', 0, len), b = a < 0 ? -1 : Array.IndexOf(all, (byte)'\n', a + 1, len - a - 1);
             if (b < 0 || Utf8.GetString(all, 0, a) != "APBAK1") throw Bad();
             string hash = Utf8.GetString(all, a + 1, b - a - 1);
-            byte[] xml = new byte[all.Length - b - 1];
-            Buffer.BlockCopy(all, b + 1, xml, 0, xml.Length);
-            if (hash != Hex(Hash(xml))) throw Bad();
-            try { return FromXml(xml); }
+            if (hash != Hex(Hash(all, b + 1, len - b - 1))) throw Bad();
+            try { return FromXml(new MemoryStream(all, b + 1, len - b - 1, false)); }
             catch (XmlException) { throw Bad(); }
             catch (FormatException) { throw Bad(); }
             catch (OverflowException) { throw Bad(); }
         }
 
-        static byte[] Hash(byte[] b)
+        // Entpackt GZip vollstaendig (Position 0); mehr als MaxUnzip Bytes = InvalidDataException (Schutz vor "Zip-Bomben").
+        public const long MaxUnzip = 200L * 1024 * 1024;
+        internal static MemoryStream Unzip(Stream src)
         {
-            try { using (SHA256 h = new SHA256Managed()) return h.ComputeHash(b); }
-            catch (InvalidOperationException) { using (SHA256 h = new SHA256CryptoServiceProvider()) return h.ComputeHash(b); }   // FIPS-Richtlinie
+            MemoryStream ms = new MemoryStream();
+            using (GZipStream gz = new GZipStream(src, CompressionMode.Decompress))
+            {
+                byte[] buf = new byte[65536]; int n;
+                while ((n = gz.Read(buf, 0, buf.Length)) > 0)
+                {
+                    if (ms.Length + n > MaxUnzip) { ms.Dispose(); throw new InvalidDataException("Entpackte Daten sind zu groß (über 200 MB)."); }
+                    ms.Write(buf, 0, n);
+                }
+            }
+            ms.Position = 0;
+            return ms;
+        }
+
+        static byte[] Hash(byte[] b) { return Hash(b, 0, b.Length); }
+        static byte[] Hash(byte[] b, int off, int len)
+        {
+            try { using (SHA256 h = new SHA256Managed()) return h.ComputeHash(b, off, len); }
+            catch (InvalidOperationException) { using (SHA256 h = new SHA256CryptoServiceProvider()) return h.ComputeHash(b, off, len); }   // FIPS-Richtlinie
         }
 
         static string Hex(byte[] b) { StringBuilder sb = new StringBuilder(); foreach (byte x in b) sb.Append(x.ToString("x2")); return sb.ToString(); }
@@ -138,10 +149,15 @@ namespace Arbeitsplan.Core
 
         internal static byte[] ToXml(StoreData d)
         {
-            XmlWriterSettings st = new XmlWriterSettings(); st.Indent = true; st.Encoding = Utf8;
-            using (MemoryStream ms = new MemoryStream())
+            using (MemoryStream ms = new MemoryStream()) { ToXml(ms, d, true); return ms.ToArray(); }
+        }
+
+        // indent=false: kompakt (Datendatei); Lesen kommt mit beiden Formen zurecht. output bleibt offen.
+        internal static void ToXml(Stream output, StoreData d, bool indent)
+        {
+            XmlWriterSettings st = new XmlWriterSettings(); st.Indent = indent; st.Encoding = Utf8;
             {
-                using (XmlWriter w = XmlWriter.Create(ms, st))
+                using (XmlWriter w = XmlWriter.Create(output, st))
                 {
                     w.WriteStartElement("Arbeitsplan"); w.WriteAttributeString("version", "1"); w.WriteAttributeString("erstellt", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss", Inv));
                     w.WriteStartElement("Zeilen");
@@ -170,7 +186,6 @@ namespace Arbeitsplan.Core
                     if (d.Users != null) d.Users.WriteXml(w);
                     w.WriteEndElement();
                 }
-                return ms.ToArray();
             }
         }
 
@@ -222,11 +237,12 @@ namespace Arbeitsplan.Core
         static bool Bool(XmlElement e, string a) { return e.GetAttribute(a) == "1"; }
         static DateTime Day(XmlElement e) { return DateTime.ParseExact(e.GetAttribute("tag"), "yyyy-MM-dd", Inv); }
 
-        internal static StoreData FromXml(byte[] xml)
+        internal static StoreData FromXml(byte[] xml) { return FromXml(new MemoryStream(xml)); }
+        internal static StoreData FromXml(Stream xml)
         {
             XmlDocument doc = new XmlDocument();
-            XmlReaderSettings rs = new XmlReaderSettings(); rs.DtdProcessing = DtdProcessing.Prohibit; rs.XmlResolver = null;
-            using (XmlReader r = XmlReader.Create(new MemoryStream(xml), rs)) doc.Load(r);
+            XmlReaderSettings rs = new XmlReaderSettings(); rs.DtdProcessing = DtdProcessing.Prohibit; rs.XmlResolver = null; rs.IgnoreWhitespace = true;
+            using (XmlReader r = XmlReader.Create(xml, rs)) doc.Load(r);
             XmlElement root = doc.DocumentElement;
             if (root == null || root.Name != "Arbeitsplan" || Kid(root, "Zeilen") == null || Kid(root, "Katalog") == null) throw new FormatException();
             StoreData d = new StoreData();

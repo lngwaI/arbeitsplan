@@ -48,16 +48,14 @@ namespace Arbeitsplan.Core
                 aes.Key = enc; aes.IV = iv; aes.Mode = CipherMode.CBC; aes.Padding = PaddingMode.PKCS7;
                 using (ICryptoTransform t = aes.CreateEncryptor()) cipher = t.TransformFinalBlock(plain, 0, plain.Length);
             }
-            byte[] body = new byte[Magic.Length + 16 + 16 + cipher.Length];
-            Buffer.BlockCopy(Magic, 0, body, 0, 4);
-            Buffer.BlockCopy(salt, 0, body, 4, 16);
-            Buffer.BlockCopy(iv, 0, body, 20, 16);
-            Buffer.BlockCopy(cipher, 0, body, 36, cipher.Length);
-            byte[] tag;
-            using (HMACSHA256 h = new HMACSHA256(mac)) tag = h.ComputeHash(body);
-            byte[] all = new byte[body.Length + 32];
-            Buffer.BlockCopy(body, 0, all, 0, body.Length);
-            Buffer.BlockCopy(tag, 0, all, body.Length, 32);
+            int bodyLen = Magic.Length + 16 + 16 + cipher.Length;
+            byte[] all = new byte[bodyLen + 32], tag;
+            Buffer.BlockCopy(Magic, 0, all, 0, 4);
+            Buffer.BlockCopy(salt, 0, all, 4, 16);
+            Buffer.BlockCopy(iv, 0, all, 20, 16);
+            Buffer.BlockCopy(cipher, 0, all, 36, cipher.Length);
+            using (HMACSHA256 h = new HMACSHA256(mac)) tag = h.ComputeHash(all, 0, bodyLen);
+            Buffer.BlockCopy(tag, 0, all, bodyLen, 32);
             return all;
         }
 
@@ -78,12 +76,10 @@ namespace Arbeitsplan.Core
             Buffer.BlockCopy(blob, 20, iv, 0, 16);
             Keys(password, salt, iterations, out enc, out mac);
             int bodyLen = blob.Length - 32;
-            byte[] body = new byte[bodyLen], tag = new byte[32], calc;
-            Buffer.BlockCopy(blob, 0, body, 0, bodyLen);
-            Buffer.BlockCopy(blob, bodyLen, tag, 0, 32);
-            using (HMACSHA256 h = new HMACSHA256(mac)) calc = h.ComputeHash(body);
+            byte[] calc;
+            using (HMACSHA256 h = new HMACSHA256(mac)) calc = h.ComputeHash(blob, 0, bodyLen);
             int diff = 0;
-            for (int i = 0; i < 32; i++) diff |= calc[i] ^ tag[i];      // zeitkonstanter Vergleich
+            for (int i = 0; i < 32; i++) diff |= calc[i] ^ blob[bodyLen + i];      // zeitkonstanter Vergleich
             if (diff != 0) throw new CryptographicException("Falsches Passwort oder Datei verändert.");
             using (AesManaged aes = new AesManaged())
             {
@@ -97,8 +93,10 @@ namespace Arbeitsplan.Core
         {
             string tmp = path + ".tmp";   // erst vollstaendig schreiben, dann ersetzen (Absturz beim Schreiben laesst die alte Datei heil)
             File.WriteAllBytes(tmp, Protect(text, password));
-            if (File.Exists(path)) File.Delete(path);
-            File.Move(tmp, path);
+            if (!File.Exists(path)) { File.Move(tmp, path); return; }
+            try { File.Replace(tmp, path, null); }   // atomar: es gibt immer entweder die alte oder die neue Datei
+            catch (IOException) { File.Copy(tmp, path, true); File.Delete(tmp); }   // Laufwerke ohne Replace
+            catch (PlatformNotSupportedException) { File.Copy(tmp, path, true); File.Delete(tmp); }
         }
         public static string Load(string path, string password) { return Unprotect(File.ReadAllBytes(path), password); }
     }

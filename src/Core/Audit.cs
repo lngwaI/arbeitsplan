@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 
 namespace Arbeitsplan.Core
 {
@@ -25,7 +26,7 @@ namespace Arbeitsplan.Core
         }
 
         // Eindeutig genug, um Protokolle zusammenzufuehren (Wiederherstellen einer Sicherung).
-        public string Key() { return Time.Ticks + "|" + Day.ToString("yyyy-MM-dd") + "|" + RowId + "|" + Version + "|" + Login; }
+        public string Key() { return Time.Ticks + "|" + Day.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) + "|" + RowId + "|" + Version + "|" + Login; }
     }
 
     public static class Audit
@@ -33,10 +34,16 @@ namespace Arbeitsplan.Core
         // Speichert wie IDataStore.Save und protokolliert im selben Schreibvorgang. false = Konflikt (nichts gespeichert/protokolliert).
         public static bool Save(IDataStore store, DateTime day, RowInfo row, User user, Entry e)
         {
+            return store.SaveWithAudit(day, row.Id, e, New(day, row, user));   // Vorher/Nachher/Version setzt der Store (atomar)
+        }
+
+        // Protokolleintrag ohne Vorher/Nachher (setzt der Store beim Speichern).
+        public static AuditEntry New(DateTime day, RowInfo row, User user)
+        {
             AuditEntry a = new AuditEntry();
             a.Time = DateTime.Now; a.Login = user.Login; a.Kuerzel = user.Kuerzel;
             a.Day = day.Date; a.RowId = row.Id; a.RowName = row.Name;
-            return store.SaveWithAudit(day, row.Id, e, a);   // Vorher/Nachher/Version setzt der Store (atomar)
+            return a;
         }
 
         // Lesbarer Text eines Stands (Inhalt, Kuerzel je Schicht, LKZ).

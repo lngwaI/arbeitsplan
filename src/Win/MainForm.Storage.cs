@@ -89,20 +89,49 @@ namespace Arbeitsplan.Win
         }
 
         // Aenderungen anderer PCs uebernehmen; nie waehrend eines Bearbeitungsmodus oder offenen Dialogs.
+        // Die Dateipruefung (Zeit/Groesse; haengt bei Netzausfall) laeuft im Hintergrund. Nur wenn sie eine Aenderung meldet,
+        // liest der FileStore im UI-Thread neu (er ist nicht thread-sicher); ein Lauf zur Zeit, nach dem Schliessen nichts mehr.
         void StartPolling()
         {
             if (fstore == null) return;
+            string path = Path.Combine(fstore.Folder, FileStore.FileName);
+            bool busy = false, closed = false;
+            DateTime seenTime = DateTime.MinValue; long seenLen = -1;
+            int tries = 0;   // Refresh-Versuche nach einer erkannten Aenderung (zweiter Versuch, falls das Lesen kurz scheitert)
             Timer t = new Timer(); t.Interval = cfg.PollSeconds * 1000;
             t.Tick += delegate
             {
-                if (editCell != null || Application.OpenForms.Count > 1) return;
-                bool wasOffline = fstore.Offline;
-                if (!fstore.Refresh() && fstore.Generation == viewGen) return;   // auch still beim Speichern/Bearbeiten nachgeladene Daten
-                Rebuild(false);
-                if (wasOffline) UpdateTitle();
+                if (busy || editCell != null || Application.OpenForms.Count > 1) return;
+                busy = true;
+                System.Threading.ThreadPool.QueueUserWorkItem(delegate
+                {
+                    DateTime ft = DateTime.MinValue; long fl = -1;   // -1 = nicht erreichbar/fehlt
+                    try { FileInfo fi = new FileInfo(path); if (fi.Exists) { ft = fi.LastWriteTimeUtc; fl = fi.Length; } }
+                    catch (Exception) { }
+                    try
+                    {
+                        BeginInvoke((MethodInvoker)delegate
+                        {
+                            busy = false;
+                            if (closed || IsDisposed || editCell != null || Application.OpenForms.Count > 1) return;
+                            if (fl >= 0 && (ft != seenTime || fl != seenLen)) { seenTime = ft; seenLen = fl; tries = 2; }
+                            bool wasOffline = fstore.Offline, fresh = false;
+                            if (fl >= 0 && tries > 0)
+                            {
+                                int g0 = fstore.Generation;
+                                fresh = fstore.Refresh();
+                                tries = fresh || fstore.Generation != g0 ? 0 : tries - 1;
+                            }
+                            if (!fresh && fstore.Generation == viewGen) return;   // auch still beim Speichern/Bearbeiten nachgeladene Daten
+                            Rebuild(false);
+                            if (wasOffline) UpdateTitle();
+                        });
+                    }
+                    catch (Exception) { }   // Fenster bereits geschlossen
+                });
             };
             t.Start();
-            FormClosed += delegate { t.Stop(); };
+            FormClosed += delegate { closed = true; t.Stop(); t.Dispose(); };
         }
 
 #if TESTHOOKS

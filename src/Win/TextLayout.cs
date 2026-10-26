@@ -17,8 +17,10 @@ namespace Arbeitsplan.Win
             Font f;
             if (!fonts.TryGetValue(key, out f))
             {
-                try { f = new Font(name, size, style, GraphicsUnit.Point); }
-                catch (Exception) { f = new Font(fallback, style); }   // Schrift nicht vorhanden
+                f = Theme.Try(name, size, style);   // Schrift nicht vorhanden: Ersatzschrift in gewuenschter Groesse
+                if (f == null)
+                    try { f = new Font(fallback.FontFamily, size, style, GraphicsUnit.Point); }
+                    catch (Exception) { f = new Font(fallback, style); }
                 fonts[key] = f;
             }
             return f;
@@ -74,7 +76,11 @@ namespace Arbeitsplan.Win
         {
             Metrics m = M(f);
             int w;
-            if (!m.W.TryGetValue(s, out w)) { w = Raw(f, s) - m.Pad; m.W[s] = w; }
+            if (!m.W.TryGetValue(s, out w))
+            {
+                if (m.W.Count > 5000) m.W.Clear();   // begrenzt (viele verschiedene Woerter ueber lange Laufzeit)
+                w = Raw(f, s) - m.Pad; m.W[s] = w;
+            }
             return w;
         }
 
@@ -159,7 +165,7 @@ namespace Arbeitsplan.Win
             {
                 foreach (Item it in Lines[l])
                 {
-                    if (it.HasBack) using (SolidBrush br = new SolidBrush(it.Back)) g.FillRectangle(br, x + it.X, y, it.W, LineH[l]);
+                    if (it.HasBack) g.FillRectangle(Theme.Current.Brush(it.Back), x + it.X, y, it.W, LineH[l]);
                     if (it.Text.Trim().Length > 0)
                         TextRenderer.DrawText(g, it.Text, it.Font, new Rectangle(x + it.X, y, it.W + 4, LineH[l]), it.Fore, Flags | TextFormatFlags.Bottom | TextFormatFlags.SingleLine);
                 }

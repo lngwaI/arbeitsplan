@@ -97,6 +97,7 @@ namespace Arbeitsplan.Win
         {
             name = name == null ? "" : name.ToLowerInvariant().Replace("windows", "").Replace("win", "").Replace(" ", "");   // winXP, Win7, windows10, 10 ...
             name = name == "xp" ? "xp" : (name == "7" ? "win7" : (name == "10" ? "win10" : Detect()));
+            Current.FreeGdi();
             Current = Make(name);
             ToolStripManager.Renderer = Current.Stripe ? (ToolStripRenderer)new FlatRenderer() : new ToolStripProfessionalRenderer();
         }
@@ -109,11 +110,14 @@ namespace Arbeitsplan.Win
             return f ?? SystemFonts.MessageBoxFont;
         }
 
-        static Font Try(string name, float size)
+        static Font Try(string name, float size) { return Try(name, size, FontStyle.Regular); }
+
+        // null, wenn die Schrift fehlt (Windows wuerde stillschweigend MS Sans Serif nehmen)
+        public static Font Try(string name, float size, FontStyle style)
         {
             try
             {
-                Font f = new Font(name, size, FontStyle.Regular, GraphicsUnit.Point);
+                Font f = new Font(name, size, style, GraphicsUnit.Point);
                 if (f.Name.Equals(name, StringComparison.OrdinalIgnoreCase)) return f;
                 f.Dispose();
             }
@@ -123,23 +127,61 @@ namespace Arbeitsplan.Win
 
         static Color Lighten(Color c, int d) { return Color.FromArgb(Math.Max(0, Math.Min(255, c.R + d)), Math.Max(0, Math.Min(255, c.G + d)), Math.Max(0, Math.Min(255, c.B + d))); }
 
-        // Kopfleiste: leichter Verlauf (win7), sonst flache Farbe
+        // ---- Gecachte Pinsel/Stifte (nur UI-Thread; nie selbst freigeben, das macht FreeGdi beim Modellwechsel) ----
+        readonly System.Collections.Generic.Dictionary<int, SolidBrush> brushes = new System.Collections.Generic.Dictionary<int, SolidBrush>();
+        readonly System.Collections.Generic.Dictionary<long, Pen> pens = new System.Collections.Generic.Dictionary<long, Pen>();
+        readonly System.Collections.Generic.Dictionary<long, LinearGradientBrush> grads = new System.Collections.Generic.Dictionary<long, LinearGradientBrush>();
+
+        public SolidBrush Brush(Color c)
+        {
+            SolidBrush b;
+            if (!brushes.TryGetValue(c.ToArgb(), out b)) { b = new SolidBrush(c); brushes[c.ToArgb()] = b; }
+            return b;
+        }
+
+        public Pen Pen(Color c, int width)
+        {
+            long k = ((long)c.ToArgb() << 8) | (uint)width;
+            Pen p;
+            if (!pens.TryGetValue(k, out p)) { p = new Pen(c, width); pens[k] = p; }
+            return p;
+        }
+
+        public void FreeGdi()
+        {
+            foreach (SolidBrush b in brushes.Values) b.Dispose();
+            foreach (Pen p in pens.Values) p.Dispose();
+            foreach (LinearGradientBrush b in grads.Values) b.Dispose();
+            brushes.Clear(); pens.Clear(); grads.Clear();
+        }
+
+        // Kopfleiste: leichter Verlauf (win7), sonst flache Farbe. Verlauf je Farbe+Groesse gecacht, an r verschoben gezeichnet.
         public void FillHead(Graphics g, Rectangle r, Color c)
         {
-            if (!Gradient || r.Width < 1 || r.Height < 2) { using (SolidBrush b = new SolidBrush(c)) g.FillRectangle(b, r); return; }
-            using (LinearGradientBrush b = new LinearGradientBrush(r, Lighten(c, 18), Lighten(c, -6), LinearGradientMode.Vertical)) g.FillRectangle(b, r);
+            if (!Gradient || r.Width < 1 || r.Height < 2) { g.FillRectangle(Brush(c), r); return; }
+            long k = ((long)c.ToArgb() << 32) | ((long)(r.Width & 0xFFFF) << 16) | (uint)(r.Height & 0xFFFF);
+            LinearGradientBrush b;
+            if (!grads.TryGetValue(k, out b))
+            {
+                if (grads.Count > 100) { foreach (LinearGradientBrush x in grads.Values) x.Dispose(); grads.Clear(); }   // viele Fenstergroessen
+                b = new LinearGradientBrush(new Rectangle(0, 0, r.Width, r.Height), Lighten(c, 18), Lighten(c, -6), LinearGradientMode.Vertical);
+                grads[k] = b;
+            }
+            g.TranslateTransform(r.X, r.Y);   // Brush-Transform nicht anfassen (enthaelt die Verlaufsabbildung)
+            g.FillRectangle(b, 0, 0, r.Width, r.Height);
+            g.TranslateTransform(-r.X, -r.Y);
         }
 
         // Eigene Checkbox (13x13, GDI+), nur im Modern-Look.
         public void DrawCheck(Graphics g, Point p, bool on)
         {
             Rectangle r = new Rectangle(p.X, p.Y, 12, 12);
-            using (SolidBrush b = new SolidBrush(Color.White)) g.FillRectangle(b, r);
-            using (Pen bp = new Pen(on ? CheckMark : CheckBorder)) g.DrawRectangle(bp, r);
+            g.FillRectangle(Brush(Color.White), r);
+            g.DrawRectangle(Pen(on ? CheckMark : CheckBorder, 1), r);
             if (!on) return;
             SmoothingMode sm = g.SmoothingMode;
             g.SmoothingMode = SmoothingMode.AntiAlias;
-            using (Pen cp = new Pen(CheckMark, 2f)) g.DrawLines(cp, new Point[] { new Point(p.X + 3, p.Y + 6), new Point(p.X + 5, p.Y + 8), new Point(p.X + 9, p.Y + 3) });
+            g.DrawLines(Pen(CheckMark, 2), new Point[] { new Point(p.X + 3, p.Y + 6), new Point(p.X + 5, p.Y + 8), new Point(p.X + 9, p.Y + 3) });
             g.SmoothingMode = sm;
         }
 

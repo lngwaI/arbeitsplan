@@ -210,7 +210,7 @@ namespace Arbeitsplan.Core
         static readonly TimeSpan Stale = TimeSpan.FromMinutes(30);   // abgestuerzte Clients blockieren nicht ewig
         readonly Dictionary<string, Lock> locks = new Dictionary<string, Lock>();
 
-        static string Key(DateTime d, int r) { return d.ToString("yyyy-MM-dd") + "|" + r; }
+        static string Key(DateTime d, int r) { return d.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) + "|" + r; }
 
         public string Holder(DateTime day, int row, string me)
         {

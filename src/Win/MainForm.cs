@@ -129,7 +129,9 @@ namespace Arbeitsplan.Win
             Controls.Add(bar);
 
             ResizeEnd += delegate { RefitIfScreenChanged(); };
-            Microsoft.Win32.SystemEvents.DisplaySettingsChanged += delegate { RefitIfScreenChanged(); };
+            EventHandler displayChanged = delegate { RefitIfScreenChanged(); };   // statisches Ereignis: beim Schliessen abmelden
+            Microsoft.Win32.SystemEvents.DisplaySettingsChanged += displayChanged;
+            FormClosed += delegate { Microsoft.Win32.SystemEvents.DisplaySettingsChanged -= displayChanged; };
             KeyDown += OnKey;
             FormClosing += OnClosing;
             InitData();   // Verlauf-Menue, Sicherung beim Beenden (MainForm.Data.cs)
@@ -239,7 +241,7 @@ namespace Arbeitsplan.Win
             edContent.Font = plainFont;
             edContent.BorderStyle = BorderStyle.None; edContent.ScrollBars = RichTextBoxScrollBars.None; edContent.DetectUrls = false;
             edContent.HideSelection = false; edContent.AcceptsTab = false;
-            edContent.TextChanged += delegate { if (!loadingEditor && editCell != null) { editCell.Content = Norm(edContent.Text); editCell.Dirty = true; UpdateChanged(); view.Relayout(); } };
+            edContent.TextChanged += delegate { if (!loadingEditor && editCell != null) { editCell.Content = Norm(edContent.Text); editCell.Dirty = true; UpdateChanged(); view.RelayoutCell(editCell); } };
             edContent.SelectionChanged += delegate { if (!extracting) SyncFormat(); };
             edContent.KeyDown += OnContentKey;
             edContent.ContextMenuStrip = BuildContentMenu();
@@ -250,7 +252,7 @@ namespace Arbeitsplan.Win
                 TextBox t = edPpl[s];
                 t.BorderStyle = BorderStyle.None; t.AutoSize = false; t.Multiline = true; t.AcceptsReturn = true; t.Visible = false;
                 Ui.SimpleMenu(t);          // schlichtes Menue statt Windows-Standard (keine Unicode-/IME-Eintraege)
-                t.TextChanged += delegate { if (!loadingEditor && editCell != null) { editCell.People[si] = Norm(t.Text); editCell.Dirty = true; UpdateChanged(); view.Relayout(); } };
+                t.TextChanged += delegate { if (!loadingEditor && editCell != null) { editCell.People[si] = Norm(t.Text); editCell.Dirty = true; UpdateChanged(); view.RelayoutCell(editCell); } };
                 view.Controls.Add(t); editors.Add(t);
             }
         }
@@ -444,6 +446,7 @@ namespace Arbeitsplan.Win
                     view.Cells.Add(d);
                     if (rowInfo[r].Id == selRow && d.Day == selDay) view.Selected = d;
                 }
+            view.MarkAllDirty();   // Equipment-Status neu abfragen
             ApplyFold();
 #if TESTHOOKS
             if (week2 != null) week2.Load(store, rowInfo, start.AddDays(7));
@@ -913,9 +916,8 @@ namespace Arbeitsplan.Win
             if (!EndEdit(true)) return null;
             bool[] keep = view.Collapsed; CellData sel = view.Selected;
             view.Collapsed = DefaultFold(); view.Selected = null; view.Relayout();
-            Bitmap bmp = Export.RenderWeek(view, weekLabel.Text, start);
-            view.Collapsed = keep; view.Selected = sel; view.Relayout();
-            return bmp;
+            try { return Export.RenderWeek(view, weekLabel.Text, start); }
+            finally { view.Collapsed = keep; view.Selected = sel; view.Relayout(); }
         }
 
         void ExportImage(bool pdf)
@@ -935,7 +937,7 @@ namespace Arbeitsplan.Win
 
         void ExportClipboard()
         {
-            try { Bitmap bmp = RenderAll(); if (bmp != null) Clipboard.SetImage(bmp); }
+            try { using (Bitmap bmp = RenderAll()) if (bmp != null) Clipboard.SetImage(bmp); }   // SetImage kopiert die Daten
             catch (Exception ex) { MessageBox.Show("Kopieren fehlgeschlagen.\n" + ex.Message, "Export", MessageBoxButtons.OK, MessageBoxIcon.Error); }
         }
 

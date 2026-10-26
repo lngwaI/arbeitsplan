@@ -56,6 +56,9 @@ namespace Arbeitsplan.Win
 
         readonly Font bold;
         int lastW = -1;
+        int lkzLabelW, lkzTagW;                             // Textbreiten, einmal je Layout gemessen (nicht je Zelle im Paint)
+        int[] nameW;                                        // null = neu messen
+        readonly Dictionary<string, EquipmentInfo> equipCache = new Dictionary<string, EquipmentInfo>();   // je Rebuild (MarkAllDirty)
 
         public PlanView(Font f)
         {
@@ -66,7 +69,14 @@ namespace Arbeitsplan.Win
         }
 
         public int ColLeft(int col) { return Pad + col * (ColW + Gap); }
-        public void MarkAllDirty() { foreach (CellData c in Cells) c.Dirty = true; }
+        // Alle Bloecke neu umbrechen; Equipment-Status wird dabei neu abgefragt.
+        public void MarkAllDirty() { equipCache.Clear(); foreach (CellData c in Cells) c.Dirty = true; }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing) { bold.Dispose(); tip.Dispose(); }
+            base.Dispose(disposing);
+        }
 
         // ---------- Textstuecke (Schrift, Farben, Markierungen) ----------
 
@@ -121,8 +131,12 @@ namespace Arbeitsplan.Win
             // Erkannte Equipment-Nummer: Statusfarbe; Status unbekannt/nicht abrufbar -> Standard schwarz (Lesbarkeit).
             foreach (Match m in EquipmentMatcher.Pattern.Matches(text))
             {
-                EquipmentInfo info = null;
-                try { if (Equip != null) info = Equip.Get(m.Value); } catch (Exception) { /* Quelle nicht erreichbar */ }
+                EquipmentInfo info;
+                if (!equipCache.TryGetValue(m.Value, out info))   // je Nummer nur einmal je Rebuild (langsame Quelle blockiert nicht jedes Layout)
+                {
+                    try { if (Equip != null) info = Equip.Get(m.Value); } catch (Exception) { info = null; /* Quelle nicht erreichbar */ }
+                    equipCache[m.Value] = info;
+                }
                 Color col = info != null ? Rgb(Colors.Get(info.Status)) : Color.Black;
                 for (int i = m.Index; i < m.Index + m.Length; i++) fore[i] = col;
             }
@@ -185,20 +199,14 @@ namespace Arbeitsplan.Win
             HitCount = 0;
             foreach (CellData c in Cells) { if (Collapsed[c.RowIndex]) continue; if (c.Dirty) Build(c, tw, pw); HitCount += c.Hits; }
 
+            nameW = null;   // Textbreiten beim naechsten Zeichnen neu messen
+
             int[] ch = new int[n], lk = new int[n];
             int[][] sh = new int[n][];
             for (int r = 0; r < n; r++)
             {
-                ch[r] = Rows[r].MinLines * lh + 2 * TV;
+                ch[r] = RowNeeds(r, lh, out sh[r]);
                 lk[r] = Rows[r].HasLkz ? LkzH : 0;
-                sh[r] = new int[] { ShiftLines * lh + 2 * TV, ShiftLines * lh + 2 * TV, ShiftLines * lh + 2 * TV };
-            }
-            foreach (CellData c in Cells)
-            {
-                if (Collapsed[c.RowIndex]) continue;
-                int extra = c.Editing ? lh : 0;      // Editor bricht minimal anders um: eine Zeile Reserve
-                ch[c.RowIndex] = Math.Max(ch[c.RowIndex], c.CB.Height + 2 * TV + extra);
-                for (int s = 0; s < 3; s++) sh[c.RowIndex][s] = Math.Max(sh[c.RowIndex][s], c.PB[s].Height + 2 * TV + extra);
             }
 
             int[] rowY = new int[n], rowH = new int[n];
@@ -236,14 +244,55 @@ namespace Arbeitsplan.Win
             if (LayoutDone != null) LayoutDone(this, EventArgs.Empty);
         }
 
+        // Benoetigte Hoehe von Inhaltsfeld (Rueckgabe) und Schichtfeldern einer aufgeklappten Zeile (ueber alle 7 Spalten).
+        int RowNeeds(int r, int lh, out int[] sh)
+        {
+            int ch = Rows[r].MinLines * lh + 2 * TV;
+            sh = new int[] { ShiftLines * lh + 2 * TV, ShiftLines * lh + 2 * TV, ShiftLines * lh + 2 * TV };
+            if (Collapsed[r]) return ch;
+            foreach (CellData c in Cells)
+            {
+                if (c.RowIndex != r) continue;
+                int extra = c.Editing ? lh : 0;      // Editor bricht minimal anders um: eine Zeile Reserve
+                ch = Math.Max(ch, c.CB.Height + 2 * TV + extra);
+                for (int s = 0; s < 3; s++) sh[s] = Math.Max(sh[s], c.PB[s].Height + 2 * TV + extra);
+            }
+            return ch;
+        }
+
+        // Nach einer Eingabe im Editor: nur diesen Block neu umbrechen; volles Layout nur, wenn sich die Hoehe der Zeile aendert.
+        public void RelayoutCell(CellData c)
+        {
+            int n = Rows.Count;
+            bool full = c == null || Width != lastW || Collapsed.Length != n || c.RowIndex >= n || Collapsed[c.RowIndex] || c.RContent.IsEmpty;
+            if (!full) foreach (CellData x in Cells) if (x != c && x.Dirty && !Collapsed[x.RowIndex]) { full = true; break; }
+            if (full) { Relayout(); return; }
+            int hits = c.Hits;
+            if (c.Dirty) Build(c, ColW - 2 - 2 * TP, ColW - 2 - LW - 2 * TP);
+            int[] sh;
+            int ch = RowNeeds(c.RowIndex, Font.Height, out sh);
+            if (c.Hits != hits || ch != c.RContent.Height || sh[0] != c.RPpl[0].Height || sh[1] != c.RPpl[1].Height || sh[2] != c.RPpl[2].Height) { Relayout(); return; }
+            Invalidate(c.R);
+        }
+
         // ---------- Zeichnen ----------
 
-        static void Fill(Graphics g, Color col, Rectangle r) { using (SolidBrush b = new SolidBrush(col)) g.FillRectangle(b, r); }
+        static void Fill(Graphics g, Color col, Rectangle r) { g.FillRectangle(Theme.Current.Brush(col), r); }
 
         protected override void OnPaint(PaintEventArgs e)
         {
             Graphics g = e.Graphics;
             g.Clear(BackColor);
+            if (nameW == null || nameW.Length != Rows.Count)   // einmal je Layout mit dem Zeichen-Graphics messen (wie zuvor je Zelle)
+            {
+                const TextFormatFlags tf = TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix;
+                Size big = new Size(1000, 100);
+                lkzLabelW = TextRenderer.MeasureText(g, "LKZ gemessen?", Font, big, tf).Width;
+                lkzTagW = TextRenderer.MeasureText(g, "(LKZ)", bold, big, tf).Width;
+                int[] w = new int[Rows.Count];
+                for (int r = 0; r < w.Length; r++) if (Rows[r].HasLkz) w[r] = TextRenderer.MeasureText(g, Rows[r].Name, bold, big, tf).Width;
+                nameW = w;
+            }
             foreach (CellData c in Cells)
                 if (c.R.IntersectsWith(e.ClipRectangle)) { PaintCell(g, c); Overlay(g, c); }
         }
@@ -258,7 +307,7 @@ namespace Arbeitsplan.Win
             if (a.IsEmpty) return;
             Fill(g, a, new Rectangle(c.R.X, c.R.Y, c.R.Width, 3));                       // Streifen oben
             if (c.Editing || c == Selected)
-                using (Pen p = new Pen(a, 2)) g.DrawRectangle(p, c.R.X + 1, c.R.Y + 1, c.R.Width - 3, c.R.Height - 3);
+                g.DrawRectangle(th.Pen(a, 2), c.R.X + 1, c.R.Y + 1, c.R.Width - 3, c.R.Height - 3);
         }
 
         void PaintCell(Graphics g, CellData c)
@@ -287,7 +336,7 @@ namespace Arbeitsplan.Win
                 tri = collapsed ? new Point[] { new Point(ax + 2, ay - 1), new Point(ax + 2, ay + 6), new Point(ax + 6, ay + 3) }
                                 : new Point[] { new Point(ax, ay + 1), new Point(ax + 7, ay + 1), new Point(ax + 3, ay + 5) };
             }
-            using (SolidBrush ab = new SolidBrush(th.Arrow)) g.FillPolygon(ab, tri);
+            g.FillPolygon(th.Brush(th.Arrow), tri);
 
             int right = 18 + (c.Editing ? 20 : 0);                                   // Platz fuer Pfeil (+ Stift im Bearbeitungsmodus)
             int mk = ProductBars(g, c);
@@ -296,7 +345,7 @@ namespace Arbeitsplan.Win
             {
                 bool filled = !c.Cur.IsEmpty || c.Cur.Lkz;
                 if (filled)   // zugeklappt, aber Inhalt vorhanden: Hinweispunkt vor dem Pfeil
-                    using (SolidBrush db = new SolidBrush(th.Dot)) g.FillEllipse(db, c.RHead.Right - 29, c.RHead.Y + (c.RHead.Height - 7) / 2, 8, 8);
+                    g.FillEllipse(th.Brush(th.Dot),c.RHead.Right - 29, c.RHead.Y + (c.RHead.Height - 7) / 2, 8, 8);
                 nr.Width -= filled ? 12 : 0;
                 TextRenderer.DrawText(g, ri.Name, bold, nr, th.HeadTextCollapsed,tf | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
                 LkzTag(g, c, ri, nr, tf);
@@ -309,11 +358,10 @@ namespace Arbeitsplan.Win
             if (ri.HasLkz)
             {
                 Fill(g, c.Lkz ? th.LkzOn : back, c.RLkz);
-                using (Pen p = new Pen(th.Separator)) g.DrawLine(p, c.RLkz.X, c.RLkz.Bottom - 1, c.RLkz.Right, c.RLkz.Bottom - 1);
+                g.DrawLine(th.Pen(th.Separator, 1), c.RLkz.X, c.RLkz.Bottom - 1, c.RLkz.Right, c.RLkz.Bottom - 1);
                 Rectangle lr = new Rectangle(c.RLkz.X + TP, c.RLkz.Y, c.RLkz.Width - TP, c.RLkz.Height);
                 TextRenderer.DrawText(g, "LKZ gemessen?", Font, lr, th.LkzText, tf | TextFormatFlags.VerticalCenter);
-                int tw = TextRenderer.MeasureText(g, "LKZ gemessen?", Font, new Size(1000, 100), tf).Width;
-                Point cp = new Point(c.RLkz.X + TP + tw + 6, c.RLkz.Y + (c.RLkz.Height - 13) / 2);
+                Point cp = new Point(c.RLkz.X + TP + lkzLabelW + 6, c.RLkz.Y + (c.RLkz.Height - 13) / 2);
                 if (!th.Modern) CheckBoxRenderer.DrawCheckBox(g, cp, c.Lkz ? CheckBoxState.CheckedNormal : CheckBoxState.UncheckedNormal);
                 else th.DrawCheck(g, cp, c.Lkz);
             }
@@ -325,7 +373,7 @@ namespace Arbeitsplan.Win
                 Fill(g, th.ShiftBack[s], c.RPpl[s]);
                 TextRenderer.DrawText(g, ri.Labels[s], bold, new Rectangle(c.RLbl[s].X, c.RLbl[s].Y + 1, c.RLbl[s].Width, c.RLbl[s].Height), th.ShiftLabelText, tf | TextFormatFlags.HorizontalCenter | TextFormatFlags.EndEllipsis);
                 if (!c.Editing) c.PB[s].Draw(g, c.RPpl[s].X + TP, c.RPpl[s].Y + TV);
-                if (th.ShiftSep) using (Pen p = new Pen(th.ShiftLine)) g.DrawLine(p, c.RLbl[s].X, c.RLbl[s].Y, c.RPpl[s].Right - 1, c.RLbl[s].Y);
+                if (th.ShiftSep) g.DrawLine(th.Pen(th.ShiftLine, 1),c.RLbl[s].X, c.RLbl[s].Y, c.RPpl[s].Right - 1, c.RLbl[s].Y);
             }
         }
 
@@ -356,8 +404,7 @@ namespace Arbeitsplan.Win
         void LkzTag(Graphics g, CellData c, RowInfo ri, Rectangle nr, TextFormatFlags tf)
         {
             if (!ri.HasLkz) return;
-            int w = TextRenderer.MeasureText(g, ri.Name, bold, new Size(1000, 100), tf).Width;
-            int tw = TextRenderer.MeasureText(g, "(LKZ)", bold, new Size(1000, 100), tf).Width;
+            int w = nameW[c.RowIndex], tw = lkzTagW;
             if (w + 6 + tw > nr.Width) return;
             TextRenderer.DrawText(g, "(LKZ)", bold, new Rectangle(nr.X + w + 6, nr.Y, tw + 2, nr.Height), c.Lkz ? Color.FromArgb(30, 140, 60) : Color.FromArgb(200, 30, 30), tf | TextFormatFlags.VerticalCenter);
         }

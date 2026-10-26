@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 
 // Core: keine UI-Abhaengigkeit (spaeter wiederverwendbar fuer Server/Web-Client).
@@ -51,6 +52,13 @@ namespace Arbeitsplan.Core
 
     public class SearchHit { public DateTime Day; public int RowId; }
 
+    // Ein Block fuer IDataStore.SaveManyWithAudit. Audit null = ohne Protokoll. Saved/Data.Version erst nach erfolgreichem Schreiben.
+    public class SaveItem
+    {
+        public DateTime Day; public int RowId; public Entry Data; public AuditEntry Audit;
+        public bool Saved;                  // false = Konflikt (Data.Version veraltet)
+    }
+
     public interface IDataStore
     {
         Entry Get(DateTime day, int rowId);                  // Kopie oder null
@@ -64,6 +72,9 @@ namespace Arbeitsplan.Core
         void AppendAudit(AuditEntry a);                      // append-only, kein Aendern/Loeschen
         // Save + Protokolleintrag atomar (beides oder nichts); setzt a.Before/After/Version auf den Stand beim Speichern
         bool SaveWithAudit(DateTime day, int rowId, Entry e, AuditEntry a);
+        // Viele Bloecke in EINEM Schreibvorgang, Versionspruefung je Block (Saved je Item); Rueckgabe = Anzahl gespeichert.
+        // Exception = nichts gespeichert.
+        int SaveManyWithAudit(IList<SaveItem> items);
         List<AuditEntry> GetAudit(DateTime day, int rowId);  // Kopien, chronologisch
         StoreData Snapshot();                                // vollstaendige Kopie aller Daten (Sicherung)
         void Restore(StoreData data);                        // ersetzt Plaene/Struktur/Katalog; Protokoll wird zusammengefuehrt
@@ -88,7 +99,7 @@ namespace Arbeitsplan.Core
             }
         }
 
-        static string Key(DateTime d, int r) { return d.ToString("yyyy-MM-dd") + "|" + r; }
+        static string Key(DateTime d, int r) { return d.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) + "|" + r; }
         void CheckWrite() { if (FailSaves) throw new IOException("Kein Schreibzugriff (simulierter System-PC)."); }
         int IdOf(string name) { foreach (RowInfo r in rows) if (r.Name == name) return r.Id; return -1; }
 
@@ -141,6 +152,18 @@ namespace Arbeitsplan.Core
             return true;
         }
 
+        public int SaveManyWithAudit(IList<SaveItem> list)
+        {
+            CheckWrite();   // vor der ersten Aenderung: alles oder nichts
+            int n = 0;
+            foreach (SaveItem it in list)
+            {
+                it.Saved = it.Audit == null ? Save(it.Day, it.RowId, it.Data) : SaveWithAudit(it.Day, it.RowId, it.Data, it.Audit);
+                if (it.Saved) n++;
+            }
+            return n;
+        }
+
         readonly List<AuditEntry> audit = new List<AuditEntry>();
         public void AppendAudit(AuditEntry a) { audit.Add(a.Clone()); }
         public List<AuditEntry> GetAudit(DateTime day, int rowId)
@@ -150,18 +173,33 @@ namespace Arbeitsplan.Core
             return l;
         }
 
-        public StoreData Snapshot()
+        public StoreData Snapshot() { return Snapshot(true); }
+
+        // copy=false: teilt die Objekte (nur zum sofortigen Serialisieren, z. B. FileStore beim Schreiben)
+        internal StoreData Snapshot(bool copy)
         {
             StoreData d = new StoreData();
-            d.Rows = GetRows(); d.Catalog = GetCatalog();
+            d.Rows = copy ? GetRows() : new List<RowInfo>(rows); d.Catalog = copy ? GetCatalog() : catalog;
             foreach (KeyValuePair<string, Entry> kv in items)
             {
                 StoredEntry s = new StoredEntry(); string[] p = kv.Key.Split('|');
-                s.Day = DateTime.ParseExact(p[0], "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture); s.RowId = int.Parse(p[1]); s.Data = kv.Value.Clone();
+                s.Day = DateTime.ParseExact(p[0], "yyyy-MM-dd", CultureInfo.InvariantCulture); s.RowId = int.Parse(p[1], CultureInfo.InvariantCulture); s.Data = copy ? kv.Value.Clone() : kv.Value;
                 d.Entries.Add(s);
             }
-            foreach (AuditEntry a in audit) d.Audit.Add(a.Clone());
+            if (copy) foreach (AuditEntry a in audit) d.Audit.Add(a.Clone());
+            else d.Audit.AddRange(audit);
             return d;
+        }
+
+        // Frisch gelesene Daten uebernehmen (leerer Store, ohne Kopie/Zusammenfuehren); d darf danach nicht mehr genutzt werden.
+        internal void Adopt(StoreData d)
+        {
+            items.Clear();
+            foreach (StoredEntry s in d.Entries) items[Key(s.Day, s.RowId)] = s.Data;
+            rows.Clear(); nextId = 1;
+            foreach (RowInfo r in d.Rows) { rows.Add(r); nextId = Math.Max(nextId, r.Id + 1); }
+            catalog = d.Catalog;
+            audit.Clear(); audit.AddRange(d.Audit);
         }
 
         public void Restore(StoreData d)
