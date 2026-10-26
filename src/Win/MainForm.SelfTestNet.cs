@@ -83,6 +83,8 @@ namespace Arbeitsplan.Win
             Entry b = E("Zeile 1\nZeile 2\nZeile 3"), t = E("Zeile 1\nZeile 2\nZeile 3 anders"); t.People[1] = "XY"; t.Version = 4;
             Entry r = Conflict.Merge(b, E("Zeile 1 neu\nZeile 2\nZeile 3"), t, cl);
             bool okLines = cl.Count == 0 && r.Content == "Zeile 1 neu\nZeile 2\nZeile 3 anders" && r.People[1] == "XY" && r.Version == 4;
+            r = Conflict.Merge(E("A\nB"), E("A2\nB"), E("A\nB2"), cl);   // Nachbarzeilen
+            okLines &= cl.Count == 0 && r.Content == "A2\nB2";
             cl.Clear(); r = Conflict.Merge(b, E("Mein\nZeile 2\nZeile 3"), E("Dein\nZeile 2\nZeile 3"), cl);
             bool okSame = cl.Count == 1 && cl[0] == "Inhalt" && r.Content == "Dein\nMein\nZeile 2\nZeile 3";
             Entry bp = E("x"), mp = E("x"), tp = E("x"); bp.People[0] = "AA"; mp.People[0] = "AA, BB"; tp.People[0] = "AA, CC";
@@ -123,6 +125,27 @@ namespace Arbeitsplan.Win
                 + " Editor zusammengeführt=" + Ok(okEd) + " Vorschlag=" + Ok(okProp) + " Abbrechen/Meine=" + Ok(cancel && mine));
         }
 
+        // Kampagnenstart: Datum nur vollstaendig (TT.MM.JJJJ); direkt startbar nur mit bekannten Raeumen
+        void SelfTestCampaignStart(StringBuilder sb)
+        {
+            Package p = Package.SampleCampaign("Start");
+            bool ready = PackageForm.Ready(p, store);
+            Package q = Package.SampleCampaign("Raum"); q.Steps[0].Row = "Gibt es nicht";
+            bool notReady = !PackageForm.Ready(q, store) && !PackageForm.Ready(new Package(), store);
+            CampaignForm.Quiet = true;
+            bool part, full;
+            using (CampaignForm cf = new CampaignForm(p, store, start, ApplyMode.FillEmpty))
+            {
+                string before = cf.TestCell(1);
+                int d0 = cf.Schedule[1].Day;
+                part = cf.TestTyped(1, "13.03.") == before && cf.Schedule[1].Day == d0;
+                DateTime want = cf.Start.AddDays(d0 - 1 + 2);
+                full = cf.TestTyped(1, want.ToString("dd.MM.yyyy")) == Ui.DayText(want) && cf.Schedule[1].Day == d0 + 2;
+            }
+            CampaignForm.Quiet = false;
+            sb.AppendLine("Kampagnenstart: Datum ohne Jahr abgelehnt=" + Ok(part) + " TT.MM.JJJJ=" + Ok(full) + " direkt startbar=" + Ok(ready) + " unbekannter Raum->Editor=" + Ok(notReady));
+        }
+
         CellData Cell(int row, int col)
         {
             foreach (CellData x in view.Cells) if (x.RowIndex == row && x.Col == col) return x;
@@ -136,6 +159,8 @@ namespace Arbeitsplan.Win
             Directory.CreateDirectory(dir);
             FileStore fs = new FileStore(dir, false, null, 0);
             if (fs.Offline) return name + ": OFFLINE " + fs.Problem;
+            File.WriteAllText(Path.Combine(dir, "bereit_" + name), "");   // beide Prozesse gleichzeitig loslaufen lassen (echte Konkurrenz)
+            for (int k = 0; k < 600 && Directory.GetFiles(dir, "bereit_*").Length < 2; k++) System.Threading.Thread.Sleep(50);
             RowInfo own = fs.GetRows()[name == "A" ? 0 : 1], shared = fs.GetRows()[2];
             DateTime d0 = new DateTime(2026, 1, 5), dc = new DateTime(2026, 1, 1), dm = new DateTime(2026, 1, 2);
             User u = new User(); u.Login = name;

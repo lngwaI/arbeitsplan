@@ -63,7 +63,7 @@ namespace Arbeitsplan.Win
             m.Shown += delegate
             {
                 s.Close();
-                string msg = m.StartMessage;   // Datenordner nicht erreichbar, Ausweichordner …
+                string msg = m.StartMessage;   // OFFLINE (letzter Stand dieses PCs) …
                 if (msg != null) m.BeginInvoke((MethodInvoker)delegate { MessageBox.Show(m, msg, "Arbeitsplan - Daten", MessageBoxButtons.OK, MessageBoxIcon.Warning); });
             };
             Application.Run(m);
@@ -141,7 +141,7 @@ namespace Arbeitsplan.Win
                 cfg.PackageFolder = System.IO.Path.Combine(cfg.DataFolder, "Pakete");
                 cfg.CachePath = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "arbeitsplan_testcache.apdb");
                 cfg.ReadOnly |= nosave; cfg.Admins.Add("mmuster");
-                if (System.IO.Path.GetFileName(cfg.DataFolder.TrimEnd(System.IO.Path.DirectorySeparatorChar)) == "neu") System.IO.Directory.CreateDirectory(cfg.DataFolder);   // Test: Ersteinrichtung
+                System.IO.Directory.CreateDirectory(cfg.DataFolder);   // Test: leerer Ordner = Ersteinrichtung (mmuster)
                 fs = OpenData(cfg, login, null, shot == null);
                 if (fs == null) return;
             }

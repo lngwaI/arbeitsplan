@@ -99,6 +99,13 @@ namespace Arbeitsplan.Core
                 List<Line> cb = b.GetRange(i, k - i), cm = m.GetRange(im, em - im), ct = t.GetRange(it, et - it);
                 if (Same(cm, cb)) r.AddRange(ct);
                 else if (Same(ct, cb) || Same(cm, ct)) r.AddRange(cm);
+                else if (cm.Count == cb.Count && ct.Count == cb.Count)
+                    for (int x = 0; x < cb.Count; x++)   // gleich viele Zeilen (z. B. Nachbarzeilen geaendert): Zeile fuer Zeile
+                    {
+                        if (cm[x].Key == cb[x].Key || cm[x].Key == ct[x].Key) r.Add(ct[x]);
+                        else if (ct[x].Key == cb[x].Key) r.Add(cm[x]);
+                        else { clash = true; r.Add(ct[x]); r.Add(cm[x]); }
+                    }
                 else
                 {
                     clash = true;

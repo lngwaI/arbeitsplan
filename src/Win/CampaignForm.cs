@@ -12,6 +12,7 @@ namespace Arbeitsplan.Win
     // wandern nur mit "Folgende mitverschieben" mit. Je Lauf ist der Block (Raum) waehlbar; das Equipment bleibt gleich.
     class CampaignForm : Form
     {
+        public static bool Quiet;   // Selbsttest: keine Meldungen
         static readonly Color Orange = Color.FromArgb(255, 228, 190);   // abweichend vom Vorschlag
         readonly Package pkg;
         readonly DateTimePicker dtStart = new DateTimePicker();
@@ -59,7 +60,7 @@ namespace Arbeitsplan.Win
             Ui.Dialog(this, 720, 540, false);
 
             Controls.Add(L("Startdatum (Tag 1):", 10, 14));
-            dtStart.Format = DateTimePickerFormat.Short; dtStart.Value = start; dtStart.SetBounds(130, 10, 110, 22); Controls.Add(dtStart);
+            dtStart.Format = DateTimePickerFormat.Custom; dtStart.CustomFormat = "dd.MM.yyyy"; dtStart.Value = start;   // immer TT.MM.JJJJ (GMP) dtStart.SetBounds(130, 10, 110, 22); Controls.Add(dtStart);
             Controls.Add(L("Erster Lauf:" + (Package.IsCode4(p.ProductCode) ? "  " + p.ProductCode : ""), 265, 14));
             nFirst.SetBounds(375, 10, 65, 22); nFirst.Minimum = 0; nFirst.Maximum = 9999; Controls.Add(nFirst);
             lFirst.SetBounds(448, 14, 262, 18); Controls.Add(lFirst);
@@ -84,7 +85,7 @@ namespace Arbeitsplan.Win
 
             chkShift.Text = "Folgende mitverschieben"; chkShift.Checked = true; chkShift.SetBounds(10, 84, 170, 22); Controls.Add(chkShift);
             chkRooms.Text = "Raum für ALLE Folgeläufe ändern"; chkRooms.SetBounds(185, 84, 215, 22); Controls.Add(chkRooms);
-            Controls.Add(L("Datum eintippen (z. B. 13.03.) oder − / +.", 405, 87));
+            Controls.Add(L("Datum als TT.MM.JJJJ eintippen oder − / +.", 405, 87));
 
             grid.SetBounds(10, 110, 700, 382);
             grid.AllowUserToAddRows = false; grid.AllowUserToDeleteRows = false; grid.AllowUserToResizeRows = false; grid.RowHeadersVisible = false;
@@ -187,19 +188,27 @@ namespace Arbeitsplan.Win
             }
         }
 
-        // Eingetipptes Datum: "13.03.", "13.03.26" oder "Fr 13.03.2026"; ohne Jahr gilt das bisherige.
-        void Typed(int i)
+#if TESTHOOKS
+        public string TestTyped(int i, string s) { grid.Rows[i].Cells[3].Value = s; Typed(i); return Convert.ToString(grid.Rows[i].Cells[3].Value); }
+        public string TestCell(int i) { return Convert.ToString(grid.Rows[i].Cells[3].Value); }
+#endif
+
+        // Eingetipptes Datum nur vollstaendig als TT.MM.JJJJ (GMP; auch "Fr 13.03.2026"), sonst Meldung und alter Wert.
+        public void Typed(int i)
         {
             if (i < 0 || i >= sched.Count) return;
             DateTime cur = Proposed(i).AddDays(Off(i));
             string s = Convert.ToString(grid.Rows[i].Cells[3].Value) ?? "";
             int k = 0; while (k < s.Length && !char.IsDigit(s[k])) k++;
-            string[] parts = s.Substring(k).Split('.');
-            int d = 0, m = 0, y = cur.Year;
-            bool ok = parts.Length >= 2 && int.TryParse(parts[0].Trim(), out d) && int.TryParse(parts[1].Trim(), out m);
-            if (ok && parts.Length > 2 && parts[2].Trim().Length > 0) { ok = int.TryParse(parts[2].Trim(), out y); if (y < 100) y += 2000; }
-            ok = ok && y >= 2000 && y <= 2099 && m >= 1 && m <= 12 && d >= 1 && d <= DateTime.DaysInMonth(y, m);
-            if (!ok) { System.Media.SystemSounds.Beep.Play(); UpdateRow(i); return; }
+            DateTime want;
+            bool ok = DateTime.TryParseExact(s.Substring(k).Trim(), "d.M.yyyy", CultureInfo.InvariantCulture, DateTimeStyles.None, out want) && want.Year >= 2000;
+            if (!ok)
+            {
+                if (!Quiet) MessageBox.Show(this, "Bitte das Datum vollständig als TT.MM.JJJJ eingeben (z. B. 13.03." + cur.Year + ").", "Kampagne starten", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                UpdateRow(i); return;
+            }
+            if (want < Start && !Quiet) MessageBox.Show(this, "Hinweis: " + want.ToString("dd.MM.yyyy") + " liegt vor dem Startdatum der Kampagne.", "Kampagne starten", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            int y = want.Year, m = want.Month, d = want.Day;
             int delta = (new DateTime(y, m, d) - cur).Days;
             if (delta == 0) UpdateRow(i); else Shift(i, delta);
         }

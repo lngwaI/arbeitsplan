@@ -406,25 +406,43 @@ namespace Arbeitsplan.Win
             if (p == null) return;
             if (p.Steps.Count == 0 && p.Blocks.Count == 0) { MessageBox.Show(this, "Das Paket ist leer.", "Paket-Editor", MessageBoxButtons.OK, MessageBoxIcon.Information); return; }
             foreach (PackageStep s in Ordered())
-                if (!s.IsEmpty && s.Row.Length == 0)
+                if (!s.IsEmpty && (s.Row.Length == 0 || !rowNames.Contains(s.Row)))   // sonst fiele der Schritt beim Uebernehmen still weg
                 {
                     Bind(s);
-                    MessageBox.Show(this, "Schritt " + No(s) + " \"" + TitleOf(s) + "\" hat keinen Raum. Bitte unter \"Wo?\" einen Block (Raum) wählen.", "Paket-Editor", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    MessageBox.Show(this, "Schritt " + No(s) + " \"" + TitleOf(s) + "\" " + (s.Row.Length == 0 ? "hat keinen Raum." : "steht im Raum \"" + s.Row + "\", den es im Plan nicht gibt.")
+                        + " Bitte unter \"Raum (Block)\" einen Block wählen.", "Paket-Editor", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     return;
                 }
+            if (StartCampaign(this, p, store, weekStart, By)) Applied = true;
+        }
+
+        // Kampagnenstart (Startdatum, erste Laufnummer, Termine je Lauf, Modus) und Uebernahme in den Plan; true = Plan geaendert.
+        // Auch direkt aus dem Menue "Pakete > Kampagne starten…" (ohne Editor), wenn das Paket vollstaendig ist (Ready).
+        public static bool StartCampaign(IWin32Window owner, Package p, IDataStore store, DateTime weekStart, User by)
+        {
             DateTime start; List<RunDate> schedule; ApplyMode mode;
-            using (CampaignForm cf = new CampaignForm(p, store, weekStart.Date, ApplyMode.FillEmpty))   // Startdatum, erste Laufnummer, Termine, Modus
+            using (CampaignForm cf = new CampaignForm(p, store, weekStart.Date, ApplyMode.FillEmpty))
             {
-                if (cf.ShowDialog(this) != DialogResult.OK) return;
+                if (cf.ShowDialog(owner) != DialogResult.OK) return false;
                 start = cf.Start; schedule = cf.Schedule; mode = cf.Mode;
             }
             try
             {
-                string msg = p.Apply(store, start, mode, schedule, By);
-                Applied = true;
-                MessageBox.Show(this, msg, "In Plan übernehmen", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                string msg = p.Apply(store, start, mode, schedule, by);
+                MessageBox.Show(owner, msg, "In Plan übernehmen", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return true;
             }
-            catch (Exception ex) { MessageBox.Show(this, "Konnte nicht gespeichert werden.\n" + ex.Message, "In Plan übernehmen", MessageBoxButtons.OK, MessageBoxIcon.Error); }
+            catch (Exception ex) { MessageBox.Show(owner, "Konnte nicht gespeichert werden.\n" + ex.Message, "In Plan übernehmen", MessageBoxButtons.OK, MessageBoxIcon.Error); return false; }
+        }
+
+        // Direkt startbar: hat Schritte, jeder (nicht leere) Schritt hat einen Raum, den es im Plan gibt
+        public static bool Ready(Package p, IDataStore store)
+        {
+            if (p.Steps.Count == 0) return false;
+            List<string> names = new List<string>();
+            foreach (RowInfo r in store.GetRows()) names.Add(r.Name);
+            foreach (PackageStep s in p.Steps) if (!s.IsEmpty && !names.Contains(s.Row)) return false;
+            return true;
         }
 
 #if TESTHOOKS

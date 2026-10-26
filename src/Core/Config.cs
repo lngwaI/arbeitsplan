@@ -8,7 +8,7 @@ namespace Arbeitsplan.Core
     public class AppConfig
     {
         public string DataFolder = "", BackupFolder = "", PackageFolder = "", CachePath = "";
-        public string Note;                         // Hinweis fuer den Nutzer (z. B. Ausweichordner), sonst null
+        public string Note;                         // Hinweis fuer den Nutzer (z. B. ungueltiger Datenordner), sonst null
         public bool ReadOnly, Pilot;
         public List<string> Admins = new List<string>();
         public List<string> ReadOnlyPatterns = new List<string>();   // NurLesenFuer=: Windows-Logins oder Rechnernamen (Platzhalter *), die nur ansehen

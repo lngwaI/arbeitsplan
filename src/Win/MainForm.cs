@@ -160,8 +160,10 @@ namespace Arbeitsplan.Win
             file.DropDownItems.Add("Als Paket speichern (.apkg)…", null, delegate { ExportPackage(); }).Enabled = exp;
 
             ToolStripMenuItem pk = new ToolStripMenuItem("Pakete");
-            pk.DropDownItems.Add("Paket-Editor…", null, delegate { OpenPackageEditor(null); });
-            pk.DropDownItems.Add("Paket aus Datei importieren…", null, delegate { ImportPackageFile(); });
+            pk.DropDownItems.Add("Kampagne starten…", null, delegate { StartCampaignFromFile(); }).Enabled = me.Has(Perm.ImportPackage);
+            pk.DropDownItems.Add(new ToolStripSeparator());
+            pk.DropDownItems.Add("Neues Paket anlegen…", null, delegate { OpenPackageEditor(null); });
+            pk.DropDownItems.Add("Paket öffnen und bearbeiten…", null, delegate { ImportPackageFile(); });
             pk.Enabled = pkg;
 
             ToolStripMenuItem set = new ToolStripMenuItem("Einstellungen");

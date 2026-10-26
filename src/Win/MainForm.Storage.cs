@@ -12,7 +12,7 @@ namespace Arbeitsplan.Win
     {
         bool offlineStart;
 
-        // Meldung nach dem Start (Datenordner nicht erreichbar, Ausweichordner …), sonst null
+        // Meldung nach dem Start (OFFLINE: letzter Stand dieses PCs …), sonst null
         public string StartMessage
         {
             get

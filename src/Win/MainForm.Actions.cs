@@ -193,6 +193,20 @@ namespace Arbeitsplan.Win
             }
         }
 
+        // Pakete > Kampagne starten…: Produkt-Paket waehlen, gleich Startdatum/Laeufe festlegen (ohne Editor).
+        // Unvollstaendige Pakete (Raum fehlt/unbekannt) oder reine Wochen-Exporte oeffnen im Editor mit Pruefhinweisen.
+        void StartCampaignFromFile()
+        {
+            if (!EndEdit(true)) return;
+            string f = PackagePicker.Pick(this, PackageFolder, me.Has(Perm.PackageAdmin));
+            if (f == null) return;
+            Package p;
+            try { p = Package.Load(f); }
+            catch (Exception ex) { MessageBox.Show("Paket konnte nicht gelesen werden.\n" + ex.Message, "Paket", MessageBoxButtons.OK, MessageBoxIcon.Error); return; }
+            if (!PackageForm.Ready(p, store)) { OpenPackageEditor(p); return; }
+            if (PackageForm.StartCampaign(this, p, store, start, me)) Rebuild(false);
+        }
+
         void ImportPackageFile()
         {
             string f = PackagePicker.Pick(this, PackageFolder, me.Has(Perm.PackageAdmin));
