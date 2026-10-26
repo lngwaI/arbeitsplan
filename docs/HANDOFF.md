@@ -21,3 +21,6 @@ Jeder Eintrag beginnt mit `## JJJJ-MM-TT HH:MM – <Label>`.
 
 ## 2026-10-26 20:40 – GMX / Haupt-Account
 - Schlüsseldatei-Umbau auf main. Lokal blockt Smart App Control (Status erzwingen, bewusst nicht abgeschaltet) jede frisch gebaute exe; Tests laufen stattdessen im GitHub-Workflow `.github/workflows/selftest.yml` (Push = Build + `--selftest`, Ergebnis grün/rot in Actions).
+
+## 2026-10-26 21:50 – GMX / Haupt-Account
+- Verteilung umgestellt: make_dist.cmd baut dist/Arbeitsplan/{Programm,daten}; exe allein lauffähig, Datenordner automatisch; Workflow lädt das Paket als Artefakt Arbeitsplan-Release (GitHub Actions, Login nötig). Pakete-Ordner und APBAK2 sind auf main.
