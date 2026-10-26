@@ -58,6 +58,8 @@ namespace Arbeitsplan.Win
             bool okRO = r.ReadOnly && !r.Offline && r.Get(day, row.Id).Content == "Von A geändert" && roThrows;
 
             string dirM = Path.Combine(root, "manipuliert"); Directory.CreateDirectory(dirM);
+            string keyFile = Path.Combine(dir, FileStore.KeyFileName);
+            File.Copy(keyFile, Path.Combine(dirM, FileStore.KeyFileName));
             raw[raw.Length / 2] ^= 0x20; File.WriteAllBytes(Path.Combine(dirM, FileStore.FileName), raw);
             FileStore m1 = new FileStore(dirM, false, cA);   // mit lokalem Stand (Cache von A)
             bool okTamper = m1.Offline && m1.ReadOnly && m1.Problem != null && m1.Problem.Contains("nicht gelesen") && m1.Get(day, row.Id) != null && m1.Get(day, row.Id).Content == "Von A geändert";
@@ -73,7 +75,7 @@ namespace Arbeitsplan.Win
             FileStore m3 = new FileStore(Path.Combine(blocker, "daten"), false, none);   // Ordner nicht anlegbar = nicht erreichbar
             bool okOffline = m3.Offline && m3.Problem.Contains("nicht erreichbar") && !m3.Refresh() && m3.GetRows().Count == 12;
 
-            File.Copy(file, fF, true);   // Ordner wieder erreichbar/gueltig
+            File.Copy(file, fF, true); File.Copy(keyFile, Path.Combine(dirF, FileStore.KeyFileName));   // Ordner wieder erreichbar/gueltig
             bool okBack = m2.Refresh() && !m2.Offline && !m2.ReadOnly && m2.Get(day, row.Id).Content == "Von A geändert";
 
             // Zwei PCs, B speichert direkt nach A mit altem Stand; Dateizeit wie bei veraltetem SMB-Cache zurueckgesetzt
@@ -114,17 +116,51 @@ namespace Arbeitsplan.Win
             UserDb noAdm = UserDb.Default(), withAdm = UserDb.Default(); withAdm.Add("", "", "chef", "Admin");
             bool okIni = ac.IsAdmin("kopie", noAdm) && !ac.IsAdmin("kopie", withAdm) && !ac.IsAdmin("andere", noAdm);
 
-            // Release-Datei im Test-Build: nicht lesbar -> OFFLINE, kein Schreiben, Datei unveraendert (auch nach Refresh)
-            string dirR = Path.Combine(root, "release"), fR = Path.Combine(dirR, FileStore.FileName); Directory.CreateDirectory(dirR);
-            byte[] rel = FileStore.EncodeAsRelease(new FileStore(dir, false, null).Snapshot()); File.WriteAllBytes(fR, rel);
-            FileStore rs = new FileStore(dirR, false, null);   // ohne lokalen Stand ("none" hat m2 inzwischen als Cache geschrieben)
+            // Schluesseldatei: Erststart erzeugt sie (versteckt), Neustart liest dieselbe
+            string keyText = File.ReadAllText(keyFile).Trim();
+            bool okKey = File.Exists(keyFile) && (File.GetAttributes(keyFile) & FileAttributes.Hidden) != 0 && Convert.FromBase64String(keyText).Length == 32
+                && File.ReadAllText(keyFile).Trim() == keyText && !b.Offline && b.Get(day, row.Id) != null;
+            // apdb ohne key -> OFFLINE, apdb unveraendert, kein neuer Schluessel (auch nicht nach Refresh/Speichern)
+            string dirK = Path.Combine(root, "ohnekey"), fK = Path.Combine(dirK, FileStore.FileName); Directory.CreateDirectory(dirK);
+            File.Copy(file, fK);
+            byte[] kBytes = File.ReadAllBytes(fK);
+            FileStore ks = new FileStore(dirK, false, null);
+            bool ksThrows = false;
+            try { ks.Save(day, row.Id, new Entry()); } catch (IOException) { ksThrows = true; }
+            byte[] kNow = File.ReadAllBytes(fK);
+            bool okNoKey = ks.Offline && ks.ReadOnly && ks.Problem.Contains("Schlüsseldatei fehlt") && ksThrows && !ks.Refresh() && ks.Offline
+                && !File.Exists(Path.Combine(dirK, FileStore.KeyFileName)) && kNow.Length == kBytes.Length && IndexOf(kNow, kBytes) == 0 && !File.Exists(fK + ".bak1");
+            // falscher Schluessel -> OFFLINE, apdb unveraendert; richtiger Schluessel zurueck -> Refresh liest wieder
+            string dirR = Path.Combine(root, "falsch"), fR = Path.Combine(dirR, FileStore.FileName), kR = Path.Combine(dirR, FileStore.KeyFileName); Directory.CreateDirectory(dirR);
+            File.Copy(file, fR);
+            byte[] other = new byte[32]; other[0] = 1; other[31] = 9;
+            File.WriteAllText(kR, Convert.ToBase64String(other));
+            byte[] rel = File.ReadAllBytes(fR);
+            FileStore rs = new FileStore(dirR, false, null);
             bool rsThrows = false;
             try { rs.Save(day, row.Id, new Entry()); } catch (IOException) { rsThrows = true; }
             byte[] relNow = File.ReadAllBytes(fR);
             bool okRel = rs.Offline && rs.ReadOnly && rs.Get(day, row.Id) == null && rsThrows && !rs.Refresh() && rs.Offline
                 && relNow.Length == rel.Length && IndexOf(relNow, rel) == 0 && !File.Exists(fR + ".bak1");
+            File.WriteAllText(kR, "kein Base64 !!");
+            okRel &= new FileStore(dirR, false, null).Offline;   // unlesbare Schluesseldatei
+            okRel &= File.ReadAllText(kR) == "kein Base64 !!";
 
-            sb.AppendLine("Nutzer/Rechte: parallel zusammengeführt=" + Ok(okMerge) + " Admins= nur Ersteinrichtung=" + Ok(okIni) + " | Release-Datei im Test-Build gesperrt=" + Ok(okRel));
+            // Offline-Cache: nicht mit dem Datenschluessel lesbar, eigener DPAPI-Schluessel; abgelaufen -> ignoriert und geloescht
+            bool cacheOwn = File.Exists(cA) && File.Exists(Path.Combine(root, "cache.key"));
+            bool cacheBad = false;
+            try { Protected.UnprotectBytes(File.ReadAllBytes(cA), keyText, FileStore.Rounds); } catch (System.Security.Cryptography.CryptographicException) { cacheBad = true; }
+            cacheBad &= Protected.UnprotectBytes(File.ReadAllBytes(file), keyText, FileStore.Rounds).Length > 0;   // Gegenprobe: die apdb ist mit dem Datenschluessel lesbar
+            FileStore cf = new FileStore(dirM, false, cA);
+            bool okCache = cacheOwn && cacheBad && cf.Offline && cf.Get(day, row.Id) != null;
+            File.SetLastWriteTime(cA, DateTime.Now.AddDays(-8));
+            FileStore cx = new FileStore(dirM, false, cA);
+            okCache &= cx.Offline && cx.Get(day, row.Id) == null && !File.Exists(cA);
+            FileStore cz = new FileStore(dir, false, cA, 0);   // CacheTage=0: kein Cache
+            okCache &= !cz.Offline && !File.Exists(cA);
+
+            sb.AppendLine("Nutzer/Rechte: parallel zusammengeführt=" + Ok(okMerge) + " Admins= nur Ersteinrichtung=" + Ok(okIni));
+            sb.AppendLine("Schlüssel: key-Datei erzeugt/gelesen=" + Ok(okKey) + " apdb ohne key->Offline=" + Ok(okNoKey) + " falsche/kaputte key->Offline=" + Ok(okRel) + " Cache eigener Schlüssel/abgelaufen=" + Ok(okCache));
             sb.AppendLine("Datendatei: Erststart=" + Ok(okInit) + " Neustart=" + Ok(okRound) + " kein Klartext=" + Ok(okCipher) + " Refresh=" + Ok(okSync) + " Konflikt=" + Ok(okConflict)
                 + " Historie=" + Ok(okAudit) + " bak=" + Ok(okBak) + " (" + new FileInfo(file).Length + " Byte, Speichern+Protokoll " + ms.ToString("0") + " ms)");
             sb.AppendLine("Datendatei: NurLesen=" + Ok(okRO) + " manipuliert->Cache=" + Ok(okTamper) + " fremd->leer=" + Ok(okForeign) + " unerreichbar=" + Ok(okOffline)

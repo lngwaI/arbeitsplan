@@ -83,7 +83,7 @@ namespace Arbeitsplan.Win
             }
             else
             {
-                fstore = new FileStore(cfg.DataFolder, cfg.ReadOnly, cfg.CachePath);
+                fstore = new FileStore(cfg.DataFolder, cfg.ReadOnly, cfg.CachePath, cfg.CacheDays);
                 store = fstore; users = fstore.Users; locks = new FileLockService(cfg.DataFolder);
                 systemPc = fstore.ReadOnly;
             }

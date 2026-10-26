@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.IO.Compression;
-using System.Security.Cryptography;
+using System.Security.Cryptography;   // ProtectedData: System.Security.dll
 using System.Text;
 using System.Threading;
 using System.Xml;
@@ -12,25 +12,22 @@ namespace Arbeitsplan.Core
 {
     // Datenspeicher als EINE verschluesselte Datei "arbeitsplan.apdb" im Datenordner (Pilot ohne Server).
     // Inhalt: GZip(XML wie die Sicherung + Nutzer/Rechte), verschluesselt und signiert mit Protected (AES-256 + HMAC-SHA256).
-    // Schutz gegen Neugier (Texteditor, Excel) und unbemerkte Aenderung. KEIN Schutz gegen gezielten Angriff:
-    // der Schluessel steckt verschleiert im Programm (und im Quellcode). Echter Schutz erst mit Server/Datenbank.
+    // Schluessel: 32 Zufallsbytes (Base64) in der versteckten Datei "arbeitsplan.key" im Datenordner (nicht in der exe).
+    // Schutz hier = Ordnerrechte; ohne die Schluesseldatei sind die Daten unlesbar (Kopie getrennt aufbewahren).
     // Mehrbenutzer (gemeinsamer Ordner): jedes Schreiben unter einer Sperrdatei: neu einlesen -> Aenderung anwenden
     // (Versionspruefung je Block) -> .tmp schreiben -> atomar ersetzen; die letzten 3 Staende bleiben als .bak1..3.
     public class FileStore : IDataStore
     {
         public const string FileName = "arbeitsplan.apdb";
-        const int Rounds = 2000;   // Schluessel ist bereits lang und zufaellig; viele PBKDF2-Runden braechten nur Wartezeit
-        static readonly byte[] K = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
-        static string ReleaseKey() { char[] c = new char[K.Length]; for (int i = 0; i < K.Length; i++) c[i] = (char)(K[i] ^ ((0x5C + i * 7) & 0xFF)); return new string(c); }
-#if TESTHOOKS
-        // Test-Build: eigener Schluessel, damit er echte Release-Daten nicht oeffnet (und umgekehrt) -> fremde Datei = OFFLINE, nie ueberschrieben
-        static string Key() { return ReleaseKey() + "|TESTHOOKS"; }
-        public static byte[] EncodeAsRelease(StoreData d) { return Encode(d, ReleaseKey()); }   // nur Selbsttest
-#else
-        static string Key() { return ReleaseKey(); }
-#endif
+        public const string KeyFileName = "arbeitsplan.key";
+        internal const int Rounds = 2000;   // Schluessel ist bereits lang und zufaellig; viele PBKDF2-Runden braechten nur Wartezeit
 
-        readonly string folder, path, cachePath;
+        // Schluessel fehlt/ist unlesbar: OFFLINE mit eigener Meldung; die Datendatei wird nie angefasst
+        class KeyFileException : Exception { public KeyFileException(string m) : base(m) { } }
+
+        readonly string folder, path, cachePath, keyPath;
+        readonly int cacheDays;
+        string dataKey;   // Base64-Text aus arbeitsplan.key = Passphrase
         readonly bool readOnlyCfg;
         MemoryStore mem = new MemoryStore();
         UserDb users = UserDb.Default();
@@ -47,10 +44,10 @@ namespace Arbeitsplan.Core
         public UserDb Users { get { return users; } }
 
         // Wirft nie: Fehler fuehren zu Offline (letzter lokaler Stand aus cachePath oder leer, nur Lesen) + Problem.
-        public FileStore(string folder, bool readOnly, string cachePath)
+        public FileStore(string folder, bool readOnly, string cachePath, int cacheDays = 7)
         {
-            this.folder = folder; readOnlyCfg = readOnly; this.cachePath = cachePath;
-            path = Path.Combine(folder, FileName);
+            this.folder = folder; readOnlyCfg = readOnly; this.cachePath = cachePath; this.cacheDays = cacheDays;
+            path = Path.Combine(folder, FileName); keyPath = Path.Combine(folder, KeyFileName);
             try { Open(); }
             catch (Exception ex) { GoOffline(ex); }
             seenGen = Generation;
@@ -66,17 +63,52 @@ namespace Arbeitsplan.Core
             WithLock(delegate { if (File.Exists(path)) Load(); else WriteFile(); });   // Erststart: Standardstruktur, keine Testdaten
         }
 
+        // Schluessel lesen; nur beim Erststart (weder apdb noch key vorhanden) neu erzeugen, sonst nie.
+        void EnsureKey()
+        {
+            if (dataKey != null) return;
+            if (!File.Exists(keyPath))
+            {
+                if (File.Exists(path) || readOnlyCfg) throw new KeyFileException("Schlüsseldatei fehlt (" + KeyFileName + "). Ohne sie sind die Daten nicht lesbar. Kopie der Schlüsseldatei in den Datenordner zurücklegen.");
+                byte[] k = new byte[32];
+                using (RandomNumberGenerator g = new RNGCryptoServiceProvider()) g.GetBytes(k);
+                string text = Convert.ToBase64String(k);
+                try
+                {
+                    using (FileStream fs = new FileStream(keyPath, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+                    { byte[] t = Encoding.ASCII.GetBytes(text); fs.Write(t, 0, t.Length); }
+                    File.SetAttributes(keyPath, File.GetAttributes(keyPath) | FileAttributes.Hidden);
+                }
+                catch (IOException) { if (!File.Exists(keyPath)) throw; }   // anderer PC war schneller: dessen Schluessel lesen
+                if (File.Exists(keyPath)) { ReadKey(); return; }
+                dataKey = text; return;
+            }
+            ReadKey();
+        }
+
+        void ReadKey()
+        {
+            string t;
+            try { t = File.ReadAllText(keyPath, Encoding.ASCII).Trim(); }
+            catch (Exception ex) { throw new KeyFileException("Schlüsseldatei unlesbar (" + KeyFileName + "): " + ex.Message); }
+            bool ok = false;
+            try { ok = Convert.FromBase64String(t).Length == 32; } catch (FormatException) { }
+            if (!ok) throw new KeyFileException("Schlüsseldatei unlesbar oder beschädigt (" + KeyFileName + "). Kopie der Schlüsseldatei zurücklegen.");
+            dataKey = t;
+        }
+
         void GoOffline(Exception ex)
         {
             Offline = true;
             bool bad = ex is CryptographicException || ex is InvalidDataException || ex is XmlException || ex is FormatException;
-            Problem = (bad ? "Die Datendatei konnte nicht gelesen werden (beschädigt, verändert oder fehlend):\n" : "Der Datenordner ist nicht erreichbar:\n")
+            if (ex is KeyFileException) Problem = ex.Message + "\n" + folder;
+            else Problem = (bad ? "Die Datendatei konnte nicht gelesen werden (beschädigt, verändert oder fehlend):\n" : "Der Datenordner ist nicht erreichbar:\n")
                 + folder + "\n(" + ex.Message + ")";
             try
             {
-                if (!string.IsNullOrEmpty(cachePath) && File.Exists(cachePath))
+                if (UseCache() && File.Exists(cachePath))
                 {
-                    Apply(Decode(File.ReadAllBytes(cachePath)));
+                    Apply(Decode(File.ReadAllBytes(cachePath), CacheKey(false)));
                     Problem += "\n\nAngezeigt wird der letzte Stand auf diesem PC vom " + File.GetLastWriteTime(cachePath).ToString("dd.MM.yyyy HH:mm", CultureInfo.InvariantCulture) + " (nur Lesen).";
                     return;
                 }
@@ -85,15 +117,51 @@ namespace Arbeitsplan.Core
             Problem += "\n\nKein lokaler Stand vorhanden: leere Ansicht, nur Lesen.";
         }
 
+        // ---------- Offline-Cache (eigener, per DPAPI geschuetzter Schluessel; nie der Datenschluessel) ----------
+
+        // Cache nur, wenn erlaubt und nicht abgelaufen; ein abgelaufener Cache wird geloescht.
+        bool UseCache()
+        {
+            if (string.IsNullOrEmpty(cachePath)) return false;
+            try
+            {
+                if (!File.Exists(cachePath)) return false;
+                if (cacheDays <= 0 || File.GetLastWriteTime(cachePath) < DateTime.Now.AddDays(-cacheDays)) { File.Delete(cachePath); return false; }
+                return true;
+            }
+            catch (Exception) { return false; }
+        }
+
+        // DPAPI-geschuetzter Zufallsschluessel in cache.key neben dem Cache; null bei jedem Fehler.
+        string CacheKey(bool create)
+        {
+            try
+            {
+                string kp = Path.Combine(Path.GetDirectoryName(cachePath), "cache.key");
+                if (File.Exists(kp))
+                    return Convert.ToBase64String(ProtectedData.Unprotect(File.ReadAllBytes(kp), null, DataProtectionScope.CurrentUser));
+                if (!create) return null;
+                byte[] k = new byte[32];
+                using (RandomNumberGenerator g = new RNGCryptoServiceProvider()) g.GetBytes(k);
+                Directory.CreateDirectory(Path.GetDirectoryName(kp));
+                File.WriteAllBytes(kp, ProtectedData.Protect(k, null, DataProtectionScope.CurrentUser));
+                return Convert.ToBase64String(k);
+            }
+            catch (Exception) { return null; }
+        }
+
         // ---------- Datei ----------
 
-        static StoreData Decode(byte[] blob)
+        static StoreData Decode(byte[] blob, string key)
         {
-            byte[] z = Protected.UnprotectBytes(blob, Key(), Rounds);
+            if (key == null) throw new CryptographicException("Kein Schlüssel.");
+            byte[] z = Protected.UnprotectBytes(blob, key, Rounds);
             using (MemoryStream ms = Backup.Unzip(new MemoryStream(z))) return Backup.FromXml(ms);
         }
 
-        static byte[] Encode(StoreData d) { return Encode(d, Key()); }
+        StoreData Decode(byte[] blob) { EnsureKey(); return Decode(blob, dataKey); }
+
+        byte[] Encode(StoreData d) { EnsureKey(); return Encode(d, dataKey); }
         static byte[] Encode(StoreData d, string key)
         {
             using (MemoryStream ms = new MemoryStream())
@@ -120,7 +188,7 @@ namespace Arbeitsplan.Core
             {
                 Apply(Decode(b));
                 blob = b; hash = h; Generation++;
-                WriteCache(b);
+                WriteCache();
             }
             stamp = t; size = len;
         }
@@ -167,13 +235,20 @@ namespace Arbeitsplan.Core
             else File.Move(tmp, path);
             FileInfo fi = new FileInfo(path); stamp = fi.LastWriteTimeUtc; size = fi.Length;
             blob = nb; hash = Sha(nb);
-            WriteCache(nb);
+            WriteCache();
         }
 
-        void WriteCache(byte[] blob)
+        void WriteCache()
         {
-            if (string.IsNullOrEmpty(cachePath)) return;
-            try { Directory.CreateDirectory(Path.GetDirectoryName(cachePath)); File.WriteAllBytes(cachePath, blob); }
+            if (string.IsNullOrEmpty(cachePath) || cacheDays <= 0) return;
+            try
+            {
+                string ck = CacheKey(true);
+                if (ck == null) return;   // DPAPI nicht verfuegbar: kein Cache
+                StoreData d = mem.Snapshot(false); d.Users = users;
+                Directory.CreateDirectory(Path.GetDirectoryName(cachePath));
+                File.WriteAllBytes(cachePath, Encode(d, ck));
+            }
             catch (Exception) { }   // Cache ist nur Komfort
         }
 

@@ -37,11 +37,15 @@ DATENSCHUTZ / SICHERHEIT (ehrlich)
 - Die Daten liegen in EINER verschlüsselten Datei (daten\arbeitsplan.apdb). Sie lässt sich nicht mit
   Editor oder Excel lesen und nicht unbemerkt ändern (Änderung = Datei wird abgelehnt).
 - Das ist ein Schutz gegen Neugier und versehentliches Ändern, KEIN Schutz gegen einen gezielten Angriff:
-  der Schlüssel steckt im Programm. Wer Schreibrecht auf den Datenordner hat, kann die Datei auch löschen.
+  der Schlüssel liegt als versteckte Datei arbeitsplan.key im Datenordner (nicht im Programm). Wer Zugriff auf
+  den Datenordner hat, kann Daten und Schlüssel lesen oder löschen: Ordnerrechte entsprechend setzen.
+  Ohne arbeitsplan.key sind die Daten UNLESBAR (Programm zeigt OFFLINE, nichts wird überschrieben):
+  eine Kopie der Schlüsseldatei getrennt vom Datenordner aufbewahren, nie neu erzeugen lassen.
   Echter Schutz (Rechte, Audit-Trail im GMP-Sinn) erst mit Server/Datenbank der IT.
 - Die tägliche Sicherung (sicherung\*.apbak) ist gepackt und gegen Veränderung geprüft, aber NICHT verschlüsselt.
 - Wer bearbeitet, steht kurz als Datei in daten\sperren\ (nur Name, verfällt nach 30 Minuten).
-- Lokale Kopie des letzten Stands: %LOCALAPPDATA%\Arbeitsplan\cache.apdb (für OFFLINE-Anzeige).
+- Lokale Kopie des letzten Stands: %LOCALAPPDATA%\Arbeitsplan\cache.apdb (für OFFLINE-Anzeige), mit eigenem,
+  nur für diesen Windows-Nutzer lesbaren Schlüssel (cache.key). Gültig CacheTage=7 Tage (0 = keine Kopie), danach gelöscht.
 
 WENN ETWAS NICHT GEHT
 - Titel zeigt "OFFLINE": Datenordner nicht erreichbar oder Datei beschädigt. Es wird der letzte Stand

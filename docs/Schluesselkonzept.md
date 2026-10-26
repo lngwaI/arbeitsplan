@@ -12,7 +12,7 @@ Ziel: Keine Geheimnisse im Repo und nicht in der exe. Eine kopierte exe oder Dat
 | Punkt | Ohne IT | IT sagt nur "passt" |
 |---|---|---|
 | Schlüsseldatei erzeugen, Verschlüsselung, Umschlüsseln, Menü "Schlüssel erneuern" | ja (in der App) | – |
-| Unterordner `schluessel` mit engeren Rechten (nur Lesen für Nutzer, Schreiben nur Admin) | ja, wenn Sie am Laufwerk Rechte setzen dürfen (Rechtsklick → Sicherheit) | sonst Bitte an IT |
+| Engere Ordnerrechte (z. B. kein Löschen in `daten`) | ja, wenn Sie am Laufwerk Rechte setzen dürfen (Rechtsklick → Sicherheit) | sonst Bitte an IT |
 | Laufwerk nur für berechtigte Gruppe sichtbar | – | bestätigt, dass die Freigabe nur die Abteilung enthält |
 | Zugriff von außen (Handy/Home-PC) gesperrt | – | bestätigt: Laufwerk/Server nur im Firmennetz (kein VPN-Zugang oder VPN ausdrücklich gewollt) |
 
@@ -31,7 +31,7 @@ Ziel: Keine Geheimnisse im Repo und nicht in der exe. Eine kopierte exe oder Dat
 3. Cache per DPAPI + Ablauf; ini `CacheTage=`, optional `Domaene=`.
 4. Menü "Schlüssel erneuern" (Admin): alles neu verschlüsseln, vorher automatische Sicherung.
 5. Test-Build: eigener, nicht eingecheckter Schlüssel (`%LOCALAPPDATA%`, `.gitignore`); Selbsttests erzeugen ihren Schlüssel zur Laufzeit.
-6. Release-Build enthält keinen Schlüssel mehr; Verteilordner enthält ihn nicht (nur `daten\schluessel` im Produktivordner).
+6. Release-Build enthält keinen Schlüssel mehr; Verteilordner enthält ihn nicht (nur `daten\arbeitsplan.key` im Produktivordner).
 7. Vorhandene Pilot-Daten: einmalig umschlüsseln (braucht den alten Schlüssel) oder neu beginnen.
 
 ## Entscheidungen des Nutzers (2026-10-26)
@@ -39,18 +39,14 @@ Ziel: Keine Geheimnisse im Repo und nicht in der exe. Eine kopierte exe oder Dat
 - Nutzer kann am Laufwerk keine Rechte setzen. Ordnerrechte (kopieren ja, verschieben/löschen nein) nur über IT; App-seitiger Ersatz: `.bak1..3`, Sicherungen, Änderungsprotokoll.
 - Pfade: `Datenordner=` immer als UNC (z. B. Server und Freigabe als Doppel-Backslash-Pfad), nie Laufwerksbuchstabe; gleiche ini für alle PCs.
 
-## Ordnerstruktur auf dem Laufwerk (Vorschlag)
-Laufwerk: `...\Formulierung\Arbeitsplan\` (Name/Server variabel, siehe ini)
+## Ordnerstruktur auf dem Laufwerk (Stand 2026-10-26, nach Rückmeldung)
+Nutzer kopieren höchstens `Programm` (exe + ini). Alles andere liegt in **einem** Ordner `daten` auf dem Laufwerk:
 ```
-Arbeitsplan\
-  Programm\    Arbeitsplan.exe, Arbeitsplan.ini, statuscolors.ini, LIESMICH.txt (alle starten von hier)
-  daten\       arbeitsplan.apdb, .bak1..3, sperren\
-  schluessel\  arbeitsplan.key
-  Pakete\      .apkg (gemeinsam)
-  sicherung\   .apbak (nur Admin)
+...\Formulierung\Arbeitsplan\
+  Programm\   Arbeitsplan.exe, Arbeitsplan.ini, statuscolors.ini, LIESMICH.txt   (starten oder lokal kopieren)
+  daten\      arbeitsplan.apdb, arbeitsplan.key (versteckt), .bak1..3, sperren\, Pakete\, sicherung\
 ```
-- Nichts muss kopiert werden: Nutzer starten die exe direkt vom Laufwerk. Ohne Zugriff aufs Laufwerk startet sie zwar, zeigt aber nichts.
-- Alle Pfade relativ zur exe (`..\daten`, `..\schluessel`, `..\Pakete`, `..\sicherung`); keine absoluten Pfade und keine Laufwerksbuchstaben in der ini nötig. Die ini kann sie bei Bedarf überschreiben.
-- Rechte-Wunsch an die IT (je Ordner einmal): Programm = nur Lesen; daten, Pakete = Lesen+Schreiben; schluessel = nur Lesen (Schreiben nur Admin); sicherung = nur Admin/PackageAdmin. Ohne diese Rechte funktioniert alles trotzdem, nur der Schutz ist schwächer.
-- Falls ein PC keine exe von der Freigabe starten darf: nur den Ordner `Programm` lokal kopieren und in der ini den Pfad zum Laufwerk eintragen.
-
+- Kein eigener sichtbarer Ordner `schluessel`: die Schlüsseldatei liegt versteckt neben der apdb. Wer `daten` lesen darf, kann sie lesen; das ist unvermeidbar (die exe muss sie ja lesen) und wird über Ordnerrechte und Protokoll abgesichert.
+- `Pakete` und `sicherung` sind Unterordner von `daten`: bleiben auf dem Laufwerk.
+- Lokal kopierte `Programm`-Ordner brauchen in der ini nur `Datenordner=<Pfad zum Laufwerk>`. Geheim ist darin nichts.
+- Rechte-Wunsch an die IT (einmalig, optional): `Programm` nur Lesen; `daten` Lesen+Schreiben (ideal: kein Löschen für Nutzer in `daten`, `sicherung` nur Admin). Ohne diese Rechte läuft alles, nur der Schutz ist schwächer.

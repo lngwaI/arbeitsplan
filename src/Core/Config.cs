@@ -12,6 +12,7 @@ namespace Arbeitsplan.Core
         public bool ReadOnly, Pilot;
         public List<string> Admins = new List<string>();
         public int PollSeconds = 30;
+        public int CacheDays = 7;                   // Offline-Cache auf diesem PC; 0 = kein Cache
 
         // Admins= wirkt nur bei Ersteinrichtung: solange die Nutzerliste der Datendatei noch keinen Admin hat.
         // Danach zaehlen nur die gespeicherten Rechte (eine Kopie mit eigener ini verleiht keine Rechte).
@@ -46,6 +47,7 @@ namespace Arbeitsplan.Core
             c.Pilot = v.TryGetValue("Pilot", out s) && s == "1";
             int n;
             if (v.TryGetValue("Abfrage", out s) && int.TryParse(s, out n)) c.PollSeconds = Math.Max(5, Math.Min(3600, n));
+            if (v.TryGetValue("CacheTage", out s) && int.TryParse(s, out n)) c.CacheDays = Math.Max(0, Math.Min(365, n));
             if (v.TryGetValue("Admins", out s))
                 foreach (string a in s.Split(',', ';')) if (a.Trim().Length > 0) c.Admins.Add(a.Trim());
             c.CachePath = Path.Combine(LocalDir, "cache.apdb");
