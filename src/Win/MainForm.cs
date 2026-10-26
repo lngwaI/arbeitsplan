@@ -52,7 +52,7 @@ namespace Arbeitsplan.Win
 
         DateTime start;
         CellData editCell;
-        bool loadingEditor, inResize, syncingFormat;
+        bool loadingEditor, inResize, syncingFormat, systemPc;
         int hitPos = -1;
 
         public MainForm(string login, bool failSaves)
@@ -72,7 +72,7 @@ namespace Arbeitsplan.Win
 
             start = MondayOf(DateTime.Today);
             MemoryStore ms = MemoryStore.Sample(start);
-            ms.FailSaves = failSaves;
+            ms.FailSaves = failSaves; systemPc = failSaves;
             store = ms;
 #if TESTHOOKS
             locks.Acquire(start.AddDays(1), 1, "Paula Werk");   // Mock: Dienstag, Zeile 1 ist "in Bearbeitung"
@@ -201,6 +201,7 @@ namespace Arbeitsplan.Win
             userLabel.AutoSize = true;
             userLabel.Location = new Point(10, 16);
             userLabel.Text = "Angemeldet: " + me.Display + " (" + (users.PackageOf(me) != null ? users.PackageOf(me).Name : "benutzerdefiniert") + ")";
+            Text += " - Nutzer: " + me.Display + " (" + (users.PackageOf(me) != null ? users.PackageOf(me).Name : "benutzerdefiniert") + ")" + (systemPc ? " - System-PC, kein Speichern" : "");
             bar.Controls.Add(nav); bar.Controls.Add(userLabel);
             bar.Resize += delegate { CenterBar(); };
             Shown += delegate { CenterBar(); };
@@ -655,6 +656,9 @@ namespace Arbeitsplan.Win
         }
 
         bool IsDirty(CellData c) { return EntryDirty(c, WorkEntry(c)); }
+
+        // Fenster-Icon orange, solange der Block echte Aenderungen hat (+1/-1 = unveraendert)
+        public bool HasUnsavedChanges { get { return editCell != null && IsDirty(editCell); } }
 
         // false = Speichern fehlgeschlagen; Block bleibt im Bearbeitungsmodus, Text bleibt erhalten.
         bool EndEdit(bool save)

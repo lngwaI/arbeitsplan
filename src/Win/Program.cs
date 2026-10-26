@@ -45,12 +45,36 @@ namespace Arbeitsplan.Win
         // Fenster-Icon fuer alle Formulare (Hauptfenster, Dialoge) aus der exe
         static void InstallIcon()
         {
-            Icon ico;
-            try { ico = Icon.ExtractAssociatedIcon(Application.ExecutablePath); } catch { return; }
-            if (ico == null) return;
+            Icon green, orange;
+            try { green = Icon.ExtractAssociatedIcon(Application.ExecutablePath); orange = Recolor(green); } catch { return; }
+            if (green == null) return;
             Timer t = new Timer(); t.Interval = 200;
-            t.Tick += delegate { foreach (Form f in Application.OpenForms) if (!(f is Splash) && f.Icon != ico) f.Icon = ico; };
+            t.Tick += delegate
+            {
+                foreach (Form f in Application.OpenForms)
+                {
+                    if (f is Splash) continue;
+                    MainForm mf = f as MainForm;
+                    Icon want = mf != null && mf.HasUnsavedChanges && orange != null ? orange : green;
+                    if (f.Icon != want) f.Icon = want;
+                }
+            };
             t.Start();
+        }
+
+        // Orange Variante: gruenen Haken umfaerben (orange = ungespeicherte Aenderungen)
+        static Icon Recolor(Icon src)
+        {
+            using (Bitmap b = src.ToBitmap())
+            {
+                for (int y = 0; y < b.Height; y++)
+                    for (int x = 0; x < b.Width; x++)
+                    {
+                        Color c = b.GetPixel(x, y);
+                        if (c.A > 0 && c.G > c.R + 30 && c.G > c.B + 30) b.SetPixel(x, y, Color.FromArgb(c.A, Math.Min(255, c.G + 40), (int)(c.G * 0.6), c.B / 2));
+                    }
+                return Icon.FromHandle(b.GetHicon());
+            }
         }
         // Aufruf: Arbeitsplan.exe [--theme xp|win7|win10] [--user <login>] [--nosave] [--4x3 | --size BxH]
         //   Test:  --shot <png> [--size BxH] [--edit spalte,zeile]  (rendert die Ansicht als Bild und beendet)
