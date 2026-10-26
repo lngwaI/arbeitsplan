@@ -19,7 +19,8 @@ namespace Arbeitsplan.Win
         readonly List<PackageStep> steps = new List<PackageStep>();
         List<PackageBlock> blocks = new List<PackageBlock>();
 
-        readonly TextBox tName = new TextBox();
+        readonly TextBox tName = new TextBox(), tProduct = new TextBox(), tSubNos = new TextBox();
+        readonly ComboBox cbKind = new ComboBox();
         readonly DateTimePicker dtStart = new DateTimePicker();
         readonly ComboBox cbMode = new ComboBox();
         readonly ListBox lbSteps = new ListBox();
@@ -52,6 +53,8 @@ namespace Arbeitsplan.Win
             Add(L("Übernehmen:", 550, 14)); cbMode.DropDownStyle = ComboBoxStyle.DropDownList; cbMode.SetBounds(632, 10, 260, 22); Controls.Add(cbMode);
             cbMode.Items.AddRange(new object[] { "Nur leere Blöcke füllen", "Vorhandenes überschreiben", "An vorhandenen Text anhängen" });
             cbMode.SelectedIndex = 0;
+            Add(L("Produktcode:", 910, 14)); tProduct.SetBounds(992, 10, 50, 22); tProduct.MaxLength = 4; Controls.Add(tProduct);
+            Add(L("(XXYY der Laufnummer)", 1048, 14));
             info.SetBounds(10, 38, 1170, 18); Controls.Add(info);
 
             // links: Ablauf
@@ -72,17 +75,23 @@ namespace Arbeitsplan.Win
             rowHint.Text = "Block weicht vom Standard ab (Sonderaktion)"; rowHint.ForeColor = Color.DarkOrange; rowHint.AutoSize = true; rowHint.Location = new Point(x + 625, 62); rowHint.Visible = false; Controls.Add(rowHint);
             Add(L("Wiederholen:", x, 96)); Num(nCount, x + 80, 92, 55, 1, 99); Controls.Add(nCount);
             Add(L("mal, alle", x + 142, 96)); Num(nInterval, x + 200, 92, 55, 1, 30); Controls.Add(nInterval);
-            Add(L("Tag(e), erste Nummer:", x + 262, 96)); Num(nStartNo, x + 402, 92, 55, 0, 999); Controls.Add(nStartNo);
-            Add(L("(z. B. 3 Läufe → Lauf 1, 2, 3 an aufeinanderfolgenden Tagen)", x + 466, 96));
+            Add(L("Tag(e), erste Nummer:", x + 262, 96)); Num(nStartNo, x + 402, 92, 60, 0, 9999); Controls.Add(nStartNo);
+            Add(L("Art:", x + 475, 96)); cbKind.DropDownStyle = ComboBoxStyle.DropDownList; cbKind.SetBounds(x + 505, 92, 230, 22); Controls.Add(cbKind);
+            cbKind.Items.AddRange(new object[] { "Schritt (Nummer 1, 2, 3 …)", "Hauptlauf (Laufnummer)", "Unterlauf (Splitten/Einfrieren)" });
+            Add(L("Unterlauf-Nr. je Lauf:", x, 130)); tSubNos.SetBounds(x + 140, 126, 300, 22); Controls.Add(tSubNos);
+            Add(L("Komma = nächster Lauf, mehrere mit \"/\"; 4 Ziffern = mit Produktcode", x + 450, 130));
 
-            Add(L("Equipment (Position – Gerät – Wechsel – Ausweich/Backup – Notiz):", x, 130));
-            equipPanel.SetBounds(x, 152, 895, 262); equipPanel.AutoScroll = true; equipPanel.BorderStyle = BorderStyle.FixedSingle; Controls.Add(equipPanel);
+            Add(L("Equipment (Position – Gerät – Wechsel – Ausweich/Backup – Notiz):", x, 158));
+            equipPanel.SetBounds(x, 178, 895, 236); equipPanel.AutoScroll = true; equipPanel.BorderStyle = BorderStyle.FixedSingle; Controls.Add(equipPanel);
             Button bPos = Btn("+ Position ▾", x, 420, 120, delegate { menuPos.Show(Control.MousePosition); });
             Controls.Add(bPos);
             Add(L("Notiz zum Schritt (optional):", x, 456)); tNote.SetBounds(x, 476, 895, 22); Controls.Add(tNote);
             Add(L("Vorschau – so erscheint es im Plan:", x, 508));
             tPreview.Multiline = true; tPreview.ReadOnly = true; tPreview.ScrollBars = ScrollBars.Vertical; tPreview.BackColor = Color.White; tPreview.SetBounds(x, 528, 895, 90); Controls.Add(tPreview);
-            Ui.SimpleMenu(tNote); Ui.SimpleMenu(tTitle);
+            Ui.SimpleMenu(tNote); Ui.SimpleMenu(tTitle); Ui.SimpleMenu(tSubNos); Ui.SimpleMenu(tProduct);
+            cbKind.SelectedIndexChanged += delegate { tSubNos.Enabled = cur != null && cbKind.SelectedIndex == 2; if (!loading && cur != null) { cur.Kind = (StepKind)cbKind.SelectedIndex; Changed(); } };
+            tSubNos.TextChanged += delegate { if (!loading && cur != null) { cur.SubNos = tSubNos.Text.Trim(); Changed(); } };
+            tProduct.TextChanged += delegate { if (!loading) { for (int i = 0; i < steps.Count; i++) lbSteps.Items[i] = Describe(steps[i]); UpdatePreview(); } };
 
             tTitle.TextChanged += delegate { if (!loading && cur != null) { cur.Title = tTitle.Text.Trim(); Changed(); } };
             cbRow.SelectedIndexChanged += delegate { if (!loading && cur != null) { cur.Row = cbRow.Text; Changed(); } };
@@ -152,6 +161,7 @@ namespace Arbeitsplan.Win
             }
             PackageStep s2 = new PackageStep();
             s2.Title = b.Name; s2.Source = b.Name; s2.Row = b.Row; s2.Text = b.Text; s2.Day = steps.Count == 0 ? 1 : NextDay();
+            if (b.Name == "Lauf") s2.Kind = StepKind.Run; else if (b.Name == "Splitten") s2.Kind = StepKind.SubRun;   // Vorbelegung, im Schritt aenderbar
             foreach (string sh in b.Positions) { EquipAssign a = new EquipAssign(); a.Short = sh; s2.Equipment.Add(a); }
             AddStep(s2);
         }
@@ -188,8 +198,10 @@ namespace Arbeitsplan.Win
         string Describe(PackageStep s)
         {
             string days = s.Count > 1 ? s.Day + "–" + (s.Day + (s.Count - 1) * s.Interval) : s.Day.ToString();
-            return "Tag " + days + " · " + (s.Row.Length > 0 ? s.Row : "?") + " · " + (s.Title.Length > 0 ? s.Title : "(ohne Titel)") + (s.Count > 1 ? " ×" + s.Count : "");
+            return "Tag " + days + " · " + (s.Row.Length > 0 ? s.Row : "?") + " · " + (s.Kind != StepKind.Normal ? s.Label(Product, 0) : (s.Title.Length > 0 ? s.Title : "(ohne Titel)")) + (s.Count > 1 ? " ×" + s.Count : "");
         }
+
+        string Product { get { return tProduct.Text.Trim(); } }
 
         void Changed()
         {
@@ -207,20 +219,22 @@ namespace Arbeitsplan.Win
             loading = true;
             foreach (Control c in new List<Control>(equipPanel.Controls.OfType())) { equipPanel.Controls.Remove(c); c.Dispose(); }
             bool on = s != null;
-            tTitle.Enabled = cbRow.Enabled = nDay.Enabled = nCount.Enabled = nInterval.Enabled = nStartNo.Enabled = tNote.Enabled = on;
+            tTitle.Enabled = cbRow.Enabled = nDay.Enabled = nCount.Enabled = nInterval.Enabled = nStartNo.Enabled = tNote.Enabled = cbKind.Enabled = on;
+            tSubNos.Enabled = on && s.Kind == StepKind.SubRun;
             if (on)
             {
                 tTitle.Text = s.Title;
+                cbKind.SelectedIndex = (int)s.Kind; tSubNos.Text = s.SubNos;
                 cbRow.SelectedIndex = cbRow.Items.IndexOf(s.Row);
                 nDay.Value = Math.Max(nDay.Minimum, Math.Min(nDay.Maximum, s.Day));
                 nCount.Value = Math.Max(1, Math.Min(99, s.Count)); nInterval.Value = Math.Max(1, Math.Min(30, s.Interval));
-                nStartNo.Value = Math.Max(0, Math.Min(999, s.StartNo));
+                nStartNo.Value = Math.Max(0, Math.Min(9999, s.StartNo));
                 tNote.Text = s.Note;
                 int y = 4;
                 if (s.Equipment.Count == 0) { Label l = L("Keine Equipment-Positionen. Mit \"+ Position\" hinzufügen.", 6, 8); equipPanel.Controls.Add(l); }
                 foreach (EquipAssign a in s.Equipment) { EquipRow r = new EquipRow(a, cat, delegate { UpdatePreview(); }, RemoveAssign); r.Top = y; equipPanel.Controls.Add(r); y += r.Height + 2; }
             }
-            else { tTitle.Text = ""; tNote.Text = ""; }
+            else { tTitle.Text = ""; tNote.Text = ""; tSubNos.Text = ""; cbKind.SelectedIndex = -1; }
             loading = false;
             UpdatePreview();
         }
@@ -247,7 +261,7 @@ namespace Arbeitsplan.Win
             if (cur == null) { tPreview.Text = ""; return; }
             System.Text.StringBuilder sb = new System.Text.StringBuilder();
             int run = 0;
-            foreach (KeyValuePair<int, string> r in cur.Runs())
+            foreach (KeyValuePair<int, string> r in cur.Runs(Product))
             {
                 sb.Append("— ").Append(cur.Row.Length > 0 ? cur.Row : "?").Append(", ").Append(dtStart.Value.AddDays(r.Key - 1).ToString("ddd dd.MM.", De)).Append(" —\r\n");
                 sb.Append(r.Value.Replace("\n", "\r\n")).Append("\r\n");
@@ -262,6 +276,7 @@ namespace Arbeitsplan.Win
         {
             steps.Clear(); lbSteps.Items.Clear();
             blocks = new List<PackageBlock>();
+            loading = true; tProduct.Text = p != null ? p.ProductCode : ""; loading = false;
             if (p == null)
             {
                 tName.Text = "";
@@ -277,10 +292,16 @@ namespace Arbeitsplan.Win
             info.Text = blocks.Count > 0 ? "Enthält zusätzlich " + blocks.Count + " fertige Blöcke aus einem Wochen-Export (werden mit übernommen)." : "";
         }
 
+        // null = Produktcode ungueltig (Meldung wurde gezeigt). Schritte als Kopie: der Kampagnenstart nummeriert um.
         Package Collect()
         {
-            Package p = new Package(); p.Name = tName.Text.Trim();
-            foreach (PackageStep s in steps) if (!s.IsEmpty) p.Steps.Add(s);
+            if (Product.Length > 0 && !Package.IsCode4(Product))
+            {
+                MessageBox.Show("Der Produktcode muss aus genau 4 Ziffern bestehen (z. B. 1357) oder leer sein.", "Paket-Editor", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                tProduct.Focus(); return null;
+            }
+            Package p = new Package(); p.Name = tName.Text.Trim(); p.ProductCode = Product;
+            foreach (PackageStep s in steps) if (!s.IsEmpty) p.Steps.Add(s.Clone());
             p.Blocks = blocks;
             return p;
         }
@@ -314,8 +335,9 @@ namespace Arbeitsplan.Win
             using (SaveFileDialog d = new SaveFileDialog())
             {
                 d.Filter = "Arbeitsplan-Paket (*.apkg)|*.apkg"; d.FileName = tName.Text.Trim().Length > 0 ? tName.Text.Trim() : "Paket";
-                if (d.ShowDialog(this) != DialogResult.OK) return;
-                try { Collect().Save(d.FileName); }
+                Package p = Collect();
+                if (p == null || d.ShowDialog(this) != DialogResult.OK) return;
+                try { p.Save(d.FileName); }
                 catch (Exception ex) { MessageBox.Show("Paket konnte nicht gespeichert werden.\n" + ex.Message, "Paket-Editor", MessageBoxButtons.OK, MessageBoxIcon.Error); }
             }
         }
@@ -323,15 +345,21 @@ namespace Arbeitsplan.Win
         void DoApply()
         {
             Package p = Collect();
+            if (p == null) return;
             if (p.Steps.Count == 0 && p.Blocks.Count == 0) { MessageBox.Show("Das Paket ist leer.", "Paket-Editor", MessageBoxButtons.OK, MessageBoxIcon.Information); return; }
             foreach (PackageStep s in p.Steps)
                 if (s.Row.Length == 0) { MessageBox.Show("Bitte bei jedem Schritt einen Block (Raum) wählen: " + (s.Title.Length > 0 ? s.Title : "Schritt ohne Titel"), "Paket-Editor", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
-            string[] modes = { "nur leere Blöcke gefüllt", "vorhandene Blöcke überschrieben", "Text an vorhandene Blöcke angehängt" };
-            if (MessageBox.Show("Paket \"" + p.Name + "\" ab " + dtStart.Value.ToString("dd.MM.yyyy") + " in den Plan übernehmen (" + modes[cbMode.SelectedIndex] + ")?",
-                "In Plan übernehmen", MessageBoxButtons.OKCancel, MessageBoxIcon.Question) != DialogResult.OK) return;
+            string[] modes = { "nur leere Blöcke füllen", "vorhandene Blöcke überschreiben", "Text an vorhandene Blöcke anhängen" };
+            // Kampagnenstart: Startdatum, erste Laufnummer, Termin je Lauf (einzeln verschiebbar)
+            DateTime start; List<RunDate> schedule;
+            using (CampaignForm cf = new CampaignForm(p, store, dtStart.Value.Date, modes[cbMode.SelectedIndex]))
+            {
+                if (cf.ShowDialog(this) != DialogResult.OK) return;
+                start = cf.Start; schedule = cf.Schedule;
+            }
             try
             {
-                string msg = p.Apply(store, dtStart.Value.Date, (ApplyMode)cbMode.SelectedIndex);
+                string msg = p.Apply(store, start, (ApplyMode)cbMode.SelectedIndex, schedule);
                 Applied = true;
                 MessageBox.Show(msg, "In Plan übernehmen", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }

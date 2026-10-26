@@ -46,6 +46,9 @@ namespace Arbeitsplan.Core
         }
     }
 
+    // Normal: Schritt (bei Wiederholung "Titel 1, 2, 3"); Run: Hauptlauf mit voller Laufnummer; SubRun: Unterlaeufe (Splitten/Einfrieren) eines Hauptlaufs.
+    public enum StepKind { Normal, Run, SubRun }
+
     // Ablaufschritt einer Kampagne: wann (Tag relativ zum Start), in welchem Block, was, mit welchem Equipment; optional wiederholt.
     public class PackageStep
     {
@@ -55,7 +58,9 @@ namespace Arbeitsplan.Core
         public int Day = 1;                 // 1 = erster Tag
         public int Count = 1;               // Wiederholungen (z. B. 6 Laeufe)
         public int Interval = 1;            // Abstand in Tagen
-        public int StartNo = 1;             // Nummer des ersten Laufs ("Lauf 1")
+        public int StartNo = 1;             // Nummer des ersten Laufs ("Lauf 1"); mit Produktcode die 4 hinteren Stellen (ZZZZ)
+        public StepKind Kind;
+        public string SubNos = "";          // nur SubRun: Unterlauf-Nummern je Lauf, Komma-getrennt; mehrere je Lauf mit "/"
         public string Text = "";
         public string Note = "";
         public List<EquipAssign> Equipment = new List<EquipAssign>();
@@ -72,29 +77,67 @@ namespace Arbeitsplan.Core
         {
             get
             {
-                if (Title.Length > 0 || Text.Length > 0 || Note.Length > 0) return false;
+                if (Title.Length > 0 || Text.Length > 0 || Note.Length > 0 || Kind == StepKind.SubRun) return false;
                 foreach (EquipAssign a in Equipment) if (a.Line(0).Length > 0) return false;
                 return true;
             }
         }
 
-        public string Compose(int run)
+        public bool Numbered { get { return Kind != StepKind.Normal || Count > 1; } }
+
+        // Laufnummer: mit Produktcode 8-stellig XXYYZZZZ (z. B. 13570030), sonst wie bisher "3".
+        public string RunNo(string product, int run)
+        {
+            int no = StartNo + run;
+            return Kind != StepKind.Normal && Package.IsCode4(product) ? product + no.ToString("0000", CultureInfo.InvariantCulture) : no.ToString(CultureInfo.InvariantCulture);
+        }
+
+        // Kurzbezeichnung fuer Tabellen (z. B. "Lauf 13570030").
+        public string Label(string product, int run)
+        {
+            string t = Title.Length > 0 ? Title : (Kind == StepKind.SubRun ? "Unterlauf" : "Schritt");
+            return Numbered ? t + " " + RunNo(product, run) : t;
+        }
+
+        public string Compose(int run, string product)
         {
             List<string> lines = new List<string>();
-            if (Title.Length > 0) lines.Add(Count > 1 ? Title + " " + (StartNo + run) : Title);
+            if (Kind == StepKind.SubRun)
+            {
+                string main = RunNo(product, run);
+                if (Title.Length > 0) lines.Add(Title);
+                string[] per = SubNos.Split(',');
+                bool any = false;
+                foreach (string part in (run < per.Length ? per[run] : "").Split('/'))
+                {
+                    string n = part.Trim();
+                    if (n.Length == 0) continue;
+                    if (Package.IsCode4(n) && Package.IsCode4(product)) n = product + n;   // "4186" -> "13574186"
+                    lines.Add("Unterlauf " + n + " (aus " + main + ")"); any = true;
+                }
+                if (!any) lines.Add("Unterlauf (aus " + main + ")");
+            }
+            else if (Title.Length > 0) lines.Add(Numbered ? Title + " " + RunNo(product, run) : Title);
             if (Text.Length > 0) lines.Add(Text);
             foreach (EquipAssign a in Equipment) { string l = a.Line(run); if (l.Length > 0) lines.Add(l); }
             if (Note.Length > 0) lines.Add("Notiz: " + Note);
             return string.Join("\n", lines.ToArray());
         }
 
-        // Alle Laeufe: Tag (1-basiert) und Text.
-        public List<KeyValuePair<int, string>> Runs()
+        // Alle Laeufe: Tag (1-basiert, Paket-Rhythmus) und Text.
+        public List<KeyValuePair<int, string>> Runs(string product)
         {
             List<KeyValuePair<int, string>> res = new List<KeyValuePair<int, string>>();
-            for (int i = 0; i < Math.Max(1, Count); i++) res.Add(new KeyValuePair<int, string>(Day + i * Math.Max(1, Interval), Compose(i)));
+            for (int i = 0; i < Math.Max(1, Count); i++) res.Add(new KeyValuePair<int, string>(Day + i * Math.Max(1, Interval), Compose(i, product)));
             return res;
         }
+    }
+
+    // Ein Lauf eines Schritts mit Tag (1 = Starttag); im Kampagnenstart-Dialog einzeln verschiebbar.
+    public class RunDate
+    {
+        public int Step, Run, Day;          // Step = Index in Package.Steps, Run = Wiederholung (0-basiert)
+        public string Label = "", Row = "";
     }
 
     // Kompletter Block (Export einer Woche): Inhalt mit Formatierung, Kuerzel, LKZ.
@@ -110,8 +153,96 @@ namespace Arbeitsplan.Core
     public class Package
     {
         public string Name = "";
+        public string ProductCode = "";     // XXYY der Laufnummer (Paket = Produkt); leer = Laeufe ohne Produktnummer
         public List<PackageStep> Steps = new List<PackageStep>();
         public List<PackageBlock> Blocks = new List<PackageBlock>();
+
+        public static bool IsCode4(string s)
+        {
+            if (s == null || s.Length != 4) return false;
+            foreach (char c in s) if (c < '0' || c > '9') return false;
+            return true;
+        }
+
+        // ---------- Kampagnenstart: Laufnummern und Termine ----------
+
+        // Kleinste Startnummer der Haupt-/Unterlauf-Schritte, -1 = keine.
+        public int FirstRunNo
+        {
+            get
+            {
+                int m = -1;
+                foreach (PackageStep s in Steps) if (s.Kind != StepKind.Normal && (m < 0 || s.StartNo < m)) m = s.StartNo;
+                return m;
+            }
+        }
+
+        // Laufnummern so verschieben, dass der erste Lauf "first" hat (Abstaende zwischen den Schritten bleiben).
+        public void Renumber(int first)
+        {
+            int d = first - FirstRunNo;
+            if (FirstRunNo < 0 || d == 0) return;
+            foreach (PackageStep s in Steps) if (s.Kind != StepKind.Normal) s.StartNo = Clamp(s.StartNo + d, 0, 9999);
+        }
+
+        // Alle Laeufe aller Schritte mit Tag laut Paket-Rhythmus (Tag, Abstand).
+        public List<RunDate> Schedule()
+        {
+            List<RunDate> res = new List<RunDate>();
+            for (int i = 0; i < Steps.Count; i++)
+            {
+                PackageStep s = Steps[i];
+                if (s.IsEmpty) continue;
+                for (int r = 0; r < Math.Max(1, s.Count); r++)
+                {
+                    RunDate d = new RunDate(); d.Step = i; d.Run = r; d.Day = s.Day + r * Math.Max(1, s.Interval);
+                    d.Label = s.Label(ProductCode, r); d.Row = s.Row;
+                    res.Add(d);
+                }
+            }
+            return res;
+        }
+
+        // Fruehere Kampagnen desselben Produkts im Plan: hoechste Hauptlauf-Nummer (ZZZZ) mit Datum und haeufigster Abstand
+        // zwischen aufeinanderfolgenden Nummern (0 = unbekannt). Unterlauf-Zeilen zaehlen nicht. false = nichts gefunden.
+        // Erweiterung: den gefundenen Abstand als Rhythmus fuer die neuen Laeufe anbieten (derzeit nur Hinweis).
+        public static bool LastRun(IDataStore store, string product, out int no, out DateTime day, out int interval)
+        {
+            no = -1; day = DateTime.MinValue; interval = 0;
+            if (!IsCode4(product)) return false;
+            Dictionary<int, DateTime> seen = new Dictionary<int, DateTime>();
+            System.Text.RegularExpressions.Regex rx = new System.Text.RegularExpressions.Regex("(?<![0-9])" + product + "([0-9]{4})(?![0-9])");
+            foreach (SearchHit h in store.Find(product))
+            {
+                Entry e = store.Get(h.Day, h.RowId);
+                if (e == null) continue;
+                foreach (string line in e.Content.Split('\n'))
+                {
+                    if (line.TrimStart().StartsWith("Unterlauf", StringComparison.OrdinalIgnoreCase)) continue;
+                    foreach (System.Text.RegularExpressions.Match m in rx.Matches(line))
+                    {
+                        int n = int.Parse(m.Groups[1].Value, CultureInfo.InvariantCulture);
+                        DateTime t;
+                        if (!seen.TryGetValue(n, out t) || h.Day < t) seen[n] = h.Day;
+                    }
+                }
+            }
+            if (seen.Count == 0) return false;
+            Dictionary<int, int> gaps = new Dictionary<int, int>();
+            foreach (KeyValuePair<int, DateTime> kv in seen)
+            {
+                if (kv.Key > no) { no = kv.Key; day = kv.Value; }
+                DateTime next;
+                if (seen.TryGetValue(kv.Key + 1, out next) && next > kv.Value)
+                {
+                    int g = (next - kv.Value).Days, c;
+                    gaps.TryGetValue(g, out c); gaps[g] = c + 1;
+                }
+            }
+            int best = 0;
+            foreach (KeyValuePair<int, int> kv in gaps) if (kv.Value > best) { best = kv.Value; interval = kv.Key; }
+            return true;
+        }
 
         // ---------- Datei (XML, UTF-8: Umlaute und Sonderzeichen bleiben erhalten) ----------
 
@@ -120,12 +251,15 @@ namespace Arbeitsplan.Core
             XmlWriterSettings st = new XmlWriterSettings(); st.Indent = true; st.Encoding = new UTF8Encoding(false);
             using (XmlWriter w = XmlWriter.Create(path, st))
             {
-                w.WriteStartElement("Paket"); w.WriteAttributeString("name", Name); w.WriteAttributeString("version", "2");
+                w.WriteStartElement("Paket"); w.WriteAttributeString("name", Name); w.WriteAttributeString("version", "3");
+                if (ProductCode.Length > 0) w.WriteAttributeString("produkt", ProductCode);
                 foreach (PackageStep s in Steps)
                 {
                     w.WriteStartElement("Schritt");
                     w.WriteAttributeString("titel", s.Title); w.WriteAttributeString("quelle", s.Source); w.WriteAttributeString("block", s.Row);
                     w.WriteAttributeString("tag", I(s.Day)); w.WriteAttributeString("anzahl", I(s.Count)); w.WriteAttributeString("abstand", I(s.Interval)); w.WriteAttributeString("startnr", I(s.StartNo));
+                    if (s.Kind != StepKind.Normal) w.WriteAttributeString("art", s.Kind == StepKind.Run ? "lauf" : "unterlauf");
+                    if (s.SubNos.Length > 0) w.WriteAttributeString("unterlaeufe", s.SubNos);
                     w.WriteAttributeString("text", s.Text); w.WriteAttributeString("notiz", s.Note);
                     foreach (EquipAssign a in s.Equipment)
                     {
@@ -188,6 +322,7 @@ namespace Arbeitsplan.Core
             if (root == null || root.Name != "Paket") throw new InvalidDataException("Keine gültige Paketdatei.");
             Package p = new Package();
             p.Name = root.GetAttribute("name");
+            p.ProductCode = IsCode4(root.GetAttribute("produkt")) ? root.GetAttribute("produkt") : "";   // fehlt bei aelteren Paketen
             foreach (XmlElement e in Elements(root))
             {
                 if (e.Name == "Schritt")
@@ -195,7 +330,10 @@ namespace Arbeitsplan.Core
                     PackageStep s = new PackageStep();
                     s.Title = e.GetAttribute("titel"); s.Source = e.GetAttribute("quelle"); s.Row = e.GetAttribute("block");
                     s.Day = Clamp(ToInt(e.GetAttribute("tag"), 1), 1, 366); s.Count = Clamp(ToInt(e.GetAttribute("anzahl"), 1), 1, 99);
-                    s.Interval = Clamp(ToInt(e.GetAttribute("abstand"), 1), 1, 30); s.StartNo = Clamp(ToInt(e.GetAttribute("startnr"), 1), 0, 999);
+                    s.Interval = Clamp(ToInt(e.GetAttribute("abstand"), 1), 1, 30); s.StartNo = Clamp(ToInt(e.GetAttribute("startnr"), 1), 0, 9999);
+                    string art = e.GetAttribute("art");
+                    s.Kind = art == "lauf" ? StepKind.Run : (art == "unterlauf" ? StepKind.SubRun : StepKind.Normal);
+                    s.SubNos = e.GetAttribute("unterlaeufe");
                     s.Text = e.GetAttribute("text"); s.Note = e.GetAttribute("notiz");
                     foreach (XmlElement q in Elements(e))
                         if (q.Name == "Equipment")
@@ -263,8 +401,10 @@ namespace Arbeitsplan.Core
         // Vorschau/Uebernahme: je Ziel (Tag, Zeile) der neue Block. Schritte desselben Ziels werden zusammengefasst.
         class Target { public DateTime Day; public int RowId; public Entry Data; }
 
-        List<Target> BuildTargets(List<RowInfo> rows, DateTime start, out int unknownRow)
+        List<Target> BuildTargets(List<RowInfo> rows, DateTime start, List<RunDate> schedule, out int unknownRow)
         {
+            Dictionary<long, int> over = new Dictionary<long, int>();   // (Schritt, Lauf) -> Tag aus dem Kampagnenstart-Dialog
+            if (schedule != null) foreach (RunDate d in schedule) over[(long)d.Step * 100000 + d.Run] = d.Day;
             unknownRow = 0;
             Dictionary<string, Target> map = new Dictionary<string, Target>();
             List<Target> order = new List<Target>();
@@ -278,14 +418,19 @@ namespace Arbeitsplan.Core
                 if (!map.ContainsKey(k)) order.Add(t); else order[order.FindIndex(delegate(Target x) { return x == map[k]; })] = t;
                 map[k] = t;
             }
-            foreach (PackageStep s in Steps)
+            for (int si = 0; si < Steps.Count; si++)
             {
+                PackageStep s = Steps[si];
                 if (s.IsEmpty) continue;
                 int id = RowId(rows, s.Row);
                 if (id < 0) { unknownRow++; continue; }
-                foreach (KeyValuePair<int, string> run in s.Runs())
+                List<KeyValuePair<int, string>> runs = s.Runs(ProductCode);
+                for (int ri = 0; ri < runs.Count; ri++)
                 {
-                    DateTime day = start.AddDays(run.Key - 1);
+                    KeyValuePair<int, string> run = runs[ri];
+                    int dayNo;
+                    if (!over.TryGetValue((long)si * 100000 + ri, out dayNo)) dayNo = run.Key;
+                    DateTime day = start.AddDays(dayNo - 1);
                     string k = day.ToString("yyyyMMdd") + "|" + id;
                     Target t;
                     if (!map.TryGetValue(k, out t)) { t = new Target(); t.Day = day; t.RowId = id; t.Data = new Entry(); map[k] = t; order.Add(t); }
@@ -295,12 +440,12 @@ namespace Arbeitsplan.Core
             return order;
         }
 
-        // Ergebnis der Uebernahme (Meldung fuer den Nutzer).
-        public string Apply(IDataStore store, DateTime start, ApplyMode mode)
+        // Ergebnis der Uebernahme (Meldung fuer den Nutzer). schedule: Tage je Lauf (aus Schedule(), ggf. verschoben); null = Paket-Rhythmus.
+        public string Apply(IDataStore store, DateTime start, ApplyMode mode, List<RunDate> schedule)
         {
             List<RowInfo> rows = store.GetRows();
             int written = 0, skipped = 0, unknownRow, conflicts = 0;
-            foreach (Target t in BuildTargets(rows, start, out unknownRow))
+            foreach (Target t in BuildTargets(rows, start, schedule, out unknownRow))
             {
                 Entry n = t.Data;
                 Entry cur = store.Get(t.Day, t.RowId);
