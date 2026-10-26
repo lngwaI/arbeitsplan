@@ -916,7 +916,7 @@ namespace Arbeitsplan.Win
         public Form TestForm(string which)
         {
             Package demo = null;
-            if (which == "package2" || which == "campaign")   // Produkt 1357: Packen, Lauf (3x alle 3 Tage, abwechselnd), Splitten in Unterlaeufe
+            if (which.StartsWith("package2") || which == "campaign")   // Produkt 1357: Packen, Lauf (3x alle 3 Tage, abwechselnd), Splitten in Unterlaeufe
             {
                 demo = new Package(); demo.Name = "Produkt Beispiel"; demo.ProductCode = "1357";
                 Catalog cat = store.GetCatalog();
@@ -938,20 +938,24 @@ namespace Arbeitsplan.Win
                 }
             }
             if (which == "package3" || which == "campaign2") demo = Package.SampleCampaign("Testpaket");
+            if (which.StartsWith("rt:")) demo = Package.Load(which.Substring(3));   // Roundtrip: Datei laden, im Editor unveraendert wieder speichern (.rt.apkg)
             if (which == "campaign2")   // fruehere Kampagne (Laeufe 1-4, Abstaende 5, 5, 7) sechs Wochen vorher
                 Package.SampleCampaign("alt").Apply(store, start.AddDays(-42), ApplyMode.Overwrite, Package.SampleCampaign("alt").Schedule(new List<int>(new[] { 5, 5, 7 })));
             Form f;
-            if (which == "campaign2") { CampaignForm cf = new CampaignForm(demo, store, start, "vorhandene Blöcke überschreiben"); cf.SetRoom(7, "Suite 2", false); f = cf; }
+            if (which == "campaign2") { CampaignForm cf = new CampaignForm(demo, store, start, ApplyMode.Overwrite); cf.SetRoom(7, "Suite 2", false); f = cf; }
             else if (which == "structure") f = new StructureForm(store.GetRows(), true, true, true);
             else if (which == "catalog") { List<string> nm = new List<string>(); foreach (RowInfo r in store.GetRows()) nm.Add(r.Name); f = new CatalogForm(store.GetCatalog(), nm); }
             else if (which == "history" || which == "backup") f = TestDataForm(which);
-            else if (which == "campaign") { CampaignForm cf = new CampaignForm(demo, store, start, "nur leere Blöcke füllen"); cf.Shift(1, 1); f = cf; }   // Lauf 13570030 (und Folgende) einen Tag spaeter
+            else if (which == "campaign") { CampaignForm cf = new CampaignForm(demo, store, start, ApplyMode.FillEmpty); cf.Shift(1, 1); f = cf; }   // Lauf 13570030 (und Folgende) einen Tag spaeter
             else f = new PackageForm(store, equip, start, demo, true, true);
             Hide();                                   // nur fuer das Testbild: Hauptfenster nicht dahinter
             f.StartPosition = FormStartPosition.Manual; f.Location = new Point(0, 0); f.TopMost = true;
-            f.Show();
             PackageForm pf = f as PackageForm;
+            if (pf != null && ClientSize.Width < 1190) pf.Size = ClientSize;   // --size 1024x768: Editor wie auf einem kleinen Bildschirm
+            if (pf != null && which.StartsWith("rt:")) pf.Text = pf.TestSave(which.Substring(3) + ".rt.apkg");
+            f.Show();
             if (pf != null && which == "package2") pf.SelectStep(1);
+            if (pf != null && which == "package2sub") pf.SelectStep(2);   // Unterlauf-Schritt (Splitten)
             if (pf != null && which == "package3") pf.SelectStep(2);
             return f;
         }
@@ -1010,7 +1014,7 @@ namespace Arbeitsplan.Win
             // Kampagnenstart-Dialog (ohne Anzeige): Zeile 1 (Lauf 13570040) +1 Tag, Folgende wandern mit, Zeile 0 nicht
             DateTime s2 = start.AddDays(35);
             bool okDlg, okRoomDlg;
-            using (CampaignForm cf = new CampaignForm(q, store, s2, "test"))
+            using (CampaignForm cf = new CampaignForm(q, store, s2, ApplyMode.Overwrite))
             {
                 cf.Shift(1, 1);
                 List<RunDate> sd = cf.Schedule;
@@ -1038,7 +1042,7 @@ namespace Arbeitsplan.Win
             bool okGaps = gp.Count == 3 && gp[0] == 2 && gp[1] == 2 && gp[2] == 3, okRh, okRoom;
             DateTime s3 = s2.AddDays(28);
             int lyo = rowInfo.Find(delegate(RowInfo r) { return r.Name == "Lyo"; }).Id;
-            using (CampaignForm cf = new CampaignForm(q, store, s3, "test"))
+            using (CampaignForm cf = new CampaignForm(q, store, s3, ApplyMode.Overwrite))
             {
                 List<RunDate> a = cf.Schedule;
                 RunDate l3 = a.Find(delegate(RunDate d) { return d.Step == 1 && d.Run == 3; }), p3 = a.Find(delegate(RunDate d) { return d.Step == 2 && d.Run == 3; });
@@ -1064,7 +1068,7 @@ namespace Arbeitsplan.Win
             string l0 = mq.Steps[2].Compose(0, "1234");
             okMk &= l0.StartsWith("Lauf – Auftrag/Netzwerk-ID 12340001\nPumpe: ") && l0.EndsWith("\nPA 40010001");
             DateTime s4 = s2.AddDays(70);
-            using (CampaignForm cf = new CampaignForm(mq, store, s4, "test")) { cf.SetRoom(0, rowInfo[0].Name, true); msg = mq.Apply(store, s4, ApplyMode.Overwrite, cf.Schedule); }
+            using (CampaignForm cf = new CampaignForm(mq, store, s4, ApplyMode.Overwrite)) { cf.SetRoom(0, rowInfo[0].Name, true); msg = mq.Apply(store, s4, ApplyMode.Overwrite, cf.Schedule); }
             int r0 = rowInfo[0].Id;
             Entry lauf = store.Get(s4.AddDays(2), r0), lauf2 = store.Get(s4.AddDays(8), r0), mi = store.Get(s4.AddDays(3), r0), bf = store.Get(s4.AddDays(6), r0), rest = store.Get(s4.AddDays(4), r0);
             bool okRed = false;
@@ -1101,6 +1105,7 @@ namespace Arbeitsplan.Win
             sb.AppendLine("Protected: ok=" + (Protected.Unprotect(blob, "pw1") == "Geheim äöü") + " falschesPw=" + wrong + " manipuliert=" + tampered);
             if (systemPc) sb.AppendLine("Protokoll/Sicherung: übersprungen (Systemrechner, Speichern nicht möglich)"); else SelfTestData(sb);
             SelfTestFiles(sb);
+            sb.AppendLine(PackageForm.TestFlow(store, equip, start));
             quiet = false;
             return sb.ToString();
         }

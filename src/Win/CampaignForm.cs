@@ -26,7 +26,10 @@ namespace Arbeitsplan.Win
         readonly Dictionary<long, string> rooms = new Dictionary<long, string>();   // (Schritt, Lauf) -> gewaehlter Block, falls abweichend
         bool filling;
 
+        readonly ComboBox cbMode = new ComboBox();
+
         public DateTime Start { get { return dtStart.Value.Date; } }
+        public ApplyMode Mode { get { return (ApplyMode)cbMode.SelectedIndex; } }
 
         // Rhythmus der frueheren Kampagne verwenden (nur sichtbar, wenn eine gefunden wurde).
         public bool UseRhythm { get { return chkRhythm.Checked; } set { chkRhythm.Checked = value; } }
@@ -51,7 +54,7 @@ namespace Arbeitsplan.Win
             }
         }
 
-        public CampaignForm(Package p, IDataStore store, DateTime start, string mode)
+        public CampaignForm(Package p, IDataStore store, DateTime start, ApplyMode mode)
         {
             pkg = p;
             Text = "Kampagne starten – " + (p.Name.Length > 0 ? p.Name : "Paket");
@@ -110,7 +113,10 @@ namespace Arbeitsplan.Win
             grid.DataError += delegate(object s, DataGridViewDataErrorEventArgs e) { e.ThrowException = false; };
             Controls.Add(grid);
 
-            Controls.Add(L("Übernehmen: " + mode, 10, 508));
+            Controls.Add(L("Vorhandene Einträge:", 10, 508));   // Uebernahme-Modus wird erst hier gewaehlt (nicht im Paket-Editor)
+            cbMode.DropDownStyle = ComboBoxStyle.DropDownList; cbMode.SetBounds(135, 504, 250, 22);
+            cbMode.Items.AddRange(new object[] { "Nur leere Blöcke füllen", "Vorhandenes überschreiben", "An vorhandenen Text anhängen" });
+            cbMode.SelectedIndex = (int)mode; Controls.Add(cbMode);
             Button ok = new Button(); ok.Text = "In Plan übernehmen"; ok.SetBounds(480, 502, 135, 28);
             ok.Click += delegate { grid.EndEdit(); DialogResult = DialogResult.OK; };
             Button cancel = new Button(); cancel.Text = "Abbrechen"; cancel.SetBounds(620, 502, 90, 28); cancel.DialogResult = DialogResult.Cancel;
