@@ -4,7 +4,7 @@ using System.Collections.Generic;
 namespace Arbeitsplan.Core
 {
     // Aenderungsprotokoll je Block (append-only): wer hat wann was gespeichert, Stand vorher/nachher.
-    // Im Prototyp im MemoryStore, spaeter auf dem Server (dort atomar mit dem Speichern).
+    // Wird atomar mit dem Speichern geschrieben (IDataStore.SaveWithAudit), spaeter ebenso auf dem Server.
     public class AuditEntry
     {
         public DateTime Time;               // Speicherzeitpunkt (lokal)
@@ -30,17 +30,13 @@ namespace Arbeitsplan.Core
 
     public static class Audit
     {
-        // Speichert wie IDataStore.Save und protokolliert bei Erfolg. false = Konflikt (nichts protokolliert).
+        // Speichert wie IDataStore.Save und protokolliert im selben Schreibvorgang. false = Konflikt (nichts gespeichert/protokolliert).
         public static bool Save(IDataStore store, DateTime day, RowInfo row, User user, Entry e)
         {
-            Entry before = store.Get(day, row.Id);
-            if (!store.Save(day, row.Id, e)) return false;
             AuditEntry a = new AuditEntry();
             a.Time = DateTime.Now; a.Login = user.Login; a.Kuerzel = user.Kuerzel;
             a.Day = day.Date; a.RowId = row.Id; a.RowName = row.Name;
-            a.Before = before; a.After = e.Clone(); a.Version = e.Version;
-            store.AppendAudit(a);
-            return true;
+            return store.SaveWithAudit(day, row.Id, e, a);   // Vorher/Nachher/Version setzt der Store (atomar)
         }
 
         // Lesbarer Text eines Stands (Inhalt, Kuerzel je Schicht, LKZ).

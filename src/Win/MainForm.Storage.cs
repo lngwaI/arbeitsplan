@@ -93,7 +93,7 @@ namespace Arbeitsplan.Win
             {
                 if (editCell != null || Application.OpenForms.Count > 1) return;
                 bool wasOffline = fstore.Offline;
-                if (!fstore.Refresh()) return;
+                if (!fstore.Refresh() && fstore.Generation == viewGen) return;   // auch still beim Speichern/Bearbeiten nachgeladene Daten
                 Rebuild(false);
                 if (wasOffline) UpdateTitle();
             };
@@ -163,6 +163,17 @@ namespace Arbeitsplan.Win
             File.Copy(file, fF, true);   // Ordner wieder erreichbar/gueltig
             bool okBack = m2.Refresh() && !m2.Offline && !m2.ReadOnly && m2.Get(day, row.Id).Content == "Von A geändert";
 
+            // Zwei PCs, B speichert direkt nach A mit altem Stand; Dateizeit wie bei veraltetem SMB-Cache zurueckgesetzt
+            FileStore d1 = new FileStore(dir, false, null), d2 = new FileStore(dir, false, null);
+            Entry x1 = d1.Get(day, row.Id), x2 = d2.Get(day, row.Id);
+            DateTime w0 = File.GetLastWriteTimeUtc(file);
+            int auN = d1.GetAudit(day, row.Id).Count, v2 = x2.Version;
+            x1.Content = "A zuerst"; bool sA = Audit.Save(d1, day, row, u, x1);
+            File.SetLastWriteTimeUtc(file, w0);
+            x2.Content = "B direkt danach";
+            bool okNoLost = sA && !Audit.Save(d2, day, row, u, x2) && x2.Version == v2 && d2.Get(day, row.Id).Content == "A zuerst"
+                && d2.GetAudit(day, row.Id).Count == auN + 1 && d2.Refresh() && !d2.Refresh() && !d1.Refresh();
+
             FileLockService l1 = new FileLockService(dir), l2 = new FileLockService(dir);
             l1.Acquire(day, row.Id, "Paula Werk");
             bool okLock = l2.Holder(day, row.Id, "Max Muster") == "Paula Werk" && l1.Holder(day, row.Id, "Paula Werk") == null;
@@ -172,7 +183,7 @@ namespace Arbeitsplan.Win
             sb.AppendLine("Datendatei: Erststart=" + Ok(okInit) + " Neustart=" + Ok(okRound) + " kein Klartext=" + Ok(okCipher) + " Refresh=" + Ok(okSync) + " Konflikt=" + Ok(okConflict)
                 + " Historie=" + Ok(okAudit) + " bak=" + Ok(okBak) + " (" + new FileInfo(file).Length + " Byte, Speichern+Protokoll " + ms.ToString("0") + " ms)");
             sb.AppendLine("Datendatei: NurLesen=" + Ok(okRO) + " manipuliert->Cache=" + Ok(okTamper) + " fremd->leer=" + Ok(okForeign) + " unerreichbar=" + Ok(okOffline)
-                + " wieder erreichbar=" + Ok(okBack) + " Sperrdatei=" + Ok(okLock));
+                + " wieder erreichbar=" + Ok(okBack) + " Sperrdatei=" + Ok(okLock) + " kein stilles Überschreiben=" + Ok(okNoLost));
         }
 
         static int IndexOf(byte[] hay, byte[] needle)

@@ -62,6 +62,8 @@ namespace Arbeitsplan.Core
         void SaveCatalog(Catalog catalog);
         // Historie ohne Obergrenze: alte Wochen und Protokolleintraege werden nie geloescht ("ein Jahr zurueck" und mehr).
         void AppendAudit(AuditEntry a);                      // append-only, kein Aendern/Loeschen
+        // Save + Protokolleintrag atomar (beides oder nichts); setzt a.Before/After/Version auf den Stand beim Speichern
+        bool SaveWithAudit(DateTime day, int rowId, Entry e, AuditEntry a);
         List<AuditEntry> GetAudit(DateTime day, int rowId);  // Kopien, chronologisch
         StoreData Snapshot();                                // vollstaendige Kopie aller Daten (Sicherung)
         void Restore(StoreData data);                        // ersetzt Plaene/Struktur/Katalog; Protokoll wird zusammengefuehrt
@@ -124,8 +126,18 @@ namespace Arbeitsplan.Core
             Entry cur;
             items.TryGetValue(k, out cur);
             if (cur != null && cur.Version != e.Version) return false;
-            e.Version = (cur == null ? 0 : cur.Version) + 1;
-            items[k] = e.Clone();
+            Entry c = e.Clone(); c.Version = (cur == null ? 0 : cur.Version) + 1;
+            items[k] = c;
+            e.Version = c.Version;   // erst nach dem Schreiben
+            return true;
+        }
+
+        public bool SaveWithAudit(DateTime day, int rowId, Entry e, AuditEntry a)
+        {
+            Entry before = Get(day, rowId);
+            if (!Save(day, rowId, e)) return false;
+            a.Before = before; a.After = e.Clone(); a.Version = e.Version;
+            AppendAudit(a);
             return true;
         }
 

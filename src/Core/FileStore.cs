@@ -27,8 +27,12 @@ namespace Arbeitsplan.Core
         readonly bool readOnlyCfg;
         MemoryStore mem = new MemoryStore();
         UserDb users = UserDb.Default();
-        DateTime stamp; long size = -1;   // Stand der zuletzt gelesenen/geschriebenen Datei
+        DateTime stamp; long size = -1;   // Zeit/Groesse der zuletzt gelesenen/geschriebenen Datei (nur Vorfilter fuer den Timer)
+        byte[] blob, hash;                // deren Inhalt und SHA-256 (massgeblich fuer "geaendert?")
+        int seenGen;
 
+        // Zaehlt jedes Neuladen fremder Daten (auch still beim Schreiben); Refresh meldet Aenderungen daran.
+        public int Generation { get; private set; }
         public bool Offline { get; private set; }
         public string Problem { get; private set; }   // Meldung fuer den Nutzer, sonst null
         public bool ReadOnly { get { return readOnlyCfg || Offline; } }
@@ -42,6 +46,7 @@ namespace Arbeitsplan.Core
             path = Path.Combine(folder, FileName);
             try { Open(); }
             catch (Exception ex) { GoOffline(ex); }
+            seenGen = Generation;
         }
 
         void Open()
@@ -101,14 +106,28 @@ namespace Arbeitsplan.Core
             mem = m; users = d.Users ?? UserDb.Default();
         }
 
+        // Liest die Datei immer; dekodiert nur, wenn der Inhalt (SHA-256) vom zuletzt gelesenen/geschriebenen abweicht.
         void Load()
         {
             FileInfo fi = new FileInfo(path);
             DateTime t = fi.LastWriteTimeUtc; long len = fi.Length;
-            byte[] blob = ReadShared();
-            Apply(Decode(blob));
+            byte[] b = ReadShared();
+            byte[] h = Sha(b);
+            if (hash == null || !Same(h, hash))
+            {
+                Apply(Decode(b));
+                blob = b; hash = h; Generation++;
+                WriteCache(b);
+            }
             stamp = t; size = len;
-            WriteCache(blob);
+        }
+
+        static byte[] Sha(byte[] b) { using (SHA256 s = SHA256.Create()) return s.ComputeHash(b); }
+        static bool Same(byte[] x, byte[] y)
+        {
+            if (x.Length != y.Length) return false;
+            for (int i = 0; i < x.Length; i++) if (x[i] != y[i]) return false;
+            return true;
         }
 
         byte[] ReadShared()
@@ -127,20 +146,25 @@ namespace Arbeitsplan.Core
         void WriteFile()
         {
             StoreData d = mem.Snapshot(); d.Users = users;
-            byte[] blob = Encode(d);
+            byte[] nb = Encode(d);
             string tmp = path + ".tmp", b1 = path + ".bak1", b2 = path + ".bak2", b3 = path + ".bak3";
-            File.WriteAllBytes(tmp, blob);
+            File.WriteAllBytes(tmp, nb);
             if (File.Exists(path))
             {
                 if (File.Exists(b3)) File.Delete(b3);
                 if (File.Exists(b2)) File.Move(b2, b3);
                 if (File.Exists(b1)) File.Move(b1, b2);
                 try { File.Replace(tmp, path, b1); }
-                catch (IOException) { File.Copy(path, b1, true); File.Copy(tmp, path, true); File.Delete(tmp); }   // Laufwerke ohne Replace
+                catch (IOException)
+                {   // Laufwerke ohne Replace; ein gescheitertes Replace kann path schon nach b1 verschoben haben
+                    if (File.Exists(path)) { File.Copy(path, b1, true); File.Copy(tmp, path, true); File.Delete(tmp); }
+                    else File.Move(tmp, path);
+                }
             }
             else File.Move(tmp, path);
             FileInfo fi = new FileInfo(path); stamp = fi.LastWriteTimeUtc; size = fi.Length;
-            WriteCache(blob);
+            blob = nb; hash = Sha(nb);
+            WriteCache(nb);
         }
 
         void WriteCache(byte[] blob)
@@ -165,7 +189,8 @@ namespace Arbeitsplan.Core
 
         delegate bool Op(MemoryStore m);
 
-        // Neu einlesen (falls geaendert), Aenderung anwenden, schreiben. false = op hat nichts geaendert (Konflikt).
+        // Unter der Sperre immer neu lesen (Hash-Vergleich, Zeit/Groesse sind per SMB bis ~10 s veraltet), Aenderung anwenden,
+        // schreiben. false = op hat nichts geaendert (Konflikt).
         bool Write(Op op)
         {
             if (ReadOnly) throw new IOException(Offline ? "Der Datenordner ist nicht erreichbar (OFFLINE), es wird nur der letzte Stand angezeigt."
@@ -173,15 +198,21 @@ namespace Arbeitsplan.Core
             bool done = false;
             WithLock(delegate
             {
-                if (Changed()) Load();
+                if (File.Exists(path)) Load();
                 if (!op(mem)) return;
                 try { WriteFile(); done = true; }
-                catch (Exception) { try { Load(); } catch (Exception) { size = -1; } throw; }   // nichts Ungespeichertes im Speicher lassen
+                catch (Exception)
+                {   // nichts Ungespeichertes im Speicher lassen: zurueck auf den zuletzt gelesenen Stand, Datei beim naechsten Mal neu pruefen
+                    if (blob != null) Apply(Decode(blob));
+                    size = -1;
+                    throw;
+                }
             });
             return done;
         }
 
-        // Liest neu, wenn sich die Datei geaendert hat (oder Offline -> wieder erreichbar). true = Daten neu.
+        // Liest neu, wenn sich die Datei geaendert hat (oder Offline -> wieder erreichbar).
+        // true = seit dem letzten Aufruf neue Daten geladen (auch still beim Schreiben).
         public bool Refresh()
         {
             try
@@ -190,19 +221,27 @@ namespace Arbeitsplan.Core
                 {
                     if (!File.Exists(path)) return false;
                     Load(); Offline = false; Problem = null;
-                    return true;
                 }
-                if (!Changed()) return false;
-                Load();
-                return true;
+                else if (Changed()) Load();   // Zeit/Groesse als billiger Vorfilter, Load vergleicht den Hash
             }
             catch (Exception) { return false; }   // Netz kurz weg: alter Stand bleibt sichtbar
+            bool n = Generation != seenGen;
+            seenGen = Generation;
+            return n;
         }
 
         // ---------- IDataStore ----------
 
         public Entry Get(DateTime day, int rowId) { return mem.Get(day, rowId); }
-        public bool Save(DateTime day, int rowId, Entry e) { return Write(delegate(MemoryStore m) { return m.Save(day, rowId, e); }); }
+        public bool Save(DateTime day, int rowId, Entry e) { return SaveWithAudit(day, rowId, e, null); }
+        // Block + Protokoll in EINEM Schreibvorgang; e.Version steigt erst, wenn die Datei geschrieben ist.
+        public bool SaveWithAudit(DateTime day, int rowId, Entry e, AuditEntry a)
+        {
+            Entry c = e.Clone();
+            if (!Write(delegate(MemoryStore m) { return a == null ? m.Save(day, rowId, c) : m.SaveWithAudit(day, rowId, c, a); })) return false;
+            e.Version = c.Version;
+            return true;
+        }
         public List<RowInfo> GetRows() { return mem.GetRows(); }
         public void SaveStructure(List<RowInfo> rows) { Write(delegate(MemoryStore m) { m.SaveStructure(rows); return true; }); }
         public List<SearchHit> Find(string q) { return mem.Find(q); }
@@ -210,7 +249,16 @@ namespace Arbeitsplan.Core
         public void SaveCatalog(Catalog c) { Write(delegate(MemoryStore m) { m.SaveCatalog(c); return true; }); }
         public void AppendAudit(AuditEntry a) { Write(delegate(MemoryStore m) { m.AppendAudit(a); return true; }); }
         public List<AuditEntry> GetAudit(DateTime day, int rowId) { return mem.GetAudit(day, rowId); }
-        public StoreData Snapshot() { return mem.Snapshot(); }
+        // Fuer die Sicherung erst den aktuellen Dateistand holen (unter der Sperre); Fehler -> keine veraltete Sicherung
+        public StoreData Snapshot()
+        {
+            if (!Offline)
+            {
+                if (readOnlyCfg) { if (File.Exists(path)) Load(); }
+                else WithLock(delegate { if (File.Exists(path)) Load(); });
+            }
+            return mem.Snapshot();
+        }
         public void Restore(StoreData d) { Write(delegate(MemoryStore m) { m.Restore(d); return true; }); }   // Nutzer bleiben unveraendert
         public void SaveUsers(UserDb db) { Write(delegate(MemoryStore m) { users = db; return true; }); }
     }

@@ -508,6 +508,33 @@ namespace Arbeitsplan.Core
             return store.Save(t.Day, t.RowId, result);
         }
 
+        // Neuer Blockinhalt aus vorhandenem (cur) und Paket-Block (n); null = ueberspringen. Kuerzel und LKZ-Haken des vorhandenen Blocks bleiben erhalten.
+        // Ein Block mit nur LKZ-Haken zaehlt als leer (IsEmpty), verliert den Haken aber nicht.
+        internal static Entry Merge(Entry cur, Entry n, ApplyMode mode)
+        {
+            Entry result;
+            if (cur == null) return n.Clone();
+            if (cur.IsEmpty || mode == ApplyMode.Overwrite)
+            {
+                result = n.Clone();
+                for (int i = 0; i < 3; i++) if (result.People[i].Length == 0) result.People[i] = cur.People[i];
+            }
+            else if (mode == ApplyMode.FillEmpty) return null;
+            else
+            {   // anhaengen: Text nach dem vorhandenen, Formatierung der neuen Textteile verschieben
+                result = cur.Clone();
+                if (n.Content.Length > 0)
+                {
+                    int shift = result.Content.Length > 0 ? result.Content.Length + 2 : 0;
+                    result.Content = result.Content.Length > 0 ? result.Content + "\n\n" + n.Content : n.Content;
+                    foreach (FormatSpan f in n.Spans) { FormatSpan c = f.Clone(); c.Start += shift; result.Spans.Add(c); }
+                }
+                for (int i = 0; i < 3; i++) if (n.People[i].Length > 0) result.People[i] = result.People[i].Length > 0 ? result.People[i] + ", " + n.People[i] : n.People[i];
+            }
+            result.Lkz = cur.Lkz || n.Lkz;
+            return result;
+        }
+
         // Ergebnis der Uebernahme (Meldung fuer den Nutzer). schedule: Tage je Lauf (aus Schedule(), ggf. verschoben); null = Paket-Rhythmus.
         public string Apply(IDataStore store, DateTime start, ApplyMode mode, List<RunDate> schedule, User by = null)
         {
@@ -517,27 +544,15 @@ namespace Arbeitsplan.Core
             {
                 Entry n = t.Data;
                 Entry cur = store.Get(t.Day, t.RowId);
-                Entry result;
-                if (cur == null || cur.IsEmpty) result = n.Clone();
-                else if (mode == ApplyMode.FillEmpty) { skipped++; continue; }
-                else if (mode == ApplyMode.Overwrite) result = n.Clone();
-                else
-                {   // anhaengen: Text nach dem vorhandenen, Formatierung der neuen Textteile verschieben
-                    result = cur.Clone();
-                    if (n.Content.Length > 0)
-                    {
-                        int shift = result.Content.Length > 0 ? result.Content.Length + 2 : 0;
-                        result.Content = result.Content.Length > 0 ? result.Content + "\n\n" + n.Content : n.Content;
-                        foreach (FormatSpan f in n.Spans) { FormatSpan c = f.Clone(); c.Start += shift; result.Spans.Add(c); }
-                    }
-                    for (int i = 0; i < 3; i++) if (n.People[i].Length > 0) result.People[i] = result.People[i].Length > 0 ? result.People[i] + ", " + n.People[i] : n.People[i];
-                    result.Lkz = result.Lkz || n.Lkz;
-                }
+                Entry result = Merge(cur, n, mode);
+                if (result == null) { skipped++; continue; }
                 result.Version = cur != null ? cur.Version : 0;
                 if (SaveAudited(store, rows, t, result, by)) written++;
                 else
-                {
+                {   // Konflikt: Ergebnis aus dem neuen Stand mit derselben Modus-Logik neu berechnen
                     Entry again = store.Get(t.Day, t.RowId);
+                    result = Merge(again, n, mode);
+                    if (result == null) { skipped++; continue; }
                     result.Version = again != null ? again.Version : 0;
                     if (SaveAudited(store, rows, t, result, by)) written++; else conflicts++;
                 }

@@ -55,6 +55,9 @@ namespace Arbeitsplan.Win
         DateTime start;
         CellData editCell;
         bool loadingEditor, inResize, syncingFormat, systemPc;
+        bool extracting;                 // ExtractSpans laeuft: Auswahl-Handler gesperrt
+        bool editChanged, fmtChanged;    // billiger "geaendert?"-Stand des Editors (fuer Icon-Timer und Esc)
+        int viewGen;                     // FileStore.Generation beim letzten Rebuild
         int hitPos = -1;
 
         // cfg == null: Testdaten im Speicher (nur Test-Build); sonst verschluesselte Datendatei im Datenordner (FileStore)
@@ -236,8 +239,8 @@ namespace Arbeitsplan.Win
             edContent.Font = plainFont;
             edContent.BorderStyle = BorderStyle.None; edContent.ScrollBars = RichTextBoxScrollBars.None; edContent.DetectUrls = false;
             edContent.HideSelection = false; edContent.AcceptsTab = false;
-            edContent.TextChanged += delegate { if (!loadingEditor && editCell != null) { editCell.Content = Norm(edContent.Text); editCell.Dirty = true; view.Relayout(); } };
-            edContent.SelectionChanged += delegate { SyncFormat(); };
+            edContent.TextChanged += delegate { if (!loadingEditor && editCell != null) { editCell.Content = Norm(edContent.Text); editCell.Dirty = true; UpdateChanged(); view.Relayout(); } };
+            edContent.SelectionChanged += delegate { if (!extracting) SyncFormat(); };
             edContent.KeyDown += OnContentKey;
             edContent.ContextMenuStrip = BuildContentMenu();
             edContent.Visible = false; view.Controls.Add(edContent); editors.Add(edContent);
@@ -247,7 +250,7 @@ namespace Arbeitsplan.Win
                 TextBox t = edPpl[s];
                 t.BorderStyle = BorderStyle.None; t.AutoSize = false; t.Multiline = true; t.AcceptsReturn = true; t.Visible = false;
                 Ui.SimpleMenu(t);          // schlichtes Menue statt Windows-Standard (keine Unicode-/IME-Eintraege)
-                t.TextChanged += delegate { if (!loadingEditor && editCell != null) { editCell.People[si] = Norm(t.Text); editCell.Dirty = true; view.Relayout(); } };
+                t.TextChanged += delegate { if (!loadingEditor && editCell != null) { editCell.People[si] = Norm(t.Text); editCell.Dirty = true; UpdateChanged(); view.Relayout(); } };
                 view.Controls.Add(t); editors.Add(t);
             }
         }
@@ -325,8 +328,12 @@ namespace Arbeitsplan.Win
             if (editCell == null || !me.Has(Perm.Format)) return;
             Font cur = edContent.SelectionFont ?? plainFont;
             edContent.SelectionFont = change(cur);
+            FormatTouched();
             edContent.Focus();
         }
+
+        // Format einer Markierung geaendert -> Block gilt als geaendert (ohne Markierung zaehlt erst der getippte Text)
+        void FormatTouched() { if (edContent.SelectionLength > 0) { fmtChanged = true; UpdateChanged(); } }
 
         void ToggleStyle(FontStyle s)
         {
@@ -347,6 +354,7 @@ namespace Arbeitsplan.Win
         {
             if (editCell == null || !me.Has(Perm.Format)) return;
             edContent.SelectionColor = Ui.Rgb(rgb);
+            FormatTouched();
             edContent.Focus();
         }
 
@@ -354,20 +362,21 @@ namespace Arbeitsplan.Win
         {
             if (editCell == null || !me.Has(Perm.Format)) return;
             using (ColorDialog d = new ColorDialog())
-                if (d.ShowDialog(this) == DialogResult.OK) { edContent.SelectionColor = d.Color; edContent.Focus(); }
+                if (d.ShowDialog(this) == DialogResult.OK) { edContent.SelectionColor = d.Color; FormatTouched(); edContent.Focus(); }
         }
 
         void ClearFormat()
         {
             if (editCell == null || !me.Has(Perm.Format)) return;
-            edContent.SelectionFont = plainFont; edContent.SelectionColor = Color.Black; edContent.Focus();
+            edContent.SelectionFont = plainFont; edContent.SelectionColor = Color.Black; FormatTouched(); edContent.Focus();
         }
 
         // Zeigt Schrift/Groesse/Fett/Kursiv der Markierung in der Leiste an.
         void SyncFormat()
         {
+            if (loadingEditor || extracting) return;
             Font f = edContent.SelectionFont;
-            if (f == null || loadingEditor) return;
+            if (f == null) return;
             syncingFormat = true;
             int i = Array.IndexOf(FontNames, f.Name);
             cbFont.SelectedIndex = f.Name == plainFont.Name ? 0 : (i > 0 ? i : 0);
@@ -383,6 +392,8 @@ namespace Arbeitsplan.Win
         {
             if (e.Control && (e.KeyCode == Keys.U || e.KeyCode == Keys.E || e.KeyCode == Keys.R || e.KeyCode == Keys.L || e.KeyCode == Keys.J)) { e.SuppressKeyPress = true; return; }
             if (e.Control && (e.KeyCode == Keys.B || e.KeyCode == Keys.I) && !me.Has(Perm.Format)) { e.SuppressKeyPress = true; return; }
+            if (e.Control && (e.KeyCode == Keys.B || e.KeyCode == Keys.I)) FormatTouched();
+            if (e.Control && (e.KeyCode == Keys.Z || e.KeyCode == Keys.Y)) { fmtChanged = true; UpdateChanged(); }   // Rueckgaengig kann auch Format betreffen
             if ((e.Control && e.KeyCode == Keys.V) || (e.Shift && e.KeyCode == Keys.Insert)) { PastePlain(); e.SuppressKeyPress = true; }
             if (e.Shift && !e.Control && e.KeyCode == Keys.Enter) { edContent.SelectedText = "\n"; e.SuppressKeyPress = true; }   // wie Enter (kein weicher Zeilenumbruch)
         }
@@ -418,6 +429,7 @@ namespace Arbeitsplan.Win
             if (view.Selected != null && view.Selected.RowIndex < rowInfo.Count) { selRow = rowInfo[view.Selected.RowIndex].Id; selDay = view.Selected.Day; }
             if (resetFold) fold.Clear();
 
+            if (fstore != null) viewGen = fstore.Generation;
             rowInfo.Clear(); rowInfo.AddRange(store.GetRows());
             view.Start = start;
             view.Cells.Clear();
@@ -617,14 +629,47 @@ namespace Arbeitsplan.Win
 
         void ToggleLkz(CellData c)
         {
+            bool want = !c.Lkz;                     // Ziel = Gegenteil dessen, was der Nutzer sieht
+            if (!c.Editing) FreshCur(c);
             bool allowed = me.Has(Perm.EditText) || (c.Cur.IsEmpty && me.Has(Perm.AddText));
             if (!allowed) { MessageBox.Show("Keine Berechtigung zum Bearbeiten.", "Arbeitsplan", MessageBoxButtons.OK, MessageBoxIcon.Information); return; }
-            if (c.Editing) { c.Lkz = !c.Lkz; view.Invalidate(); return; }   // wird mit dem Block gespeichert
-            Entry n = c.Cur.Clone();
-            n.Lkz = !c.Cur.Lkz;
-            if (!TrySave(c, n)) return;                                     // Haken sofort speichern
-            c.Cur = n; c.Lkz = n.Lkz;
-            view.Invalidate();
+            if (c.Editing) { c.Lkz = want; UpdateChanged(); view.Invalidate(); return; }   // wird mit dem Block gespeichert
+            RowInfo ri = rowInfo[c.RowIndex];
+            if (c.Cur.Lkz == want) { view.Relayout(); return; }   // anderer PC hat den Haken schon so gesetzt
+            Entry n = c.Cur.Clone(); n.Lkz = want;
+            try
+            {
+                bool ok = Audit.Save(store, c.Day, ri, me, n);                 // Haken sofort speichern
+                if (!ok)
+                {   // anderer PC hat den Block geaendert: dessen Inhalt behalten, nur den Haken setzen (einmal still erneut)
+                    Entry latest = store.Get(c.Day, ri.Id);
+                    n = latest != null ? latest.Clone() : new Entry(); n.Lkz = want;
+                    ok = (latest != null && latest.Lkz == want) || Audit.Save(store, c.Day, ri, me, n);
+                }
+                if (!ok) { if (!quiet) MessageBox.Show("Der Haken konnte nicht gespeichert werden, weil der Block gerade geändert wird. Bitte erneut klicken.", "Arbeitsplan", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
+            }
+            catch (Exception ex)
+            {
+                if (!quiet) MessageBox.Show("Der Haken konnte nicht gespeichert werden.\n" + ex.Message, "Speichern fehlgeschlagen", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+            SetCur(c, n);
+            view.Relayout();
+        }
+
+        void SetCur(CellData c, Entry e)
+        {
+            c.Cur = e; c.Content = e.Content; c.People = (string[])e.People.Clone(); c.Lkz = e.Lkz; c.Dirty = true;
+        }
+
+        // Hat ein anderer PC seit dem letzten Rebuild Daten geaendert, den Block aus dem aktuellen Stand nehmen
+        // (die uebrige Ansicht baut der Abfrage-Timer neu auf, sobald nicht bearbeitet wird).
+        void FreshCur(CellData c)
+        {
+            if (fstore == null) return;
+            fstore.Refresh();
+            if (fstore.Generation == viewGen) return;
+            SetCur(c, store.Get(c.Day, rowInfo[c.RowIndex].Id) ?? new Entry());
         }
 
         // ---------- Bearbeitungsmodus (Soft-Lock) ----------
@@ -632,9 +677,10 @@ namespace Arbeitsplan.Win
         void BeginEdit(CellData c)
         {
             if (editCell == c) return;
+            if (!EndEdit(true)) return;
+            FreshCur(c);                           // nie auf veraltetem Stand bearbeiten
             bool allowed = me.Has(Perm.EditText) || (c.Cur.IsEmpty && me.Has(Perm.AddText));
             if (!allowed) { MessageBox.Show("Keine Berechtigung zum Bearbeiten.", "Arbeitsplan", MessageBoxButtons.OK, MessageBoxIcon.Information); return; }
-            if (!EndEdit(true)) return;
 
             RowInfo ri = rowInfo[c.RowIndex];
             string holder = locks.Holder(c.Day, ri.Id, me.Display);
@@ -673,7 +719,16 @@ namespace Arbeitsplan.Win
             edContent.Select(edContent.TextLength, 0);
             for (int s = 0; s < 3; s++) { edPpl[s].Text = Win(c.Cur.People[s]); edPpl[s].BackColor = Theme.Current.ShiftBack[s]; }
             loadingEditor = false;
+            fmtChanged = false; editChanged = false;
             SyncFormat();
+        }
+
+        // Billig (ohne ExtractSpans): weicht der Editor vom Ausgangsstand ab? Format zaehlt ueber fmtChanged.
+        void UpdateChanged()
+        {
+            CellData c = editCell;
+            editChanged = c != null && (fmtChanged || c.Lkz != c.Cur.Lkz || c.Content != c.Cur.Content
+                || c.People[0] != c.Cur.People[0] || c.People[1] != c.Cur.People[1] || c.People[2] != c.Cur.People[2]);
         }
 
         // Eingabefelder exakt ueber Inhalt und Kuerzel des Blocks legen (nach jedem Layout).
@@ -694,7 +749,19 @@ namespace Arbeitsplan.Win
             int n = edContent.TextLength;
             if (n == 0) return res;
             int s0 = edContent.SelectionStart, l0 = edContent.SelectionLength;
+            extracting = true;
             SendMessage(edContent.Handle, WM_SETREDRAW, 0, 0);
+            try { return ExtractSpans(n, res); }
+            finally
+            {
+                edContent.Select(s0, l0);
+                SendMessage(edContent.Handle, WM_SETREDRAW, 1, 0);
+                extracting = false;
+            }
+        }
+
+        List<FormatSpan> ExtractSpans(int n, List<FormatSpan> res)
+        {
             FormatSpan open = null;
             for (int i = 0; i <= n; i++)
             {
@@ -702,21 +769,20 @@ namespace Arbeitsplan.Win
                 if (i < n)
                 {
                     edContent.Select(i, 1);
-                    Font f = edContent.SelectionFont ?? plainFont;
+                    Font sf = edContent.SelectionFont, f = sf ?? plainFont;   // Getter erzeugt jedes Mal eine neue Font
                     Color c = edContent.SelectionColor;
                     FormatSpan t = new FormatSpan();
                     t.Rgb = (c.R << 16) | (c.G << 8) | c.B;
                     t.Size = Math.Abs(f.SizeInPoints - plainFont.SizeInPoints) > 0.05f ? f.SizeInPoints : 0;
                     t.Bold = f.Bold; t.Italic = f.Italic;
                     t.Font = f.Name != plainFont.Name ? f.Name : null;
+                    if (sf != null) sf.Dispose();
                     if (t.Rgb != 0 || t.Size > 0 || t.Bold || t.Italic || t.Font != null) a = t;
                 }
                 bool same = open != null && a != null && open.Rgb == a.Rgb && open.Size == a.Size && open.Bold == a.Bold && open.Italic == a.Italic && open.Font == a.Font;
                 if (open != null && !same) { open.Length = i - open.Start; res.Add(open); open = null; }
                 if (open == null && a != null) { a.Start = i; open = a; }
             }
-            edContent.Select(s0, l0);
-            SendMessage(edContent.Handle, WM_SETREDRAW, 1, 0);
             return res;
         }
 
@@ -753,10 +819,8 @@ namespace Arbeitsplan.Win
             return false;
         }
 
-        bool IsDirty(CellData c) { return EntryDirty(c, WorkEntry(c)); }
-
-        // Fenster-Icon orange, solange der Block echte Aenderungen hat (+1/-1 = unveraendert)
-        public bool HasUnsavedChanges { get { return editCell != null && IsDirty(editCell); } }
+        // Fenster-Icon orange, solange der Block Aenderungen hat (+1/-1 = unveraendert). Nur das Flag, kein ExtractSpans (Icon-Timer 200 ms).
+        public bool HasUnsavedChanges { get { return editCell != null && editChanged; } }
 
         // false = Speichern fehlgeschlagen; Block bleibt im Bearbeitungsmodus, Text bleibt erhalten.
         bool EndEdit(bool save)
@@ -781,7 +845,7 @@ namespace Arbeitsplan.Win
             locks.Release(c.Day, rowInfo[c.RowIndex].Id, me.Display);
             c.Content = c.Cur.Content; c.People = (string[])c.Cur.People.Clone(); c.Lkz = c.Cur.Lkz;
             c.Editing = false; c.Dirty = true;
-            editCell = null;
+            editCell = null; editChanged = fmtChanged = false;
             foreach (Control f in fmtControls) f.Enabled = false;
             view.Relayout();
             return true;
@@ -820,7 +884,7 @@ namespace Arbeitsplan.Win
             else if (e.KeyCode == Keys.Escape)
             {
                 e.SuppressKeyPress = true;
-                if (!IsDirty(editCell)) { EndEdit(false); return; }
+                if (!HasUnsavedChanges) { EndEdit(false); return; }
                 DialogResult r = MessageBox.Show("Änderungen speichern?", "Arbeitsplan", MessageBoxButtons.YesNoCancel, MessageBoxIcon.Question);
                 if (r == DialogResult.Yes) EndEdit(true);          // schlaegt Speichern fehl, bleibt der Block im Editor
                 else if (r == DialogResult.No) EndEdit(false);
@@ -1120,6 +1184,12 @@ namespace Arbeitsplan.Win
             foreach (CellData x in view.Cells) if (x.RowIndex == 0 && x.Col == 4) c = x;
             int rowId = rowInfo[0].Id; DateTime day = c.Day;
             BeginEdit(c);
+            bool dClean = !HasUnsavedChanges;
+            string t0 = edContent.Text; edContent.Text = t0 + "x"; bool dText = HasUnsavedChanges; edContent.Text = t0;
+            bool dBack = !HasUnsavedChanges;
+            edContent.Select(0, Math.Min(2, edContent.TextLength)); ApplyColor(Swatches[1]); bool dFmt = edContent.TextLength == 0 || HasUnsavedChanges;
+            sb.AppendLine("Geändert-Flag: sauber=" + Ok(dClean) + " Text=" + Ok(dText) + " zurück=" + Ok(dBack) + " Format=" + Ok(dFmt));
+            edContent.SelectAll(); ClearFormat();
             edContent.Text = "Neuer Text LKZ ABC"; edContent.Select(11, 3);
             edContent.SelectionColor = Color.Red; edContent.SelectionFont = MakeFont("Arial", 14f, FontStyle.Bold | FontStyle.Italic);
             edPpl[0].Text = "TEST, ABCD";
@@ -1132,6 +1202,9 @@ namespace Arbeitsplan.Win
             Rebuild(false);
             CellData c2 = view.Cells[4]; ToggleLkz(c2);
             sb.AppendLine("Lkz nach Klick: " + store.Get(day, rowId).Lkz);
+            Entry other = store.Get(day, rowId).Clone(); other.Content = "Von anderem PC"; store.Save(day, rowId, other);   // Block ist jetzt veraltet
+            bool lk0 = c2.Lkz; ToggleLkz(c2); Entry aft = store.Get(day, rowId);
+            sb.AppendLine("Lkz-Konflikt: Inhalt behalten=" + Ok(aft.Content == "Von anderem PC" && aft.Lkz == !lk0 && c2.Content == aft.Content && c2.Lkz == aft.Lkz));
 
             // Struktur: Zeile umbenennen, neue Zeile, Reihenfolge
             List<RowInfo> rows = store.GetRows();
