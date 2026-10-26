@@ -25,11 +25,15 @@ namespace Arbeitsplan.Win
             catch (Exception) { return false; }
         }
 
-        public static string Pick(IWin32Window owner, string folder, bool allowOther)
+        public static string Pick(IWin32Window owner, string folder, bool allowOther) { return Pick(owner, folder, allowOther, "Paket auswählen", "Öffnen"); }
+
+        // title/okText: z. B. "Kampagne starten – Produkt wählen" / "Weiter"
+        public static string Pick(IWin32Window owner, string folder, bool allowOther, string title, string okText)
         {
             if (!EnsureFolder(folder)) return Browse(owner, folder);
             using (PackagePicker p = new PackagePicker(folder, allowOther))
             {
+                p.Text = title; p.okButton.Text = okText;
                 if (p.ShowDialog(owner) != DialogResult.OK) return null;
                 return p.Result;
             }
@@ -48,6 +52,8 @@ namespace Arbeitsplan.Win
         // Standardordner fuer "Speichern unter": nur setzen, wenn er existiert bzw. angelegt werden kann
         public static void SetSaveFolder(SaveFileDialog d, string folder) { if (EnsureFolder(folder)) d.InitialDirectory = folder; }
 
+        readonly Button okButton = new Button();
+
         PackagePicker(string folder, bool allowOther)
         {
             this.folder = folder;
@@ -57,7 +63,7 @@ namespace Arbeitsplan.Win
             list.Columns.Add("Name", 270); list.Columns.Add("Produkt", 70); list.Columns.Add("Geändert", 130);
             list.SetBounds(10, 10, 540, 290);
             list.DoubleClick += delegate { Choose(); };
-            Button ok = new Button(); ok.Text = "Öffnen"; ok.SetBounds(10, 310, 100, 30); ok.Click += delegate { Choose(); };
+            Button ok = okButton; ok.Text = "Öffnen"; ok.SetBounds(10, 310, 100, 30); ok.Click += delegate { Choose(); };
             Button other = new Button(); other.Text = "Andere Datei…"; other.SetBounds(118, 310, 120, 30); other.Visible = allowOther;
             other.Click += delegate
             {
@@ -85,6 +91,7 @@ namespace Arbeitsplan.Win
                 list.Items.Add(it);
             }
             if (list.Items.Count > 0) list.Items[0].Selected = true;
+            else list.Items.Add(new ListViewItem("(noch keine Pakete – zuerst „Neues Paket anlegen…“ und speichern)"));   // Tag null: nicht waehlbar
         }
 
         // Produktcode (XML-Attribut produkt) ohne das Paket vollstaendig zu laden; leer, wenn nicht lesbar
@@ -104,7 +111,7 @@ namespace Arbeitsplan.Win
 
         void Choose()
         {
-            if (list.SelectedItems.Count == 0) return;
+            if (list.SelectedItems.Count == 0 || list.SelectedItems[0].Tag == null) return;
             Result = (string)list.SelectedItems[0].Tag; DialogResult = DialogResult.OK;
         }
     }

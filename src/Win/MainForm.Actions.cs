@@ -198,7 +198,7 @@ namespace Arbeitsplan.Win
         void StartCampaignFromFile()
         {
             if (!EndEdit(true)) return;
-            string f = PackagePicker.Pick(this, PackageFolder, me.Has(Perm.PackageAdmin));
+            string f = PackagePicker.Pick(this, PackageFolder, me.Has(Perm.PackageAdmin), "Kampagne starten – Produkt (Paket) wählen", "Weiter");
             if (f == null) return;
             Package p;
             try { p = Package.Load(f); }

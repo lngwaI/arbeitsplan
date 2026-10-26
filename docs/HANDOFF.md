@@ -24,3 +24,8 @@ Jeder Eintrag beginnt mit `## JJJJ-MM-TT HH:MM – <Label>`.
 
 ## 2026-10-26 21:50 – GMX / Haupt-Account
 - Verteilung umgestellt: make_dist.cmd baut dist/Arbeitsplan/{Programm,daten}; exe allein lauffähig, Datenordner automatisch; Workflow lädt das Paket als Artefakt Arbeitsplan-Release (GitHub Actions, Login nötig). Pakete-Ordner und APBAK2 sind auf main.
+
+## 2026-10-26 22:15 – G-Mail / 2. Account
+- Branch `gmail/laufwerk-mehrplatz` (auf main aufgebaut): Start zentral vom Laufwerk ohne Kopie, Desktop-Verknüpfung (UNC), Start nur im Firmennetz (`Umgebung.Open`: kein Datenordner → Ende, Ersteinrichtung nur `Admins=`, Domänenbindung `UserDb.Domains`), unbekannte Nutzer → Meldung+Ende, `NurLesenFuer=`, Dreiwege-Zusammenführung bei Konflikt (`Conflict.Merge`, `ConflictForm`), Formatversion, Update-Hinweis, Paket-Menü "Kampagne starten…", Prüfhinweise, Datum TT.MM.JJJJ. Doku: `docs/IT-Freigabe.md`, `config/LIESMICH.txt`, `config/Arbeitsplan.ini` (Pilot=0).
+- Tests ohne Login: `bash scripts/ci-ergebnis.sh <sha> <branch> <ordner>` (Annotationen + Branch `bilder/<branch>` mit selftest.txt und Testbildern). Lasttest: zwei Prozesse gleichzeitig im Workflow.
+- Lokal: `dist\Arbeitsplan` enthält Altlasten früherer Aufbauten (exe/ini/Vorlagen im Hauptordner, alte ini mit Pilot=1 in Programm\); vor dem Verteilen frisch erzeugen (Ordner vorher selbst wegräumen).
