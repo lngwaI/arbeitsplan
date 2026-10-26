@@ -7,3 +7,19 @@ release/
 .claude/settings.local.json
 testpakete/
 dist/
+
+# Daten, Sicherungen, Pakete, Testausgaben (nie ins oeffentliche Repo)
+shots/
+*.apdb
+*.apdb.*
+*.bak1
+*.bak2
+*.bak3
+*.apbak
+*.apkg
+*.lock
+daten/
+sicherung/
+sicherung.ini
+sperren/
+cache.apdb
