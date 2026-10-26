@@ -18,3 +18,6 @@ Jeder Eintrag beginnt mit `## JJJJ-MM-TT HH:MM – <Label>`.
 
 ## 2026-10-26 19:40 – GMX / Haupt-Account
 - Git-Historie mit filter-repo bereinigt und alle 13 Branches force-gepusht (Commit-IDs neu, andere Rechner neu klonen). Schlüssel-Array in FileStore.cs ist in der Historie Nullen; Release-Schlüssel gehört in die Aufgabe "Keine Geheimnisse im Repo".
+
+## 2026-10-26 20:40 – GMX / Haupt-Account
+- Schlüsseldatei-Umbau auf main. Lokal blockt Smart App Control (Status erzwingen, bewusst nicht abgeschaltet) jede frisch gebaute exe; Tests laufen stattdessen im GitHub-Workflow `.github/workflows/selftest.yml` (Push = Build + `--selftest`, Ergebnis grün/rot in Actions).
