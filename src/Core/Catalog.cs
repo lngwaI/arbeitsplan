@@ -123,8 +123,9 @@ namespace Arbeitsplan.Core
             c.Positions.Add(Pos("Endverdünnungstank", "EVT", "H2-T-0201"));
             c.Positions.Add(Pos("Endverdünnungsskid", "EV", "H2-X-0201", "H2-X-0202"));
             c.Positions.Add(Pos("Mischtank", "MT", "H2-T-0210"));
-            c.Positions.Add(Pos("Splitttank 1", "ST1", "H2-T-0211"));
-            c.Positions.Add(Pos("Splitttank 2", "ST2", "H2-T-0212"));
+            c.Positions.Add(Pos("Split Tank 1", "ST1", "H2-T-0211"));
+            c.Positions.Add(Pos("Split Tank 2", "ST2", "H2-T-0212"));
+            c.Positions.Add(Pos("Reds-Tank (Rez. Tank)", "Reds", "H1-T-0131", "H1-T-0132"));
             c.Positions.Add(Pos("Mischskid", "MS", "H2-X-0210"));
             c.Positions.Add(Pos("Abfüllanlage", "AA", "H2-X-0220"));
             c.Positions.Add(Pos("BDS-Tank", "BDS", "H2-T-0230"));
@@ -144,13 +145,14 @@ namespace Arbeitsplan.Core
             c.Positions.Add(Pos("Freezeanlage", "FA", "H2-X-0250"));
 
 
-            c.Bausteine.Add(Bau("Packen", "Suite 1", true, true, false));                       // Standard: Suite 1 (Suite 2 nur als Sonderaktion)
+            c.Bausteine.Add(Bau("Packen", "Suite 1", true, true, false, "TFF", "Pumpe", "VS"));   // Standard: Suite 1 (Suite 2 nur als Sonderaktion)
             c.Bausteine.Add(Bau("Lauf", "Suite 1", false, false, false, "PT", "Pumpe", "TFF", "MH"));
             c.Bausteine.Add(Bau("Splitten", "Mix / Split", false, false, false, "ST1", "ST2", "Pumpe"));
             c.Bausteine.Add(Bau("Mischen", "Mix / Split", false, false, false, "MT", "MS", "Pumpe"));
             c.Bausteine.Add(Bau("Endverdünnung", "", false, false, false, "EVT", "EV", "Pumpe"));
             c.Bausteine.Add(Bau("Abfüllen", "", false, false, false, "AA", "AS", "BDS", "Schlauch"));
-            c.Bausteine.Add(Bau("Freeze", "Freeze / Thaw", false, false, false, "FZ1", "FZ2", "FA", "Cycle"));
+            c.Bausteine.Add(Bau("Backfill", "Suite 1", false, false, false));
+            c.Bausteine.Add(Bau("Freeze","Freeze / Thaw", false, false, false, "FZ1", "FZ2", "FA", "Cycle"));
             c.Bausteine.Add(Bau("TFF Flush", "Suite 1", false, false, true, "TFF", "MH", "Pumpe", "VS", "Schlauch"));
             c.Groups.Add(Grp("Freezetanks", "FZ1", "FZ2"));
             return c;

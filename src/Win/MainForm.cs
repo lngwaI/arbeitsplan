@@ -870,8 +870,12 @@ namespace Arbeitsplan.Win
                     demo.Steps.Add(s);
                 }
             }
+            if (which == "package3" || which == "campaign2") demo = Package.SampleCampaign("Testpaket");
+            if (which == "campaign2")   // fruehere Kampagne (Laeufe 1-4, Abstaende 5, 5, 7) sechs Wochen vorher
+                Package.SampleCampaign("alt").Apply(store, start.AddDays(-42), ApplyMode.Overwrite, Package.SampleCampaign("alt").Schedule(new List<int>(new[] { 5, 5, 7 })));
             Form f;
-            if (which == "structure") f = new StructureForm(store.GetRows(), true, true, true);
+            if (which == "campaign2") { CampaignForm cf = new CampaignForm(demo, store, start, "vorhandene Blöcke überschreiben"); cf.SetRoom(7, "Suite 2", false); f = cf; }
+            else if (which == "structure") f = new StructureForm(store.GetRows(), true, true, true);
             else if (which == "catalog") { List<string> nm = new List<string>(); foreach (RowInfo r in store.GetRows()) nm.Add(r.Name); f = new CatalogForm(store.GetCatalog(), nm); }
             else if (which == "campaign") { CampaignForm cf = new CampaignForm(demo, store, start, "nur leere Blöcke füllen"); cf.Shift(1, 1); f = cf; }   // Lauf 13570030 (und Folgende) einen Tag spaeter
             else f = new PackageForm(store, equip, start, demo, true, true);
@@ -880,7 +884,15 @@ namespace Arbeitsplan.Win
             f.Show();
             PackageForm pf = f as PackageForm;
             if (pf != null && which == "package2") pf.SelectStep(1);
+            if (pf != null && which == "package3") pf.SelectStep(2);
             return f;
+        }
+
+        // Paketdatei ab dem angezeigten Montag uebernehmen (vorhandene Bloecke ueberschreiben), fuer das Wochen-Testbild.
+        public void TestApply(string path)
+        {
+            Package.Load(path).Apply(store, start, ApplyMode.Overwrite, null);
+            Rebuild(true);
         }
 
         public void TestEdit(int col, int row)
@@ -928,12 +940,16 @@ namespace Arbeitsplan.Win
 
             // Kampagnenstart-Dialog (ohne Anzeige): Zeile 1 (Lauf 13570040) +1 Tag, Folgende wandern mit, Zeile 0 nicht
             DateTime s2 = start.AddDays(35);
-            bool okDlg;
+            bool okDlg, okRoomDlg;
             using (CampaignForm cf = new CampaignForm(q, store, s2, "test"))
             {
                 cf.Shift(1, 1);
                 List<RunDate> sd = cf.Schedule;
                 okDlg = sd[0].Day == 1 && sd[1].Day == 3 && sd[2].Day == 4 && sd[sd.Count - 1].Day == 10 && cf.Start == s2;
+                // Raumwechsel: Lauf 13570041 nach Puffer (Splitten bleibt), ab Lauf 13570042 alle Folgelaeufe nach Lyo
+                cf.SetRoom(3, "Puffer", false); cf.SetRoom(5, "Lyo", true);
+                sd = cf.Schedule;
+                okRoomDlg = sd[3].Row == "Puffer" && sd[4].Row == "Mix / Split" && sd[5].Row == "Lyo" && sd[7].Row == "Lyo" && sd[1].Row == "Suite 2" && sd[0].Row == "Suite 2";
             }
             // Datums-Ueberschreibung: nur der letzte Lauf (13570043) einen Tag spaeter
             List<RunDate> sched = q.Schedule();
@@ -947,6 +963,46 @@ namespace Arbeitsplan.Win
             bool found = Package.LastRun(store, "1357", out no, out lastDay, out iv);
             bool okLast = found && no == 43 && lastDay == s2.AddDays(8) && iv == 2;
             sb.AppendLine("Kampagne: Dialog/Mitverschieben=" + Ok(okDlg) + " Überschreibung=" + Ok(okOver) + " früheKampagne=" + Ok(okLast) + " (letzter " + no + ", Abstand " + iv + ") " + msg);
+
+            // Rhythmus aus der frueheren Kampagne (Laeufe 40-43 an Tag 2, 4, 6, 9 -> Abstaende 2, 2, 3) und Raumwechsel beim Uebernehmen
+            List<int> gp = Package.PastGaps(store, "1357");
+            bool okGaps = gp.Count == 3 && gp[0] == 2 && gp[1] == 2 && gp[2] == 3, okRh, okRoom;
+            DateTime s3 = s2.AddDays(28);
+            int lyo = rowInfo.Find(delegate(RowInfo r) { return r.Name == "Lyo"; }).Id;
+            using (CampaignForm cf = new CampaignForm(q, store, s3, "test"))
+            {
+                List<RunDate> a = cf.Schedule;
+                RunDate l3 = a.Find(delegate(RunDate d) { return d.Step == 1 && d.Run == 3; }), p3 = a.Find(delegate(RunDate d) { return d.Step == 2 && d.Run == 3; });
+                okRh = cf.UseRhythm && l3.Day == 9 && p3.Day == 10 && l3.Label == "Lauf 13570047";
+                cf.UseRhythm = false;
+                okRh &= cf.Schedule.Find(delegate(RunDate d) { return d.Step == 1 && d.Run == 3; }).Day == 8;
+                cf.UseRhythm = true;
+                cf.SetRoom(cf.Schedule.FindIndex(delegate(RunDate d) { return d.Step == 1 && d.Run == 1; }), "Lyo", false);
+                q.Apply(store, s3, ApplyMode.FillEmpty, cf.Schedule);
+                Entry ly = store.Get(s3.AddDays(3), lyo), su = store.Get(s3.AddDays(3), suite2), su2 = store.Get(s3.AddDays(5), suite2);
+                okRoom = ly != null && ly.Content == "Lauf 13570045" && (su == null || su.Content.IndexOf("13570045") < 0) && su2 != null && su2.Content == "Lauf 13570046";
+            }
+            sb.AppendLine("Rhythmus/Raum: Abstände=" + Ok(okGaps) + " [" + string.Join(",", gp.ConvertAll(delegate(int g) { return g.ToString(); }).ToArray()) + "] Rhythmus=" + Ok(okRh)
+                + " RaumDialog=" + Ok(okRoomDlg) + " RaumÜbernahme=" + Ok(okRoom));
+
+            // Testpaket (Produkt 1234): Datei-Roundtrip, rote PA-Kennung als Format, Uebernahme mit Raumwechsel aller Zeilen auf die (umbenannte) erste Zeile
+            Package mk = Package.SampleCampaign("Testpaket");
+            string mp = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "selftest_testpaket.apkg");
+            mk.Save(mp);
+            Package mq = Package.Load(mp);
+            bool okMk = mq.ProductCode == "1234" && mq.Steps.Count == mk.Steps.Count && mq.Steps[2].Ident == mk.Steps[2].Ident;
+            for (int s = 0; s < mk.Steps.Count; s++) for (int r = 0; r < mk.Steps[s].Count; r++) okMk &= mq.Steps[s].Compose(r, "1234") == mk.Steps[s].Compose(r, "1234");
+            string l0 = mq.Steps[2].Compose(0, "1234");
+            okMk &= l0.StartsWith("Lauf – Auftrag/Netzwerk-ID 12340001\nPumpe: ") && l0.EndsWith("\nPA 40010001");
+            DateTime s4 = s2.AddDays(70);
+            using (CampaignForm cf = new CampaignForm(mq, store, s4, "test")) { cf.SetRoom(0, rowInfo[0].Name, true); msg = mq.Apply(store, s4, ApplyMode.Overwrite, cf.Schedule); }
+            int r0 = rowInfo[0].Id;
+            Entry lauf = store.Get(s4.AddDays(2), r0), lauf2 = store.Get(s4.AddDays(8), r0), mi = store.Get(s4.AddDays(3), r0), bf = store.Get(s4.AddDays(6), r0), rest = store.Get(s4.AddDays(4), r0);
+            bool okRed = false;
+            if (lauf != null) foreach (FormatSpan f in lauf.Spans) okRed |= f.Rgb == 0xFF0000 && f.Bold && f.Size > 10 && lauf.Content.Substring(f.Start, f.Length) == "PA 40010001";
+            bool okDays = lauf != null && lauf.Content.StartsWith("Lauf – Auftrag/Netzwerk-ID 12340001") && mi != null && mi.Content.StartsWith("Mischen 12340001")
+                && bf != null && bf.Content == "Backfill 12340001\nTag 2 von 2" && (rest == null || rest.IsEmpty) && lauf2 != null && lauf2.Content.EndsWith("PA 40010017");
+            sb.AppendLine("Testpaket: Roundtrip=" + Ok(okMk) + " PA rot=" + Ok(okRed) + " Tage=" + Ok(okDays) + " " + msg);
         }
 
         static string Ok(bool b) { return b ? "OK" : "FEHLER"; }

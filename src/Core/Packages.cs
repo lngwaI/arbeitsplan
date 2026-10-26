@@ -63,7 +63,21 @@ namespace Arbeitsplan.Core
         public string SubNos = "";          // nur SubRun: Unterlauf-Nummern je Lauf, Komma-getrennt; mehrere je Lauf mit "/"
         public string Text = "";
         public string Note = "";
+        public string Ident = "";           // Kennung je Lauf, Komma-getrennt (z. B. "PA 40010001, PA 40010017"); ganz unten rot, gross, fett
         public List<EquipAssign> Equipment = new List<EquipAssign>();
+
+        public string IdentFor(int run)
+        {
+            string[] per = Ident.Split(',');
+            return run < per.Length ? per[run].Trim() : "";
+        }
+
+        // Format der Kennungszeile (rot, gross, fett).
+        public static FormatSpan IdentSpan(int start, int length)
+        {
+            FormatSpan f = new FormatSpan(); f.Start = start; f.Length = length; f.Rgb = 0xFF0000; f.Size = 14f; f.Bold = true;
+            return f;
+        }
 
         public PackageStep Clone()
         {
@@ -77,7 +91,7 @@ namespace Arbeitsplan.Core
         {
             get
             {
-                if (Title.Length > 0 || Text.Length > 0 || Note.Length > 0 || Kind == StepKind.SubRun) return false;
+                if (Title.Length > 0 || Text.Length > 0 || Note.Length > 0 || Ident.Trim().Length > 0 || Kind == StepKind.SubRun) return false;
                 foreach (EquipAssign a in Equipment) if (a.Line(0).Length > 0) return false;
                 return true;
             }
@@ -121,6 +135,7 @@ namespace Arbeitsplan.Core
             if (Text.Length > 0) lines.Add(Text);
             foreach (EquipAssign a in Equipment) { string l = a.Line(run); if (l.Length > 0) lines.Add(l); }
             if (Note.Length > 0) lines.Add("Notiz: " + Note);
+            if (IdentFor(run).Length > 0) lines.Add(IdentFor(run));   // immer die letzte Zeile (Format in BuildTargets)
             return string.Join("\n", lines.ToArray());
         }
 
@@ -137,7 +152,8 @@ namespace Arbeitsplan.Core
     public class RunDate
     {
         public int Step, Run, Day;          // Step = Index in Package.Steps, Run = Wiederholung (0-basiert)
-        public string Label = "", Row = "";
+        public int Group = -1;              // zugehoeriger Hauptlauf (Wiederholung des Lauf-Schritts), -1 = davor (z. B. Packen)
+        public string Label = "", Row = ""; // Row: Block (Raum), im Kampagnenstart je Lauf aenderbar
     }
 
     // Kompletter Block (Export einer Woche): Inhalt mit Formatierung, Kuerzel, LKZ.
@@ -186,8 +202,25 @@ namespace Arbeitsplan.Core
         }
 
         // Alle Laeufe aller Schritte mit Tag laut Paket-Rhythmus (Tag, Abstand).
-        public List<RunDate> Schedule()
+        public List<RunDate> Schedule() { return Schedule(null); }
+
+        // Wie Schedule(); gaps = Abstaende zwischen den Hauptlaeufen (z. B. aus einer frueheren Kampagne), fehlende = Paket-Abstand.
+        // Alles, was zu einem Hauptlauf gehoert (Schritte ab seinem Tag bis zum naechsten), wandert mit ihm.
+        public List<RunDate> Schedule(List<int> gaps)
         {
+            int main = -1;   // Lauf-Schritt: erster Hauptlauf-Schritt mit den meisten Wiederholungen
+            for (int i = 0; i < Steps.Count; i++)
+                if (Steps[i].Kind == StepKind.Run && !Steps[i].IsEmpty && (main < 0 || Steps[i].Count > Steps[main].Count)) main = i;
+            List<int> mainDay = new List<int>(), shift = new List<int>();
+            if (main >= 0)
+            {
+                PackageStep m = Steps[main]; int iv = Math.Max(1, m.Interval);
+                for (int r = 0; r < Math.Max(1, m.Count); r++)
+                {
+                    mainDay.Add(m.Day + r * iv);
+                    shift.Add(r == 0 ? 0 : shift[r - 1] + (gaps != null && r - 1 < gaps.Count ? gaps[r - 1] : iv) - iv);
+                }
+            }
             List<RunDate> res = new List<RunDate>();
             for (int i = 0; i < Steps.Count; i++)
             {
@@ -197,19 +230,20 @@ namespace Arbeitsplan.Core
                 {
                     RunDate d = new RunDate(); d.Step = i; d.Run = r; d.Day = s.Day + r * Math.Max(1, s.Interval);
                     d.Label = s.Label(ProductCode, r); d.Row = s.Row;
+                    for (int k = 0; k < mainDay.Count; k++) if (mainDay[k] <= d.Day) d.Group = k;
+                    if (i == main) d.Group = r;
+                    if (d.Group >= 0) d.Day += shift[d.Group];
                     res.Add(d);
                 }
             }
             return res;
         }
 
-        // Fruehere Kampagnen desselben Produkts im Plan: hoechste Hauptlauf-Nummer (ZZZZ) mit Datum und haeufigster Abstand
-        // zwischen aufeinanderfolgenden Nummern (0 = unbekannt). Unterlauf-Zeilen zaehlen nicht. false = nichts gefunden.
-        // Erweiterung: den gefundenen Abstand als Rhythmus fuer die neuen Laeufe anbieten (derzeit nur Hinweis).
-        public static bool LastRun(IDataStore store, string product, out int no, out DateTime day, out int interval)
+        // Hauptlauf-Nummern (ZZZZ) desselben Produkts im Plan mit erstem Datum, nach Nummer sortiert. Unterlauf-Zeilen zaehlen nicht.
+        public static List<KeyValuePair<int, DateTime>> PastRuns(IDataStore store, string product)
         {
-            no = -1; day = DateTime.MinValue; interval = 0;
-            if (!IsCode4(product)) return false;
+            List<KeyValuePair<int, DateTime>> res = new List<KeyValuePair<int, DateTime>>();
+            if (!IsCode4(product)) return res;
             Dictionary<int, DateTime> seen = new Dictionary<int, DateTime>();
             System.Text.RegularExpressions.Regex rx = new System.Text.RegularExpressions.Regex("(?<![0-9])" + product + "([0-9]{4})(?![0-9])");
             foreach (SearchHit h in store.Find(product))
@@ -227,18 +261,41 @@ namespace Arbeitsplan.Core
                     }
                 }
             }
-            if (seen.Count == 0) return false;
-            Dictionary<int, int> gaps = new Dictionary<int, int>();
-            foreach (KeyValuePair<int, DateTime> kv in seen)
+            res.AddRange(seen);
+            res.Sort(delegate(KeyValuePair<int, DateTime> a, KeyValuePair<int, DateTime> b) { return a.Key.CompareTo(b.Key); });
+            return res;
+        }
+
+        // Abstaende (Tage) zwischen aufeinanderfolgenden Laeufen der letzten Kampagne (fortlaufende Nummern bis zur hoechsten,
+        // hoechstens 30 Tage auseinander), aeltester zuerst. Leer = keine frueheren Laeufe.
+        public static List<int> PastGaps(IDataStore store, string product)
+        {
+            List<KeyValuePair<int, DateTime>> runs = PastRuns(store, product);
+            List<int> gaps = new List<int>();
+            for (int i = runs.Count - 1; i > 0; i--)
             {
-                if (kv.Key > no) { no = kv.Key; day = kv.Value; }
-                DateTime next;
-                if (seen.TryGetValue(kv.Key + 1, out next) && next > kv.Value)
+                int g = (runs[i].Value - runs[i - 1].Value).Days;
+                if (runs[i - 1].Key != runs[i].Key - 1 || g < 1 || g > 30) break;
+                gaps.Insert(0, g);
+            }
+            return gaps;
+        }
+
+        // Fruehere Kampagnen desselben Produkts im Plan: hoechste Hauptlauf-Nummer (ZZZZ) mit Datum und haeufigster Abstand
+        // zwischen aufeinanderfolgenden Nummern (0 = unbekannt). false = nichts gefunden.
+        public static bool LastRun(IDataStore store, string product, out int no, out DateTime day, out int interval)
+        {
+            no = -1; day = DateTime.MinValue; interval = 0;
+            List<KeyValuePair<int, DateTime>> runs = PastRuns(store, product);
+            if (runs.Count == 0) return false;
+            no = runs[runs.Count - 1].Key; day = runs[runs.Count - 1].Value;
+            Dictionary<int, int> gaps = new Dictionary<int, int>();
+            for (int i = 1; i < runs.Count; i++)
+                if (runs[i].Key == runs[i - 1].Key + 1 && runs[i].Value > runs[i - 1].Value)
                 {
-                    int g = (next - kv.Value).Days, c;
+                    int g = (runs[i].Value - runs[i - 1].Value).Days, c;
                     gaps.TryGetValue(g, out c); gaps[g] = c + 1;
                 }
-            }
             int best = 0;
             foreach (KeyValuePair<int, int> kv in gaps) if (kv.Value > best) { best = kv.Value; interval = kv.Key; }
             return true;
@@ -261,6 +318,7 @@ namespace Arbeitsplan.Core
                     if (s.Kind != StepKind.Normal) w.WriteAttributeString("art", s.Kind == StepKind.Run ? "lauf" : "unterlauf");
                     if (s.SubNos.Length > 0) w.WriteAttributeString("unterlaeufe", s.SubNos);
                     w.WriteAttributeString("text", s.Text); w.WriteAttributeString("notiz", s.Note);
+                    if (s.Ident.Length > 0) w.WriteAttributeString("kennung", s.Ident);   // fehlt bei aelteren Paketen
                     foreach (EquipAssign a in s.Equipment)
                     {
                         w.WriteStartElement("Equipment");
@@ -334,7 +392,7 @@ namespace Arbeitsplan.Core
                     string art = e.GetAttribute("art");
                     s.Kind = art == "lauf" ? StepKind.Run : (art == "unterlauf" ? StepKind.SubRun : StepKind.Normal);
                     s.SubNos = e.GetAttribute("unterlaeufe");
-                    s.Text = e.GetAttribute("text"); s.Note = e.GetAttribute("notiz");
+                    s.Text = e.GetAttribute("text"); s.Note = e.GetAttribute("notiz"); s.Ident = e.GetAttribute("kennung");
                     foreach (XmlElement q in Elements(e))
                         if (q.Name == "Equipment")
                         {
@@ -403,8 +461,8 @@ namespace Arbeitsplan.Core
 
         List<Target> BuildTargets(List<RowInfo> rows, DateTime start, List<RunDate> schedule, out int unknownRow)
         {
-            Dictionary<long, int> over = new Dictionary<long, int>();   // (Schritt, Lauf) -> Tag aus dem Kampagnenstart-Dialog
-            if (schedule != null) foreach (RunDate d in schedule) over[(long)d.Step * 100000 + d.Run] = d.Day;
+            Dictionary<long, RunDate> over = new Dictionary<long, RunDate>();   // (Schritt, Lauf) -> Tag/Block aus dem Kampagnenstart-Dialog
+            if (schedule != null) foreach (RunDate d in schedule) over[(long)d.Step * 100000 + d.Run] = d;
             unknownRow = 0;
             Dictionary<string, Target> map = new Dictionary<string, Target>();
             List<Target> order = new List<Target>();
@@ -422,19 +480,21 @@ namespace Arbeitsplan.Core
             {
                 PackageStep s = Steps[si];
                 if (s.IsEmpty) continue;
-                int id = RowId(rows, s.Row);
-                if (id < 0) { unknownRow++; continue; }
                 List<KeyValuePair<int, string>> runs = s.Runs(ProductCode);
                 for (int ri = 0; ri < runs.Count; ri++)
                 {
                     KeyValuePair<int, string> run = runs[ri];
-                    int dayNo;
-                    if (!over.TryGetValue((long)si * 100000 + ri, out dayNo)) dayNo = run.Key;
-                    DateTime day = start.AddDays(dayNo - 1);
+                    RunDate rd;
+                    bool has = over.TryGetValue((long)si * 100000 + ri, out rd);
+                    int id = RowId(rows, has && rd.Row.Length > 0 ? rd.Row : s.Row);   // Raumwechsel je Lauf; Equipment bleibt
+                    if (id < 0) { unknownRow++; continue; }
+                    DateTime day = start.AddDays((has ? rd.Day : run.Key) - 1);
                     string k = day.ToString("yyyyMMdd") + "|" + id;
                     Target t;
                     if (!map.TryGetValue(k, out t)) { t = new Target(); t.Day = day; t.RowId = id; t.Data = new Entry(); map[k] = t; order.Add(t); }
                     t.Data.Content = t.Data.Content.Length > 0 ? t.Data.Content + "\n\n" + run.Value : run.Value;
+                    string idt = s.IdentFor(ri);
+                    if (idt.Length > 0) t.Data.Spans.Add(PackageStep.IdentSpan(t.Data.Content.Length - idt.Length, idt.Length));
                 }
             }
             return order;
@@ -480,6 +540,42 @@ namespace Arbeitsplan.Core
             if (conflicts > 0) msg += ", " + conflicts + " wegen Konflikt nicht gespeichert";
             return msg + ".";
         }
+
+#if TESTHOOKS
+        // Testpaket (erfundene Daten, Produkt 1234): Packen, Packen Backup, 4 Laeufe im Rhythmus Lauf, Mischen, Ruhe,
+        // 2 Tage Backfill, Ruhe. Lauf mit Auftrag/Netzwerk-ID (= Laufnummer), Equipment und roter PA-Kennung je Lauf.
+        public static Package SampleCampaign(string name)
+        {
+            Package p = new Package(); p.Name = name; p.ProductCode = "1234";
+            PackageStep pk = Step(p, "Packen", "Packen", 1, StepKind.Normal, 1);
+            pk.Text = "Auftrag/Netzwerk-ID: siehe Lauf\nDMO-Hinweis: Packanweisung im DMO beachten";
+            Eq(pk, "TFF", "H1-X-0101"); Eq(pk, "Pumpe", "H1-P-0101-05"); Eq(pk, "VS", "H1-F-0103-04");
+            Step(p, "Packen Backup", "", 2, StepKind.Normal, 1).Text = "Reservetag, falls Packen nicht abgeschlossen";
+            PackageStep lf = Step(p, "Lauf – Auftrag/Netzwerk-ID", "Lauf", 3, StepKind.Run, 4);
+            Eq(lf, "Pumpe", "H1-P-0101-05");
+            EquipAssign tff = Eq(lf, "TFF", "H1-X-0101"); tff.Choices.Add(new EquipChoice("TFF", "H1-X-0102")); tff.Alternate = true; tff.Fallback = "H1-X-0103";
+            Eq(lf, "Reds", "H1-T-0131"); Eq(lf, "EV", "H2-X-0201"); Eq(lf, "EVT", "H2-T-0201"); Eq(lf, "PT", "H1-T-0102");
+            Eq(lf, "RT", "H1-T-0112"); Eq(lf, "VS", "H1-F-0103-04").Note = "(nur eins vorhanden)"; Eq(lf, "ST1", "H2-T-0211"); Eq(lf, "ST2", "H2-T-0212");
+            lf.Ident = "PA 40010001, PA 40010017, PA 40010032, PA 40010048";
+            PackageStep mi = Step(p, "Mischen", "Mischen", 4, StepKind.Run, 4);
+            Eq(mi, "MT", "H2-T-0210"); Eq(mi, "ST1", "H2-T-0211"); Eq(mi, "ST2", "H2-T-0212"); Eq(mi, "MS", "H2-X-0210"); Eq(mi, "EV", "H2-X-0201"); Eq(mi, "Pumpe", "H1-P-0102-05");
+            Step(p, "Backfill", "Backfill", 6, StepKind.Run, 4).Text = "Tag 1 von 2";
+            Step(p, "Backfill", "Backfill", 7, StepKind.Run, 4).Text = "Tag 2 von 2";
+            return p;
+        }
+
+        static PackageStep Step(Package p, string title, string source, int day, StepKind kind, int count)
+        {
+            PackageStep s = new PackageStep(); s.Title = title; s.Source = source; s.Row = "Suite 1"; s.Day = day; s.Kind = kind;
+            s.Count = count; s.Interval = 6; s.StartNo = 1;
+            p.Steps.Add(s); return s;
+        }
+
+        static EquipAssign Eq(PackageStep s, string sh, string id)
+        {
+            EquipAssign a = new EquipAssign(); a.Short = sh; a.Choices.Add(new EquipChoice(sh, id)); s.Equipment.Add(a); return a;
+        }
+#endif
 
         static int RowId(List<RowInfo> rows, string name)
         {
