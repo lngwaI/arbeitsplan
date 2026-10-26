@@ -128,6 +128,8 @@ namespace Arbeitsplan.Win
             Controls.Add(BuildMenu());
             Controls.Add(bar);
 
+            ResizeEnd += delegate { RefitIfScreenChanged(); };
+            Microsoft.Win32.SystemEvents.DisplaySettingsChanged += delegate { RefitIfScreenChanged(); };
             KeyDown += OnKey;
             FormClosing += OnClosing;
             Theme.Current.Style(this);
@@ -451,6 +453,42 @@ namespace Arbeitsplan.Win
             fold[rowInfo[r].Id] = !view.Collapsed[r];
             ApplyFold();
             view.Relayout();
+        }
+
+        // ---------- Bildschirmanpassung (4:3 / 16:9, mehrere Monitore) ----------
+        Screen lastScreen;
+        bool filled = true;   // Fenster fuellt den Arbeitsbereich seines Bildschirms
+
+        static bool Fills(Rectangle b, Rectangle wa)
+        {
+            return Math.Abs(b.Width - wa.Width) < 40 && Math.Abs(b.Height - wa.Height) < 40;
+        }
+
+        // Start: den Arbeitsbereich des Bildschirms fuellen, auf dem die Maus steht (dort wurde das Programm gestartet)
+        public void FitToCursorScreen()
+        {
+            Screen s = Screen.FromPoint(Cursor.Position);
+            StartPosition = FormStartPosition.Manual;
+            Bounds = s.WorkingArea;
+            lastScreen = s; filled = true;
+        }
+
+        // Fenster auf einen anderen Bildschirm gezogen (oder Aufloesung geaendert): passt Groesse an, damit nie Tage ausserhalb liegen oder Platz fehlt
+        void RefitIfScreenChanged()
+        {
+            if (WindowState != FormWindowState.Normal) { lastScreen = Screen.FromControl(this); return; }
+            Screen s = Screen.FromControl(this);
+            if (lastScreen == null) lastScreen = s;
+            if (s.DeviceName != lastScreen.DeviceName)
+            {
+                Rectangle wa = s.WorkingArea;
+                if (filled || Width > wa.Width || Height > wa.Height) Bounds = wa;
+                else Location = new Point(Math.Max(wa.Left, Math.Min(Left, wa.Right - Width)), Math.Max(wa.Top, Math.Min(Top, wa.Bottom - Height)));
+                lastScreen = s;
+            }
+            else if (!Fills(Bounds, s.WorkingArea) && !Fills(Bounds, lastScreen.WorkingArea)) filled = false;
+            else filled = Fills(Bounds, s.WorkingArea);
+            if (Width > s.WorkingArea.Width || Height > s.WorkingArea.Height) Bounds = s.WorkingArea;
         }
 
         void ResizeView()

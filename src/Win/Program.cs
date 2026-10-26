@@ -106,7 +106,7 @@ namespace Arbeitsplan.Win
             {
                 Splash sp = StartSplash();
                 MainForm m = new MainForm(login, nosave);
-                if (sz != null) m.ClientSize = cs;
+                if (sz != null) m.ClientSize = cs; else m.FitToCursorScreen();
                 RunMain(m, sp, t0);
                 return;
             }
@@ -138,7 +138,8 @@ namespace Arbeitsplan.Win
             Application.ThreadException += delegate { Fatal(); };
             AppDomain.CurrentDomain.UnhandledException += delegate { Fatal(); };
             Splash sp = StartSplash();
-            RunMain(new MainForm(Environment.UserName, false), sp, t0);
+            MainForm rm = new MainForm(Environment.UserName, false); rm.FitToCursorScreen();
+            RunMain(rm, sp, t0);
 #endif
         }
     }
