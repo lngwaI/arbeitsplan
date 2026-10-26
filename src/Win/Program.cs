@@ -95,6 +95,7 @@ namespace Arbeitsplan.Win
             string sz = Arg(args, "--size") ?? (Array.IndexOf(args, "--4x3") >= 0 ? "1024x768" : null);
             Size cs = new Size(1280, 720);
             if (sz != null) cs = new Size(int.Parse(sz.Split('x')[0]), int.Parse(sz.Split('x')[1]));
+            if (Arg(args, "--weeks") == "2") MainForm.TestWeeks = 2;
             if (Arg(args, "--splash") != null)   // Test: Startbildschirm als Bild
             {
                 Splash sp = StartSplash();

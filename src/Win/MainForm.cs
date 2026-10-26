@@ -135,6 +135,9 @@ namespace Arbeitsplan.Win
             InitData();   // Verlauf-Menue, Sicherung beim Beenden (MainForm.Data.cs)
             Theme.Current.Style(this);
             Rebuild(true);
+#if TESTHOOKS
+            if (TestWeeks == 2) SetWeeks(2);
+#endif
         }
 
         // ---------- Aufbau der Leisten ----------
@@ -147,11 +150,12 @@ namespace Arbeitsplan.Win
             bool usr = me.Has(Perm.UserCreate) || me.Has(Perm.UserEdit) || me.Has(Perm.UserDelete);
 
             ToolStripMenuItem file = new ToolStripMenuItem("Woche");
-            file.DropDownItems.Add("Als Bild speichern (PNG)…", null, delegate { ExportImage(false); });
-            file.DropDownItems.Add("Als PDF speichern…", null, delegate { ExportImage(true); });
-            file.DropDownItems.Add("In Zwischenablage kopieren", null, delegate { ExportClipboard(); });
-            file.DropDownItems.Add("Als Paket speichern (.apkg)…", null, delegate { ExportPackage(); });
-            file.Enabled = exp;
+            file.DropDownItems.Add("Meine Schichten…", null, delegate { ShowPersons(); });
+            file.DropDownItems.Add(new ToolStripSeparator());
+            file.DropDownItems.Add("Als Bild speichern (PNG)…", null, delegate { ExportImage(false); }).Enabled = exp;
+            file.DropDownItems.Add("Als PDF speichern…", null, delegate { ExportImage(true); }).Enabled = exp;
+            file.DropDownItems.Add("In Zwischenablage kopieren", null, delegate { ExportClipboard(); }).Enabled = exp;
+            file.DropDownItems.Add("Als Paket speichern (.apkg)…", null, delegate { ExportPackage(); }).Enabled = exp;
 
             ToolStripMenuItem pk = new ToolStripMenuItem("Pakete");
             pk.DropDownItems.Add("Paket-Editor…", null, delegate { OpenPackageEditor(null); });
@@ -166,6 +170,13 @@ namespace Arbeitsplan.Win
             set.Visible = structure || usr || me.Has(Perm.PackageAdmin);
 
             ms.Items.AddRange(new ToolStripItem[] { file, pk, set });
+#if TESTHOOKS
+            ToolStripMenuItem av = new ToolStripMenuItem("Ansicht (Test)");
+            ToolStripMenuItem w2 = new ToolStripMenuItem("2 Wochen"); w2.CheckOnClick = true; w2.Checked = TestWeeks == 2;
+            w2.CheckedChanged += delegate { SetWeeks(w2.Checked ? 2 : 1); };
+            av.DropDownItems.Add(w2);
+            ms.Items.Add(av);
+#endif
             ms.Dock = DockStyle.Top;
             return ms;
         }
@@ -424,6 +435,9 @@ namespace Arbeitsplan.Win
                     if (rowInfo[r].Id == selRow && d.Day == selDay) view.Selected = d;
                 }
             ApplyFold();
+#if TESTHOOKS
+            if (week2 != null) week2.Load(store, rowInfo, start.AddDays(7));
+#endif
             ResizeView();
         }
 
@@ -513,6 +527,29 @@ namespace Arbeitsplan.Win
         }
 
         // ---------- Einstellungen: Blockstruktur ----------
+
+        void ShowPersons()
+        {
+            if (!EndEdit(true)) return;
+            using (PersonForm f = new PersonForm(store, me.Kuerzel, MondayOf(DateTime.Today))) f.ShowDialog(this);
+        }
+
+#if TESTHOOKS
+        public static int TestWeeks = 1;
+        SecondWeek week2;
+
+        void SetWeeks(int n)
+        {
+            if (n == 2 && week2 == null)
+            {
+                week2 = new SecondWeek(canvas, Font, view, rowInfo);
+                view.LayoutDone += delegate { if (week2 != null) week2.Place(view); };
+                week2.Load(store, rowInfo, start.AddDays(7));
+                ResizeView();
+            }
+            else if (n == 1 && week2 != null) { week2.Remove(); week2 = null; }
+        }
+#endif
 
         void EditStructure()
         {
@@ -695,6 +732,23 @@ namespace Arbeitsplan.Win
                 || n.Lkz != c.Cur.Lkz || n.SpanKey() != c.Cur.SpanKey();
         }
 
+        static bool quiet;   // Selbsttest: keine Meldungsfenster
+
+        static readonly System.Text.RegularExpressions.Regex Tok = new System.Text.RegularExpressions.Regex(@"[^\s,;/]+");
+
+        // Loeschen = Inhalt kuerzer oder ein Kuerzel gegenueber dem gespeicherten Stand entfernt.
+        static bool RemovesText(Entry old, Entry n)
+        {
+            if (n.Content.Length < old.Content.Length) return true;
+            for (int s = 0; s < 3; s++)
+            {
+                List<string> now = new List<string>();
+                foreach (System.Text.RegularExpressions.Match m in Tok.Matches(n.People[s])) now.Add(m.Value.ToUpperInvariant());
+                foreach (System.Text.RegularExpressions.Match m in Tok.Matches(old.People[s])) if (!now.Contains(m.Value.ToUpperInvariant())) return true;
+            }
+            return false;
+        }
+
         bool IsDirty(CellData c) { return EntryDirty(c, WorkEntry(c)); }
 
         // Fenster-Icon orange, solange der Block echte Aenderungen hat (+1/-1 = unveraendert)
@@ -710,6 +764,12 @@ namespace Arbeitsplan.Win
                 Entry n = WorkEntry(c);
                 if (EntryDirty(c, n))
                 {
+                    if (!me.Has(Perm.DeleteText) && RemovesText(c.Cur, n))
+                    {
+                        if (!quiet) MessageBox.Show("Sie dürfen keinen Text löschen (Recht \"Text löschen\" fehlt).\n\nDer Block bleibt im Bearbeitungsmodus: Entfernten Text wieder eintragen oder mit Esc verwerfen.",
+                            "Keine Berechtigung", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        return false;
+                    }
                     if (!TrySave(c, n)) return false;
                     c.Cur = n;
                 }
@@ -742,6 +802,7 @@ namespace Arbeitsplan.Win
 
         static void ShowSaveError(Exception ex)
         {
+            if (quiet) return;
             MessageBox.Show("Konnte nicht gespeichert werden.\n" + ex.Message +
                 "\n\nIhre Änderung ist NICHT verloren und bleibt im Editor sichtbar.\nSpeichern später erneut versuchen (Strg+S) oder mit Esc beenden.",
                 "Speichern fehlgeschlagen", MessageBoxButtons.OK, MessageBoxIcon.Error);
@@ -1014,6 +1075,32 @@ namespace Arbeitsplan.Win
         public string SelfTest()
         {
             System.Text.StringBuilder sb = new System.Text.StringBuilder();
+            quiet = true;
+            try { SelfTestSave(sb); }
+            catch (System.IO.IOException ex)
+            {
+                if (!systemPc) throw;
+                if (editCell != null) EndEdit(false);
+                sb.AppendLine("Speichern erwartungsgemäß fehlgeschlagen (Systemrechner): " + ex.Message);
+            }
+            Entry o = new Entry(); o.Content = "abc"; o.People = new[] { "AB, CD", "", "" };
+            Entry n1 = o.Clone(); n1.Content = "ab"; Entry n2 = o.Clone(); n2.People[0] = "AB"; Entry n3 = o.Clone(); n3.Content = "abd"; n3.People[0] = "ab, cd, EF";
+            sb.AppendLine("Löschen erkannt: kürzer=" + Ok(RemovesText(o, n1)) + " Kürzel=" + Ok(RemovesText(o, n2)) + " nurErgänzt=" + Ok(!RemovesText(o, n3))
+                + " Recht Produktion=" + Ok(users.Package("Produktion") != null && Array.IndexOf(users.Package("Produktion").Rights, Perm.DeleteText) >= 0));
+            byte[] blob = Protected.Protect("Geheim äöü", "pw1");
+            bool wrong = false, tampered = false;
+            try { Protected.Unprotect(blob, "pw2"); } catch (System.Security.Cryptography.CryptographicException) { wrong = true; }
+            blob[40] ^= 1;
+            try { Protected.Unprotect(blob, "pw1"); } catch (System.Security.Cryptography.CryptographicException) { tampered = true; }
+            blob[40] ^= 1;
+            sb.AppendLine("Protected: ok=" + (Protected.Unprotect(blob, "pw1") == "Geheim äöü") + " falschesPw=" + wrong + " manipuliert=" + tampered);
+            if (systemPc) sb.AppendLine("Protokoll/Sicherung: übersprungen (Systemrechner, Speichern nicht möglich)"); else SelfTestData(sb);
+            quiet = false;
+            return sb.ToString();
+        }
+
+        void SelfTestSave(System.Text.StringBuilder sb)
+        {
             int n = rowInfo.Count;
             string coll = ""; for (int r = 0; r < n; r++) coll += (view.Collapsed[r] ? "z" : "o");
             sb.AppendLine("Zeilen=" + n + " Standard offen(o)/zu(z): " + coll + " | " + rowInfo[4].Name + " vor " + rowInfo[5].Name);
@@ -1072,15 +1159,6 @@ namespace Arbeitsplan.Win
             SelfTestCampaign(sb);
             Rebuild(true);
             sb.AppendLine("Find 'TEST': " + store.Find("TEST").Count);
-            byte[] blob = Protected.Protect("Geheim äöü", "pw1");
-            bool wrong = false, tampered = false;
-            try { Protected.Unprotect(blob, "pw2"); } catch (System.Security.Cryptography.CryptographicException) { wrong = true; }
-            blob[40] ^= 1;
-            try { Protected.Unprotect(blob, "pw1"); } catch (System.Security.Cryptography.CryptographicException) { tampered = true; }
-            blob[40] ^= 1;
-            sb.AppendLine("Protected: ok=" + (Protected.Unprotect(blob, "pw1") == "Geheim äöü") + " falschesPw=" + wrong + " manipuliert=" + tampered);
-            SelfTestData(sb);
-            return sb.ToString();
         }
 #endif
 
