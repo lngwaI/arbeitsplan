@@ -21,6 +21,8 @@ namespace Arbeitsplan.Win
         public TextBlock CB;
         public TextBlock[] PB = new TextBlock[3];
         public int Hits;
+        public List<RunRef> Runs = new List<RunRef>();      // Laufnummern im Inhalt (Kennzeichnung je Produkt)
+        public string RunsFor;
         public Rectangle R, RHead, RLkz, RContent;
         public Rectangle[] RLbl = new Rectangle[3], RPpl = new Rectangle[3];
     }
@@ -288,7 +290,8 @@ namespace Arbeitsplan.Win
             using (SolidBrush ab = new SolidBrush(th.Arrow)) g.FillPolygon(ab, tri);
 
             int right = 18 + (c.Editing ? 20 : 0);                                   // Platz fuer Pfeil (+ Stift im Bearbeitungsmodus)
-            Rectangle nr = new Rectangle(c.RHead.X + th.HeadTextX, c.RHead.Y, c.RHead.Width - 2 * th.HeadTextX - right, c.RHead.Height);
+            int mk = ProductBars(g, c);
+            Rectangle nr = new Rectangle(c.RHead.X + th.HeadTextX + mk, c.RHead.Y, c.RHead.Width - 2 * th.HeadTextX - right - mk, c.RHead.Height);
             if (collapsed)
             {
                 bool filled = !c.Cur.IsEmpty || c.Cur.Lkz;
@@ -326,6 +329,29 @@ namespace Arbeitsplan.Win
             }
         }
 
+        // Dezente Produktfarben (stabil aus dem Produktcode); im hellen Look etwas blasser.
+        static readonly int[][] Tones = {
+            new[] { 70, 130, 180 }, new[] { 90, 160, 110 }, new[] { 190, 120, 60 }, new[] { 150, 100, 170 },
+            new[] { 60, 150, 160 }, new[] { 180, 90, 100 }, new[] { 140, 140, 60 }, new[] { 110, 120, 150 } };
+
+        public static Color ProductColor(string product)
+        {
+            int[] t = Tones[RunNumbers.ProductIndex(product, Tones.Length)];
+            return Color.FromArgb(t[0], t[1], t[2]);
+        }
+
+        // Farbbalken je Produkt am linken Rand der Kopfleiste (max. 3); Rueckgabe = belegte Breite.
+        int ProductBars(Graphics g, CellData c)
+        {
+            if (c.RunsFor != c.Content) { c.Runs = RunNumbers.Find(c.Content); c.RunsFor = c.Content; }
+            if (c.Runs.Count == 0) return 0;
+            List<string> prods = new List<string>();
+            foreach (RunRef r in c.Runs) if (!prods.Contains(r.Product) && prods.Count < 3) prods.Add(r.Product);
+            int x = c.RHead.X + 1, h = c.RHead.Height - 4;
+            foreach (string p in prods) { Fill(g, ProductColor(p), new Rectangle(x, c.RHead.Y + 2, 4, h)); x += 5; }
+            return prods.Count * 5 + 1;
+        }
+
         // "(LKZ)" neben dem Zeilennamen: rot = noch zu messen, gruen = gemessen (nur Zeilen mit LKZ-Feld).
         void LkzTag(Graphics g, CellData c, RowInfo ri, Rectangle nr, TextFormatFlags tf)
         {
@@ -342,6 +368,17 @@ namespace Arbeitsplan.Win
         {
             foreach (CellData c in Cells) if (c.R.Contains(p)) return c;
             return null;
+        }
+
+        readonly ToolTip tip = new ToolTip();
+        string tipText = "";
+
+        protected override void OnMouseMove(MouseEventArgs e)
+        {
+            base.OnMouseMove(e);
+            CellData c = CellAt(e.Location);
+            string t = c != null && c.RHead.Contains(e.Location) && c.Runs.Count > 0 ? RunNumbers.Describe(c.Runs) : "";
+            if (t != tipText) { tipText = t; tip.SetToolTip(this, t.Length > 0 ? t : null); }
         }
 
         protected override void OnMouseDown(MouseEventArgs e)

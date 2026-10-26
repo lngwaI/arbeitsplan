@@ -154,10 +154,10 @@ namespace Arbeitsplan.Core
             MemoryStore s = new MemoryStore();
             int suite1 = s.IdOf("Suite 1"), mix = s.IdOf("Mix / Split"), cc = s.IdOf("Raum CC");
             string[] a = {
-                "Lauf 100001\nTFF: H1-X-0101\nPumpe: H1-P-0101-05\nPT: H1-T-0102\nSkid: H1-X-0103 (H1-F-0103-04)\n\nSplitten\nTank 1: H1-T-0111 (800L)",
+                "Lauf 22040030\nTFF: H1-X-0101\nPumpe: H1-P-0101-05\nPT: H1-T-0102\nSkid: H1-X-0103 (H1-F-0103-04)\n\nSplitten\nTank 1: H1-T-0111 (800L)",
                 "Probenahme Charge 4711 – Öl-Wechsel? 5 % (ü ö ä ß) @Tank \"A\"!\nH1-P-0101-05, H1-T-0112",
                 "Wartung Abfüllung (extern ab 08:00).\nTägliche WFI Probe ziehen\nLKZ MESSEN",
-                "Lauf 100002\nSkid: H1-X-0103, Tank: H2-T-0201",
+                "Lauf 22040031 (nach Lauf 33070007)\nSkid: H1-X-0103, Tank: H2-T-0201",
                 "Reinigung und Rüsten\nH1-T-0113, H2-F-0202-01",
                 "Wochenendbetrieb: Überwachung", "Wochenendbetrieb: Überwachung" };
             string[][] p = {
