@@ -15,7 +15,7 @@ namespace Arbeitsplan.Win
         protected override Point ScrollToControl(Control activeControl) { return DisplayRectangle.Location; }
     }
 
-    class MainForm : Form
+    partial class MainForm : Form
     {
         static readonly CultureInfo De = new CultureInfo("de-DE");
         const int WM_SETREDRAW = 0xB;
@@ -132,6 +132,7 @@ namespace Arbeitsplan.Win
             Microsoft.Win32.SystemEvents.DisplaySettingsChanged += delegate { RefitIfScreenChanged(); };
             KeyDown += OnKey;
             FormClosing += OnClosing;
+            InitData();   // Verlauf-Menue, Sicherung beim Beenden (MainForm.Data.cs)
             Theme.Current.Style(this);
             Rebuild(true);
         }
@@ -161,6 +162,7 @@ namespace Arbeitsplan.Win
             ToolStripItem st = set.DropDownItems.Add("Blockstruktur…", null, delegate { EditStructure(); }); st.Enabled = structure;
             ToolStripItem us = set.DropDownItems.Add("Nutzerverwaltung…", null, delegate { using (UserAdminForm f = new UserAdminForm(users, me)) f.ShowDialog(this); }); us.Enabled = usr;
             ToolStripItem cf = set.DropDownItems.Add("Equipment && Bausteine…", null, delegate { EditCatalog(); }); cf.Enabled = me.Has(Perm.PackageAdmin);
+            ToolStripItem bk = set.DropDownItems.Add("Sicherung…", null, delegate { OpenBackup(); }); bk.Enabled = me.Has(Perm.PackageAdmin);
             set.Visible = structure || usr || me.Has(Perm.PackageAdmin);
 
             ms.Items.AddRange(new ToolStripItem[] { file, pk, set });
@@ -726,12 +728,12 @@ namespace Arbeitsplan.Win
             int rowId = rowInfo[c.RowIndex].Id;
             try
             {
-                if (store.Save(c.Day, rowId, n)) return true;
+                if (Audit.Save(store, c.Day, rowInfo[c.RowIndex], me, n)) return true;   // mit Protokolleintrag
                 Entry latest = store.Get(c.Day, rowId);
                 if (MessageBox.Show("Der Block wurde inzwischen von jemand anderem geändert.\n\nJa = meine Fassung speichern (überschreibt die andere)\nNein = im Editor bleiben",
                     "Konflikt", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes) return false;
                 n.Version = latest != null ? latest.Version : 0;
-                if (store.Save(c.Day, rowId, n)) return true;
+                if (Audit.Save(store, c.Day, rowInfo[c.RowIndex], me, n)) return true;
                 MessageBox.Show("Der Block wurde erneut geändert. Bitte noch einmal speichern.", "Konflikt", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return false;
             }
@@ -873,6 +875,7 @@ namespace Arbeitsplan.Win
             Form f;
             if (which == "structure") f = new StructureForm(store.GetRows(), true, true, true);
             else if (which == "catalog") { List<string> nm = new List<string>(); foreach (RowInfo r in store.GetRows()) nm.Add(r.Name); f = new CatalogForm(store.GetCatalog(), nm); }
+            else if (which == "history" || which == "backup") f = TestDataForm(which);
             else if (which == "campaign") { CampaignForm cf = new CampaignForm(demo, store, start, "nur leere Blöcke füllen"); cf.Shift(1, 1); f = cf; }   // Lauf 13570030 (und Folgende) einen Tag spaeter
             else f = new PackageForm(store, equip, start, demo, true, true);
             Hide();                                   // nur fuer das Testbild: Hauptfenster nicht dahinter
@@ -1020,6 +1023,7 @@ namespace Arbeitsplan.Win
             try { Protected.Unprotect(blob, "pw1"); } catch (System.Security.Cryptography.CryptographicException) { tampered = true; }
             blob[40] ^= 1;
             sb.AppendLine("Protected: ok=" + (Protected.Unprotect(blob, "pw1") == "Geheim äöü") + " falschesPw=" + wrong + " manipuliert=" + tampered);
+            SelfTestData(sb);
             return sb.ToString();
         }
 #endif

@@ -60,6 +60,11 @@ namespace Arbeitsplan.Core
         List<SearchHit> Find(string query);                  // Inhalt und Kuerzel (nicht Raumnamen), nach Datum/Zeile sortiert
         Catalog GetCatalog();                                // Equipment-Positionen und Bausteine fuer Pakete (Kopie)
         void SaveCatalog(Catalog catalog);
+        // Historie ohne Obergrenze: alte Wochen und Protokolleintraege werden nie geloescht ("ein Jahr zurueck" und mehr).
+        void AppendAudit(AuditEntry a);                      // append-only, kein Aendern/Loeschen
+        List<AuditEntry> GetAudit(DateTime day, int rowId);  // Kopien, chronologisch
+        StoreData Snapshot();                                // vollstaendige Kopie aller Daten (Sicherung)
+        void Restore(StoreData data);                        // ersetzt Plaene/Struktur/Katalog; Protokoll wird zusammengefuehrt
     }
 
     public class MemoryStore : IDataStore
@@ -122,6 +127,45 @@ namespace Arbeitsplan.Core
             e.Version = (cur == null ? 0 : cur.Version) + 1;
             items[k] = e.Clone();
             return true;
+        }
+
+        readonly List<AuditEntry> audit = new List<AuditEntry>();
+        public void AppendAudit(AuditEntry a) { audit.Add(a.Clone()); }
+        public List<AuditEntry> GetAudit(DateTime day, int rowId)
+        {
+            List<AuditEntry> l = new List<AuditEntry>();
+            foreach (AuditEntry a in audit) if (a.Day == day.Date && a.RowId == rowId) l.Add(a.Clone());
+            return l;
+        }
+
+        public StoreData Snapshot()
+        {
+            StoreData d = new StoreData();
+            d.Rows = GetRows(); d.Catalog = GetCatalog();
+            foreach (KeyValuePair<string, Entry> kv in items)
+            {
+                StoredEntry s = new StoredEntry(); string[] p = kv.Key.Split('|');
+                s.Day = DateTime.ParseExact(p[0], "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture); s.RowId = int.Parse(p[1]); s.Data = kv.Value.Clone();
+                d.Entries.Add(s);
+            }
+            foreach (AuditEntry a in audit) d.Audit.Add(a.Clone());
+            return d;
+        }
+
+        public void Restore(StoreData d)
+        {
+            CheckWrite();
+            items.Clear();
+            foreach (StoredEntry s in d.Entries) items[Key(s.Day, s.RowId)] = s.Data.Clone();
+            rows.Clear(); nextId = 1;
+            foreach (RowInfo r in d.Rows) { rows.Add(r.Clone()); nextId = Math.Max(nextId, r.Id + 1); }
+            catalog = d.Catalog.Clone();
+            // Protokoll bleibt append-only: Eintraege nach der Sicherung gehen nicht verloren
+            Dictionary<string, AuditEntry> all = new Dictionary<string, AuditEntry>();
+            foreach (AuditEntry a in d.Audit) all[a.Key()] = a.Clone();
+            foreach (AuditEntry a in audit) if (!all.ContainsKey(a.Key())) all[a.Key()] = a;
+            audit.Clear(); audit.AddRange(all.Values);
+            audit.Sort(delegate(AuditEntry x, AuditEntry y) { int c = x.Time.CompareTo(y.Time); return c != 0 ? c : x.Version.CompareTo(y.Version); });
         }
 
         public List<SearchHit> Find(string q)
