@@ -53,6 +53,8 @@ namespace Arbeitsplan.Core
             c.CachePath = Path.Combine(LocalDir, "cache.apdb");
 
             string data = v.TryGetValue("Datenordner", out s) ? s : "";
+            // Ohne Angabe: liegt die exe in "Programm" neben einem Ordner "daten" (Laufwerk-Aufbau), wird dieser verwendet
+            if (data.Length == 0 && Directory.Exists(Path.Combine(exeDir, Path.Combine("..", "daten")))) data = Path.Combine("..", "daten");
             try { c.DataFolder = Path.GetFullPath(Path.Combine(exeDir, data.Length > 0 ? data : "daten")); }
             catch (Exception) { c.DataFolder = Path.Combine(exeDir, "daten"); c.Note = "Datenordner in Arbeitsplan.ini ist ungültig: " + data; }
             // Standardordner neben der exe nicht beschreibbar (z. B. Programme-Ordner): lokaler Ausweichordner

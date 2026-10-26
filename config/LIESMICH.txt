@@ -1,19 +1,18 @@
 ﻿ARBEITSPLAN - Pilotversion (vor Freigabe durch die IT)
 =======================================================
 
-INSTALLATION
-- Den ganzen Ordner "Arbeitsplan" kopieren (Laufwerk, OneDrive, Desktop, Laptop).
-  Keine Installation, keine Adminrechte nötig. Voraussetzung: Windows 7/10/11 mit .NET Framework 4.
-- Starten: Arbeitsplan.exe doppelklicken. Für den Desktop: Rechtsklick auf
-  Arbeitsplan.exe > "Senden an" > "Desktop (Verknüpfung erstellen)".
-- Der Ordner muss zusammenbleiben: Arbeitsplan.exe, Arbeitsplan.ini, statuscolors.ini.
+AUFBAU AUF DEM LAUFWERK (so wird ausgeliefert)
+  Arbeitsplan\
+    Programm\    Arbeitsplan.exe (+ optional Arbeitsplan.ini)
+    daten\       Plandaten, Schlüsseldatei, Pakete\, sicherung\  (bleibt IMMER auf dem Laufwerk)
 
-INHALT
-- Arbeitsplan.exe     Programm
-- Arbeitsplan.ini     Einstellungen (mit Editor öffnen, Erklärung steht in der Datei)
-- statuscolors.ini    Farben für den Equipment-Status
-- daten\              Plandaten (Standard, wenn in der ini kein Datenordner steht)
-- Vorlagen\           Beispiel-Pakete (.apkg), über Menü Pakete > "Paket aus Datei importieren"
+INSTALLATION
+- Einfachste Variante: Nichts kopieren. Arbeitsplan.exe direkt vom Laufwerk starten, Verknüpfung auf den Desktop
+  (Rechtsklick > "Senden an" > "Desktop (Verknüpfung erstellen)"). Die exe findet den Ordner "daten" selbst.
+- Lokale Kopie (falls ein PC die exe nicht vom Laufwerk starten darf): nur Arbeitsplan.exe kopieren und daneben eine
+  Arbeitsplan.ini mit der Zeile Datenordner=<Pfad zum Ordner daten auf dem Laufwerk> ablegen.
+- Keine Installation, keine Adminrechte. Voraussetzung: Windows 7/10/11 mit .NET Framework 4.
+- Die exe ist allein lauffähig: Arbeitsplan.ini und statuscolors.ini sind optional (ohne sie gelten Standardwerte).
 
 EINSTELLUNGEN (Arbeitsplan.ini)
 - Datenordner=        leer = Ordner "daten" neben der exe; sonst Pfad, z. B. \\Server\Freigabe\Arbeitsplan\daten
@@ -29,7 +28,7 @@ DATEN MIT KOLLEGEN TEILEN
   (Netzlaufwerk/Freigabe, für alle mit Schreibrecht). Dann sieht jeder die Änderungen der anderen
   nach spätestens "Abfrage" Sekunden. Zwei gleichzeitige Änderungen am selben Block werden erkannt (Rückfrage).
 - Einfacher: das Programm EINMAL auf das Laufwerk legen und alle starten es von dort
-  (Verknüpfung auf dem Desktop). Dann reicht "Datenordner=" leer.
+  (Verknüpfung auf dem Desktop). Dann reicht "Datenordner=" leer (automatisch).
 - NICHT geeignet: den Datenordner per OneDrive auf mehreren PCs synchronisieren lassen
   (keine Sperren, Konfliktkopien). Das Programm selbst darf in OneDrive liegen.
 - Systemrechner (Anzeige): eigene Kopie mit NurLesen=1 und demselben Datenordner.

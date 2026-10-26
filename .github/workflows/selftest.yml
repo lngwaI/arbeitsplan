@@ -21,6 +21,13 @@ jobs:
           foreach ($k in 'Schl','Datendatei','APBAK2') { if (-not (Select-String -Path selftest.txt -Pattern $k -Encoding utf8 -Quiet)) { throw "Zeile '$k' fehlt im Selbsttest" } }
           Write-Host ("Zeilen: " + (Get-Content selftest.txt).Count)
           if (Select-String -Path selftest.txt -Pattern 'FEHLER' -Quiet) { throw "Selbsttest: FEHLER" }
+      - name: Verteilordner bauen (make_dist)
+        shell: cmd
+        run: make_dist.cmd
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Arbeitsplan-Release
+          path: dist/Arbeitsplan
       - uses: actions/upload-artifact@v4
         if: always()
         with:
