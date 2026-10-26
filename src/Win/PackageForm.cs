@@ -24,7 +24,7 @@ namespace Arbeitsplan.Win
         readonly DateTimePicker dtStart = new DateTimePicker();
         readonly ComboBox cbMode = new ComboBox();
         readonly ListBox lbSteps = new ListBox();
-        readonly TextBox tTitle = new TextBox(), tNote = new TextBox(), tPreview = new TextBox();
+        readonly TextBox tTitle = new TextBox(), tNote = new TextBox(), tPreview = new TextBox(), tIdent = new TextBox();
         readonly ComboBox cbRow = new ComboBox();
         readonly NumericUpDown nDay = new NumericUpDown(), nCount = new NumericUpDown(), nInterval = new NumericUpDown(), nStartNo = new NumericUpDown();
         readonly Panel equipPanel = new Panel();
@@ -85,6 +85,9 @@ namespace Arbeitsplan.Win
             equipPanel.SetBounds(x, 178, 895, 236); equipPanel.AutoScroll = true; equipPanel.BorderStyle = BorderStyle.FixedSingle; Controls.Add(equipPanel);
             Button bPos = Btn("+ Position ▾", x, 420, 120, delegate { menuPos.Show(Control.MousePosition); });
             Controls.Add(bPos);
+            Add(L("Kennung je Lauf (rot, groß; Komma = nächster Lauf):", x + 135, 426)); tIdent.SetBounds(x + 500, 422, 395, 22); Controls.Add(tIdent);
+            Ui.SimpleMenu(tIdent);
+            tIdent.TextChanged += delegate { if (!loading && cur != null) { cur.Ident = tIdent.Text.Trim(); Changed(); } };
             Add(L("Notiz zum Schritt (optional):", x, 456)); tNote.SetBounds(x, 476, 895, 22); Controls.Add(tNote);
             Add(L("Vorschau – so erscheint es im Plan:", x, 508));
             tPreview.Multiline = true; tPreview.ReadOnly = true; tPreview.ScrollBars = ScrollBars.Vertical; tPreview.BackColor = Color.White; tPreview.SetBounds(x, 528, 895, 90); Controls.Add(tPreview);
@@ -219,7 +222,7 @@ namespace Arbeitsplan.Win
             loading = true;
             foreach (Control c in new List<Control>(equipPanel.Controls.OfType())) { equipPanel.Controls.Remove(c); c.Dispose(); }
             bool on = s != null;
-            tTitle.Enabled = cbRow.Enabled = nDay.Enabled = nCount.Enabled = nInterval.Enabled = nStartNo.Enabled = tNote.Enabled = cbKind.Enabled = on;
+            tTitle.Enabled = cbRow.Enabled = nDay.Enabled = nCount.Enabled = nInterval.Enabled = nStartNo.Enabled = tNote.Enabled = tIdent.Enabled = cbKind.Enabled = on;
             tSubNos.Enabled = on && s.Kind == StepKind.SubRun;
             if (on)
             {
@@ -229,12 +232,12 @@ namespace Arbeitsplan.Win
                 nDay.Value = Math.Max(nDay.Minimum, Math.Min(nDay.Maximum, s.Day));
                 nCount.Value = Math.Max(1, Math.Min(99, s.Count)); nInterval.Value = Math.Max(1, Math.Min(30, s.Interval));
                 nStartNo.Value = Math.Max(0, Math.Min(9999, s.StartNo));
-                tNote.Text = s.Note;
+                tNote.Text = s.Note; tIdent.Text = s.Ident;
                 int y = 4;
                 if (s.Equipment.Count == 0) { Label l = L("Keine Equipment-Positionen. Mit \"+ Position\" hinzufügen.", 6, 8); equipPanel.Controls.Add(l); }
                 foreach (EquipAssign a in s.Equipment) { EquipRow r = new EquipRow(a, cat, delegate { UpdatePreview(); }, RemoveAssign); r.Top = y; equipPanel.Controls.Add(r); y += r.Height + 2; }
             }
-            else { tTitle.Text = ""; tNote.Text = ""; tSubNos.Text = ""; cbKind.SelectedIndex = -1; }
+            else { tTitle.Text = ""; tNote.Text = ""; tIdent.Text = ""; tSubNos.Text = ""; cbKind.SelectedIndex = -1; }
             loading = false;
             UpdatePreview();
         }

@@ -102,6 +102,8 @@ namespace Arbeitsplan.Win
                 using (Bitmap bmp = new Bitmap(sp.Width, sp.Height)) { using (Graphics g = Graphics.FromImage(bmp)) g.CopyFromScreen(sp.Location, Point.Empty, sp.Size); bmp.Save(Arg(args, "--splash"), System.Drawing.Imaging.ImageFormat.Png); }
                 return;
             }
+            string mk = Arg(args, "--makepkg");   // Test: Testpaket als Datei erzeugen (Name = Dateiname), z. B. testpakete\Name.apkg
+            if (mk != null) { Arbeitsplan.Core.Package.SampleCampaign(System.IO.Path.GetFileNameWithoutExtension(mk)).Save(mk); return; }
             if (shot == null)
             {
                 Splash sp = StartSplash();
@@ -119,6 +121,7 @@ namespace Arbeitsplan.Win
             f.Show();
             string edit = Arg(args, "--edit");
             if (edit != null) f.TestEdit(int.Parse(edit.Split(',')[0]), int.Parse(edit.Split(',')[1]));
+            if (Arg(args, "--applypkg") != null) f.TestApply(Arg(args, "--applypkg"));
             if (Arg(args, "--search") != null) f.TestSearch(Arg(args, "--search"));
             if (Arg(args, "--bench") != null) System.IO.File.WriteAllText(Arg(args, "--bench"), f.Bench(20).ToString("0.0") + " ms je Wechsel");
             if (Arg(args, "--selftest") != null) System.IO.File.WriteAllText(Arg(args, "--selftest"), f.SelfTest());
