@@ -821,7 +821,7 @@ namespace Arbeitsplan.Win
             if (!EndEdit(true)) return;
             using (PackageForm f = new PackageForm(store, equip, start, p, me.Has(Perm.ImportPackage), me.Has(Perm.PackageAdmin)))
             {
-                f.ShowDialog(this);
+                f.By = me; f.ShowDialog(this);
                 if (f.Applied) Rebuild(false);
             }
         }

@@ -500,8 +500,16 @@ namespace Arbeitsplan.Core
             return order;
         }
 
+        // Speichern mit Protokolleintrag, wenn der Nutzer bekannt ist (Paket-Uebernahme erscheint im Verlauf)
+        static bool SaveAudited(IDataStore store, List<RowInfo> rows, Target t, Entry result, User by)
+        {
+            if (by == null) return store.Save(t.Day, t.RowId, result);
+            foreach (RowInfo r in rows) if (r.Id == t.RowId) return Audit.Save(store, t.Day, r, by, result);
+            return store.Save(t.Day, t.RowId, result);
+        }
+
         // Ergebnis der Uebernahme (Meldung fuer den Nutzer). schedule: Tage je Lauf (aus Schedule(), ggf. verschoben); null = Paket-Rhythmus.
-        public string Apply(IDataStore store, DateTime start, ApplyMode mode, List<RunDate> schedule)
+        public string Apply(IDataStore store, DateTime start, ApplyMode mode, List<RunDate> schedule, User by = null)
         {
             List<RowInfo> rows = store.GetRows();
             int written = 0, skipped = 0, unknownRow, conflicts = 0;
@@ -526,12 +534,12 @@ namespace Arbeitsplan.Core
                     result.Lkz = result.Lkz || n.Lkz;
                 }
                 result.Version = cur != null ? cur.Version : 0;
-                if (store.Save(t.Day, t.RowId, result)) written++;
+                if (SaveAudited(store, rows, t, result, by)) written++;
                 else
                 {
                     Entry again = store.Get(t.Day, t.RowId);
                     result.Version = again != null ? again.Version : 0;
-                    if (store.Save(t.Day, t.RowId, result)) written++; else conflicts++;
+                    if (SaveAudited(store, rows, t, result, by)) written++; else conflicts++;
                 }
             }
             string msg = written + " Block/Blöcke geschrieben";

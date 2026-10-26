@@ -34,6 +34,8 @@ namespace Arbeitsplan.Win
         bool loading;
         public bool Applied;
 
+        public User By;   // angemeldeter Nutzer (fuer das Aenderungsprotokoll bei der Uebernahme)
+
         public PackageForm(IDataStore store, IEquipmentStatusProvider equip, DateTime weekStart, Package initial, bool canApply, bool canAdmin)
         {
             this.store = store; this.canApply = canApply; this.canAdmin = canAdmin;
@@ -362,7 +364,7 @@ namespace Arbeitsplan.Win
             }
             try
             {
-                string msg = p.Apply(store, start, (ApplyMode)cbMode.SelectedIndex, schedule);
+                string msg = p.Apply(store, start, (ApplyMode)cbMode.SelectedIndex, schedule, By);
                 Applied = true;
                 MessageBox.Show(msg, "In Plan übernehmen", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
