@@ -239,6 +239,8 @@ namespace Arbeitsplan.Win
             sb.AppendLine(UserAdminForm.SelfTest());
             if (systemPc) sb.AppendLine("Protokoll/Sicherung: übersprungen (Systemrechner, Speichern nicht möglich)"); else SelfTestData(sb);
             SelfTestFiles(sb);
+            SelfTestSite(sb);
+            if (!systemPc) SelfTestMulti(sb);
             sb.AppendLine(PackageForm.TestFlow(store, equip, start));
             quiet = false;
             return sb.ToString();

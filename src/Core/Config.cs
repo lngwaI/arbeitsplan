@@ -11,6 +11,7 @@ namespace Arbeitsplan.Core
         public string Note;                         // Hinweis fuer den Nutzer (z. B. Ausweichordner), sonst null
         public bool ReadOnly, Pilot;
         public List<string> Admins = new List<string>();
+        public List<string> ReadOnlyPatterns = new List<string>();   // NurLesenFuer=: Windows-Logins oder Rechnernamen (Platzhalter *), die nur ansehen
         public int PollSeconds = 30;
         public int CacheDays = 7;                   // Offline-Cache auf diesem PC; 0 = kein Cache
 
@@ -20,6 +21,13 @@ namespace Arbeitsplan.Core
         {
             if (db.AdminCount(null) > 0) return false;
             foreach (string a in Admins) if (string.Equals(a, login, StringComparison.OrdinalIgnoreCase)) return true;
+            return false;
+        }
+
+        // Systemrechner/Anzeige-PC: Login oder Rechnername passt auf NurLesenFuer= (auch ohne Nutzerkonto, nur Lesen)
+        public bool ReadOnlyFor(string login, string machine)
+        {
+            foreach (string p in ReadOnlyPatterns) if (Umgebung.Like(login, p) || Umgebung.Like(machine, p)) return true;
             return false;
         }
 
@@ -48,37 +56,19 @@ namespace Arbeitsplan.Core
             int n;
             if (v.TryGetValue("Abfrage", out s) && int.TryParse(s, out n)) c.PollSeconds = Math.Max(5, Math.Min(3600, n));
             if (v.TryGetValue("CacheTage", out s) && int.TryParse(s, out n)) c.CacheDays = Math.Max(0, Math.Min(365, n));
-            if (v.TryGetValue("Admins", out s))
-                foreach (string a in s.Split(',', ';')) if (a.Trim().Length > 0) c.Admins.Add(a.Trim());
+            if (v.TryGetValue("Admins", out s)) c.Admins = Umgebung.SplitList(s);
+            if (v.TryGetValue("NurLesenFuer", out s)) c.ReadOnlyPatterns = Umgebung.SplitList(s);
             c.CachePath = Path.Combine(LocalDir, "cache.apdb");
 
             string data = v.TryGetValue("Datenordner", out s) ? s : "";
-            // Ohne Angabe: liegt die exe in "Programm" neben einem Ordner "daten" (Laufwerk-Aufbau), wird dieser verwendet
+            // Ohne Angabe: liegt die exe in "Programm" neben einem Ordner "daten" (Laufwerk-Aufbau), wird dieser verwendet,
+            // sonst "daten" neben der exe. Angelegt wird hier nie etwas: eine allein kopierte exe findet keine Daten (Umgebung.Open).
             if (data.Length == 0 && Directory.Exists(Path.Combine(exeDir, Path.Combine("..", "daten")))) data = Path.Combine("..", "daten");
             try { c.DataFolder = Path.GetFullPath(Path.Combine(exeDir, data.Length > 0 ? data : "daten")); }
             catch (Exception) { c.DataFolder = Path.Combine(exeDir, "daten"); c.Note = "Datenordner in Arbeitsplan.ini ist ungültig: " + data; }
-            // Standardordner neben der exe nicht beschreibbar (z. B. Programme-Ordner): lokaler Ausweichordner
-            if (data.Length == 0 && !c.ReadOnly && !Writable(c.DataFolder))
-            {
-                c.DataFolder = Path.Combine(LocalDir, "daten");
-                c.Note = "Der Ordner neben dem Programm ist nicht beschreibbar. Die Daten liegen nur auf diesem PC:\n" + c.DataFolder
-                    + "\n\nZum Teilen mit Kollegen in Arbeitsplan.ini \"Datenordner=\" auf einen gemeinsamen Ordner setzen.";
-            }
             c.BackupFolder = v.TryGetValue("Sicherungsordner", out s) && s.Length > 0 ? Path.Combine(exeDir, s) : Path.Combine(c.DataFolder, "sicherung");
             c.PackageFolder = v.TryGetValue("Paketordner", out s) && s.Length > 0 ? Path.Combine(exeDir, s) : Path.Combine(c.DataFolder, "Pakete");
             return c;
-        }
-
-        static bool Writable(string dir)
-        {
-            try
-            {
-                Directory.CreateDirectory(dir);
-                string probe = Path.Combine(dir, "~schreibtest.tmp");
-                File.WriteAllText(probe, "x"); File.Delete(probe);
-                return true;
-            }
-            catch (Exception) { return false; }
         }
     }
 }

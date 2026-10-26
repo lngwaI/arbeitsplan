@@ -12,7 +12,7 @@ namespace Arbeitsplan.Win
         readonly UserDb db;
         readonly User me;
         readonly ListBox list = new ListBox();
-        readonly TextBox tFirst = new TextBox(), tLast = new TextBox(), tLogin = new TextBox(), tKuerzel = new TextBox();
+        readonly TextBox tFirst = new TextBox(), tLast = new TextBox(), tLogin = new TextBox(), tKuerzel = new TextBox(), tDomains = new TextBox();
         readonly Button bNew = new Button(), bDel = new Button(), bSave = new Button();
         readonly List<CheckBox> pkBoxes = new List<CheckBox>();
         readonly Dictionary<string, CheckBox> rightBoxes = new Dictionary<string, CheckBox>();
@@ -25,6 +25,7 @@ namespace Arbeitsplan.Win
         {
             this.db = db; this.me = me;
             FormClosed += delegate { foreach (User u in fresh) db.Users.Remove(u); fresh.Clear(); };   // nie uebernommen (ohne Login) = verwerfen
+            FormClosing += delegate { TakeDomains(); };
             Text = "Nutzerverwaltung";
             Ui.Dialog(this, 640, 520);
 
@@ -58,7 +59,13 @@ namespace Arbeitsplan.Win
                 y += 24; rightBoxes[r] = cb; Controls.Add(cb);
             }
             int by = y + 10;                         // Buttons unter der Rechteliste; Dialoghoehe richtet sich nach der Anzahl der Rechte
-            ClientSize = new Size(640, by + 46);
+            // Umgebung (nur Admin): wo das Programm starten darf (Umgebung.Allowed); leer = ueberall
+            Label1("Freigegebene Windows-Domänen/Rechner (Komma, * erlaubt; nur Admin):", 10, by + 44);
+            tDomains.SetBounds(10, by + 66, 610, 22); tDomains.Text = string.Join(", ", db.Domains.ToArray());
+            tDomains.Enabled = UserDb.IsAdmin(me.Rights); Ui.SimpleMenu(tDomains);
+            new ToolTip().SetToolTip(tDomains, "Das Programm startet nur auf PCs dieser Windows-Domänen (oder Rechner). Ihre Umgebung: "
+                + Umgebung.Home(Umgebung.UserDomain, Umgebung.MachineDomain, Umgebung.Machine));
+            ClientSize = new Size(640, by + 100);
             list.Height = by - 20;
             bNew.Top = bDel.Top = by;
             bSave.SetBounds(230, by, 120, 30); bSave.Text = "Übernehmen";
@@ -124,6 +131,21 @@ namespace Arbeitsplan.Win
             foreach (KeyValuePair<string, CheckBox> kv in rightBoxes) if (me.Has(kv.Key)) kv.Value.Checked = set.Contains(kv.Key);   // fremde Rechte bleiben
             loading = false;
             RefreshPackages();   // danach einzeln feinjustierbar
+        }
+
+        // Domaenenliste beim Schliessen uebernehmen; nie so, dass der eigene PC ausgesperrt waere
+        void TakeDomains()
+        {
+            if (!tDomains.Enabled) return;
+            List<string> l = Umgebung.SplitList(tDomains.Text);
+            if (string.Join(",", l.ToArray()) == string.Join(",", db.Domains.ToArray())) return;
+            if (!Umgebung.Allowed(l, Umgebung.UserDomain, Umgebung.MachineDomain, Umgebung.Machine))
+            {
+                Warn("Die Domänenliste wurde nicht übernommen: Dieser PC (" + Umgebung.Home(Umgebung.UserDomain, Umgebung.MachineDomain, Umgebung.Machine)
+                    + ") wäre danach selbst ausgesperrt.");
+                return;
+            }
+            Changes.Domains = l;
         }
 
         void AddUser()

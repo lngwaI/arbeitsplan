@@ -20,6 +20,28 @@ namespace Arbeitsplan.Win
         }
 #endif
 
+        // Daten oeffnen und Start pruefen (Umgebung.Open); Ersteinrichtung nach Rueckfrage nur fuer Admins= aus der ini.
+        // null = Programm beenden (Meldung wurde gezeigt). ask = false: Ersteinrichtung ohne Rueckfrage (nur Testbilder).
+        static Arbeitsplan.Core.FileStore OpenData(Arbeitsplan.Core.AppConfig cfg, string login, Splash sp, bool ask)
+        {
+            if (Arbeitsplan.Core.Umgebung.NeedsSetup(cfg.DataFolder) && Arbeitsplan.Core.Umgebung.IsSetupAdmin(cfg, login))
+            {
+                if (sp != null) sp.Hide();
+                if (ask && MessageBox.Show("Neuen Arbeitsplan einrichten?\n\nDatenordner: " + cfg.DataFolder
+                    + "\n\nEs werden die verschlüsselte Datendatei und die Schlüsseldatei angelegt; Sie werden Admin."
+                    + "\nNur einmal nötig. Bei bereits vorhandenen Daten: Nein und den Datenordner prüfen.",
+                    "Arbeitsplan - Ersteinrichtung", MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button2) != DialogResult.Yes) return null;
+                string err = Arbeitsplan.Core.Umgebung.Setup(cfg);
+                if (err != null) { MessageBox.Show(err, "Arbeitsplan - Ersteinrichtung", MessageBoxButtons.OK, MessageBoxIcon.Error); return null; }
+            }
+            Arbeitsplan.Core.FileStore fs;
+            string msg = Arbeitsplan.Core.Umgebung.Open(cfg, login, out fs);
+            if (msg == null) return fs;
+            if (sp != null) sp.Hide();
+            MessageBox.Show(msg, "Arbeitsplan", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return null;
+        }
+
         // Startbildschirm zeigen, Name im Hintergrund suchen (blockiert nie); Splash.SetName wird per Timer im UI-Thread nachgereicht
         static string foundName; static bool lookupDone;
         static Splash StartSplash()
@@ -110,6 +132,7 @@ namespace Arbeitsplan.Win
             if (Arg(args, "--weeks") == "2") MainForm.TestWeeks = 2;
             // Test: --data <ordner> nutzt die verschluesselte Datendatei (wie Release) statt der Testdaten; Testadmin mmuster
             Arbeitsplan.Core.AppConfig cfg = null;
+            Arbeitsplan.Core.FileStore fs = null;
             if (Arg(args, "--data") != null)
             {
                 cfg = Arbeitsplan.Core.AppConfig.Load(AppDomain.CurrentDomain.BaseDirectory);
@@ -118,6 +141,9 @@ namespace Arbeitsplan.Win
                 cfg.PackageFolder = System.IO.Path.Combine(cfg.DataFolder, "Pakete");
                 cfg.CachePath = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "arbeitsplan_testcache.apdb");
                 cfg.ReadOnly |= nosave; cfg.Admins.Add("mmuster");
+                if (System.IO.Path.GetFileName(cfg.DataFolder.TrimEnd(System.IO.Path.DirectorySeparatorChar)) == "neu") System.IO.Directory.CreateDirectory(cfg.DataFolder);   // Test: Ersteinrichtung
+                fs = OpenData(cfg, login, null, shot == null);
+                if (fs == null) return;
             }
             if (Arg(args, "--splash") != null)   // Test: Startbildschirm als Bild
             {
@@ -126,18 +152,27 @@ namespace Arbeitsplan.Win
                 using (Bitmap bmp = new Bitmap(sp.Width, sp.Height)) { using (Graphics g = Graphics.FromImage(bmp)) g.CopyFromScreen(sp.Location, Point.Empty, sp.Size); bmp.Save(Arg(args, "--splash"), System.Drawing.Imaging.ImageFormat.Png); }
                 return;
             }
+            // Test: Lasttest wie zwei PCs auf demselben Datenordner (Workflow startet zwei gleichzeitig), danach Pruefung
+            if (Arg(args, "--stress") != null || Arg(args, "--stresscheck") != null)
+            {
+                string res;
+                try { res = Arg(args, "--stress") != null ? MainForm.Stress(Arg(args, "--stress"), Arg(args, "--name"), int.Parse(Arg(args, "--count"))) : MainForm.StressCheck(Arg(args, "--stresscheck"), int.Parse(Arg(args, "--count"))); }
+                catch (Exception ex) { res = "Mehrplatz-Prozesse: FEHLER " + ex.GetType().Name + ": " + ex.Message; }
+                System.IO.File.WriteAllText(Arg(args, "--out"), res);
+                return;
+            }
             string mk = Arg(args, "--makepkg");   // Test: Testpaket als Datei erzeugen (Name = Dateiname), z. B. testpakete\Name.apkg
             if (mk != null) { Arbeitsplan.Core.Package.SampleCampaign(System.IO.Path.GetFileNameWithoutExtension(mk)).Save(mk); return; }
             if (shot == null)
             {
                 Splash sp = StartSplash();
-                MainForm m = new MainForm(login, nosave, cfg);
+                MainForm m = new MainForm(login, nosave, cfg, fs);
                 if (sz != null) m.ClientSize = cs; else m.FitToCursorScreen();
                 RunMain(m, sp, t0);
                 return;
             }
 
-            MainForm f = new MainForm(login, nosave, cfg);
+            MainForm f = new MainForm(login, nosave, cfg, fs);
             f.StartPosition = FormStartPosition.Manual;
             f.Location = new Point(0, 0);
             f.ClientSize = cs;
@@ -163,7 +198,11 @@ namespace Arbeitsplan.Win
 #else
             // Release: keine Testschalter, Nutzer = Windows-Anmeldename (Fehlerbehandlung siehe Anfang von Main)
             Splash sp = StartSplash();
-            MainForm rm = new MainForm(Environment.UserName, false, Arbeitsplan.Core.AppConfig.Load(AppDomain.CurrentDomain.BaseDirectory)); rm.FitToCursorScreen();
+            Arbeitsplan.Core.AppConfig rc = Arbeitsplan.Core.AppConfig.Load(AppDomain.CurrentDomain.BaseDirectory);
+            Arbeitsplan.Core.FileStore rs = OpenData(rc, Environment.UserName, sp, true);   // nur im Firmennetz, nur angelegte Nutzer
+            if (rs == null) { sp.Close(); return; }
+            MainForm rm = new MainForm(Environment.UserName, false, rc, rs); rm.FitToCursorScreen();
+            rm.Shown += delegate { rm.BeginInvoke((MethodInvoker)delegate { Shortcut.Offer(rm); }); };   // Start vom Laufwerk: Desktop-Verknuepfung anbieten
             RunMain(rm, sp, t0);
 #endif
         }

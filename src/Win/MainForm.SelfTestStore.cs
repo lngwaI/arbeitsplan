@@ -24,6 +24,7 @@ namespace Arbeitsplan.Win
             DateTime day = new DateTime(2026, 3, 2);
             User u = new User(); u.Login = "test"; u.Kuerzel = "TEST";
 
+            Directory.CreateDirectory(dir);   // der FileStore legt keinen Datenordner an
             FileStore a = new FileStore(dir, false, cA);
             bool okInit = !a.Offline && a.Problem == null && a.GetRows().Count == 12 && a.Users.Users.Count == 0 && a.Users.Packages.Count == 3 && File.Exists(file);
             RowInfo row = a.GetRows()[0];

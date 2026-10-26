@@ -47,7 +47,30 @@ namespace Arbeitsplan.Win
             string pkg = admin ? "Admin" : users.FindByLogin(login) != null ? null : (cfg.Pilot ? "Produktion" : "Leser");
             if (fstore.ReadOnly) { pkg = "Leser"; offlineStart = fstore.Offline; }   // Systemrechner / OFFLINE: nur ansehen
             if (pkg != null) UserDb.ApplyPackage(u.Rights, users.Package(pkg));
+            if (!fstore.ReadOnly && users.Domains.Count == 0 && UserDb.IsAdmin(u.Rights))
+            {   // erster Admin bindet die Daten an diese Umgebung (Umgebung.Allowed); aenderbar in der Nutzerverwaltung
+                UserChanges dc = new UserChanges();
+                dc.Domains = new List<string>(new[] { Umgebung.Home(Umgebung.UserDomain, Umgebung.MachineDomain, Umgebung.Machine) });
+                try { fstore.SaveUsers(dc); users = fstore.Users; } catch (Exception) { }
+            }
             return u;
+        }
+
+        // Menue Hilfe > Info: was die IT/der Admin bei Problemen wissen muss
+        void ShowInfo()
+        {
+            System.Reflection.Assembly asm = System.Reflection.Assembly.GetExecutingAssembly();
+            string ver = System.Diagnostics.FileVersionInfo.GetVersionInfo(asm.Location).FileVersion;
+            string exe = Application.ExecutablePath, state = "Testdaten (keine Speicherung)";
+            if (fstore != null) state = fstore.Folder + (fstore.Offline ? "  (OFFLINE, letzter Stand dieses PCs)" : fstore.ReadOnly ? "  (nur lesen)" : "");
+            MessageBox.Show(this, "Arbeitsplan " + ver + "  (Stand " + File.GetLastWriteTime(exe).ToString("dd.MM.yyyy HH:mm") + ")"
+                + "\n\nProgramm: " + Shortcut.Unc(exe) + (Shortcut.OnNetwork(exe) ? "" : "  (lokale Kopie)")
+                + "\nDaten: " + state
+                + "\n\nNutzer: " + me.Display + (me.Kuerzel.Length > 0 ? " (" + me.Kuerzel + ")" : "") + ", Rechte: " + PackageName()
+                + "\nWindows: " + Umgebung.UserDomain + "\\" + Environment.UserName + " auf " + Umgebung.Machine + (Umgebung.MachineDomain.Length > 0 ? " (" + Umgebung.MachineDomain + ")" : "")
+                + "\nFreigegebene Domänen: " + (users.Domains.Count > 0 ? string.Join(", ", users.Domains.ToArray()) : "(noch keine)")
+                + (newVersion ? "\n\nAuf dem Laufwerk liegt eine neuere Programmversion: bitte das Programm neu starten." : ""),
+                "Info", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
         void UpdateTitle()
@@ -66,6 +89,7 @@ namespace Arbeitsplan.Win
                 src = "Daten: " + f + (fstore.Offline ? " - OFFLINE" : "") + (cfg.ReadOnly ? " - NUR LESEN" : "")
                     + (offlineStart && !fstore.Offline ? " - wieder verbunden, zum Bearbeiten neu starten" : "");
             }
+            if (newVersion) src += " - NEUE VERSION: bitte neu starten";
             Text = "Arbeitsplan (" + src + ") - Oberfläche: " + Theme.Current.Name
                 + " - Nutzer: " + me.Display + " (" + PackageName() + ")";
         }
@@ -94,15 +118,20 @@ namespace Arbeitsplan.Win
         // Aenderungen anderer PCs uebernehmen; nie waehrend eines Bearbeitungsmodus oder offenen Dialogs.
         // Die Dateipruefung (Zeit/Groesse; haengt bei Netzausfall) laeuft im Hintergrund. Nur wenn sie eine Aenderung meldet,
         // liest der FileStore im UI-Thread neu (er ist nicht thread-sicher); ein Lauf zur Zeit, nach dem Schliessen nichts mehr.
+        bool newVersion;   // exe auf dem Laufwerk wurde ersetzt (Update): Hinweis im Titel
+        MethodInvoker pollNow;   // sofort pruefen (bei Navigation, wie im alten Programm), sonst alle Abfrage= Sekunden
+
         void StartPolling()
         {
             if (fstore == null) return;
-            string path = Path.Combine(fstore.Folder, FileStore.FileName);
+            string path = Path.Combine(fstore.Folder, FileStore.FileName), exe = Application.ExecutablePath;
+            DateTime exeTime = DateTime.MinValue; long exeLen = -1;
+            try { FileInfo xi = new FileInfo(exe); exeTime = xi.LastWriteTimeUtc; exeLen = xi.Length; } catch (Exception) { }
             bool busy = false, closed = false;
             DateTime seenTime = DateTime.MinValue; long seenLen = -1;
             int tries = 0;   // Refresh-Versuche nach einer erkannten Aenderung (zweiter Versuch, falls das Lesen kurz scheitert)
             Timer t = new Timer(); t.Interval = cfg.PollSeconds * 1000;
-            t.Tick += delegate
+            EventHandler tick = delegate
             {
                 if (busy || editCell != null || Application.OpenForms.Count > 1) return;
                 busy = true;
@@ -111,12 +140,17 @@ namespace Arbeitsplan.Win
                     DateTime ft = DateTime.MinValue; long fl = -1;   // -1 = nicht erreichbar/fehlt
                     try { FileInfo fi = new FileInfo(path); if (fi.Exists) { ft = fi.LastWriteTimeUtc; fl = fi.Length; } }
                     catch (Exception) { }
+                    bool upd = false;
+                    try { FileInfo xi = new FileInfo(exe); upd = exeLen >= 0 && xi.Exists && (xi.LastWriteTimeUtc != exeTime || xi.Length != exeLen); }
+                    catch (Exception) { }
                     try
                     {
                         BeginInvoke((MethodInvoker)delegate
                         {
                             busy = false;
-                            if (closed || IsDisposed || editCell != null || Application.OpenForms.Count > 1) return;
+                            if (closed || IsDisposed) return;
+                            if (upd && !newVersion) { newVersion = true; UpdateTitle(); }
+                            if (editCell != null || Application.OpenForms.Count > 1) return;
                             if (fl >= 0 && (ft != seenTime || fl != seenLen)) { seenTime = ft; seenLen = fl; tries = 2; }
                             bool wasOffline = fstore.Offline, fresh = false;
                             if (fl >= 0 && tries > 0)
@@ -133,6 +167,8 @@ namespace Arbeitsplan.Win
                     catch (Exception) { }   // Fenster bereits geschlossen
                 });
             };
+            t.Tick += tick;
+            pollNow = delegate { tick(t, EventArgs.Empty); };
             t.Start();
             FormClosed += delegate { closed = true; t.Stop(); t.Dispose(); };
         }
