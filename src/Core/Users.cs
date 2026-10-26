@@ -60,6 +60,8 @@ namespace Arbeitsplan.Core
     {
         public readonly List<User> Users = new List<User>();
         public readonly List<RightsPackage> Packages = new List<RightsPackage>();
+        // Erlaubte Windows-Domaenen/Rechner (Umgebung.Allowed), leer = keine Pruefung; der erste Admin traegt seine Domaene ein
+        public readonly List<string> Domains = new List<string>();
 
         public User FindByLogin(string login)
         {
@@ -112,6 +114,7 @@ namespace Arbeitsplan.Core
         // geaenderte ersetzen/anhaengen, geloeschte entfernen; neue Nutzer, deren Id inzwischen vergeben ist, bekommen eine freie.
         public void Merge(UserChanges c)
         {
+            if (c.Domains != null) { Domains.Clear(); Domains.AddRange(c.Domains); }
             Users.RemoveAll(delegate(User x) { return c.Deleted.Contains(x.Id); });
             foreach (User u in c.Changed)
             {
@@ -139,6 +142,7 @@ namespace Arbeitsplan.Core
         public void WriteXml(XmlWriter w)
         {
             w.WriteStartElement("Nutzer");
+            if (Domains.Count > 0) w.WriteAttributeString("domaenen", string.Join(",", Domains.ToArray()));
             foreach (RightsPackage p in Packages)
             {
                 w.WriteStartElement("Paket"); w.WriteAttributeString("name", p.Name);
@@ -158,6 +162,7 @@ namespace Arbeitsplan.Core
         public static UserDb ReadXml(XmlElement e)
         {
             UserDb db = new UserDb();
+            db.Domains.AddRange(Umgebung.SplitList(e.GetAttribute("domaenen")));
             foreach (XmlNode n in e.ChildNodes)
             {
                 XmlElement x = n as XmlElement;
@@ -193,7 +198,8 @@ namespace Arbeitsplan.Core
     {
         public readonly HashSet<User> Changed = new HashSet<User>(), Added = new HashSet<User>();
         public readonly HashSet<int> Deleted = new HashSet<int>();
-        public bool Any { get { return Changed.Count > 0 || Deleted.Count > 0; } }
+        public List<string> Domains;   // null = unveraendert
+        public bool Any { get { return Changed.Count > 0 || Deleted.Count > 0 || Domains != null; } }
     }
 
     // Soft-Lock: nur Anzeige, wer gerade bearbeitet; blockiert nie.

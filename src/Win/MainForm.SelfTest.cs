@@ -76,6 +76,14 @@ namespace Arbeitsplan.Win
             else if (which == "structure") f = new StructureForm(store.GetRows(), true, true, true);
             else if (which == "catalog") { List<string> nm = new List<string>(); foreach (RowInfo r in store.GetRows()) nm.Add(r.Name); f = new CatalogForm(store.GetCatalog(), nm); }
             else if (which == "history" || which == "backup") f = TestDataForm(which);
+            else if (which == "conflict")   // Rueckfrage bei gleicher Stelle (Testbild)
+            {
+                Entry b = new Entry(), m = new Entry(), t = new Entry();
+                b.Content = "Lauf 13570030\nTFF: H1-X-0101\nPumpe: H1-P-0101-05"; b.People[0] = "MUMA";
+                m.Content = "Lauf 13570030\nTFF: H1-X-0102\nPumpe: H1-P-0101-05"; m.People[0] = "MUMA, BEER";
+                t.Content = "Lauf 13570030\nTFF: H1-X-0103 (Ausweich)\nPumpe: H1-P-0101-05"; t.People[0] = "MUMA, WEPA";
+                f = new ConflictForm("Suite 1, " + Ui.DayText(start), "Paula Werk", "um 09:41 Uhr", t, m, Conflict.Merge(b, m, t, new List<string>()), true);
+            }
             else if (which == "campaign") { CampaignForm cf = new CampaignForm(demo, store, start, ApplyMode.FillEmpty); cf.Shift(1, 1); f = cf; }   // Lauf 13570030 (und Folgende) einen Tag spaeter
             else f = new PackageForm(store, equip, start, demo, true, true);
             Hide();                                   // nur fuer das Testbild: Hauptfenster nicht dahinter
@@ -239,6 +247,10 @@ namespace Arbeitsplan.Win
             sb.AppendLine(UserAdminForm.SelfTest());
             if (systemPc) sb.AppendLine("Protokoll/Sicherung: übersprungen (Systemrechner, Speichern nicht möglich)"); else SelfTestData(sb);
             SelfTestFiles(sb);
+            SelfTestSite(sb);
+            if (!systemPc) SelfTestMulti(sb);
+            SelfTestCampaignStart(sb);
+            SelfTestEquipment(sb);
             sb.AppendLine(PackageForm.TestFlow(store, equip, start));
             quiet = false;
             return sb.ToString();

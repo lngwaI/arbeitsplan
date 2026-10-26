@@ -1,7 +1,10 @@
 name: Selbsttest
 on:
   push:
+    branches-ignore: ['bilder/**']
   workflow_dispatch:
+permissions:
+  contents: write   # nur fuer den Bilder-Branch bilder/<branch> (Testbilder mit erfundenen Testdaten)
 jobs:
   test:
     runs-on: windows-latest
@@ -15,12 +18,62 @@ jobs:
         run: |
           if (-not (Test-Path bin\Arbeitsplan.exe)) { throw "exe fehlt" }
           $p = Start-Process bin\Arbeitsplan.exe -ArgumentList '--shot','shot.png','--selftest','selftest.txt' -PassThru
-          if (-not $p.WaitForExit(240000)) { $p.Kill(); throw "Timeout" }
-          if (-not (Test-Path selftest.txt)) { throw "selftest.txt fehlt" }
+          if (-not $p.WaitForExit(300000)) { $p.Kill(); Write-Host "::error title=Selbsttest::Timeout"; throw "Timeout" }
+          if (-not (Test-Path selftest.txt)) { Write-Host "::error title=Selbsttest::selftest.txt fehlt"; throw "selftest.txt fehlt" }
+          # Lasttest: zwei Programme speichern gleichzeitig in denselben Datenordner (wie zwei PCs), danach Pruefung
+          $d = Join-Path $env:RUNNER_TEMP 'ap_stress'
+          New-Item -ItemType Directory -Force $d | Out-Null
+          $sa = Start-Process bin\Arbeitsplan.exe -ArgumentList '--stress',$d,'--name','A','--count','40','--out','stressA.txt' -PassThru
+          $sb = Start-Process bin\Arbeitsplan.exe -ArgumentList '--stress',$d,'--name','B','--count','40','--out','stressB.txt' -PassThru
+          if (-not $sa.WaitForExit(300000)) { $sa.Kill() }
+          if (-not $sb.WaitForExit(300000)) { $sb.Kill() }
+          $sc = Start-Process bin\Arbeitsplan.exe -ArgumentList '--stresscheck',$d,'--count','40','--out','stress.txt' -PassThru
+          if (-not $sc.WaitForExit(120000)) { $sc.Kill() }
+          foreach ($f in 'stressA.txt','stressB.txt','stress.txt') { if (Test-Path $f) { Get-Content $f -Encoding utf8 | Add-Content selftest.txt -Encoding utf8 } else { Add-Content selftest.txt "Lasttest: FEHLER $f fehlt" -Encoding utf8 } }
           Get-Content selftest.txt
-          foreach ($k in 'Schl','Datendatei','APBAK2') { if (-not (Select-String -Path selftest.txt -Pattern $k -Encoding utf8 -Quiet)) { throw "Zeile '$k' fehlt im Selbsttest" } }
-          Write-Host ("Zeilen: " + (Get-Content selftest.txt).Count)
-          if (Select-String -Path selftest.txt -Pattern 'FEHLER' -Quiet) { throw "Selbsttest: FEHLER" }
+          $miss = @(foreach ($k in 'Schl','Datendatei','APBAK2','Umgebung','Mehrplatz:','Mehrplatz-Prozesse','Kampagnenstart','Equipment:') { if (-not (Select-String -Path selftest.txt -Pattern $k -Encoding utf8 -Quiet)) { $k } })
+          $bad = @(Select-String -Path selftest.txt -Pattern 'FEHLER' -Encoding utf8)
+          # Ergebnis als Annotation: ohne Login ueber die GitHub-API lesbar (Logs/Artefakte brauchen ein Konto)
+          foreach ($m in ($bad | Select-Object -First 10)) { Write-Host ("::error title=Selbsttest::" + $m.Line) }
+          foreach ($k in $miss) { Write-Host "::error title=Selbsttest::Zeile '$k' fehlt" }
+          Write-Host ("::notice title=Selbsttest::Zeilen=" + (Get-Content selftest.txt).Count + " Fehler=" + $bad.Count + " fehlende Zeilen=" + $miss.Count)
+          if ($miss.Count -or $bad.Count) { throw "Selbsttest: FEHLER" }
+      - name: Testbilder
+        if: always()
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force bilder | Out-Null
+          $runs = @(
+            @('woche-16x9', '--size','1280x720'),
+            @('woche-4x3', '--size','1024x768'),
+            @('paket', '--form','package2'),
+            @('paket-4x3', '--size','1024x768','--form','package2'),
+            @('paket-neu', '--form','package'),
+            @('kampagne', '--form','campaign'),
+            @('kampagne-bildschirm', '--form','campaign','--screen'),
+            @('nutzer', '--users'),
+            @('konflikt', '--form','conflict')
+          )
+          foreach ($r in $runs) {
+            $a = @('--shot', "bilder\$($r[0]).png") + $r[1..($r.Count - 1)]
+            $p = Start-Process bin\Arbeitsplan.exe -ArgumentList $a -PassThru
+            if (-not $p.WaitForExit(60000)) { $p.Kill() }
+          }
+          Copy-Item selftest.txt bilder\ -ErrorAction SilentlyContinue
+          Get-ChildItem bilder | ForEach-Object { $_.Name }
+      - name: Testbilder veroeffentlichen (Branch bilder/<branch>)
+        if: always()
+        shell: pwsh
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cd bilder
+          git init -q
+          git checkout -q -b bilder
+          git add -A
+          git -c user.name=ci -c user.email=ci@users.noreply.github.com commit -qm "Testbilder $env:GITHUB_SHA"
+          git push -q -f "https://x-access-token:$env:TOKEN@github.com/$env:GITHUB_REPOSITORY" "bilder:refs/heads/bilder/$env:GITHUB_REF_NAME"
+          Write-Host "::notice title=Testbilder::https://raw.githubusercontent.com/$env:GITHUB_REPOSITORY/bilder/$env:GITHUB_REF_NAME/"
       - name: Verteilordner bauen (make_dist)
         shell: cmd
         run: make_dist.cmd

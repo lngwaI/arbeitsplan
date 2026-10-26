@@ -25,8 +25,16 @@ namespace Arbeitsplan.Core
     // Datenschluessel verschluesselt+signiert (Protected). APBAK1 (gleiche Nutzlast, nur GZip, ohne Schluessel) bleibt lesbar
     // und wird weiter geschrieben, wenn der Store keinen Schluessel hat (MemoryStore/Testdaten: keine Schluesseldatei vorhanden).
     // Geschuetzte Einstellungsdateien (Protected) sind nicht Teil der Sicherung.
+    // Datei stammt von einer neueren Programmversion: nur Lesen mit Hinweis "neu starten" (FileStore -> OFFLINE)
+    public class NewerFormatException : Exception
+    {
+        public NewerFormatException() : base("Die Daten wurden mit einer neueren Programmversion gespeichert. Bitte das Programm schließen und neu starten.") { }
+    }
+
     public static class Backup
     {
+        // Datenformat; bei inkompatibler Aenderung erhoehen (aeltere exe lesen die Datei dann nicht mehr und schreiben nie zurueck)
+        public const int FormatVersion = 1;
         public const string Ext = ".apbak", Prefix = "Arbeitsplan_";
         public const int Keep = 14;
         static readonly UTF8Encoding Utf8 = new UTF8Encoding(false);
@@ -84,7 +92,8 @@ namespace Arbeitsplan.Core
             string path = Path.Combine(folder, Prefix + DateTime.Now.ToString("yyyy-MM-dd_HHmmss", Inv) + (tag != null ? "_" + tag : "") + Ext);
             Write(store.Snapshot(), path, key);
             string[] f = Files(folder);
-            for (int i = 0; i < f.Length - Keep; i++) File.Delete(f[i]);
+            for (int i = 0; i < f.Length - Keep; i++)
+                try { File.Delete(f[i]); } catch (Exception) { }   // ohne Loeschrecht (Ordnerrechte der IT) bleiben aeltere liegen
             return path;
         }
 
@@ -186,7 +195,7 @@ namespace Arbeitsplan.Core
             {
                 using (XmlWriter w = XmlWriter.Create(output, st))
                 {
-                    w.WriteStartElement("Arbeitsplan"); w.WriteAttributeString("version", "1"); w.WriteAttributeString("erstellt", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss", Inv));
+                    w.WriteStartElement("Arbeitsplan"); w.WriteAttributeString("version", FormatVersion.ToString(Inv)); w.WriteAttributeString("erstellt", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss", Inv));
                     w.WriteStartElement("Zeilen");
                     foreach (RowInfo r in d.Rows)
                     {
@@ -272,6 +281,9 @@ namespace Arbeitsplan.Core
             using (XmlReader r = XmlReader.Create(xml, rs)) doc.Load(r);
             XmlElement root = doc.DocumentElement;
             if (root == null || root.Name != "Arbeitsplan" || Kid(root, "Zeilen") == null || Kid(root, "Katalog") == null) throw new FormatException();
+            // Neueres Datenformat (neuere exe auf dem Laufwerk): nie lesen und zurueckschreiben, sonst gingen neue Felder verloren
+            int fv;
+            if (int.TryParse(root.GetAttribute("version"), NumberStyles.Integer, Inv, out fv) && fv > FormatVersion) throw new NewerFormatException();
             StoreData d = new StoreData();
             foreach (XmlElement z in Kids(Kid(root, "Zeilen"), "Zeile"))
             {

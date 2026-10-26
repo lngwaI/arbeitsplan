@@ -216,7 +216,7 @@ namespace Arbeitsplan.Win
                             "Keine Berechtigung", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                         return false;
                     }
-                    if (!TrySave(c, n)) return false;
+                    if (!TrySave(c, ref n)) return false;
                     c.Cur = n;
                 }
             }
@@ -229,21 +229,65 @@ namespace Arbeitsplan.Win
             return true;
         }
 
-        bool TrySave(CellData c, Entry n)
+        // Hat ein anderer PC den Block inzwischen gespeichert (Versionskonflikt), wird nie still ueberschrieben: Aenderungen an
+        // verschiedenen Stellen fuehrt Conflict.Merge zusammen und speichert; nur bei derselben Stelle fragt ConflictForm.
+        // n ist danach das Gespeicherte. false = nicht gespeichert, Block bleibt im Editor (ggf. mit dem Vorschlag).
+        bool TrySave(CellData c, ref Entry n)
         {
-            int rowId = rowInfo[c.RowIndex].Id;
+            RowInfo ri = rowInfo[c.RowIndex];
+            Entry bas = c.Cur;   // Stand beim Beginn der Bearbeitung; nach einer Zusammenfuehrung der damals gespeicherte Stand
             try
             {
-                if (Audit.Save(store, c.Day, rowInfo[c.RowIndex], me, n)) return true;   // mit Protokolleintrag
-                Entry latest = store.Get(c.Day, rowId);
-                if (MessageBox.Show("Der Block wurde inzwischen von jemand anderem geändert.\n\nJa = meine Fassung speichern (überschreibt die andere)\nNein = im Editor bleiben",
-                    "Konflikt", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes) return false;
-                n.Version = latest != null ? latest.Version : 0;
-                if (Audit.Save(store, c.Day, rowInfo[c.RowIndex], me, n)) return true;
-                MessageBox.Show("Der Block wurde erneut geändert. Bitte noch einmal speichern.", "Konflikt", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                for (int round = 0; round < 5; round++)
+                {
+                    if (Audit.Save(store, c.Day, ri, me, n)) return true;   // mit Protokolleintrag
+                    Entry latest = store.Get(c.Day, ri.Id) ?? new Entry();
+                    List<string> clashes = new List<string>();
+                    Entry merged = Conflict.Merge(bas, n, latest, clashes);
+                    if (clashes.Count > 0)
+                    {
+                        ConflictForm.Choice ch = quiet ? quietChoice : AskConflict(c, latest, n, merged);
+                        if (ch == ConflictForm.Choice.Mine && !me.Has(Perm.DeleteText)) ch = ConflictForm.Choice.Merge;   // Fremdes ersetzen = loeschen
+                        if (ch == ConflictForm.Choice.Cancel) return false;
+                        if (ch == ConflictForm.Choice.Merge) { LoadMerged(c, latest, merged); return false; }
+                        merged = Conflict.Merge(bas, n, latest, new List<string>(), true);   // strittige Stellen meine, Rest bleibt; Fremdes im Verlauf
+                    }
+                    n = merged; bas = latest;
+                }
+                if (!quiet) MessageBox.Show("Der Block wird gerade laufend von anderen geändert. Bitte gleich noch einmal speichern (Strg+S).", "Arbeitsplan", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return false;
             }
             catch (Exception ex) { ShowSaveError(ex); return false; }
+        }
+
+        static ConflictForm.Choice quietChoice = ConflictForm.Choice.Merge;   // Selbsttest: Antwort statt Rueckfrage
+
+        ConflictForm.Choice AskConflict(CellData c, Entry latest, Entry mine, Entry merged)
+        {
+            string who = "Jemand anderes", when = "";
+            AuditEntry last = null;
+            foreach (AuditEntry a in store.GetAudit(c.Day, rowInfo[c.RowIndex].Id)) if (last == null || a.Time >= last.Time) last = a;
+            if (last != null)
+            {
+                User u = users.FindByLogin(last.Login);
+                who = u != null ? u.Display : last.Login.Length > 0 ? last.Login : who;
+                when = "um " + last.Time.ToString("HH:mm") + " Uhr";
+            }
+            using (ConflictForm f = new ConflictForm(BlockTitle(c) + ", " + Ui.DayText(c.Day), who, when, latest, mine, merged, me.Has(Perm.DeleteText)))
+            {
+                f.ShowDialog(this);
+                return f.Result;
+            }
+        }
+
+        // Vorschlag in den Editor; Basis ist jetzt der gespeicherte Stand (das naechste Speichern vergleicht damit)
+        void LoadMerged(CellData c, Entry latest, Entry merged)
+        {
+            c.Cur = merged; LoadEditors(c);
+            c.Cur = latest; c.Content = merged.Content; c.People = (string[])merged.People.Clone(); c.Lkz = merged.Lkz;
+            fmtChanged = merged.SpanKey() != latest.SpanKey();
+            UpdateChanged();
+            view.Relayout();
         }
 
         static void ShowSaveError(Exception ex)

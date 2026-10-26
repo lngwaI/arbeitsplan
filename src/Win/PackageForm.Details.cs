@@ -7,16 +7,17 @@ using Arbeitsplan.Core;
 namespace Arbeitsplan.Win
 {
     // Paket-Editor, Teil 3 (Schritt-Details: Was?/Wann?/Wo?/Zusaetze/Equipment) und Teil 4 (Vorschau & Pruefung).
-    // Nicht zutreffende Felder werden ausgeblendet; die Gruppen ordnen sich nach der Breite an (1024x768: zweizeilig, Bereich scrollt).
+    // Nicht zutreffende Felder werden ausgeblendet. "Was? Wo?" und "Wann?" stehen nebeneinander, darunter gleich das Equipment
+    // (auch auf 1024x768 ohne Scrollen sichtbar), dann die Zusaetze.
     partial class PackageForm
     {
         readonly EditMarker marker = new EditMarker();
         readonly Panel scroll = new Panel(), body = new Panel(), equipRows = new Panel();
-        Section gWhat, gWhen, gWhere, gExtra, gEquip;
+        Section gWhat, gWhen, gExtra, gEquip;
         readonly TextBox tTitle = new TextBox(), tSubNos = new TextBox(), tIdent = new TextBox(), tNote = new TextBox(), tPreview = new TextBox();
         readonly ComboBox cbKind = new ComboBox(), cbRow = new ComboBox();
         readonly NumericUpDown nDay = new NumericUpDown(), nCount = new NumericUpDown(), nInterval = new NumericUpDown(), nStartNo = new NumericUpDown();
-        Label lTitle, lKind, lSub, lSubHelp, lDay, lCount, lCountUnit, lInterval, lIntervalUnit, lStartNo, lNoEx, lRow, rowHint, lRowHelp, lIdent, lIdentHelp, lNote, lNoEquip;
+        Label lTitle, lKind, lSub, lSubHelp, lDay, lCount, lCountUnit, lInterval, lIntervalUnit, lStartNo, lNoEx, lRow, rowHint, lIdent, lIdentHelp, lNote, lNoEquip;
         readonly Label[] equipHead = new Label[5];
         readonly Button bPos = new Button();
         readonly ContextMenuStrip menuPos = new ContextMenuStrip();
@@ -63,17 +64,21 @@ namespace Arbeitsplan.Win
             sec.Controls.Add(scroll); sec.Controls.Add(gap); sec.Controls.Add(marker);
             wrap.Controls.Add(sec);
 
-            // Was?
-            gWhat = Group("Was?", "Titel und Art des Schritts", 280);
-            int lw = LabelW("Unterlauf-Nr.:", "Titel:", "Art:"), x = 8 + lw, w = 280 - 8 - x;
+            // Was? Wo?
+            gWhat = Group("Was? Wo?", "Titel, Art und Raum (Block im Plan)", 280);
+            int lw = LabelW("Unterlauf-Nr.:", "Titel:", "Art:", "Raum (Block):"), x = 8 + lw, w = 280 - 8 - x;
             lTitle = Lbl(gWhat, "Titel:", 8, lw); tTitle.SetBounds(x, 0, w, IH);
             lKind = Lbl(gWhat, "Art:", 8, lw); cbKind.SetBounds(x, 0, w, IH); cbKind.DropDownStyle = ComboBoxStyle.DropDownList;
+            lRow = Lbl(gWhat, "Raum (Block):", 8, lw); cbRow.SetBounds(x, 0, w, IH); cbRow.DropDownStyle = ComboBoxStyle.DropDownList;
+            cbRow.Items.AddRange(rowNames.ToArray());
+            rowHint = Lbl(gWhat, "", x, w); rowHint.ForeColor = Color.DarkOrange; rowHint.AutoEllipsis = true;
+            tip.SetToolTip(cbRow, "Block (Raum) im Plan, in dem der Schritt steht. Beim Kampagnenstart je Lauf änderbar.");
             cbKind.Items.AddRange(new object[] { "Normaler Schritt", "Lauf mit Laufnummer", "Unterlauf (Splitten/Einfrieren)" });
             lSub = Lbl(gWhat, "Unterlauf-Nr.:", 8, lw); tSubNos.SetBounds(x, 0, w, IH);
             lSubHelp = Lbl(gWhat, "Komma = nächster Lauf, „/“ = mehrere (z. B. 4186/4187, 4188); 4 Ziffern + Produktcode", x, w);
             lSubHelp.Height = 3 * Font.Height + 2; lSubHelp.TextAlign = ContentAlignment.TopLeft;
-            gWhat.Controls.AddRange(new Control[] { tTitle, cbKind, tSubNos });
-            Grow(tTitle, cbKind, tSubNos, lSubHelp); Gray(lSubHelp);
+            gWhat.Controls.AddRange(new Control[] { tTitle, cbKind, cbRow, tSubNos });
+            Grow(tTitle, cbKind, cbRow, rowHint, tSubNos, lSubHelp); Gray(lSubHelp);
             tip.SetToolTip(cbKind, "Normaler Schritt: Titel (bei Wiederholung „Titel 1, 2, 3“). Lauf: bekommt die Laufnummer XXYYZZZZ. Unterlauf: Splitten/Einfrieren eines Laufs.");
 
             // Wann?
@@ -87,13 +92,6 @@ namespace Arbeitsplan.Win
             Grow(lCountUnit, lIntervalUnit, lNoEx); Gray(lNoEx);
             tip.SetToolTip(nStartNo, "Nummer des ersten Laufs; mit Produktcode die hinteren 4 Stellen (ZZZZ). Beim Kampagnenstart anpassbar.");
 
-            // Wo?
-            gWhere = Group("Wo?", "Raum = Block im Plan", 200);
-            lRow = Lbl(gWhere, "Raum (Block):", 8, 184); cbRow.SetBounds(8, 0, 184, IH); cbRow.DropDownStyle = ComboBoxStyle.DropDownList;
-            cbRow.Items.AddRange(rowNames.ToArray()); gWhere.Controls.Add(cbRow);
-            rowHint = Lbl(gWhere, "", 8, 184); rowHint.ForeColor = Color.DarkOrange; rowHint.TextAlign = ContentAlignment.TopLeft;
-            lRowHelp = Lbl(gWhere, "Beim Kampagnenstart je Lauf änderbar.", 8, 184); lRowHelp.TextAlign = ContentAlignment.TopLeft;
-            Gray(lRowHelp);   // Breiten setzt ArrangeWhere (schmal: untereinander, breit: in einer Zeile)
 
             // Zusaetze
             gExtra = Group("Zusätze", "Optional; erscheinen im Plan unter dem Equipment", 500);
@@ -258,8 +256,13 @@ namespace Arbeitsplan.Win
             PackageStep s = cur;
             bool sub = s.Kind == StepKind.SubRun, rep = s.Count > 1, num = s.Numbered;
 
+            Baustein b = cat.Baustein_(s.Source);
+            bool off = b != null && b.Row.Length > 0 && s.Row.Length > 0 && s.Row != b.Row;   // z. B. Packen in Suite 2
+            rowHint.Text = off ? "Standard-Raum ist „" + b.Row + "“ (Sonderaktion?)" : "";
+            tip.SetToolTip(rowHint, rowHint.Text);
             int y = gWhat.ContentTop;
-            y = Row(y, true, lTitle, tTitle); y = Row(y, true, lKind, cbKind); y = Row(y, sub, lSub, tSubNos); y = Row(y, sub, lSubHelp);
+            y = Row(y, true, lTitle, tTitle); y = Row(y, true, lKind, cbKind); y = Row(y, true, lRow, cbRow); y = Row(y, off, rowHint) - (off ? 4 : 0);
+            y = Row(y, sub, lSub, tSubNos); y = Row(y, sub, lSubHelp);
             int hWhat = y + 2;
 
             y = gWhen.ContentTop;
@@ -270,50 +273,18 @@ namespace Arbeitsplan.Win
             tip.SetToolTip(lNoEx, lNoEx.Text);
             int hWhen = y + 2;
 
-            Baustein b = cat.Baustein_(s.Source);
-            bool off = b != null && b.Row.Length > 0 && s.Row.Length > 0 && s.Row != b.Row;   // z. B. Packen in Suite 2
-            rowHint.Text = off ? "Weicht vom Standard-Raum „" + b.Row + "“ ab (Sonderaktion?)" : "";
-
             y = gExtra.ContentTop;
             y = Row(y, true, lIdent, tIdent); y = Row(y, true, lIdentHelp) - 2; y = Row(y, true, lNote, tNote);
             int hExtra = y + 2;
 
-            int w = body.ClientSize.Width, g = 8, min = 280 + 260 + 190 + 2 * g;
-            if (w >= min)   // breit: Was? | Wann? | Wo? nebeneinander
-            {
-                int extra = w - min, a = 280 + extra * 36 / 100, c = 260 + extra * 34 / 100, d = w - a - c - 2 * g;
-                int h = Math.Max(hWhat, Math.Max(hWhen, ArrangeWhere(d, off, false)));
-                gWhat.SetBounds(0, 0, a, h); gWhen.SetBounds(a + g, 0, c, h); gWhere.SetBounds(a + c + 2 * g, 0, d, h);
-                y = h + g;
-            }
-            else            // schmal (z. B. 1024x768): Was? | Wann?, darunter Wo? in einer Zeile
-            {
-                int a = (w - g) / 2, h = Math.Max(hWhat, hWhen), hWhere = ArrangeWhere(w, off, true);
-                gWhat.SetBounds(0, 0, a, h); gWhen.SetBounds(a + g, 0, w - a - g, h);
-                gWhere.SetBounds(0, h + g, w, hWhere);
-                y = h + g + hWhere + g;
-            }
+            int w = body.ClientSize.Width, g = 8;
+            int a = Math.Max((w - g) / 2, Math.Min(w - g - 250, (w - g) * 55 / 100)), h = Math.Max(hWhat, hWhen);   // Was? Wo? | Wann?
+            gWhat.SetBounds(0, 0, a, h); gWhen.SetBounds(a + g, 0, w - a - g, h);
+            y = h + g;
             gEquip.SetBounds(0, y, w, ArrangeEquip(w - 16)); y = gEquip.Bottom + g;
             gExtra.SetBounds(0, y, w, hExtra);
             body.Height = gExtra.Bottom + 4;
             laying = false;
-        }
-
-        // Wo?: Raum-Auswahl untereinander (schmale Spalte) oder in einer Zeile (volle Breite); feste Positionen, keine Anker.
-        int ArrangeWhere(int gw, bool off, bool oneRow)
-        {
-            int iw = gw - 16, y = gWhere.ContentTop, lw = LabelW(lRow.Text), cw = Math.Min(260, iw - lw);
-            if (oneRow)
-            {
-                lRow.SetBounds(8, y, lw, IH); cbRow.SetBounds(8 + lw, y, cw, IH);
-                lRowHelp.SetBounds(16 + lw + cw, y, Math.Max(0, iw - lw - cw - 8), IH); lRowHelp.TextAlign = ContentAlignment.MiddleLeft;
-                rowHint.SetBounds(8 + lw, 0, iw - lw, Font.Height + 2);
-                return Row(Row(y, true, lRow, cbRow, lRowHelp), off, rowHint) + 2;
-            }
-            lRow.SetBounds(8, 0, iw, IH); cbRow.SetBounds(8, 0, iw, IH);
-            rowHint.SetBounds(8, 0, iw, 2 * Font.Height + 2); lRowHelp.SetBounds(8, 0, iw, 2 * Font.Height + 2); lRowHelp.TextAlign = ContentAlignment.TopLeft;
-            y = Row(y, true, lRow); y = Row(y, true, cbRow); y = Row(y, off, rowHint); y = Row(y, true, lRowHelp);
-            return y + 2;
         }
 
         int ArrangeEquip(int iw)
@@ -381,8 +352,13 @@ namespace Arbeitsplan.Win
                 if (s.Row.Length == 0) h.Add(new Hint(n + " (" + TitleOf(s) + ") hat keinen Raum.", s, cbRow));
                 else if (!rowNames.Contains(s.Row)) h.Add(new Hint(n + ": Raum „" + s.Row + "“ gibt es im Plan nicht.", s, cbRow));
                 if (s.Kind == StepKind.SubRun && s.SubNos.Trim().Length == 0) h.Add(new Hint(n + ": Unterlauf-Nummern fehlen.", s, tSubNos));
+                else if (s.Kind == StepKind.SubRun && s.SubNos.Split(',').Length != s.Count)
+                    h.Add(new Hint(n + ": Unterlauf-Nummern für " + s.SubNos.Split(',').Length + " Lauf/Läufe, aber " + s.Count + " Wiederholung(en) (Komma = nächster Lauf).", s, tSubNos));
+                int idents = s.Ident.Trim().Length == 0 ? 0 : s.Ident.Split(',').Length;
+                if (idents > 0 && idents != s.Count) h.Add(new Hint(n + ": " + idents + " Kennung(en), aber " + s.Count + " Wiederholung(en) (Komma = nächster Lauf).", s, tIdent));
+                if (s.Numbered && s.StartNo + s.Count - 1 > 9999) h.Add(new Hint(n + ": Laufnummer über 9999 – kleinere erste Nummer wählen.", s, nStartNo));
                 foreach (EquipAssign a in s.Equipment)
-                    if (!EquipRow.Known(a, cat)) h.Add(new Hint(n + ": Gerät " + a.Choices[0].Id + " (" + a.Short + ") ist nicht validiert.", s, null));
+                    foreach (string id in EquipRow.Unvalidated(a, cat)) h.Add(new Hint(n + ": Gerät " + id + " (" + a.Short + ") ist nicht validiert.", s, null));
             }
             bool ok = h.Count == 0;
             if (ok) h.Add(new Hint("Keine Auffälligkeiten – das Muster kann übernommen werden.", null, null));

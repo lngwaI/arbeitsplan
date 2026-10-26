@@ -60,7 +60,7 @@ namespace Arbeitsplan.Win
         int hitPos = -1;
 
         // cfg == null: Testdaten im Speicher (nur Test-Build); sonst verschluesselte Datendatei im Datenordner (FileStore)
-        public MainForm(string login, bool failSaves, AppConfig cfg)
+        public MainForm(string login, bool failSaves, AppConfig cfg, FileStore fs)
         {
             this.cfg = cfg;
             StartPosition = FormStartPosition.CenterScreen;
@@ -83,7 +83,7 @@ namespace Arbeitsplan.Win
             }
             else
             {
-                fstore = new FileStore(cfg.DataFolder, cfg.ReadOnly, cfg.CachePath, cfg.CacheDays);
+                fstore = fs ?? new FileStore(cfg.DataFolder, cfg.ReadOnly, cfg.CachePath, cfg.CacheDays);
                 store = fstore; users = fstore.Users; locks = new FileLockService(cfg.DataFolder);
                 systemPc = fstore.ReadOnly;
             }
@@ -160,8 +160,10 @@ namespace Arbeitsplan.Win
             file.DropDownItems.Add("Als Paket speichern (.apkg)…", null, delegate { ExportPackage(); }).Enabled = exp;
 
             ToolStripMenuItem pk = new ToolStripMenuItem("Pakete");
-            pk.DropDownItems.Add("Paket-Editor…", null, delegate { OpenPackageEditor(null); });
-            pk.DropDownItems.Add("Paket aus Datei importieren…", null, delegate { ImportPackageFile(); });
+            pk.DropDownItems.Add("Kampagne starten…", null, delegate { StartCampaignFromFile(); }).Enabled = me.Has(Perm.ImportPackage);
+            pk.DropDownItems.Add(new ToolStripSeparator());
+            pk.DropDownItems.Add("Neues Paket anlegen…", null, delegate { OpenPackageEditor(null); });
+            pk.DropDownItems.Add("Paket öffnen und bearbeiten…", null, delegate { ImportPackageFile(); });
             pk.Enabled = pkg;
 
             ToolStripMenuItem set = new ToolStripMenuItem("Einstellungen");
@@ -171,7 +173,11 @@ namespace Arbeitsplan.Win
             ToolStripItem bk = set.DropDownItems.Add("Sicherung…", null, delegate { OpenBackup(); }); bk.Enabled = me.Has(Perm.PackageAdmin);
             set.Visible = structure || usr || me.Has(Perm.PackageAdmin);
 
-            ms.Items.AddRange(new ToolStripItem[] { file, pk, set });
+            ToolStripMenuItem help = new ToolStripMenuItem("Hilfe");
+            help.DropDownItems.Add("Verknüpfung auf dem Desktop anlegen", null, delegate { Shortcut.Create(this); });
+            help.DropDownItems.Add("Info…", null, delegate { ShowInfo(); });
+
+            ms.Items.AddRange(new ToolStripItem[] { file, pk, set, help });
 #if TESTHOOKS
             ToolStripMenuItem av = new ToolStripMenuItem("Ansicht (Test)");
             ToolStripMenuItem w2 = new ToolStripMenuItem("2 Wochen"); w2.CheckOnClick = true; w2.Checked = TestWeeks == 2;
@@ -248,6 +254,7 @@ namespace Arbeitsplan.Win
             if (!EndEdit(true)) return;           // Speichern fehlgeschlagen: nicht wechseln, nichts geht verloren
             start = start.Add(delta);
             Rebuild(true);
+            if (pollNow != null) pollNow();   // Aenderungen anderer PCs gleich holen (im Hintergrund, haengt nie)
         }
 
         // Laedt die Woche neu und zeichnet nur neu (keine Steuerelemente werden erzeugt -> schnell).

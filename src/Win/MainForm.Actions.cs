@@ -189,8 +189,31 @@ namespace Arbeitsplan.Win
             using (PackageForm f = new PackageForm(store, equip, start, p, me.Has(Perm.ImportPackage), me.Has(Perm.PackageAdmin)))
             {
                 f.By = me; f.Folder = PackageFolder; f.ShowDialog(this);
-                if (f.Applied) Rebuild(false);
+                if (f.Applied) ShowWeekOf(f.AppliedStart);
             }
+        }
+
+        // Pakete > Kampagne starten…: Produkt-Paket waehlen, gleich Startdatum/Laeufe festlegen (ohne Editor).
+        // Unvollstaendige Pakete (Raum fehlt/unbekannt) oder reine Wochen-Exporte oeffnen im Editor mit Pruefhinweisen.
+        void StartCampaignFromFile()
+        {
+            if (!EndEdit(true)) return;
+            string f = PackagePicker.Pick(this, PackageFolder, me.Has(Perm.PackageAdmin), "Kampagne starten – Produkt (Paket) wählen", "Weiter");
+            if (f == null) return;
+            Package p;
+            try { p = Package.Load(f); }
+            catch (Exception ex) { MessageBox.Show("Paket konnte nicht gelesen werden.\n" + ex.Message, "Paket", MessageBoxButtons.OK, MessageBoxIcon.Error); return; }
+            if (!PackageForm.Ready(p, store)) { OpenPackageEditor(p); return; }
+            DateTime st;
+            if (PackageForm.StartCampaign(this, p, store, start, me, out st)) ShowWeekOf(st);
+        }
+
+        // Nach dem Uebernehmen: Woche des Kampagnenstarts zeigen (Ergebnis sofort sichtbar)
+        void ShowWeekOf(DateTime day)
+        {
+            DateTime m = MondayOf(day);
+            if (m != start && day != DateTime.MinValue) { start = m; Rebuild(true); }
+            else Rebuild(false);
         }
 
         void ImportPackageFile()

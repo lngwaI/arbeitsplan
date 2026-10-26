@@ -22,6 +22,7 @@ namespace Arbeitsplan.Win
         bool loading, dirty;
         string file;            // Datei des Musters, null = noch nicht gespeichert
         public bool Applied;
+        public DateTime AppliedStart;   // Startdatum der zuletzt uebernommenen Kampagne (Hauptfenster springt dorthin)
         public string Folder;   // Paketordner (Standard fuer Oeffnen/Speichern); null = klassischer Dateidialog
         public User By;        // angemeldeter Nutzer (fuer das Aenderungsprotokoll bei der Uebernahme)
 
@@ -112,6 +113,20 @@ namespace Arbeitsplan.Win
             lv.SelectedIndexChanged += delegate { if (!loading && lv.SelectedItems.Count > 0 && lv.SelectedItems[0].Tag != cur) Bind((PackageStep)lv.SelectedItems[0].Tag); };
             lv.MouseUp += delegate { if (lv.SelectedItems.Count == 0) FillList(); };   // Klick ins Leere: Auswahl bleibt beim aktuellen Schritt
             lv.Resize += delegate { FitColumns(); };
+            lv.AllowDrop = true;   // Ziehen = Reihenfolge aendern (wie mehrfach ▲/▼, uebernimmt den Tag am Ziel)
+            lv.ItemDrag += delegate(object o, ItemDragEventArgs e)
+            {
+                PackageStep s = ((ListViewItem)e.Item).Tag as PackageStep;
+                if (s == null) return;
+                if (s != cur) Bind(s);
+                lv.DoDragDrop(s, DragDropEffects.Move);
+            };
+            lv.DragOver += delegate(object o, DragEventArgs e) { e.Effect = e.Data.GetDataPresent(typeof(PackageStep)) ? DragDropEffects.Move : DragDropEffects.None; };
+            lv.DragDrop += delegate(object o, DragEventArgs e)
+            {
+                ListViewItem it = lv.GetItemAt(lv.PointToClient(new Point(e.X, e.Y)).X, lv.PointToClient(new Point(e.X, e.Y)).Y);
+                if (it != null && it.Tag is PackageStep) DropAt(Ordered().IndexOf((PackageStep)it.Tag));
+            };
 
             int bh = Theme.Current.ButtonH - 2;
             Panel btns = new Panel(); btns.Tag = "keep"; btns.Dock = DockStyle.Bottom; btns.Height = 2 * bh + 12; btns.Width = w - 16;
@@ -123,6 +138,7 @@ namespace Arbeitsplan.Win
             Btn(bDel, "Entfernen…", 184, bh + 10, 100, delegate { RemoveStep(); });
             btns.Controls.AddRange(new Control[] { bAdd, bUp, bDown, bDup, bDel });
             tip.SetToolTip(bAdd, "Baustein (Packen, Lauf, Splitten …) oder leeren Schritt hinzufügen");
+            tip.SetToolTip(lv, "Anklicken = rechts bearbeiten. Ziehen = Reihenfolge ändern.");
             tip.SetToolTip(bUp, "Schritt nach oben (früher); übernimmt dabei ggf. den Tag des Vorgängers");
             tip.SetToolTip(bDown, "Schritt nach unten (später); übernimmt dabei ggf. den Tag des Nachfolgers");
             tip.SetToolTip(bDup, "Gewählten Schritt kopieren (Strg+D)");
@@ -267,6 +283,17 @@ namespace Arbeitsplan.Win
             Bind(cur);
         }
 
+        // Gewaehlten Schritt an Position "to" der Ablaufliste bringen (gezogen)
+        void DropAt(int to)
+        {
+            for (int guard = 0; cur != null && guard < 200; guard++)
+            {
+                int i = Ordered().IndexOf(cur);
+                if (i < 0 || i == to) break;
+                MoveStep(i < to ? 1 : -1);
+            }
+        }
+
         void RemoveStep() { RemoveStep(true); }
 
         void RemoveStep(bool ask)
@@ -406,25 +433,45 @@ namespace Arbeitsplan.Win
             if (p == null) return;
             if (p.Steps.Count == 0 && p.Blocks.Count == 0) { MessageBox.Show(this, "Das Paket ist leer.", "Paket-Editor", MessageBoxButtons.OK, MessageBoxIcon.Information); return; }
             foreach (PackageStep s in Ordered())
-                if (!s.IsEmpty && s.Row.Length == 0)
+                if (!s.IsEmpty && (s.Row.Length == 0 || !rowNames.Contains(s.Row)))   // sonst fiele der Schritt beim Uebernehmen still weg
                 {
                     Bind(s);
-                    MessageBox.Show(this, "Schritt " + No(s) + " \"" + TitleOf(s) + "\" hat keinen Raum. Bitte unter \"Wo?\" einen Block (Raum) wählen.", "Paket-Editor", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    MessageBox.Show(this, "Schritt " + No(s) + " \"" + TitleOf(s) + "\" " + (s.Row.Length == 0 ? "hat keinen Raum." : "steht im Raum \"" + s.Row + "\", den es im Plan nicht gibt.")
+                        + " Bitte unter \"Raum (Block)\" einen Block wählen.", "Paket-Editor", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     return;
                 }
-            DateTime start; List<RunDate> schedule; ApplyMode mode;
-            using (CampaignForm cf = new CampaignForm(p, store, weekStart.Date, ApplyMode.FillEmpty))   // Startdatum, erste Laufnummer, Termine, Modus
+            DateTime st;
+            if (StartCampaign(this, p, store, weekStart, By, out st)) { Applied = true; AppliedStart = st; }
+        }
+
+        // Kampagnenstart (Startdatum, erste Laufnummer, Termine je Lauf, Modus) und Uebernahme in den Plan; true = Plan geaendert.
+        // Auch direkt aus dem Menue "Pakete > Kampagne starten…" (ohne Editor), wenn das Paket vollstaendig ist (Ready).
+        public static bool StartCampaign(IWin32Window owner, Package p, IDataStore store, DateTime weekStart, User by, out DateTime start)
+        {
+            List<RunDate> schedule; ApplyMode mode;
+            start = weekStart;
+            using (CampaignForm cf = new CampaignForm(p, store, weekStart.Date, ApplyMode.FillEmpty))
             {
-                if (cf.ShowDialog(this) != DialogResult.OK) return;
+                if (cf.ShowDialog(owner) != DialogResult.OK) return false;
                 start = cf.Start; schedule = cf.Schedule; mode = cf.Mode;
             }
             try
             {
-                string msg = p.Apply(store, start, mode, schedule, By);
-                Applied = true;
-                MessageBox.Show(this, msg, "In Plan übernehmen", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                string msg = p.Apply(store, start, mode, schedule, by);
+                MessageBox.Show(owner, msg, "In Plan übernehmen", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return true;
             }
-            catch (Exception ex) { MessageBox.Show(this, "Konnte nicht gespeichert werden.\n" + ex.Message, "In Plan übernehmen", MessageBoxButtons.OK, MessageBoxIcon.Error); }
+            catch (Exception ex) { MessageBox.Show(owner, "Konnte nicht gespeichert werden.\n" + ex.Message, "In Plan übernehmen", MessageBoxButtons.OK, MessageBoxIcon.Error); return false; }
+        }
+
+        // Direkt startbar: hat Schritte, jeder (nicht leere) Schritt hat einen Raum, den es im Plan gibt
+        public static bool Ready(Package p, IDataStore store)
+        {
+            if (p.Steps.Count == 0) return false;
+            List<string> names = new List<string>();
+            foreach (RowInfo r in store.GetRows()) names.Add(r.Name);
+            foreach (PackageStep s in p.Steps) if (!s.IsEmpty && !names.Contains(s.Row)) return false;
+            return true;
         }
 
 #if TESTHOOKS
@@ -443,9 +490,17 @@ namespace Arbeitsplan.Win
                 int n0 = f.steps.Count;
                 foreach (PackageStep s in f.Ordered()) { f.Bind(s); Application.DoEvents(); }
                 PackageStep e = new PackageStep(); e.Day = f.NextDay(); f.AddStep(e); Application.DoEvents();
-                f.tTitle.Text = "Test äöü"; f.cbKind.SelectedIndex = 2; f.nCount.Value = 3; f.tSubNos.Text = "1/2, 3"; Application.DoEvents();
+                f.tTitle.Text = "Test äöü"; f.cbKind.SelectedIndex = 2; f.nCount.Value = 3; f.tSubNos.Text = "1/2, 3"; f.tIdent.Text = "PA 1"; Application.DoEvents();
+                bool hints = f.hintList.Exists(delegate(Hint h) { return h.Text.Contains("Unterlauf-Nummern für 2") && h.Field == f.tSubNos; })
+                    && f.hintList.Exists(delegate(Hint h) { return h.Text.Contains("1 Kennung(en), aber 3"); });
+                f.nStartNo.Value = 9998; Application.DoEvents();
+                hints &= f.hintList.Exists(delegate(Hint h) { return h.Text.Contains("über 9999"); });
+                f.nStartNo.Value = 1; f.tIdent.Text = ""; Application.DoEvents();
                 f.Duplicate(); Application.DoEvents();
                 f.Bind(f.Ordered()[0]); f.MoveStep(1); f.MoveStep(-1); f.MoveStep(-1); Application.DoEvents();
+                PackageStep dragged = f.Ordered()[0]; f.Bind(dragged); f.DropAt(3); Application.DoEvents();
+                bool drag = f.Ordered().IndexOf(dragged) == 3;
+                f.DropAt(0); drag &= f.Ordered().IndexOf(dragged) == 0;
                 int n1 = f.steps.Count;
                 f.RemoveStep(false); f.RemoveStep(false); Application.DoEvents();
                 int n2 = f.steps.Count;
@@ -454,7 +509,7 @@ namespace Arbeitsplan.Win
                 f.LoadPackage(null); Application.DoEvents();
                 bool fresh = f.steps.Count > 0 && f.cur != null && !f.dirty;
                 return "Paket-Editor Ablauf: Schritte " + n0 + " -> +2 = " + n1 + " -> -2 = " + n2 + (n1 == n0 + 2 && n2 == n0 ? " ok" : " FEHLER")
-                    + ", leeres Paket " + (empty ? "ok" : "FEHLER") + ", neues Paket " + (fresh ? "ok" : "FEHLER");
+                    + ", leeres Paket " + (empty ? "ok" : "FEHLER") + ", neues Paket " + (fresh ? "ok" : "FEHLER") + ", Prüfhinweise " + (hints ? "ok" : "FEHLER") + ", Ziehen " + (drag ? "ok" : "FEHLER");
             }
             catch (Exception ex) { return "Paket-Editor Ablauf: FEHLER " + ex.GetType().Name + ": " + ex.Message; }
             finally { f.dirty = false; f.Close(); f.Dispose(); }
