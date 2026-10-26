@@ -42,8 +42,10 @@ Ziel: Keine Geheimnisse im Repo und nicht in der exe. Eine kopierte exe oder Dat
 ## Ordnerstruktur auf dem Laufwerk (Vorschlag)
 Laufwerk: `...\Formulierung\Arbeitsplan\` (Name/Server variabel, siehe ini)
 ```
-Arbeitsplan  Programm\    Arbeitsplan.exe, Arbeitsplan.ini, statuscolors.ini, LIESMICH.txt   (alle starten von hier; Verknüpfung auf dem Desktop)
-  daten\       arbeitsplan.apdb, .bak1..3, sperren  schluessel\  arbeitsplan.key
+Arbeitsplan\
+  Programm\    Arbeitsplan.exe, Arbeitsplan.ini, statuscolors.ini, LIESMICH.txt (alle starten von hier)
+  daten\       arbeitsplan.apdb, .bak1..3, sperren\
+  schluessel\  arbeitsplan.key
   Pakete\      .apkg (gemeinsam)
   sicherung\   .apbak (nur Admin)
 ```
