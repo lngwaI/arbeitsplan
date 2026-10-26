@@ -807,18 +807,19 @@ namespace Arbeitsplan.Win
         public Form TestForm(string which)
         {
             Package demo = null;
-            if (which == "package2")   // Kampagne mit Packen + Lauf (3x, abwechselnd)
+            if (which == "package2" || which == "campaign")   // Produkt 1357: Packen, Lauf (3x alle 3 Tage, abwechselnd), Splitten in Unterlaeufe
             {
-                demo = new Package(); demo.Name = "Kampagne Beispiel";
+                demo = new Package(); demo.Name = "Produkt Beispiel"; demo.ProductCode = "1357";
                 Catalog cat = store.GetCatalog();
-                foreach (string bn in new[] { "Packen", "Lauf" })
+                foreach (string bn in new[] { "Packen", "Lauf", "Splitten" })
                 {
                     Baustein b = cat.Baustein_(bn);
-                    PackageStep s = new PackageStep(); s.Title = b.Name; s.Source = b.Name; s.Row = b.Row; s.Day = bn == "Packen" ? 1 : 2;
+                    PackageStep s = new PackageStep(); s.Title = b.Name; s.Source = b.Name; s.Row = b.Row; s.Day = bn == "Packen" ? 1 : (bn == "Lauf" ? 2 : 3);
                     foreach (string sh in b.Positions) { EquipAssign a = new EquipAssign(); a.Short = sh; s.Equipment.Add(a); }
+                    if (bn == "Splitten") { s.Kind = StepKind.SubRun; s.Count = 3; s.Interval = 3; s.StartNo = 30; s.SubNos = "4186/4187, 4188"; }
                     if (bn == "Lauf")
                     {
-                        s.Count = 3;
+                        s.Kind = StepKind.Run; s.Count = 3; s.Interval = 3; s.StartNo = 30;
                         s.Equipment[0].Choices.Add(new EquipChoice("PT", "H1-T-0102")); s.Equipment[1].Choices.Add(new EquipChoice("Pumpe", "H1-P-0101-05"));
                         s.Equipment[2].Choices.Add(new EquipChoice("TFF", "H1-X-0101")); s.Equipment[2].Choices.Add(new EquipChoice("TFF", "H1-X-0102"));
                         s.Equipment[2].Alternate = true; s.Equipment[2].Fallback = "H1-X-0103";
@@ -830,6 +831,7 @@ namespace Arbeitsplan.Win
             Form f;
             if (which == "structure") f = new StructureForm(store.GetRows(), true, true, true);
             else if (which == "catalog") { List<string> nm = new List<string>(); foreach (RowInfo r in store.GetRows()) nm.Add(r.Name); f = new CatalogForm(store.GetCatalog(), nm); }
+            else if (which == "campaign") { CampaignForm cf = new CampaignForm(demo, store, start, "nur leere Blöcke füllen"); cf.Shift(1, 1); f = cf; }   // Lauf 13570030 (und Folgende) einen Tag spaeter
             else f = new PackageForm(store, equip, start, demo, true, true);
             Hide();                                   // nur fuer das Testbild: Hauptfenster nicht dahinter
             f.StartPosition = FormStartPosition.Manual; f.Location = new Point(0, 0); f.TopMost = true;
@@ -855,6 +857,57 @@ namespace Arbeitsplan.Win
             for (int i = 0; i < n; i++) { Go(i % 2 == 0 ? 7 : -7); Refresh(); }
             return sw.ElapsedMilliseconds / (double)n;
         }
+
+        // Produkt-Paket: Laufnummern XXYYZZZZ, Unterlaeufe, Kampagnenstart mit verschobenem Lauf, Datei-Roundtrip, fruehere Kampagne.
+        void SelfTestCampaign(System.Text.StringBuilder sb)
+        {
+            Package c = new Package(); c.Name = "Produkt Test"; c.ProductCode = "1357";
+            PackageStep pk = new PackageStep(); pk.Title = "Packen"; pk.Row = "Suite 2"; pk.Day = 1;
+            PackageStep lf = new PackageStep(); lf.Title = "Lauf"; lf.Row = "Suite 2"; lf.Day = 2; lf.Count = 4; lf.Interval = 2; lf.StartNo = 30; lf.Kind = StepKind.Run;
+            PackageStep sp = new PackageStep(); sp.Title = "Splitten"; sp.Row = "Mix / Split"; sp.Day = 3; sp.Count = 4; sp.Interval = 2; sp.StartNo = 30; sp.Kind = StepKind.SubRun; sp.SubNos = "4186/13574187, , 4190";
+            c.Steps.Add(pk); c.Steps.Add(lf); c.Steps.Add(sp);
+            bool okNo = lf.Compose(0, "1357") == "Lauf 13570030" && lf.Compose(1, "") == "Lauf 31" && pk.Compose(0, "1357") == "Packen";
+            string sub0 = sp.Compose(0, "1357"), sub1 = sp.Compose(1, "1357");
+            bool okSub = sub0 == "Splitten\nUnterlauf 13574186 (aus 13570030)\nUnterlauf 13574187 (aus 13570030)" && sub1 == "Splitten\nUnterlauf (aus 13570031)"
+                && sp.Compose(2, "1357").EndsWith("Unterlauf 13574190 (aus 13570032)");
+            c.Renumber(40);
+            bool okRe = lf.StartNo == 40 && sp.StartNo == 40 && pk.StartNo == 1 && lf.Label("1357", 0) == "Lauf 13570040";
+            sb.AppendLine("Produkt: Nummern=" + Ok(okNo) + " Unterlauf=" + Ok(okSub) + " Umnummern=" + Ok(okRe) + " [" + sub0.Replace("\n", "|") + "]");
+
+            string path = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "selftest_produkt.apkg");
+            c.Save(path);
+            Package q = Package.Load(path);
+            bool okRt = q.ProductCode == "1357" && q.Steps.Count == 3 && q.Steps[1].Kind == StepKind.Run && q.Steps[2].Kind == StepKind.SubRun && q.Steps[2].SubNos == sp.SubNos;
+            for (int s = 0; s < 3; s++) for (int r = 0; r < c.Steps[s].Count; r++) okRt &= q.Steps[s].Compose(r, q.ProductCode) == c.Steps[s].Compose(r, c.ProductCode);
+            System.IO.File.WriteAllText(path, "<Paket name=\"Alt\" version=\"2\"><Schritt titel=\"Lauf\" block=\"Suite 2\" tag=\"1\" anzahl=\"2\" abstand=\"1\" startnr=\"1\"/></Paket>");
+            Package old = Package.Load(path);
+            bool okOld = old.ProductCode == "" && old.Steps[0].Kind == StepKind.Normal && old.Steps[0].Compose(1, old.ProductCode) == "Lauf 2";
+            sb.AppendLine("Produkt-Datei: Roundtrip=" + Ok(okRt) + " altesPaket=" + Ok(okOld));
+
+            // Kampagnenstart-Dialog (ohne Anzeige): Zeile 1 (Lauf 13570040) +1 Tag, Folgende wandern mit, Zeile 0 nicht
+            DateTime s2 = start.AddDays(35);
+            bool okDlg;
+            using (CampaignForm cf = new CampaignForm(q, store, s2, "test"))
+            {
+                cf.Shift(1, 1);
+                List<RunDate> sd = cf.Schedule;
+                okDlg = sd[0].Day == 1 && sd[1].Day == 3 && sd[2].Day == 4 && sd[sd.Count - 1].Day == 10 && cf.Start == s2;
+            }
+            // Datums-Ueberschreibung: nur der letzte Lauf (13570043) einen Tag spaeter
+            List<RunDate> sched = q.Schedule();
+            RunDate last = sched.Find(delegate(RunDate d) { return d.Step == 1 && d.Run == 3; });
+            last.Day += 1;
+            string msg = q.Apply(store, s2, ApplyMode.FillEmpty, sched);
+            int suite2 = rowInfo.Find(delegate(RowInfo r) { return r.Name == "Suite 2"; }).Id, mix = rowInfo.Find(delegate(RowInfo r) { return r.Name == "Mix / Split"; }).Id;
+            Entry e8 = store.Get(s2.AddDays(7), suite2), e9 = store.Get(s2.AddDays(8), suite2), m3 = store.Get(s2.AddDays(2), mix);
+            bool okOver = (e8 == null || e8.Content.IndexOf("13570043") < 0) && e9 != null && e9.Content == "Lauf 13570043" && m3 != null && m3.Content.StartsWith("Splitten\nUnterlauf 13574186");
+            int no, iv; DateTime lastDay;
+            bool found = Package.LastRun(store, "1357", out no, out lastDay, out iv);
+            bool okLast = found && no == 43 && lastDay == s2.AddDays(8) && iv == 2;
+            sb.AppendLine("Kampagne: Dialog/Mitverschieben=" + Ok(okDlg) + " Überschreibung=" + Ok(okOver) + " früheKampagne=" + Ok(okLast) + " (letzter " + no + ", Abstand " + iv + ") " + msg);
+        }
+
+        static string Ok(bool b) { return b ? "OK" : "FEHLER"; }
 
         // Selbsttest (Admin): Zuklappen, Bearbeiten mit Format, LKZ, Struktur, Export/Import, Paket-Schritte.
         public string SelfTest()
@@ -909,12 +962,13 @@ namespace Arbeitsplan.Win
             Package q = Package.Load(path);
             PackageBlock fr = q.Blocks.Find(delegate(PackageBlock b) { return b.Row == "Suite 1A" && b.Day == 5; });
             sb.AppendLine("Paket: Blöcke=" + q.Blocks.Count + " Schritte=" + q.Steps.Count + " Format erhalten=" + (fr == null ? -1 : fr.Data.Spans.Count));
-            sb.AppendLine("Apply: " + q.Apply(store, start.AddDays(7), ApplyMode.FillEmpty));
+            sb.AppendLine("Apply: " + q.Apply(store, start.AddDays(7), ApplyMode.FillEmpty, null));
             for (int k = 0; k < 3; k++)
             {
                 Entry ne = store.Get(start.AddDays(8 + k), rowInfo[1].Id);
                 sb.AppendLine("Lauf-Tag " + (k + 1) + ": [" + (ne == null ? "-" : ne.Content.Replace("\n", "|")) + "]");
             }
+            SelfTestCampaign(sb);
             Rebuild(true);
             sb.AppendLine("Find 'TEST': " + store.Find("TEST").Count);
             byte[] blob = Protected.Protect("Geheim äöü", "pw1");
