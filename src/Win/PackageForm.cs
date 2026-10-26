@@ -22,6 +22,7 @@ namespace Arbeitsplan.Win
         bool loading, dirty;
         string file;            // Datei des Musters, null = noch nicht gespeichert
         public bool Applied;
+        public DateTime AppliedStart;   // Startdatum der zuletzt uebernommenen Kampagne (Hauptfenster springt dorthin)
         public string Folder;   // Paketordner (Standard fuer Oeffnen/Speichern); null = klassischer Dateidialog
         public User By;        // angemeldeter Nutzer (fuer das Aenderungsprotokoll bei der Uebernahme)
 
@@ -112,6 +113,20 @@ namespace Arbeitsplan.Win
             lv.SelectedIndexChanged += delegate { if (!loading && lv.SelectedItems.Count > 0 && lv.SelectedItems[0].Tag != cur) Bind((PackageStep)lv.SelectedItems[0].Tag); };
             lv.MouseUp += delegate { if (lv.SelectedItems.Count == 0) FillList(); };   // Klick ins Leere: Auswahl bleibt beim aktuellen Schritt
             lv.Resize += delegate { FitColumns(); };
+            lv.AllowDrop = true;   // Ziehen = Reihenfolge aendern (wie mehrfach ▲/▼, uebernimmt den Tag am Ziel)
+            lv.ItemDrag += delegate(object o, ItemDragEventArgs e)
+            {
+                PackageStep s = ((ListViewItem)e.Item).Tag as PackageStep;
+                if (s == null) return;
+                if (s != cur) Bind(s);
+                lv.DoDragDrop(s, DragDropEffects.Move);
+            };
+            lv.DragOver += delegate(object o, DragEventArgs e) { e.Effect = e.Data.GetDataPresent(typeof(PackageStep)) ? DragDropEffects.Move : DragDropEffects.None; };
+            lv.DragDrop += delegate(object o, DragEventArgs e)
+            {
+                ListViewItem it = lv.GetItemAt(lv.PointToClient(new Point(e.X, e.Y)).X, lv.PointToClient(new Point(e.X, e.Y)).Y);
+                if (it != null && it.Tag is PackageStep) DropAt(Ordered().IndexOf((PackageStep)it.Tag));
+            };
 
             int bh = Theme.Current.ButtonH - 2;
             Panel btns = new Panel(); btns.Tag = "keep"; btns.Dock = DockStyle.Bottom; btns.Height = 2 * bh + 12; btns.Width = w - 16;
@@ -123,6 +138,7 @@ namespace Arbeitsplan.Win
             Btn(bDel, "Entfernen…", 184, bh + 10, 100, delegate { RemoveStep(); });
             btns.Controls.AddRange(new Control[] { bAdd, bUp, bDown, bDup, bDel });
             tip.SetToolTip(bAdd, "Baustein (Packen, Lauf, Splitten …) oder leeren Schritt hinzufügen");
+            tip.SetToolTip(lv, "Anklicken = rechts bearbeiten. Ziehen = Reihenfolge ändern.");
             tip.SetToolTip(bUp, "Schritt nach oben (früher); übernimmt dabei ggf. den Tag des Vorgängers");
             tip.SetToolTip(bDown, "Schritt nach unten (später); übernimmt dabei ggf. den Tag des Nachfolgers");
             tip.SetToolTip(bDup, "Gewählten Schritt kopieren (Strg+D)");
@@ -265,6 +281,17 @@ namespace Arbeitsplan.Win
             steps.Insert(dir < 0 ? k : k + 1, cur);
             dirty = true;
             Bind(cur);
+        }
+
+        // Gewaehlten Schritt an Position "to" der Ablaufliste bringen (gezogen)
+        void DropAt(int to)
+        {
+            for (int guard = 0; cur != null && guard < 200; guard++)
+            {
+                int i = Ordered().IndexOf(cur);
+                if (i < 0 || i == to) break;
+                MoveStep(i < to ? 1 : -1);
+            }
         }
 
         void RemoveStep() { RemoveStep(true); }
@@ -413,14 +440,16 @@ namespace Arbeitsplan.Win
                         + " Bitte unter \"Raum (Block)\" einen Block wählen.", "Paket-Editor", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     return;
                 }
-            if (StartCampaign(this, p, store, weekStart, By)) Applied = true;
+            DateTime st;
+            if (StartCampaign(this, p, store, weekStart, By, out st)) { Applied = true; AppliedStart = st; }
         }
 
         // Kampagnenstart (Startdatum, erste Laufnummer, Termine je Lauf, Modus) und Uebernahme in den Plan; true = Plan geaendert.
         // Auch direkt aus dem Menue "Pakete > Kampagne starten…" (ohne Editor), wenn das Paket vollstaendig ist (Ready).
-        public static bool StartCampaign(IWin32Window owner, Package p, IDataStore store, DateTime weekStart, User by)
+        public static bool StartCampaign(IWin32Window owner, Package p, IDataStore store, DateTime weekStart, User by, out DateTime start)
         {
-            DateTime start; List<RunDate> schedule; ApplyMode mode;
+            List<RunDate> schedule; ApplyMode mode;
+            start = weekStart;
             using (CampaignForm cf = new CampaignForm(p, store, weekStart.Date, ApplyMode.FillEmpty))
             {
                 if (cf.ShowDialog(owner) != DialogResult.OK) return false;
@@ -469,6 +498,9 @@ namespace Arbeitsplan.Win
                 f.nStartNo.Value = 1; f.tIdent.Text = ""; Application.DoEvents();
                 f.Duplicate(); Application.DoEvents();
                 f.Bind(f.Ordered()[0]); f.MoveStep(1); f.MoveStep(-1); f.MoveStep(-1); Application.DoEvents();
+                PackageStep dragged = f.Ordered()[0]; f.Bind(dragged); f.DropAt(3); Application.DoEvents();
+                bool drag = f.Ordered().IndexOf(dragged) == 3;
+                f.DropAt(0); drag &= f.Ordered().IndexOf(dragged) == 0;
                 int n1 = f.steps.Count;
                 f.RemoveStep(false); f.RemoveStep(false); Application.DoEvents();
                 int n2 = f.steps.Count;
@@ -477,7 +509,7 @@ namespace Arbeitsplan.Win
                 f.LoadPackage(null); Application.DoEvents();
                 bool fresh = f.steps.Count > 0 && f.cur != null && !f.dirty;
                 return "Paket-Editor Ablauf: Schritte " + n0 + " -> +2 = " + n1 + " -> -2 = " + n2 + (n1 == n0 + 2 && n2 == n0 ? " ok" : " FEHLER")
-                    + ", leeres Paket " + (empty ? "ok" : "FEHLER") + ", neues Paket " + (fresh ? "ok" : "FEHLER") + ", Prüfhinweise " + (hints ? "ok" : "FEHLER");
+                    + ", leeres Paket " + (empty ? "ok" : "FEHLER") + ", neues Paket " + (fresh ? "ok" : "FEHLER") + ", Prüfhinweise " + (hints ? "ok" : "FEHLER") + ", Ziehen " + (drag ? "ok" : "FEHLER");
             }
             catch (Exception ex) { return "Paket-Editor Ablauf: FEHLER " + ex.GetType().Name + ": " + ex.Message; }
             finally { f.dirty = false; f.Close(); f.Dispose(); }

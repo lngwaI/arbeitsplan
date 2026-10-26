@@ -1,6 +1,6 @@
 # Arbeitsplan – Unterlage für die IT (Freigabe und Betrieb)
 
-Stand 2026-10-27. Kurz: eine einzelne, unsignierte .NET-Framework-exe ohne Installation, die vom Netzlaufwerk gestartet wird und ihre Daten verschlüsselt in einem Ordner auf demselben Laufwerk ablegt. Kein Dienst, kein Server, kein Internet.
+Stand 2026-10-26. Kurz: eine einzelne, unsignierte .NET-Framework-exe ohne Installation, die vom Netzlaufwerk gestartet wird und ihre Daten verschlüsselt in einem Ordner auf demselben Laufwerk ablegt. Kein Dienst, kein Server, kein Internet.
 
 ## Was das Programm tut
 | Punkt | Verhalten |

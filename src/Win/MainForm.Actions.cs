@@ -189,7 +189,7 @@ namespace Arbeitsplan.Win
             using (PackageForm f = new PackageForm(store, equip, start, p, me.Has(Perm.ImportPackage), me.Has(Perm.PackageAdmin)))
             {
                 f.By = me; f.Folder = PackageFolder; f.ShowDialog(this);
-                if (f.Applied) Rebuild(false);
+                if (f.Applied) ShowWeekOf(f.AppliedStart);
             }
         }
 
@@ -204,7 +204,16 @@ namespace Arbeitsplan.Win
             try { p = Package.Load(f); }
             catch (Exception ex) { MessageBox.Show("Paket konnte nicht gelesen werden.\n" + ex.Message, "Paket", MessageBoxButtons.OK, MessageBoxIcon.Error); return; }
             if (!PackageForm.Ready(p, store)) { OpenPackageEditor(p); return; }
-            if (PackageForm.StartCampaign(this, p, store, start, me)) Rebuild(false);
+            DateTime st;
+            if (PackageForm.StartCampaign(this, p, store, start, me, out st)) ShowWeekOf(st);
+        }
+
+        // Nach dem Uebernehmen: Woche des Kampagnenstarts zeigen (Ergebnis sofort sichtbar)
+        void ShowWeekOf(DateTime day)
+        {
+            DateTime m = MondayOf(day);
+            if (m != start && day != DateTime.MinValue) { start = m; Rebuild(true); }
+            else Rebuild(false);
         }
 
         void ImportPackageFile()
