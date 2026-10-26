@@ -20,19 +20,16 @@
 - [x] Oberflächenmodelle xp / win7 / win10 (`--theme`), zusammengeführt mit UI-Umbau (Branch integration/alles): win10 = heller Umbau-Look, win7 dezent bläulich, xp = Original; `theme.ini` entfällt
 
 ## Als Nächstes
-- [ ] Rechte erzwingen: Text löschen (Inhalt leeren)
 - [ ] Paket-Editor: Schritte per Ziehen umsortieren, Vorlagenordner, Muster über mehrere Schritte wiederholen (z. B. Lauf A + Lauf B im Wechsel)
 - [ ] PDF: mehrere Seiten statt einer langen Seite (falls gedruckt werden soll)
 - [ ] Tastatur-Bedienung: Bearbeitungsmodus ohne Maus, Tab-Reihenfolge, Zeile per Tastatur ein-/ausklappen
-- [ ] Lokale Testdaten-Datei
-- [ ] Hintergrund-Nachladen (Timer + Versionsvergleich, ohne Eingabe zu stören)
 - [ ] DPI-Awareness (nur wenn XP-sicher: `SetProcessDPIAware` per Vista+-Check)
 - [ ] Kürzel-Vorschläge aus Nutzer-DB beim Tippen (optional)
 
 ## Nach IT-Klärung
 - [ ] Architektur festlegen (Server+SQLite vs. Netzlaufwerk-Datei) → `architekt`
 - [ ] Echter Lock-Dienst und Nutzer-DB zentral; Identifikation am System-PC (Kartenleser-Anmeldung)
-- [ ] Audit Trail; Schutz gegen Nutzung außerhalb des Netzes
+- [ ] Schutz gegen Nutzung außerhalb des Netzes
 - [ ] Equipment-Provider für ein MES-System
 - [ ] Übernahme alter Pläne (falls gewünscht)
 - [ ] Test auf System-PC, normalem PC und XP (falls relevant)

@@ -1,5 +1,7 @@
 # Speicherkonzept (Entwurf, vor IT-Klärung)
 
+> Teilweise veraltet: umgesetzt ist die Datei-DB (`FileStore`, verschlüsselte `arbeitsplan.apdb`, ini-Schlüssel `Datenordner=`, 14 Sicherungen). Jet/`JetStore`, RSA-signierte Nutzer-DB, Cache "Woche ±4" und "30 Tage + Monatsstände" wurden nicht umgesetzt. Maßgeblich ist `CLAUDE.md`.
+
 Ziel: Programm als portabler Ordner (OneDrive/Desktop/Laufwerk), alle Daten für alle Nutzer und Systemrechner synchron, Historie ≥ 1 Jahr, Datenbank nur für Admin.
 
 ## Optionen zentrale Daten
@@ -42,7 +44,7 @@ Empfehlung: A, sonst B. Prototyp: Jet-`.mdb` hinter `IDataStore` (gleiches Schem
 ## Fragen an IT / Nutzer
 1. Wozu dient die Fremd-DLL (Name/Version, welches Makro, Server/Schema, nur lesend)? Wo speichert Excel heute den Plan?
 2. Gibt es einen SQL Server bzw. Host für einen kleinen Dienst?
-3. Dürfen exe aus OneDrive/Desktop/Laufwerk laufen (AppLocker, Mark-of-the-Web, Signatur)? Was ist "Vertrauensstufe (Whitelist)"?
+3. Dürfen exe aus OneDrive/Desktop/Laufwerk laufen (AppLocker, Mark-of-the-Web, Signatur)? Was ist die Vertrauensstufe für Programme (Whitelist)?
 4. Wer darf den Datenordner ändern (versteckte Freigabe nur für Gruppe)?
 5. Systemrechner: eigenes oder gemeinsames Konto, Netz immer da, Autostart?
 6. GMP-relevant (Annex 11/Part 11, Aufbewahrung > 1 Jahr)?
@@ -50,4 +52,4 @@ Empfehlung: A, sonst B. Prototyp: Jet-`.mdb` hinter `IDataStore` (gleiches Schem
 8. Endgültiger Wochenstart?
 
 ## Risiken
-Datei-DB über SMB (Korruption, keine Zugriffstrennung); Jet abgekündigt; AppLocker kann portablen Ansatz kippen; veraltete Kopien (MinClientVersion); in Fremd/validierte Systeme nie schreiben; Dossier braucht neue Sicherheitsprüfung (Netz-/Dateizugriff).
+Datei-DB über SMB (Korruption, keine Zugriffstrennung); Jet abgekündigt; AppLocker kann portablen Ansatz kippen; veraltete Kopien (MinClientVersion); in fremde/validierte Systeme nie schreiben; Dossier braucht neue Sicherheitsprüfung (Netz-/Dateizugriff).

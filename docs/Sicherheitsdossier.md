@@ -13,8 +13,8 @@ Anzeige und Eingabe eines Wochenplans (WinForms). Pilot: Daten in einer verschl�
 ## Zugriffe
 | Bereich | Verhalten |
 |---|---|
-| Netzwerk | kein Socket/HTTP-Code; Dateizugriff auf den in `Arbeitsplan.ini` eingetragenen Datenordner (auch UNC/Netzlaufwerk, SMB über Windows) |
-| Prozesse | keine Aufrufe anderer Programme |
+| Netzwerk | kein Socket/HTTP-Code; beim Start fragt der Begrüßungsbildschirm (`Splash.cs`, `UserPrincipal.Current`) den Anzeigenamen des Windows-Kontos ab (bei Domänenkonten LDAP-Abfrage am Domänencontroller, Fallback Windows-Name); Dateizugriff auf den in `Arbeitsplan.ini` eingetragenen Datenordner (auch UNC/Netzlaufwerk, SMB über Windows) |
+| Prozesse | keine Aufrufe anderer Programme (PowerShell-Skript `toolsMakeIcon.ps1` nur einmalig von Hand, nicht Teil der exe) |
 | Dateien lesen | `Arbeitsplan.ini`, `statuscolors.ini` neben der exe (fehlen = Standardwerte); Datenordner: `arbeitsplan.apdb`, `sperren\*.lock`; `%LOCALAPPDATA%\Arbeitsplan\cache.apdb`; Paketdateien `.apkg` nur nach Dialogauswahl |
 | Dateien schreiben | Datenordner (Standard `daten\` neben der exe, sonst laut ini; nicht beschreibbar → `%LOCALAPPDATA%\Arbeitsplan\daten`): `arbeitsplan.apdb` (+ `.tmp`, `.bak1..3`, `arbeitsplan.lock`), `sperren\*.lock` (Name des Bearbeiters, 30 min); Sicherung `<Datenordner>\sicherung\*.apbak` (täglich beim Beenden); lokaler Cache `%LOCALAPPDATA%\Arbeitsplan\cache.apdb`; Export/Paket nur auf Dialogauswahl. `NurLesen=1`: keine Schreibzugriffe auf die Daten |
 | Benutzer | Windows-Anmeldename; im Release nicht übersteuerbar (Testschalter nur im Test-Build) |
