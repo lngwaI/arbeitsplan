@@ -19,6 +19,11 @@
 - [x] UI-Modernisierung (Theme), (LKZ)-Kennzeichnung, Tastatur Esc/Strg+S/Umschalt+Enter, Release-Build ohne Testschalter, Härtung, PWA-Vorschau `web/`, Doku + Sicherheitsdossier (Branch gmail/ui-modern, gepusht)
 - [x] Oberflächenmodelle xp / win7 / win10 (`--theme`), zusammengeführt mit UI-Umbau (Branch integration/alles): win10 = heller Umbau-Look, win7 dezent bläulich, xp = Original; `theme.ini` entfällt
 
+- [x] Gesamtprüfung (Fehler, Sicherheit, Performance, Doku) und Umsetzung in 4 Runden (GMX / Haupt-Account, erledigt, 2026-10-26 18:36)
+- [x] FileStore: Hash-Prüfung unter Sperre, Speichern+Protokoll in einem Schreibvorgang, Paket-Übernahme als Batch, Merge nach Konflikt (GMX / Haupt-Account, erledigt, 2026-10-26 18:36)
+- [x] Sicherheit: Admins= nur Ersteinrichtung, Test-Build mit eigenem Schlüssel, Rechtevergabe begrenzt, Text-löschen-Umgehung, Nutzerliste per Merge (GMX / Haupt-Account, erledigt, 2026-10-26 18:36)
+- [x] Repo bereinigt: nur erfundene Nummern/Kürzel, neutrale Firmenbegriffe, .gitignore für Daten; MainForm in Teildateien (GMX / Haupt-Account, erledigt, 2026-10-26 18:36)
+
 ## Als Nächstes
 - [ ] Paket-Editor: Schritte per Ziehen umsortieren, Vorlagenordner, Muster über mehrere Schritte wiederholen (z. B. Lauf A + Lauf B im Wechsel)
 - [ ] PDF: mehrere Seiten statt einer langen Seite (falls gedruckt werden soll)
@@ -37,3 +42,12 @@
 
 ## On hold
 - [ ] Android/iOS: Server-HTTP-API + Web-Client (PWA); erst nach Serverentscheidung
+
+## Offen aus der Gesamtprüfung (GMX / Haupt-Account, offen, 2026-10-26 18:36)
+- [ ] Release-Schlüssel aus dem öffentlichen Repo nehmen und umschlüsseln; .apbak verschlüsseln und signieren (GMX / Haupt-Account, offen, 2026-10-26 18:36)
+- [ ] Login mit Domäne/SID statt nur Windows-Nutzername (Nutzer-DB-Migration nötig) (GMX / Haupt-Account, offen, 2026-10-26 18:36)
+- [ ] Git-Historie enthält alte echte Werte (bewusst nicht bereinigt, Entscheidung 2026-10-26) (GMX / Haupt-Account, offen, 2026-10-26 18:36)
+- [ ] Tests: SaveManyWithAudit, alte eingerückte Datendatei, 200-MB-Grenze, Hintergrund-Timer, Tippen im Editor (GMX / Haupt-Account, offen, 2026-10-26 18:36)
+- [ ] Splitten-Blöcke (nur Unterlauf-Zeilen) ohne Laufnummer-Markierung: "(aus <Hauptlauf>)" werten? (GMX / Haupt-Account, offen, 2026-10-26 18:36)
+- [ ] Nutzer-Ids nach Löschen nicht wiederverwenden; Katalog: Doppelnamen ablehnen, Verweise beim Umbenennen mitziehen; Datum ohne Jahr am Jahreswechsel; Raum-Prüfung vor Kampagnenstart (GMX / Haupt-Account, offen, 2026-10-26 18:36)
+- [ ] Protokoll in Monatsdateien auslagern (wächst unbegrenzt); Tageswechsel am Dauerbetrieb-Rechner (GMX / Haupt-Account, offen, 2026-10-26 18:36)
