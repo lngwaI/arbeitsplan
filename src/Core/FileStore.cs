@@ -39,6 +39,7 @@ namespace Arbeitsplan.Core
         public int Generation { get; private set; }
         public bool Offline { get; private set; }
         public bool FromCache { get; private set; }   // OFFLINE mit dem letzten Stand dieses PCs (sonst leer)
+        public bool NewerFormat { get; private set; } // eine neuere exe hat die Datei geschrieben: nur noch Anzeige, neu starten
         public string Problem { get; private set; }   // Meldung fuer den Nutzer, sonst null
         public bool ReadOnly { get { return readOnlyCfg || Offline; } }
         public string Folder { get { return folder; } }
@@ -59,9 +60,16 @@ namespace Arbeitsplan.Core
             // Der Datenordner wird nie angelegt (eine kopierte exe darf keine eigenen Daten erzeugen); leerer Ordner = Erststart
             if (!Directory.Exists(folder)) throw new DirectoryNotFoundException("Ordner nicht gefunden.");
             if (File.Exists(path)) { Load(); return; }
+            if (readOnlyCfg) { Missing(); Problem = "Im Datenordner liegen noch keine Daten:\n" + folder; return; }
+            WithLock(delegate { if (File.Exists(path)) Load(); else { Missing(); WriteFile(); } });   // Erststart: Standardstruktur, keine Testdaten
+        }
+
+        // Datendatei fehlt: neu nur im wirklich leeren Ordner (Ersteinrichtung). Liegen Schluessel oder Altstaende dort,
+        // wurde sie verschoben/geloescht -> nie still eine leere anlegen (spaeter zurueckgelegte Daten gingen sonst verloren).
+        void Missing()
+        {
             if (File.Exists(path + ".bak1")) throw new InvalidDataException("Die Datendatei fehlt, es gibt aber ältere Stände (" + FileName + ".bak1…3). Admin: neuesten Stand in " + FileName + " umbenennen.");
-            if (readOnlyCfg) { Problem = "Im Datenordner liegen noch keine Daten:\n" + folder; return; }
-            WithLock(delegate { if (File.Exists(path)) Load(); else WriteFile(); });   // Erststart: Standardstruktur, keine Testdaten
+            if (File.Exists(keyPath)) throw new InvalidDataException("Die Datendatei " + FileName + " fehlt, die Schlüsseldatei ist aber vorhanden. Admin: Datendatei oder Sicherung zurücklegen.");
         }
 
         // Schluessel lesen; nur beim Erststart (weder apdb noch key vorhanden) neu erzeugen, sonst nie.
@@ -105,6 +113,7 @@ namespace Arbeitsplan.Core
         {
             Offline = true;
             bool bad = ex is CryptographicException || ex is InvalidDataException || ex is XmlException || ex is FormatException;
+            NewerFormat |= ex is NewerFormatException;
             if (ex is KeyFileException || ex is NewerFormatException) Problem = ex.Message + "\n" + folder;
             else Problem = (bad ? "Die Datendatei konnte nicht gelesen werden (beschädigt, verändert oder fehlend):\n" : "Der Datenordner ist nicht erreichbar:\n")
                 + folder + "\n(" + ex.Message + ")";
@@ -307,6 +316,7 @@ namespace Arbeitsplan.Core
                 }
                 else if (Changed()) Load();   // Zeit/Groesse als billiger Vorfilter, Load vergleicht den Hash
             }
+            catch (NewerFormatException ex) { NewerFormat = true; Problem = ex.Message; return false; }
             catch (Exception) { return false; }   // Netz kurz weg: alter Stand bleibt sichtbar
             bool n = Generation != seenGen;
             seenGen = Generation;

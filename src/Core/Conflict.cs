@@ -11,13 +11,16 @@ namespace Arbeitsplan.Core
     public static class Conflict
     {
         // Ergebnis hat die Version von theirs (damit es danach gespeichert werden kann); clashes = Namen der strittigen Felder.
-        public static Entry Merge(Entry b, Entry mine, Entry theirs, List<string> clashes)
+        public static Entry Merge(Entry b, Entry mine, Entry theirs, List<string> clashes) { return Merge(b, mine, theirs, clashes, false); }
+
+        // preferMine: strittige Stellen in der eigenen Fassung (statt beider); nicht strittige fremde Aenderungen bleiben.
+        public static Entry Merge(Entry b, Entry mine, Entry theirs, List<string> clashes, bool preferMine)
         {
             if (b == null) b = new Entry();
             if (theirs == null) theirs = new Entry();
             Entry r = theirs.Clone();
             bool clash;
-            List<Line> lines = MergeLines(Lines(b), Lines(mine), Lines(theirs), out clash);
+            List<Line> lines = MergeLines(Lines(b), Lines(mine), Lines(theirs), preferMine, out clash);
             Join(lines, r);
             if (clash) clashes.Add("Inhalt");
             string[] names = { "F", "S", "N" };
@@ -26,7 +29,7 @@ namespace Arbeitsplan.Core
                 string bs = b.People[s], ms = mine.People[s], ts = theirs.People[s];
                 if (ms == ts || ms == bs) r.People[s] = ts;
                 else if (ts == bs) r.People[s] = ms;
-                else { r.People[s] = JoinPeople(ts, ms); clashes.Add(names[s]); }
+                else { r.People[s] = preferMine ? ms : JoinPeople(ts, ms); clashes.Add(names[s]); }
             }
             r.Lkz = mine.Lkz == b.Lkz ? theirs.Lkz : mine.Lkz;   // Haken: geaendert gewinnt (beide geaendert = gleicher Wert)
             return r;
@@ -85,7 +88,7 @@ namespace Arbeitsplan.Core
 
         // diff3: Anker = Basiszeilen, die in beiden Fassungen unveraendert vorkommen (LCS); dazwischen je Abschnitt
         // die geaenderte Seite nehmen, bei beidseitiger Aenderung beide Fassungen (Konflikt).
-        static List<Line> MergeLines(List<Line> b, List<Line> m, List<Line> t, out bool clash)
+        static List<Line> MergeLines(List<Line> b, List<Line> m, List<Line> t, bool preferMine, out bool clash)
         {
             clash = false;
             int[] mm = Match(b, m), mt = Match(b, t);
@@ -104,13 +107,17 @@ namespace Arbeitsplan.Core
                     {
                         if (cm[x].Key == cb[x].Key || cm[x].Key == ct[x].Key) r.Add(ct[x]);
                         else if (ct[x].Key == cb[x].Key) r.Add(cm[x]);
-                        else { clash = true; r.Add(ct[x]); r.Add(cm[x]); }
+                        else { clash = true; if (!preferMine) r.Add(ct[x]); r.Add(cm[x]); }
                     }
                 else
                 {
                     clash = true;
-                    r.AddRange(ct);
-                    foreach (Line x in cm) if (!ct.Exists(delegate(Line y) { return y.Key == x.Key; })) r.Add(x);
+                    if (preferMine) r.AddRange(cm);
+                    else
+                    {
+                        r.AddRange(ct);
+                        foreach (Line x in cm) if (!ct.Exists(delegate(Line y) { return y.Key == x.Key; })) r.Add(x);
+                    }
                 }
                 if (k < b.Count) r.Add(m[em]);
                 i = k + 1; im = em + 1; it = et + 1;

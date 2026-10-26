@@ -247,9 +247,10 @@ namespace Arbeitsplan.Win
                     if (clashes.Count > 0)
                     {
                         ConflictForm.Choice ch = quiet ? quietChoice : AskConflict(c, latest, n, merged);
+                        if (ch == ConflictForm.Choice.Mine && !me.Has(Perm.DeleteText)) ch = ConflictForm.Choice.Merge;   // Fremdes ersetzen = loeschen
                         if (ch == ConflictForm.Choice.Cancel) return false;
                         if (ch == ConflictForm.Choice.Merge) { LoadMerged(c, latest, merged); return false; }
-                        merged = n.Clone(); merged.Version = latest.Version;   // bewusst die eigene Fassung (anderes bleibt im Verlauf)
+                        merged = Conflict.Merge(bas, n, latest, new List<string>(), true);   // strittige Stellen meine, Rest bleibt; Fremdes im Verlauf
                     }
                     n = merged; bas = latest;
                 }
@@ -272,7 +273,7 @@ namespace Arbeitsplan.Win
                 who = u != null ? u.Display : last.Login.Length > 0 ? last.Login : who;
                 when = "um " + last.Time.ToString("HH:mm") + " Uhr";
             }
-            using (ConflictForm f = new ConflictForm(BlockTitle(c) + ", " + Ui.DayText(c.Day), who, when, latest, mine, merged))
+            using (ConflictForm f = new ConflictForm(BlockTitle(c) + ", " + Ui.DayText(c.Day), who, when, latest, mine, merged, me.Has(Perm.DeleteText)))
             {
                 f.ShowDialog(this);
                 return f.Result;

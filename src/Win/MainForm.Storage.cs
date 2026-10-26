@@ -47,10 +47,10 @@ namespace Arbeitsplan.Win
             string pkg = admin ? "Admin" : users.FindByLogin(login) != null ? null : (cfg.Pilot ? "Produktion" : "Leser");
             if (fstore.ReadOnly) { pkg = "Leser"; offlineStart = fstore.Offline; }   // Systemrechner / OFFLINE: nur ansehen
             if (pkg != null) UserDb.ApplyPackage(u.Rights, users.Package(pkg));
-            if (!fstore.ReadOnly && users.Domains.Count == 0 && UserDb.IsAdmin(u.Rights))
-            {   // erster Admin bindet die Daten an diese Umgebung (Umgebung.Allowed); aenderbar in der Nutzerverwaltung
-                UserChanges dc = new UserChanges();
-                dc.Domains = new List<string>(new[] { Umgebung.Home(Umgebung.UserDomain, Umgebung.MachineDomain, Umgebung.Machine) });
+            List<string> bind = Umgebung.AutoBind(Umgebung.UserDomain, Umgebung.MachineDomain, Umgebung.Machine);
+            if (!fstore.ReadOnly && users.Domains.Count == 0 && UserDb.IsAdmin(u.Rights) && bind.Count > 0)
+            {   // erster Admin mit Domaenenkonto bindet die Daten an diese Umgebung (Umgebung.Allowed); aenderbar in der Nutzerverwaltung
+                UserChanges dc = new UserChanges(); dc.Domains = bind;
                 try { fstore.SaveUsers(dc); users = fstore.Users; } catch (Exception) { }
             }
             return u;
@@ -149,7 +149,7 @@ namespace Arbeitsplan.Win
                         {
                             busy = false;
                             if (closed || IsDisposed) return;
-                            if (upd && !newVersion) { newVersion = true; UpdateTitle(); }
+                            if ((upd || fstore.NewerFormat) && !newVersion) { newVersion = true; UpdateTitle(); }
                             if (editCell != null || Application.OpenForms.Count > 1) return;
                             if (fl >= 0 && (ft != seenTime || fl != seenLen)) { seenTime = ft; seenLen = fl; tries = 2; }
                             bool wasOffline = fstore.Offline, fresh = false;

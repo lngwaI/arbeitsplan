@@ -18,7 +18,9 @@ namespace Arbeitsplan.Win
             bool okLike = Umgebung.Like("FIRMA", "firma") && Umgebung.Like("SYS-12", "SYS-??") && !Umgebung.Like("SYS-123", "SYS-??")
                 && Umgebung.Like("View-Only3", "view-only*") && !Umgebung.Like("", "*") && !Umgebung.Like("x", "");
             List<string> fl = new List<string>(new[] { "FIRMA" }), fd = new List<string>(new[] { "firma.local" });
-            bool okDom = Umgebung.Allowed(new List<string>(), "X", "", "X") && Umgebung.Allowed(fl, "firma", "", "PC1") && !Umgebung.Allowed(fl, "MEINPC", "", "MEINPC")
+            bool okDom = Umgebung.Allowed(new List<string>(new[] { "*" }), "MEINPC", "", "MEINPC") && Umgebung.AutoBind("PC1", "", "PC1").Count == 0
+                && Umgebung.AutoBind("AzureAD", "", "PC1").Count == 0 && string.Join(",", Umgebung.AutoBind("FIRMA", "firma.local", "PC1").ToArray()) == "FIRMA,firma.local"
+                && Umgebung.Allowed(new List<string>(), "X", "", "X") && Umgebung.Allowed(fl, "firma", "", "PC1") && !Umgebung.Allowed(fl, "MEINPC", "", "MEINPC")
                 && Umgebung.Allowed(fd, "PC1", "firma.local", "PC1") && Umgebung.Home("FIRMA", "firma.local", "PC1") == "FIRMA"
                 && Umgebung.Home("PC1", "firma.local", "PC1") == "firma.local" && Umgebung.Home("MEINPC", "", "MEINPC") == "MEINPC";
 
@@ -59,6 +61,13 @@ namespace Arbeitsplan.Win
             bool okRO = Umgebung.Open(ro, "View-Only7", out fs) == null && fs.ReadOnly && ro.ReadOnly;
             AppConfig pi = Cfg(prog, cache); pi.Pilot = true;
             bool okPilot = Umgebung.Open(pi, "fremd", out fs) == null && !fs.ReadOnly;
+            // Datendatei weg, Schluessel noch da: nie still eine leere anlegen (auch nicht durch "Einrichter")
+            string apdb = Path.Combine(data, FileStore.FileName), moved = apdb + ".weg";
+            File.Move(apdb, moved);
+            FileStore gone = new FileStore(data, false, null, 0);
+            bool okGone = gone.Offline && !File.Exists(apdb) && gone.Problem.Contains("fehlt") && Umgebung.Open(Cfg(prog, cache), "chef", out fs) != null && !File.Exists(apdb);
+            File.Move(moved, apdb);
+            okGone &= Umgebung.Open(Cfg(prog, cache), "chef", out fs) == null;
             bool okNewer = false;
             try { Backup.FromXml(Encoding.UTF8.GetBytes("<Arbeitsplan version=\"" + (Backup.FormatVersion + 1) + "\"><Zeilen/><Katalog/></Arbeitsplan>")); }
             catch (NewerFormatException) { okNewer = true; }
@@ -69,7 +78,7 @@ namespace Arbeitsplan.Win
                 && Shortcut.Unc(@"C:\x\y.exe") == @"C:\x\y.exe" && Shortcut.OnNetwork(@"\\server\freigabe\a.exe");
             sb.AppendLine("Umgebung: Muster=" + Ok(okLike) + " Domäne=" + Ok(okDom) + " kopierte exe=" + Ok(okCopy) + " Laufwerk-Aufbau=" + Ok(okLayout)
                 + " nicht eingerichtet=" + Ok(okNotSet) + " Einrichtung=" + Ok(okSetup) + " Einrichter=" + Ok(okAdmin) + " fremde Domäne=" + Ok(okForeign)
-                + " unbekannter Nutzer=" + Ok(okUnknown) + " NurLesenFuer=" + Ok(okRO) + " Pilot=" + Ok(okPilot) + " neueres Format=" + Ok(okNewer) + " Verknüpfung=" + Ok(okLnk)
+                + " unbekannter Nutzer=" + Ok(okUnknown) + " NurLesenFuer=" + Ok(okRO) + " Pilot=" + Ok(okPilot) + " Datei weg->kein Neuanlegen=" + Ok(okGone) + " neueres Format=" + Ok(okNewer) + " Verknüpfung=" + Ok(okLnk)
                 + " (hier: " + Umgebung.Home(ud, md, pc) + ")");
         }
 
@@ -87,6 +96,8 @@ namespace Arbeitsplan.Win
             okLines &= cl.Count == 0 && r.Content == "A2\nB2";
             cl.Clear(); r = Conflict.Merge(b, E("Mein\nZeile 2\nZeile 3"), E("Dein\nZeile 2\nZeile 3"), cl);
             bool okSame = cl.Count == 1 && cl[0] == "Inhalt" && r.Content == "Dein\nMein\nZeile 2\nZeile 3";
+            cl.Clear(); r = Conflict.Merge(E("A\nB\nC"), E("A1\nB\nC"), E("A2\nB\nC2"), cl, true);   // "Meine Fassung": fremde Aenderung an C bleibt
+            okSame &= cl.Count == 1 && r.Content == "A1\nB\nC2";
             Entry bp = E("x"), mp = E("x"), tp = E("x"); bp.People[0] = "AA"; mp.People[0] = "AA, BB"; tp.People[0] = "AA, CC";
             cl.Clear(); r = Conflict.Merge(bp, mp, tp, cl);
             bool okPpl = cl.Count == 1 && cl[0] == "F" && r.People[0] == "AA, CC, BB";

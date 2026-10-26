@@ -49,7 +49,8 @@ Mitarbeiter starten `Programm\Arbeitsplan.exe` direkt vom Laufwerk (Verknüpfung
 - Ohne erreichbaren Datenordner startet die exe nicht (Meldung, Ende). Sie legt außerhalb des vorgesehenen, bereits vorhandenen Ordners nie Daten an; die Ersteinrichtung ist nur für in `Arbeitsplan.ini` unter `Admins=` genannte Nutzer und nach Rückfrage möglich.
 - Die Datendatei enthält (verschlüsselt) eine Liste erlaubter Windows-Domänen bzw. Rechner; der erste Admin trägt seine Domäne automatisch ein, Admins können sie in der Nutzerverwaltung ändern. Kopierte Daten öffnen sich außerhalb dieser Domänen nicht.
 - Nicht angelegte Windows-Nutzer bekommen eine Meldung („Vorgesetzten/Admin fragen“), das Programm endet. Systemrechner/Anzeige-PCs (z. B. Konto „View-Only“) per `NurLesenFuer=` in der ini: nur Lesen, ohne Nutzerkonto.
-- Grenze: Eine .NET-exe lässt sich dekompilieren; die Prüfungen schützen gegen versehentliche oder neugierige Nutzung, nicht gegen einen gezielten Angriff mit Dateizugriff. Echter Schutz: Ordnerrechte (oben) bzw. später ein Server.
+- Die Bindung erfolgt automatisch nur bei einem echten Domänenkonto (Nutzer- und Rechnerdomäne); `*` in der Liste = keine Prüfung. Domänen-Laptops zeigen ohne Netz bis zu `CacheTage` Tage den letzten Stand (nur Lesen) – gewollt.
+- Grenze: Eine .NET-exe lässt sich dekompilieren, der Schlüssel liegt neben den Daten und der Quellcode ist öffentlich. Wer Datendatei und Schlüssel kopiert und seinen PC passend benennt, kommt an die Daten. Die Prüfungen schützen gegen versehentliche oder neugierige Nutzung, nicht gegen einen gezielten Angriff mit Dateizugriff. Echter Schutz: Ordnerrechte (oben) bzw. später ein Server.
 
 ## Mehrere Nutzer gleichzeitig
 - Jedes Speichern läuft unter einer Sperrdatei: neu einlesen → Versionsprüfung je Block → atomar ersetzen. Gleichzeitige Änderungen am selben Block werden zusammengeführt; nur bei derselben Stelle wird gefragt. Nichts wird still überschrieben.

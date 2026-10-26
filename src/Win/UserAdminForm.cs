@@ -63,15 +63,15 @@ namespace Arbeitsplan.Win
             Label1("Freigegebene Windows-Domänen/Rechner (Komma, * erlaubt; nur Admin):", 10, by + 44);
             tDomains.SetBounds(10, by + 66, 610, 22); tDomains.Text = string.Join(", ", db.Domains.ToArray());
             tDomains.Enabled = UserDb.IsAdmin(me.Rights); Ui.SimpleMenu(tDomains);
-            new ToolTip().SetToolTip(tDomains, "Das Programm startet nur auf PCs dieser Windows-Domänen (oder Rechner). Ihre Umgebung: "
-                + Umgebung.Home(Umgebung.UserDomain, Umgebung.MachineDomain, Umgebung.Machine));
+            new ToolTip().SetToolTip(tDomains, "Das Programm startet nur auf PCs dieser Windows-Domänen (oder Rechner). * = überall (keine Prüfung).\n"
+                + "Leer = der nächste Admin mit Domänenkonto trägt seine Domäne ein. Ihre Umgebung: " + Umgebung.Home(Umgebung.UserDomain, Umgebung.MachineDomain, Umgebung.Machine));
             ClientSize = new Size(640, by + 100);
             list.Height = by - 20;
             bNew.Top = bDel.Top = by;
             bSave.SetBounds(230, by, 120, 30); bSave.Text = "Übernehmen";
             bSave.Click += delegate { Apply(); };
 
-            Controls.AddRange(new Control[] { list, bNew, bDel, tFirst, tLast, tLogin, tKuerzel, bSave });
+            Controls.AddRange(new Control[] { list, bNew, bDel, tFirst, tLast, tLogin, tKuerzel, bSave, tDomains });
             Reload(null);
         }
 
@@ -196,11 +196,12 @@ namespace Arbeitsplan.Win
             UserDb db = UserDb.Default();
             User adm = db.Add("A", "Admin", "aadmin", "Admin"), pr = db.Add("P", "Prod", "pprod", "Produktion");
             pr.Rights.Add(Perm.UserEdit); pr.Rights.Add(Perm.UserCreate); pr.Rights.Add(Perm.UserDelete);
-            bool own, limit, last, lastDel, admOk, onlyChg, discard;
+            bool own, limit, last, lastDel, admOk, onlyChg, discard, dom;
             using (UserAdminForm f = new UserAdminForm(db, pr))
             {
                 f.Select(pr);
                 own = !f.rightBoxes[Perm.Read].Enabled && !f.pkBoxes[0].Enabled && f.tKuerzel.Enabled;
+                dom = !f.tDomains.Enabled;   // Domaenen nur fuer Admins
                 f.Select(adm);
                 limit = f.rightBoxes[Perm.EditText].Enabled && !f.rightBoxes[Perm.PackageAdmin].Enabled && f.pkBoxes[0].Enabled && !f.pkBoxes[2].Enabled;
                 f.rightBoxes[Perm.EditText].Checked = false; f.Apply();
@@ -216,13 +217,18 @@ namespace Arbeitsplan.Win
                 onlyChg = !f.Changes.Any;
                 f.OnPackageClick(f.pkBoxes[0], EventArgs.Empty); f.Apply();
                 admOk = !UserDb.IsAdmin(adm2.Rights) && f.Changes.Changed.Contains(adm2) && f.Changes.Added.Count == 0;
+                f.tDomains.Text = "FREMD-XYZ"; f.TakeDomains();   // wuerde diesen PC aussperren: abgelehnt
+                dom &= f.tDomains.Enabled && f.Changes.Domains == null;
+                f.tDomains.Text = Umgebung.Home(Umgebung.UserDomain, Umgebung.MachineDomain, Umgebung.Machine) + ", Zweite"; f.TakeDomains();
+                dom &= f.Changes.Domains != null && f.Changes.Domains.Count == 2;
                 int n = db.Users.Count;
                 f.AddUser(); f.Close();
                 discard = db.Users.Count == n && f.Changes.Added.Count == 0;
             }
             Quiet = false;
             return "Nutzerverwaltung: eigene Rechte gesperrt=" + Ok(own) + " nur eigene Rechte vergebbar=" + Ok(limit) + " letzter Admin bleibt=" + Ok(last && lastDel)
-                + " Admin herabstufen (2 Admins)=" + Ok(admOk) + " ohne Änderung nichts=" + Ok(onlyChg) + " leerer Neuer verworfen=" + Ok(discard);
+                + " Admin herabstufen (2 Admins)=" + Ok(admOk) + " ohne Änderung nichts=" + Ok(onlyChg) + " leerer Neuer verworfen=" + Ok(discard)
+                + " Domänen nur Admin/kein Aussperren=" + Ok(dom);
         }
         static string Ok(bool b) { return b ? "OK" : "FEHLER"; }
 #endif

@@ -12,7 +12,7 @@ namespace Arbeitsplan.Win
         public enum Choice { Cancel, Merge, Mine }
         public Choice Result = Choice.Cancel;
 
-        public ConflictForm(string block, string who, string when, Entry theirs, Entry mine, Entry merged)
+        public ConflictForm(string block, string who, string when, Entry theirs, Entry mine, Entry merged, bool allowMine)
         {
             Text = "Gleichzeitige Änderung – " + block;
             Ui.Dialog(this, 840, 470, false);
@@ -26,7 +26,8 @@ namespace Arbeitsplan.Win
             Box("Vorschlag (beides)", merged, 564).BackColor = Color.FromArgb(255, 250, 225);
 
             Button bMerge = Btn("Vorschlag übernehmen", 12, 210, Choice.Merge), bMine = Btn("Meine Fassung speichern", 230, 190, Choice.Mine), bCancel = Btn("Abbrechen", 728, 100, Choice.Cancel);
-            new ToolTip().SetToolTip(bMine, "Überschreibt die Änderung von " + who + " (bleibt im Verlauf sichtbar)");
+            bMine.Enabled = allowMine;   // ersetzt fremden Text = Recht "Text löschen"
+            new ToolTip().SetToolTip(bMine, "Strittige Stellen in Ihrer Fassung; Änderungen von " + who + " an anderen Stellen bleiben (alles im Verlauf sichtbar)");
             AcceptButton = bMerge; CancelButton = bCancel;
             Theme.Current.Style(this);
         }

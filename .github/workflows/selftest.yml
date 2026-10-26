@@ -51,7 +51,8 @@ jobs:
             @('paket-neu', '--form','package'),
             @('kampagne', '--form','campaign'),
             @('kampagne-bildschirm', '--form','campaign','--screen'),
-            @('nutzer', '--users')
+            @('nutzer', '--users'),
+            @('konflikt', '--form','conflict')
           )
           foreach ($r in $runs) {
             $a = @('--shot', "bilder\$($r[0]).png") + $r[1..($r.Count - 1)]

@@ -22,7 +22,19 @@ namespace Arbeitsplan.Core
             return machineDomain.Length > 0 ? machineDomain : machine;
         }
 
-        // Leere Liste = keine Pruefung (Erststart). Passt Nutzer-Domaene, Rechner-Domaene oder Rechnername auf einen Eintrag.
+        // Automatische Bindung beim ersten Admin-Start: nur mit echtem Domaenenkonto (nicht lokales Konto = Rechnername,
+        // nicht "AzureAD", das fuer alle Entra-Mandanten gleich ist); Nutzer- und Rechnerdomaene. Leer = nicht automatisch binden.
+        public static List<string> AutoBind(string userDomain, string machineDomain, string machine)
+        {
+            List<string> l = new List<string>();
+            if (userDomain.Length == 0 || string.Equals(userDomain, machine, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(userDomain, "AzureAD", StringComparison.OrdinalIgnoreCase)) return l;
+            l.Add(userDomain);
+            if (machineDomain.Length > 0 && !string.Equals(machineDomain, userDomain, StringComparison.OrdinalIgnoreCase)) l.Add(machineDomain);
+            return l;
+        }
+
+        // Leere Liste = keine Pruefung (Erststart); "*" = ausdruecklich ueberall. Passt Nutzer-Domaene, Rechner-Domaene oder Rechnername auf einen Eintrag.
         public static bool Allowed(IList<string> allowed, string userDomain, string machineDomain, string machine)
         {
             if (allowed == null || allowed.Count == 0) return true;
