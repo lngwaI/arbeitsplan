@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Drawing;
 using System.Windows.Forms;
 
@@ -20,6 +20,38 @@ namespace Arbeitsplan.Win
         }
 #endif
 
+        // Startbildschirm zeigen, Name im Hintergrund suchen (blockiert nie); Splash.SetName wird per Timer im UI-Thread nachgereicht
+        static string foundName; static bool lookupDone;
+        static Splash StartSplash()
+        {
+            System.Threading.Thread th = new System.Threading.Thread(delegate () { try { foundName = Splash.LookupName(); } catch { } lookupDone = true; });
+            th.IsBackground = true; th.Start();
+            Splash s = new Splash();
+            s.Show(); Application.DoEvents();
+            Timer w = new Timer(); w.Interval = 50;
+            w.Tick += delegate { if (lookupDone) { w.Stop(); s.SetName(foundName); } };
+            w.Start();
+            return s;
+        }
+
+        // Splash mind. 1 s sichtbar, schliesst sobald das Hauptfenster erscheint
+        static void RunMain(MainForm m, Splash s, DateTime start)
+        {
+            while ((DateTime.Now - start).TotalMilliseconds < 1000) { Application.DoEvents(); System.Threading.Thread.Sleep(15); }
+            m.Shown += delegate { s.Close(); };
+            Application.Run(m);
+        }
+
+        // Fenster-Icon fuer alle Formulare (Hauptfenster, Dialoge) aus der exe
+        static void InstallIcon()
+        {
+            Icon ico;
+            try { ico = Icon.ExtractAssociatedIcon(Application.ExecutablePath); } catch { return; }
+            if (ico == null) return;
+            Timer t = new Timer(); t.Interval = 200;
+            t.Tick += delegate { foreach (Form f in Application.OpenForms) if (!(f is Splash) && f.Icon != ico) f.Icon = ico; };
+            t.Start();
+        }
         // Aufruf: Arbeitsplan.exe [--theme xp|win7|win10] [--user <login>] [--nosave] [--4x3 | --size BxH]
         //   Test:  --shot <png> [--size BxH] [--edit spalte,zeile]  (rendert die Ansicht als Bild und beendet)
         [STAThread]
@@ -28,7 +60,9 @@ namespace Arbeitsplan.Win
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
 
-            Theme.Select(Arg(args, "--theme"));   // xp | win7 | win10, sonst passend zum Betriebssystem (auch im Release)
+            Theme.Select(Arg(args, "--theme"));
+            InstallIcon();
+            DateTime t0 = DateTime.Now;   // xp | win7 | win10, sonst passend zum Betriebssystem (auch im Release)
 #if TESTHOOKS
             string login = Arg(args, "--user") ?? Environment.UserName;
             bool nosave = Array.IndexOf(args, "--nosave") >= 0;
@@ -37,11 +71,19 @@ namespace Arbeitsplan.Win
             string sz = Arg(args, "--size") ?? (Array.IndexOf(args, "--4x3") >= 0 ? "1024x768" : null);
             Size cs = new Size(1280, 720);
             if (sz != null) cs = new Size(int.Parse(sz.Split('x')[0]), int.Parse(sz.Split('x')[1]));
+            if (Arg(args, "--splash") != null)   // Test: Startbildschirm als Bild
+            {
+                Splash sp = StartSplash();
+                for (int i = 0; i < 15; i++) { Application.DoEvents(); System.Threading.Thread.Sleep(100); }
+                using (Bitmap bmp = new Bitmap(sp.Width, sp.Height)) { using (Graphics g = Graphics.FromImage(bmp)) g.CopyFromScreen(sp.Location, Point.Empty, sp.Size); bmp.Save(Arg(args, "--splash"), System.Drawing.Imaging.ImageFormat.Png); }
+                return;
+            }
             if (shot == null)
             {
+                Splash sp = StartSplash();
                 MainForm m = new MainForm(login, nosave);
                 if (sz != null) m.ClientSize = cs;
-                Application.Run(m);
+                RunMain(m, sp, t0);
                 return;
             }
 
@@ -71,7 +113,8 @@ namespace Arbeitsplan.Win
             Application.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException);
             Application.ThreadException += delegate { Fatal(); };
             AppDomain.CurrentDomain.UnhandledException += delegate { Fatal(); };
-            Application.Run(new MainForm(Environment.UserName, false));
+            Splash sp = StartSplash();
+            RunMain(new MainForm(Environment.UserName, false), sp, t0);
 #endif
         }
     }

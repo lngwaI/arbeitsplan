@@ -69,3 +69,5 @@ https://github.com/lngwaI/arbeitsplan – **öffentlich**: nur erfundene Testdat
 - Jeder Eintrag in docs/HANDOFF.md beginnt mit Datum, Uhrzeit und Label, z. B. `## 2026-10-25 01:40 – GMX / Haupt-Account`.
 - Vor dem Arbeiten prüfen, ob eine Aufgabe schon von einem anderen Account beansprucht ist; dann nicht parallel daran arbeiten.
 - Ist das Label "Unbekannt", erst beim Nutzer nachfragen.
+
+- **Icon/Start**: ssets/arbeitsplan.ico (erzeugt von 	ools/MakeIcon.ps1, per /win32icon in build*.cmd); Program.InstallIcon setzt es per Timer auf alle Formulare. Splash.cs: rahmenloser Startbildschirm 'Guten Morgen/Tag/Abend <Vorname>' (Name per Thread/AccountManagement, Fallback Windows-Nutzer, kein Name -> nur Gruss; 'View-Only' wird normal angezeigt), mind. 1 s; Test --splash <png>, nicht bei --shot/--selftest/--bench.
