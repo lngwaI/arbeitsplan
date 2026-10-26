@@ -37,4 +37,4 @@ Ziel: Keine Geheimnisse im Repo und nicht in der exe. Eine kopierte exe oder Dat
 ## Entscheidungen des Nutzers (2026-10-26)
 - Es gibt noch keine echten Daten -> frisch beginnen, kein Umschlüsseln nötig.
 - Nutzer kann am Laufwerk keine Rechte setzen. Ordnerrechte (kopieren ja, verschieben/löschen nein) nur über IT; App-seitiger Ersatz: `.bak1..3`, Sicherungen, Änderungsprotokoll.
-- Pfade: `Datenordner=` immer als UNC (`\serverreigabe\...`), nie Laufwerksbuchstabe; gleiche ini für alle PCs.
+- Pfade: `Datenordner=` immer als UNC (z. B. Server und Freigabe als Doppel-Backslash-Pfad), nie Laufwerksbuchstabe; gleiche ini für alle PCs.
