@@ -7,7 +7,7 @@ namespace Arbeitsplan.Core
     // Einstellungen aus "Arbeitsplan.ini" neben der exe (Schluessel=Wert, # Kommentar). Fehlt die Datei: Standardwerte.
     public class AppConfig
     {
-        public string DataFolder = "", BackupFolder = "", CachePath = "";
+        public string DataFolder = "", BackupFolder = "", PackageFolder = "", CachePath = "";
         public string Note;                         // Hinweis fuer den Nutzer (z. B. Ausweichordner), sonst null
         public bool ReadOnly, Pilot;
         public List<string> Admins = new List<string>();
@@ -63,6 +63,7 @@ namespace Arbeitsplan.Core
                     + "\n\nZum Teilen mit Kollegen in Arbeitsplan.ini \"Datenordner=\" auf einen gemeinsamen Ordner setzen.";
             }
             c.BackupFolder = v.TryGetValue("Sicherungsordner", out s) && s.Length > 0 ? Path.Combine(exeDir, s) : Path.Combine(c.DataFolder, "sicherung");
+            c.PackageFolder = v.TryGetValue("Paketordner", out s) && s.Length > 0 ? Path.Combine(exeDir, s) : Path.Combine(c.DataFolder, "Pakete");
             return c;
         }
 

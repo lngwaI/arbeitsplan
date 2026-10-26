@@ -21,8 +21,9 @@ namespace Arbeitsplan.Core
         public UserDb Users;                 // nur in der Datendatei (FileStore), nie in Sicherungen
     }
 
-    // Datensicherung als eine Datei (.apbak): GZip( "APBAK1\n" + SHA-256-Hex des XML + "\n" + XML ).
-    // Der Hash erkennt Beschaedigung/Veraenderung (kein Schutz gegen gezieltes Neuberechnen; dafuer spaeter Protected/Server).
+    // Datensicherung als eine Datei (.apbak): Nutzlast GZip( "APBAK2\n" + SHA-256-Hex des XML + "\n" + XML ), als APBAK2 mit dem
+    // Datenschluessel verschluesselt+signiert (Protected). APBAK1 (gleiche Nutzlast, nur GZip, ohne Schluessel) bleibt lesbar
+    // und wird weiter geschrieben, wenn der Store keinen Schluessel hat (MemoryStore/Testdaten: keine Schluesseldatei vorhanden).
     // Geschuetzte Einstellungsdateien (Protected) sind nicht Teil der Sicherung.
     public static class Backup
     {
@@ -67,26 +68,41 @@ namespace Arbeitsplan.Core
         public static bool AutoDue(string folder) { DateTime? l = Last(folder); return l == null || DateTime.Now - l.Value > TimeSpan.FromHours(24); }
 
         // Schreibt die Sicherung (erst .tmp, dann umbenennen) und behaelt die letzten Keep Dateien. Liefert den Pfad.
-        public static string WriteTo(IDataStore store, string folder, string tag)
+        // Schluessel des Datenspeichers (Datei arbeitsplan.key); null = Store ohne Schluessel (MemoryStore/Testdaten:
+        // dort gibt es keine Schluesseldatei, die Sicherung bleibt wie bisher APBAK1). FileStore ohne lesbaren Schluessel wirft.
+        public static string KeyOf(IDataStore store)
+        {
+            FileStore fs = store as FileStore;
+            return fs == null ? null : fs.BackupKey();
+        }
+
+        public static string WriteTo(IDataStore store, string folder, string tag) { return WriteTo(store, folder, tag, KeyOf(store)); }
+
+        public static string WriteTo(IDataStore store, string folder, string tag, string key)
         {
             Directory.CreateDirectory(folder);
             string path = Path.Combine(folder, Prefix + DateTime.Now.ToString("yyyy-MM-dd_HHmmss", Inv) + (tag != null ? "_" + tag : "") + Ext);
-            Write(store.Snapshot(), path);
+            Write(store.Snapshot(), path, key);
             string[] f = Files(folder);
             for (int i = 0; i < f.Length - Keep; i++) File.Delete(f[i]);
             return path;
         }
 
-        public static void Write(StoreData d, string path)
+        // key != null: APBAK2 = Protected( GZip( Kopf "APBAK2" + SHA-256 + XML ) ); key == null: APBAK1 (nur GZip).
+        public static void Write(StoreData d, string path, string key)
         {
             byte[] xml = ToXml(d);
             string tmp = path + ".tmp";
-            using (FileStream fs = File.Create(tmp))
-            using (GZipStream gz = new GZipStream(fs, CompressionMode.Compress))
+            using (MemoryStream ms = new MemoryStream())
             {
-                byte[] head = Utf8.GetBytes("APBAK1\n" + Hex(Hash(xml)) + "\n");
-                gz.Write(head, 0, head.Length);
-                gz.Write(xml, 0, xml.Length);
+                using (GZipStream gz = new GZipStream(ms, CompressionMode.Compress, true))
+                {
+                    byte[] head = Utf8.GetBytes((key != null ? "APBAK2" : "APBAK1") + "\n" + Hex(Hash(xml)) + "\n");
+                    gz.Write(head, 0, head.Length);
+                    gz.Write(xml, 0, xml.Length);
+                }
+                byte[] outp = key != null ? Protected.ProtectBytes(ms.ToArray(), key, FileStore.Rounds) : ms.ToArray();
+                File.WriteAllBytes(tmp, outp);
             }
             if (File.Exists(path)) File.Delete(path);
             File.Move(tmp, path);
@@ -96,17 +112,28 @@ namespace Arbeitsplan.Core
 
         static InvalidDataException Bad() { return new InvalidDataException("Die Sicherung ist beschädigt oder wurde verändert und wird nicht geladen."); }
 
-        public static StoreData Read(string path)
+        // key: Datenschluessel (fuer APBAK2); APBAK1-Dateien brauchen ihn nicht.
+        public static StoreData Read(string path, string key)
         {
             byte[] all; int len;
             try
             {
-                using (FileStream fs = File.OpenRead(path))
-                using (MemoryStream ms = Unzip(fs)) { all = ms.GetBuffer(); len = (int)ms.Length; }
+                byte[] raw = File.ReadAllBytes(path);
+                // GZip beginnt mit 1F 8B (APBAK1); alles andere ist die verschluesselte Form (APBAK2)
+                bool gz = raw.Length > 2 && raw[0] == 0x1F && raw[1] == 0x8B;
+                if (!gz)
+                {
+                    if (key == null) throw Bad();
+                    try { raw = Protected.UnprotectBytes(raw, key, FileStore.Rounds); }
+                    catch (CryptographicException) { throw Bad(); }
+                }
+                using (MemoryStream ms = Unzip(new MemoryStream(raw))) { all = ms.GetBuffer(); len = (int)ms.Length; }
             }
             catch (InvalidDataException) { throw Bad(); }
             int a = Array.IndexOf(all, (byte)'\n', 0, len), b = a < 0 ? -1 : Array.IndexOf(all, (byte)'\n', a + 1, len - a - 1);
-            if (b < 0 || Utf8.GetString(all, 0, a) != "APBAK1") throw Bad();
+            if (b < 0) throw Bad();
+            string magic = Utf8.GetString(all, 0, a);
+            if (magic != "APBAK1" && magic != "APBAK2") throw Bad();
             string hash = Utf8.GetString(all, a + 1, b - a - 1);
             if (hash != Hex(Hash(all, b + 1, len - b - 1))) throw Bad();
             try { return FromXml(new MemoryStream(all, b + 1, len - b - 1, false)); }

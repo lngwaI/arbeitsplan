@@ -92,7 +92,7 @@ namespace Arbeitsplan.Win
                     path = d.FileName;
                 }
             StoreData data;
-            try { data = Backup.Read(path); }
+            try { data = Backup.Read(path, Backup.KeyOf(store)); }
             catch (Exception ex) { Error("Sicherung kann nicht geladen werden.", ex); return; }
             if (MessageBox.Show("Sicherung \"" + Path.GetFileName(path) + "\" wiederherstellen?\n\nAlle Pläne, die Blockstruktur und der Katalog werden durch den Stand der Sicherung ersetzt."
                 + "\nDer aktuelle Stand wird vorher automatisch gesichert; das Änderungsprotokoll bleibt vollständig erhalten.",

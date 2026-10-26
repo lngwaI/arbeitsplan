@@ -233,7 +233,7 @@ namespace Arbeitsplan.Win
             Entry ch = store.Get(day, ri.Id); ch.Content = "Nach Sicherung"; Audit.Save(store, day, ri, me, ch);
             List<RowInfo> rows = store.GetRows(); rows.Add(new RowInfo()); store.SaveStructure(rows);
             int auditBefore = store.Snapshot().Audit.Count;
-            store.Restore(Backup.Read(path));
+            store.Restore(Backup.Read(path, Backup.KeyOf(store)));
             Rebuild(true);
             StoreData s1 = store.Snapshot();
             Entry fmtR = store.Get(start.AddDays(4), ri.Id);
@@ -258,8 +258,38 @@ namespace Arbeitsplan.Win
             using (FileStream fs = File.Create(bad2))
             using (System.IO.Compression.GZipStream gz = new System.IO.Compression.GZipStream(fs, System.IO.Compression.CompressionMode.Compress)) gz.Write(mod, 0, mod.Length);
             bool rej1 = false, rej2 = false;
-            try { Backup.Read(bad1); } catch (InvalidDataException) { rej1 = true; }
-            try { Backup.Read(bad2); } catch (InvalidDataException) { rej2 = true; }
+            try { Backup.Read(bad1, Backup.KeyOf(store)); } catch (InvalidDataException) { rej1 = true; }
+            try { Backup.Read(bad2, Backup.KeyOf(store)); } catch (InvalidDataException) { rej2 = true; }
+
+            // APBAK2 (verschluesselt): Round-Trip, falscher Schluessel, Altformat APBAK1, Entpackgrenze
+            StoreData snap = store.Snapshot();
+            string k1 = Convert.ToBase64String(new byte[32]), k2 = Convert.ToBase64String(new byte[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32 });
+            string pk2 = Path.Combine(dir, "v2.apbak"), pk1 = Path.Combine(dir, "v1.apbak");
+            Backup.Write(snap, pk2, k1); Backup.Write(snap, pk1, null);
+            byte[] r2 = File.ReadAllBytes(pk2);
+            bool v2plain = r2.Length > 1 && !(r2[0] == 0x1F && r2[1] == 0x8B) && IndexOf(r2, System.Text.Encoding.ASCII.GetBytes("APBAK")) < 0;   // kein GZip-Kopf, Klartext nicht sichtbar
+            StoreData g2 = Backup.Read(pk2, k1);
+            bool okV2 = v2plain && g2.Entries.Count == snap.Entries.Count && g2.Rows.Count == snap.Rows.Count && g2.Audit.Count == snap.Audit.Count && g2.Catalog.Bausteine.Count == snap.Catalog.Bausteine.Count;
+            bool wrongKey = false, noKey = false, flip = false;
+            try { Backup.Read(pk2, k2); } catch (InvalidDataException) { wrongKey = true; }
+            try { Backup.Read(pk2, null); } catch (InvalidDataException) { noKey = true; }
+            r2[r2.Length / 2] ^= 0x55; File.WriteAllBytes(bad1, r2);
+            try { Backup.Read(bad1, k1); } catch (InvalidDataException) { flip = true; }
+            StoreData g1 = Backup.Read(pk1, null);
+            bool okV1 = g1.Entries.Count == snap.Entries.Count && Backup.Read(pk1, k1).Rows.Count == snap.Rows.Count;   // APBAK1 mit und ohne Schluessel lesbar
+            bool bomb = false;
+            using (MemoryStream zs = new MemoryStream())
+            {
+                using (System.IO.Compression.GZipStream gz = new System.IO.Compression.GZipStream(zs, System.IO.Compression.CompressionMode.Compress, true))
+                {
+                    byte[] zero = new byte[1024 * 1024];
+                    for (int i = 0; i < 201; i++) gz.Write(zero, 0, zero.Length);
+                }
+                zs.Position = 0;
+                try { Backup.Unzip(zs); } catch (InvalidDataException) { bomb = true; }
+            }
+            sb.AppendLine("Sicherung APBAK2: Roundtrip verschlüsselt=" + Ok(okV2) + " falscher Schlüssel abgelehnt=" + Ok(wrongKey && noKey) + " Byte verändert abgelehnt=" + Ok(flip)
+                + " APBAK1 lesbar=" + Ok(okV1) + " 200-MB-Grenze=" + Ok(bomb));
             for (int i = 0; i < Backup.Keep + 2; i++) Backup.WriteTo(store, dir, "t" + i.ToString("00"));
             sb.AppendLine("Sicherung manipuliert abgelehnt: Byte=" + Ok(rej1) + " Inhalt=" + Ok(rej2) + " | behalten=" + Backup.Files(dir).Length + " (soll " + Backup.Keep + ")");
         }

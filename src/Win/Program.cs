@@ -115,6 +115,7 @@ namespace Arbeitsplan.Win
                 cfg = Arbeitsplan.Core.AppConfig.Load(AppDomain.CurrentDomain.BaseDirectory);
                 cfg.DataFolder = System.IO.Path.GetFullPath(Arg(args, "--data")); cfg.Note = null;
                 cfg.BackupFolder = System.IO.Path.Combine(cfg.DataFolder, "sicherung");
+                cfg.PackageFolder = System.IO.Path.Combine(cfg.DataFolder, "Pakete");
                 cfg.CachePath = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "arbeitsplan_testcache.apdb");
                 cfg.ReadOnly |= nosave; cfg.Admins.Add("mmuster");
             }

@@ -86,6 +86,9 @@ namespace Arbeitsplan.Core
             ReadKey();
         }
 
+        // Nur fuer Backup (APBAK2): Datenschluessel; wirft, wenn die Schluesseldatei fehlt/unlesbar ist. Nie ausgeben/loggen.
+        internal string BackupKey() { EnsureKey(); return dataKey; }
+
         void ReadKey()
         {
             string t;

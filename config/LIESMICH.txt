@@ -22,6 +22,7 @@ EINSTELLUNGEN (Arbeitsplan.ini)
 - Admins=             Windows-Anmeldenamen mit allen Rechten, z. B. Admins=mmuster,ebeispiel
 - Abfrage=30          alle 30 Sekunden werden Änderungen anderer PCs übernommen
 - Sicherungsordner=   leer = <Datenordner>\sicherung (tägliche Sicherung beim Beenden, 14 Stück)
+- Paketordner=        leer = <Datenordner>\Pakete (gemeinsame Pakete; Menü Pakete zeigt deren Liste)
 
 DATEN MIT KOLLEGEN TEILEN
 - Alle Kopien müssen in ihrer Arbeitsplan.ini auf DENSELBEN Datenordner zeigen
@@ -42,7 +43,8 @@ DATENSCHUTZ / SICHERHEIT (ehrlich)
   Ohne arbeitsplan.key sind die Daten UNLESBAR (Programm zeigt OFFLINE, nichts wird überschrieben):
   eine Kopie der Schlüsseldatei getrennt vom Datenordner aufbewahren, nie neu erzeugen lassen.
   Echter Schutz (Rechte, Audit-Trail im GMP-Sinn) erst mit Server/Datenbank der IT.
-- Die tägliche Sicherung (sicherung\*.apbak) ist gepackt und gegen Veränderung geprüft, aber NICHT verschlüsselt.
+- Die tägliche Sicherung (sicherung\*.apbak) ist mit dem Datenschlüssel (arbeitsplan.key) verschlüsselt und gegen Veränderung
+  geprüft; ohne diesen Schlüssel lässt sie sich nicht wiederherstellen. Ältere Sicherungen bleiben lesbar.
 - Wer bearbeitet, steht kurz als Datei in daten\sperren\ (nur Name, verfällt nach 30 Minuten).
 - Lokale Kopie des letzten Stands: %LOCALAPPDATA%\Arbeitsplan\cache.apdb (für OFFLINE-Anzeige), mit eigenem,
   nur für diesen Windows-Nutzer lesbaren Schlüssel (cache.key). Gültig CacheTage=7 Tage (0 = keine Kopie), danach gelöscht.

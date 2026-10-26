@@ -22,7 +22,8 @@ namespace Arbeitsplan.Win
         bool loading, dirty;
         string file;            // Datei des Musters, null = noch nicht gespeichert
         public bool Applied;
-        public User By;         // angemeldeter Nutzer (fuer das Aenderungsprotokoll bei der Uebernahme)
+        public string Folder;   // Paketordner (Standard fuer Oeffnen/Speichern); null = klassischer Dateidialog
+        public User By;        // angemeldeter Nutzer (fuer das Aenderungsprotokoll bei der Uebernahme)
 
         readonly Crumbs crumbs = new Crumbs();
         readonly Panel left = new Panel();
@@ -373,13 +374,10 @@ namespace Arbeitsplan.Win
         void OpenFile()
         {
             if (!AskSave()) return;
-            using (OpenFileDialog d = new OpenFileDialog())
-            {
-                d.Filter = "Arbeitsplan-Paket (*.apkg)|*.apkg|Alle Dateien|*.*";
-                if (d.ShowDialog(this) != DialogResult.OK) return;
-                try { LoadPackage(Package.Load(d.FileName)); file = d.FileName; UpdateHeader(); }
-                catch (Exception ex) { MessageBox.Show(this, "Paket konnte nicht gelesen werden.\n" + ex.Message, "Paket-Editor", MessageBoxButtons.OK, MessageBoxIcon.Error); }
-            }
+            string fn = PackagePicker.Pick(this, Folder, canAdmin);
+            if (fn == null) return;
+            try { LoadPackage(Package.Load(fn)); file = fn; UpdateHeader(); }
+            catch (Exception ex) { MessageBox.Show(this, "Paket konnte nicht gelesen werden.\n" + ex.Message, "Paket-Editor", MessageBoxButtons.OK, MessageBoxIcon.Error); }
         }
 
         bool SaveFile(bool saveAs)
@@ -391,6 +389,7 @@ namespace Arbeitsplan.Win
                 using (SaveFileDialog d = new SaveFileDialog())
                 {
                     d.Filter = "Arbeitsplan-Paket (*.apkg)|*.apkg"; d.FileName = p.Name.Length > 0 ? p.Name : "Paket";
+                    PackagePicker.SetSaveFolder(d, Folder);
                     if (d.ShowDialog(this) != DialogResult.OK) return false;
                     f = d.FileName;
                 }

@@ -176,6 +176,7 @@ namespace Arbeitsplan.Win
             using (SaveFileDialog d = new SaveFileDialog())
             {
                 d.Filter = "Arbeitsplan-Paket (*.apkg)|*.apkg"; d.FileName = "Woche_" + start.ToString("yyyy-MM-dd");
+                PackagePicker.SetSaveFolder(d, PackageFolder);
                 if (d.ShowDialog(this) != DialogResult.OK) return;
                 try { Package.FromWeek(store, start, weekLabel.Text).Save(d.FileName); }
                 catch (Exception ex) { ExportFailed("Export", ex); }
@@ -187,20 +188,20 @@ namespace Arbeitsplan.Win
             if (!EndEdit(true)) return;
             using (PackageForm f = new PackageForm(store, equip, start, p, me.Has(Perm.ImportPackage), me.Has(Perm.PackageAdmin)))
             {
-                f.By = me; f.ShowDialog(this);
+                f.By = me; f.Folder = PackageFolder; f.ShowDialog(this);
                 if (f.Applied) Rebuild(false);
             }
         }
 
         void ImportPackageFile()
         {
-            using (OpenFileDialog d = new OpenFileDialog())
-            {
-                d.Filter = "Arbeitsplan-Paket (*.apkg)|*.apkg|Alle Dateien|*.*";
-                if (d.ShowDialog(this) != DialogResult.OK) return;
-                try { OpenPackageEditor(Package.Load(d.FileName)); }
-                catch (Exception ex) { MessageBox.Show("Paket konnte nicht gelesen werden.\n" + ex.Message, "Paket", MessageBoxButtons.OK, MessageBoxIcon.Error); }
-            }
+            string f = PackagePicker.Pick(this, PackageFolder, me.Has(Perm.PackageAdmin));
+            if (f == null) return;
+            try { OpenPackageEditor(Package.Load(f)); }
+            catch (Exception ex) { MessageBox.Show("Paket konnte nicht gelesen werden.\n" + ex.Message, "Paket", MessageBoxButtons.OK, MessageBoxIcon.Error); }
         }
+
+        // Paketordner aus der Konfiguration; null bei Testdaten ohne Datenordner (dann klassischer Dateidialog)
+        string PackageFolder { get { return cfg != null ? cfg.PackageFolder : null; } }
     }
 }

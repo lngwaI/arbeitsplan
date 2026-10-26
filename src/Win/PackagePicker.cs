@@ -1,0 +1,111 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Text.RegularExpressions;
+using System.Windows.Forms;
+
+namespace Arbeitsplan.Win
+{
+    // Auswahl eines Pakets aus dem Paketordner (Liste *.apkg: Name, Produkt, Datum). Doppelklick = waehlen.
+    // "Andere Datei..." (klassischer Dateidialog) nur mit allowOther (Recht PackageAdmin).
+    // Kein Ordner (Testdaten ohne Datenordner) oder Ordner nicht anlegbar/lesbar: klassischer Dateidialog als Rueckfall.
+    class PackagePicker : Form
+    {
+        public string Result;
+        readonly string folder;
+        readonly ListView list = new ListView();
+
+        public static string FileFilter { get { return "Arbeitsplan-Paket (*.apkg)|*.apkg|Alle Dateien|*.*"; } }
+
+        // Ordner bei Bedarf anlegen; false = nicht moeglich
+        public static bool EnsureFolder(string folder)
+        {
+            if (string.IsNullOrEmpty(folder)) return false;
+            try { Directory.CreateDirectory(folder); return Directory.Exists(folder); }
+            catch (Exception) { return false; }
+        }
+
+        public static string Pick(IWin32Window owner, string folder, bool allowOther)
+        {
+            if (!EnsureFolder(folder)) return Browse(owner, folder);
+            using (PackagePicker p = new PackagePicker(folder, allowOther))
+            {
+                if (p.ShowDialog(owner) != DialogResult.OK) return null;
+                return p.Result;
+            }
+        }
+
+        static string Browse(IWin32Window owner, string folder)
+        {
+            using (OpenFileDialog d = new OpenFileDialog())
+            {
+                d.Filter = FileFilter;
+                if (!string.IsNullOrEmpty(folder) && Directory.Exists(folder)) d.InitialDirectory = folder;
+                return d.ShowDialog(owner) == DialogResult.OK ? d.FileName : null;
+            }
+        }
+
+        // Standardordner fuer "Speichern unter": nur setzen, wenn er existiert bzw. angelegt werden kann
+        public static void SetSaveFolder(SaveFileDialog d, string folder) { if (EnsureFolder(folder)) d.InitialDirectory = folder; }
+
+        PackagePicker(string folder, bool allowOther)
+        {
+            this.folder = folder;
+            Text = "Paket auswählen";
+            Ui.Dialog(this, 560, 380);
+            list.View = View.Details; list.FullRowSelect = true; list.MultiSelect = false; list.HideSelection = false;
+            list.Columns.Add("Name", 270); list.Columns.Add("Produkt", 70); list.Columns.Add("Geändert", 130);
+            list.SetBounds(10, 10, 540, 290);
+            list.DoubleClick += delegate { Choose(); };
+            Button ok = new Button(); ok.Text = "Öffnen"; ok.SetBounds(10, 310, 100, 30); ok.Click += delegate { Choose(); };
+            Button other = new Button(); other.Text = "Andere Datei…"; other.SetBounds(118, 310, 120, 30); other.Visible = allowOther;
+            other.Click += delegate
+            {
+                string f = Browse(this, folder);
+                if (f != null) { Result = f; DialogResult = DialogResult.OK; }
+            };
+            Button cancel = new Button(); cancel.Text = "Abbrechen"; cancel.SetBounds(450, 310, 100, 30); cancel.DialogResult = DialogResult.Cancel;
+            AcceptButton = ok; CancelButton = cancel;
+            Controls.AddRange(new Control[] { list, ok, other, cancel });
+            Fill();
+        }
+
+        void Fill()
+        {
+            string[] files;
+            try { files = Directory.GetFiles(folder, "*.apkg"); }
+            catch (Exception) { files = new string[0]; }
+            Array.Sort(files, StringComparer.OrdinalIgnoreCase);
+            foreach (string f in files)
+            {
+                ListViewItem it = new ListViewItem(Path.GetFileNameWithoutExtension(f));
+                it.SubItems.Add(Product(f));
+                it.SubItems.Add(File.GetLastWriteTime(f).ToString("dd.MM.yyyy HH:mm"));
+                it.Tag = f;
+                list.Items.Add(it);
+            }
+            if (list.Items.Count > 0) list.Items[0].Selected = true;
+        }
+
+        // Produktcode (XML-Attribut produkt) ohne das Paket vollstaendig zu laden; leer, wenn nicht lesbar
+        static string Product(string file)
+        {
+            try
+            {
+                using (StreamReader r = new StreamReader(file, System.Text.Encoding.UTF8))
+                {
+                    char[] buf = new char[2048]; int n = r.Read(buf, 0, buf.Length);
+                    Match m = Regex.Match(new string(buf, 0, n), "produkt=\"(\\d{4})\"");
+                    return m.Success ? m.Groups[1].Value : "";
+                }
+            }
+            catch (Exception) { return ""; }
+        }
+
+        void Choose()
+        {
+            if (list.SelectedItems.Count == 0) return;
+            Result = (string)list.SelectedItems[0].Tag; DialogResult = DialogResult.OK;
+        }
+    }
+}
