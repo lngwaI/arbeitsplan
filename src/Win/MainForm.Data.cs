@@ -134,11 +134,12 @@ namespace Arbeitsplan.Win
             Entry fmtR = store.Get(start.AddDays(4), ri.Id);
             bool okB = store.Get(day, ri.Id).Content == "Audit A" && s1.Entries.Count == s0.Entries.Count && s1.Rows.Count == s0.Rows.Count
                 && s1.Catalog.Positions.Count == s0.Catalog.Positions.Count && s1.Catalog.Bausteine.Count == s0.Catalog.Bausteine.Count
-                && fmtE != null && fmtR.SpanKey() == fmtE.SpanKey() && fmtR.Content == fmtE.Content && fmtR.Version == fmtE.Version;
+                && fmtE != null && fmtR.SpanKey() == fmtE.SpanKey() && fmtR.Content == fmtE.Content;
+            bool okVer = fmtR.Version == fmtE.Version + 1 && store.Get(day, ri.Id).Version == ch.Version + 1;   // max(alt, Sicherung) + 1
             bool okLog = s1.Audit.Count == auditBefore;
             List<SearchHit> hits = store.Find("Altlauf");
             bool okOld = hits.Count == 1 && hits[0].Day == old && store.GetAudit(old, ri.Id).Count == 1;
-            sb.AppendLine("Sicherung: Roundtrip=" + Ok(okB) +" Protokoll erhalten=" + Ok(okLog) + " Jahr zurück=" + Ok(okOld) + " (" + new FileInfo(path).Length + " Byte)");
+            sb.AppendLine("Sicherung: Roundtrip=" + Ok(okB) + " Version weiterzählen=" + Ok(okVer) + " Protokoll erhalten=" + Ok(okLog) + " Jahr zurück=" + Ok(okOld) + " (" + new FileInfo(path).Length + " Byte)");
 
             // Manipulation: (a) Byte in der Datei, (b) Text im XML bei unveraendertem Hash
             byte[] raw = File.ReadAllBytes(path);

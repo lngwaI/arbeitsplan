@@ -13,8 +13,11 @@ namespace Arbeitsplan.Core
         public List<string> Admins = new List<string>();
         public int PollSeconds = 30;
 
-        public bool IsAdmin(string login)
+        // Admins= wirkt nur bei Ersteinrichtung: solange die Nutzerliste der Datendatei noch keinen Admin hat.
+        // Danach zaehlen nur die gespeicherten Rechte (eine Kopie mit eigener ini verleiht keine Rechte).
+        public bool IsAdmin(string login, UserDb db)
         {
+            if (db.AdminCount(null) > 0) return false;
             foreach (string a in Admins) if (string.Equals(a, login, StringComparison.OrdinalIgnoreCase)) return true;
             return false;
         }

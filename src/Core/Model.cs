@@ -167,8 +167,18 @@ namespace Arbeitsplan.Core
         public void Restore(StoreData d)
         {
             CheckWrite();
+            // Ueber vorhandene Daten: Version = max(alt, Sicherung) + 1, damit sich Versionsnummern nicht wiederholen;
+            // Bloecke, die es in der Sicherung nicht gibt, werden leer mit weiterlaufender Version (Laden einer Datei: unveraendert).
+            Dictionary<string, Entry> old = new Dictionary<string, Entry>(items);
             items.Clear();
-            foreach (StoredEntry s in d.Entries) items[Key(s.Day, s.RowId)] = s.Data.Clone();
+            foreach (StoredEntry s in d.Entries)
+            {
+                Entry e = s.Data.Clone(), o;
+                if (old.TryGetValue(Key(s.Day, s.RowId), out o)) e.Version = Math.Max(o.Version, e.Version) + 1;
+                items[Key(s.Day, s.RowId)] = e;
+            }
+            foreach (KeyValuePair<string, Entry> kv in old)
+                if (!items.ContainsKey(kv.Key)) { Entry e = new Entry(); e.Version = kv.Value.Version + 1; items[kv.Key] = e; }
             rows.Clear(); nextId = 1;
             foreach (RowInfo r in d.Rows) { rows.Add(r.Clone()); nextId = Math.Max(nextId, r.Id + 1); }
             catalog = d.Catalog.Clone();

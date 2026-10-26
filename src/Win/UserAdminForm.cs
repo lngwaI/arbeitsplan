@@ -19,10 +19,12 @@ namespace Arbeitsplan.Win
         readonly HashSet<User> fresh = new HashSet<User>();   // eben angelegt: darf mit "anlegen"-Recht ausgefuellt werden
         User cur;
         bool loading;
+        public readonly UserChanges Changes = new UserChanges();   // nur das wird gespeichert (MainForm.SaveUsers)
 
         public UserAdminForm(UserDb db, User me)
         {
             this.db = db; this.me = me;
+            FormClosed += delegate { foreach (User u in fresh) db.Users.Remove(u); fresh.Clear(); };   // nie uebernommen (ohne Login) = verwerfen
             Text = "Nutzerverwaltung";
             Font = Theme.Current.UiFont();
             FormBorderStyle = FormBorderStyle.FixedDialog;
@@ -96,8 +98,9 @@ namespace Arbeitsplan.Win
             RefreshPackages();
             bool canEdit = u != null && (me.Has(Perm.UserEdit) || (fresh.Contains(u) && me.Has(Perm.UserCreate)));
             tFirst.Enabled = tLast.Enabled = tLogin.Enabled = tKuerzel.Enabled = bSave.Enabled = canEdit;
-            foreach (CheckBox cb in pkBoxes) cb.Enabled = canEdit;
-            foreach (CheckBox cb in rightBoxes.Values) cb.Enabled = canEdit;
+            bool canRights = canEdit && u != me;   // eigene Rechte schreibgeschuetzt; vergeben/entziehen nur, was man selbst hat
+            foreach (CheckBox cb in pkBoxes) cb.Enabled = canRights && Array.TrueForAll(((RightsPackage)cb.Tag).Rights, me.Has);
+            foreach (KeyValuePair<string, CheckBox> kv in rightBoxes) kv.Value.Enabled = canRights && me.Has(kv.Key);
             bDel.Enabled = u != null && u != me && me.Has(Perm.UserDelete);
         }
 
@@ -122,7 +125,7 @@ namespace Arbeitsplan.Win
             HashSet<string> set = new HashSet<string>();
             UserDb.ApplyPackage(set, (RightsPackage)pb.Tag);
             loading = true;
-            foreach (KeyValuePair<string, CheckBox> kv in rightBoxes) kv.Value.Checked = set.Contains(kv.Key);
+            foreach (KeyValuePair<string, CheckBox> kv in rightBoxes) if (me.Has(kv.Key)) kv.Value.Checked = set.Contains(kv.Key);   // fremde Rechte bleiben
             loading = false;
             RefreshPackages();   // danach einzeln feinjustierbar
         }
@@ -137,25 +140,73 @@ namespace Arbeitsplan.Win
         void DeleteUser()
         {
             if (cur == null || cur == me) return;
-            if (MessageBox.Show("Nutzer " + cur.Display + " löschen?", "Nutzerverwaltung", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
+            if (UserDb.IsAdmin(cur.Rights) && db.AdminCount(cur) == 0) { Warn(LastAdmin); return; }
+            if (!Quiet && MessageBox.Show("Nutzer " + cur.Display + " löschen?", "Nutzerverwaltung", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
             db.Users.Remove(cur);
+            if (Changes.Added.Contains(cur) || fresh.Contains(cur)) Changes.Added.Remove(cur);   // nie gespeichert: nichts zu loeschen
+            else Changes.Deleted.Add(cur.Id);
+            Changes.Changed.Remove(cur); fresh.Remove(cur);
             Reload(null);
         }
+
+        const string LastAdmin = "Mindestens ein Admin (alle Rechte) muss bleiben.";
+        static bool Quiet;   // Selbsttest: keine Meldungsfenster
+        static void Warn(string text) { if (!Quiet) MessageBox.Show(text, "Nutzerverwaltung", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
 
         void Apply()
         {
             if (cur == null) return;
             string login = tLogin.Text.Trim();
             User other = db.FindByLogin(login);
-            if (login.Length == 0 || (other != null && other != cur))
-            {
-                MessageBox.Show("Der Windows-Login muss ausgefüllt und eindeutig sein.", "Nutzerverwaltung", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
-            }
-            cur.First = tFirst.Text.Trim(); cur.Last = tLast.Text.Trim(); cur.Login = login; cur.Kuerzel = tKuerzel.Text.Trim();
-            cur.Rights = CheckedRights();
-            fresh.Remove(cur);
+            if (login.Length == 0 || (other != null && other != cur)) { Warn("Der Windows-Login muss ausgefüllt und eindeutig sein."); return; }
+            HashSet<string> rights = cur == me ? cur.Rights : CheckedRights();
+            if (UserDb.IsAdmin(cur.Rights) && !UserDb.IsAdmin(rights) && db.AdminCount(cur) == 0) { Warn(LastAdmin); return; }
+            string first = tFirst.Text.Trim(), last = tLast.Text.Trim(), kz = tKuerzel.Text.Trim();
+            bool isNew = fresh.Remove(cur);
+            if (!isNew && cur.First == first && cur.Last == last && cur.Login == login && cur.Kuerzel == kz && cur.Rights.SetEquals(rights)) return;   // nichts geaendert
+            cur.First = first; cur.Last = last; cur.Login = login; cur.Kuerzel = kz; cur.Rights = rights;
+            Changes.Changed.Add(cur);
+            if (isNew) Changes.Added.Add(cur);
             Reload(cur);
         }
+
+#if TESTHOOKS
+        // Selbsttest: eigene Rechte gesperrt, nur eigene Rechte vergebbar, letzter Admin bleibt, nur Aenderungen gemeldet, leerer neuer Nutzer verworfen
+        public static string SelfTest()
+        {
+            Quiet = true;
+            UserDb db = UserDb.Default();
+            User adm = db.Add("A", "Admin", "aadmin", "Admin"), pr = db.Add("P", "Prod", "pprod", "Produktion");
+            pr.Rights.Add(Perm.UserEdit); pr.Rights.Add(Perm.UserCreate); pr.Rights.Add(Perm.UserDelete);
+            bool own, limit, last, lastDel, admOk, onlyChg, discard;
+            using (UserAdminForm f = new UserAdminForm(db, pr))
+            {
+                f.Select(pr);
+                own = !f.rightBoxes[Perm.Read].Enabled && !f.pkBoxes[0].Enabled && f.tKuerzel.Enabled;
+                f.Select(adm);
+                limit = f.rightBoxes[Perm.EditText].Enabled && !f.rightBoxes[Perm.PackageAdmin].Enabled && f.pkBoxes[0].Enabled && !f.pkBoxes[2].Enabled;
+                f.rightBoxes[Perm.EditText].Checked = false; f.Apply();
+                last = UserDb.IsAdmin(adm.Rights) && !f.Changes.Any;
+                f.DeleteUser();
+                lastDel = db.Users.Contains(adm) && !f.Changes.Any;
+            }
+            User adm2 = db.Add("B", "Admin", "badmin", "Admin");
+            using (UserAdminForm f = new UserAdminForm(db, adm))
+            {
+                f.Opacity = 0; f.ShowInTaskbar = false; f.Show();
+                f.Select(adm2); f.Apply();
+                onlyChg = !f.Changes.Any;
+                f.OnPackageClick(f.pkBoxes[0], EventArgs.Empty); f.Apply();
+                admOk = !UserDb.IsAdmin(adm2.Rights) && f.Changes.Changed.Contains(adm2) && f.Changes.Added.Count == 0;
+                int n = db.Users.Count;
+                f.AddUser(); f.Close();
+                discard = db.Users.Count == n && f.Changes.Added.Count == 0;
+            }
+            Quiet = false;
+            return "Nutzerverwaltung: eigene Rechte gesperrt=" + Ok(own) + " nur eigene Rechte vergebbar=" + Ok(limit) + " letzter Admin bleibt=" + Ok(last && lastDel)
+                + " Admin herabstufen (2 Admins)=" + Ok(admOk) + " ohne Änderung nichts=" + Ok(onlyChg) + " leerer Neuer verworfen=" + Ok(discard);
+        }
+        static string Ok(bool b) { return b ? "OK" : "FEHLER"; }
+#endif
     }
 }

@@ -104,6 +104,28 @@ namespace Arbeitsplan.Core
             return null;
         }
 
+        // Admin = alle Rechte
+        public static bool IsAdmin(HashSet<string> rights) { foreach (string r in Perm.All) if (!rights.Contains(r)) return false; return true; }
+        public int AdminCount(User except) { int n = 0; foreach (User u in Users) if (u != except && IsAdmin(u.Rights)) n++; return n; }
+
+        // Aenderungen der Nutzerverwaltung nach Id in den aktuellen Stand einarbeiten (fremde parallele Aenderungen bleiben):
+        // geaenderte ersetzen/anhaengen, geloeschte entfernen; neue Nutzer, deren Id inzwischen vergeben ist, bekommen eine freie.
+        public void Merge(UserChanges c)
+        {
+            Users.RemoveAll(delegate(User x) { return c.Deleted.Contains(x.Id); });
+            foreach (User u in c.Changed)
+            {
+                int i = Users.FindIndex(delegate(User x) { return x.Id == u.Id; });
+                if (i >= 0 && Users[i] == u) continue;
+                if (i >= 0 && c.Added.Contains(u))
+                {
+                    foreach (User x in Users) u.Id = Math.Max(u.Id, x.Id + 1);
+                    i = -1;
+                }
+                if (i >= 0) Users[i] = u; else Users.Add(u);
+            }
+        }
+
         // Nur Rechtepakete, keine Nutzer (Erststart der Datendatei)
         public static UserDb Default()
         {
@@ -164,6 +186,14 @@ namespace Arbeitsplan.Core
 #endif
             return db;
         }
+    }
+
+    // Was die Nutzerverwaltung geaendert hat (Changed enthaelt auch die neuen Nutzer aus Added).
+    public class UserChanges
+    {
+        public readonly HashSet<User> Changed = new HashSet<User>(), Added = new HashSet<User>();
+        public readonly HashSet<int> Deleted = new HashSet<int>();
+        public bool Any { get { return Changed.Count > 0 || Deleted.Count > 0; } }
     }
 
     // Soft-Lock: nur Anzeige, wer gerade bearbeitet; blockiert nie.

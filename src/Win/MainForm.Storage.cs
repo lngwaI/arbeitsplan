@@ -34,11 +34,14 @@ namespace Arbeitsplan.Win
                 UserDb.ApplyPackage(u.Rights, users.Package("Produktion"));
                 return u;
             }
-            bool admin = cfg.IsAdmin(login);
-            if (u == null && admin && !fstore.ReadOnly)
-            {
-                u = users.Add("", "", login, "Admin");   // Admin aus Arbeitsplan.ini einmalig in die Nutzerliste (Kuerzel dort eintragen)
-                try { fstore.SaveUsers(users); } catch (Exception) { }
+            bool admin = cfg.IsAdmin(login, users);   // nur solange die Nutzerliste keinen Admin hat (Ersteinrichtung)
+            if (admin && !fstore.ReadOnly)
+            {   // Admin aus Arbeitsplan.ini einmalig in die Nutzerliste (Kuerzel dort eintragen)
+                UserChanges ch = new UserChanges();
+                if (u == null) { u = users.Add("", "", login, "Admin"); ch.Added.Add(u); }
+                else UserDb.ApplyPackage(u.Rights, users.Package("Admin"));
+                ch.Changed.Add(u);
+                try { fstore.SaveUsers(ch); users = fstore.Users; } catch (Exception) { }
             }
             if (u == null) { u = new User(); u.Login = login; }
             string pkg = admin ? "Admin" : users.FindByLogin(login) != null ? null : (cfg.Pilot ? "Produktion" : "Leser");
@@ -77,10 +80,11 @@ namespace Arbeitsplan.Win
             if (i >= 0) users.Users[i] = me;
         }
 
-        void SaveUsers()
+        // Nur bei tatsaechlicher Aenderung; der FileStore fuehrt sie nach Id mit dem aktuellen Dateistand zusammen
+        void SaveUsers(UserChanges ch)
         {
-            if (fstore == null) return;
-            try { fstore.SaveUsers(users); }
+            if (fstore == null || !ch.Any) return;
+            try { fstore.SaveUsers(ch); RefreshUsers(); }
             catch (Exception ex) { MessageBox.Show("Die Nutzerdaten konnten nicht gespeichert werden.\n" + ex.Message, "Arbeitsplan", MessageBoxButtons.OK, MessageBoxIcon.Error); }
         }
 
@@ -119,7 +123,8 @@ namespace Arbeitsplan.Win
             DateTime t0 = DateTime.Now;
             bool s1 = Audit.Save(a, day, row, u, e);
             double ms = (DateTime.Now - t0).TotalMilliseconds;
-            a.Users.Add("Erika", "Probe", "eprobe", "Produktion").Kuerzel = "PRER"; a.SaveUsers(a.Users);
+            UserChanges uc = new UserChanges(); User pr = a.Users.Add("Erika", "Probe", "eprobe", "Produktion"); pr.Kuerzel = "PRER";
+            uc.Changed.Add(pr); uc.Added.Add(pr); a.SaveUsers(uc);
 
             FileStore b = new FileStore(dir, false, null), c = new FileStore(dir, false, null);   // "Neustart" bzw. zweiter/dritter PC
             Entry eb = b.Get(day, row.Id);
@@ -180,6 +185,38 @@ namespace Arbeitsplan.Win
             l1.Release(day, row.Id, "Paula Werk");
             okLock &= l2.Holder(day, row.Id, "Max Muster") == null;
 
+            // Nutzer: zwei Admins parallel (beide ohne Refresh) -> nach Id zusammengefuehrt, nichts geht verloren; ohne Aenderung kein Schreiben
+            FileStore p1 = new FileStore(dir, false, null), p2 = new FileStore(dir, false, null);
+            UserChanges c1 = new UserChanges(), c2 = new UserChanges(), c0 = new UserChanges();
+            User n1 = p1.Users.Add("Neu", "Eins", "neins", "Leser"); c1.Changed.Add(n1); c1.Added.Add(n1);
+            User n2 = p2.Users.Add("Neu", "Zwei", "nzwei", "Leser"); c2.Changed.Add(n2); c2.Added.Add(n2);
+            User ep = p2.Users.FindByLogin("eprobe"); ep.Kuerzel = "PRXX"; c2.Changed.Add(ep);
+            p1.SaveUsers(c1); p2.SaveUsers(c2);
+            UserDb ud = new FileStore(dir, false, null).Users;
+            bool okMerge = ud.FindByLogin("neins") != null && ud.FindByLogin("nzwei") != null && ud.FindByLogin("neins").Id != ud.FindByLogin("nzwei").Id
+                && ud.FindByLogin("eprobe").Kuerzel == "PRXX" && ud.Users.Count == 3;
+            byte[] bU = File.ReadAllBytes(file); p2.SaveUsers(c0);   // Verschluesselung mit Zufalls-IV: jedes Schreiben aendert die Bytes
+            byte[] bU2 = File.ReadAllBytes(file);
+            okMerge &= bU2.Length == bU.Length && IndexOf(bU2, bU) == 0;
+            UserChanges cd = new UserChanges(); cd.Deleted.Add(ud.FindByLogin("neins").Id); p1.SaveUsers(cd);
+            okMerge &= new FileStore(dir, false, null).Users.FindByLogin("neins") == null && new FileStore(dir, false, null).Users.FindByLogin("nzwei") != null;
+
+            // Admins= nur bei Ersteinrichtung (Liste ohne Admin), sonst zaehlen nur gespeicherte Rechte
+            AppConfig ac = new AppConfig(); ac.Admins.Add("kopie");
+            UserDb noAdm = UserDb.Default(), withAdm = UserDb.Default(); withAdm.Add("", "", "chef", "Admin");
+            bool okIni = ac.IsAdmin("kopie", noAdm) && !ac.IsAdmin("kopie", withAdm) && !ac.IsAdmin("andere", noAdm);
+
+            // Release-Datei im Test-Build: nicht lesbar -> OFFLINE, kein Schreiben, Datei unveraendert (auch nach Refresh)
+            string dirR = Path.Combine(root, "release"), fR = Path.Combine(dirR, FileStore.FileName); Directory.CreateDirectory(dirR);
+            byte[] rel = FileStore.EncodeAsRelease(new FileStore(dir, false, null).Snapshot()); File.WriteAllBytes(fR, rel);
+            FileStore rs = new FileStore(dirR, false, null);   // ohne lokalen Stand ("none" hat m2 inzwischen als Cache geschrieben)
+            bool rsThrows = false;
+            try { rs.Save(day, row.Id, new Entry()); } catch (IOException) { rsThrows = true; }
+            byte[] relNow = File.ReadAllBytes(fR);
+            bool okRel = rs.Offline && rs.ReadOnly && rs.Get(day, row.Id) == null && rsThrows && !rs.Refresh() && rs.Offline
+                && relNow.Length == rel.Length && IndexOf(relNow, rel) == 0 && !File.Exists(fR + ".bak1");
+
+            sb.AppendLine("Nutzer/Rechte: parallel zusammengeführt=" + Ok(okMerge) + " Admins= nur Ersteinrichtung=" + Ok(okIni) + " | Release-Datei im Test-Build gesperrt=" + Ok(okRel));
             sb.AppendLine("Datendatei: Erststart=" + Ok(okInit) + " Neustart=" + Ok(okRound) + " kein Klartext=" + Ok(okCipher) + " Refresh=" + Ok(okSync) + " Konflikt=" + Ok(okConflict)
                 + " Historie=" + Ok(okAudit) + " bak=" + Ok(okBak) + " (" + new FileInfo(file).Length + " Byte, Speichern+Protokoll " + ms.ToString("0") + " ms)");
             sb.AppendLine("Datendatei: NurLesen=" + Ok(okRO) + " manipuliert->Cache=" + Ok(okTamper) + " fremd->leer=" + Ok(okForeign) + " unerreichbar=" + Ok(okOffline)

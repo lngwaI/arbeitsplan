@@ -21,7 +21,14 @@ namespace Arbeitsplan.Core
         public const string FileName = "arbeitsplan.apdb";
         const int Rounds = 2000;   // Schluessel ist bereits lang und zufaellig; viele PBKDF2-Runden braechten nur Wartezeit
         static readonly byte[] K = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
-        static string Key() { char[] c = new char[K.Length]; for (int i = 0; i < K.Length; i++) c[i] = (char)(K[i] ^ ((0x5C + i * 7) & 0xFF)); return new string(c); }
+        static string ReleaseKey() { char[] c = new char[K.Length]; for (int i = 0; i < K.Length; i++) c[i] = (char)(K[i] ^ ((0x5C + i * 7) & 0xFF)); return new string(c); }
+#if TESTHOOKS
+        // Test-Build: eigener Schluessel, damit er echte Release-Daten nicht oeffnet (und umgekehrt) -> fremde Datei = OFFLINE, nie ueberschrieben
+        static string Key() { return ReleaseKey() + "|TESTHOOKS"; }
+        public static byte[] EncodeAsRelease(StoreData d) { return Encode(d, ReleaseKey()); }   // nur Selbsttest
+#else
+        static string Key() { return ReleaseKey(); }
+#endif
 
         readonly string folder, path, cachePath;
         readonly bool readOnlyCfg;
@@ -90,13 +97,14 @@ namespace Arbeitsplan.Core
             }
         }
 
-        static byte[] Encode(StoreData d)
+        static byte[] Encode(StoreData d) { return Encode(d, Key()); }
+        static byte[] Encode(StoreData d, string key)
         {
             byte[] xml = Backup.ToXml(d);
             using (MemoryStream ms = new MemoryStream())
             {
                 using (GZipStream gz = new GZipStream(ms, CompressionMode.Compress, true)) gz.Write(xml, 0, xml.Length);
-                return Protected.ProtectBytes(ms.ToArray(), Key(), Rounds);
+                return Protected.ProtectBytes(ms.ToArray(), key, Rounds);
             }
         }
 
@@ -260,7 +268,8 @@ namespace Arbeitsplan.Core
             return mem.Snapshot();
         }
         public void Restore(StoreData d) { Write(delegate(MemoryStore m) { m.Restore(d); return true; }); }   // Nutzer bleiben unveraendert
-        public void SaveUsers(UserDb db) { Write(delegate(MemoryStore m) { users = db; return true; }); }
+        // Unter der Sperre in den frisch gelesenen Stand einarbeiten (nicht die ganze Liste ersetzen); nichts geaendert = nichts schreiben
+        public void SaveUsers(UserChanges c) { if (c.Any) Write(delegate(MemoryStore m) { users.Merge(c); return true; }); }
     }
 
     // Soft-Lock als kleine Datei je Block im Datenordner ("sperren\JJJJ-MM-TT_Zeile.lock", Inhalt = Name). Verfaellt nach 30 min.

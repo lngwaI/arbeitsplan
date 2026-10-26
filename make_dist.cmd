@@ -9,7 +9,6 @@ if not exist %D%\daten mkdir %D%\daten
 if not exist %D%\Vorlagen mkdir %D%\Vorlagen
 copy /y release\Arbeitsplan.exe %D%\ >nul
 copy /y config\statuscolors.ini %D%\ >nul
-copy /y config\Arbeitsplan.ini %D%\ >nul
+if not exist %D%\Arbeitsplan.ini copy /y config\Arbeitsplan.ini %D%\ >nul
 copy /y config\LIESMICH.txt %D%\ >nul
-if exist testpakete\*.apkg copy /y testpakete\*.apkg %D%\Vorlagen\ >nul
 echo OK %D%

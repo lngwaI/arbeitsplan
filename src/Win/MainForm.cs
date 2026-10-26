@@ -165,7 +165,7 @@ namespace Arbeitsplan.Win
 
             ToolStripMenuItem set = new ToolStripMenuItem("Einstellungen");
             ToolStripItem st = set.DropDownItems.Add("Blockstruktur…", null, delegate { EditStructure(); }); st.Enabled = structure;
-            ToolStripItem us = set.DropDownItems.Add("Nutzerverwaltung…", null, delegate { RefreshUsers(); using (UserAdminForm f = new UserAdminForm(users, me)) f.ShowDialog(this); SaveUsers(); }); us.Enabled = usr;
+            ToolStripItem us = set.DropDownItems.Add("Nutzerverwaltung…", null, delegate { RefreshUsers(); using (UserAdminForm f = new UserAdminForm(users, me)) { f.ShowDialog(this); SaveUsers(f.Changes); } }); us.Enabled = usr;
             ToolStripItem cf = set.DropDownItems.Add("Equipment && Bausteine…", null, delegate { EditCatalog(); }); cf.Enabled = me.Has(Perm.PackageAdmin);
             ToolStripItem bk = set.DropDownItems.Add("Sicherung…", null, delegate { OpenBackup(); }); bk.Enabled = me.Has(Perm.PackageAdmin);
             set.Visible = structure || usr || me.Has(Perm.PackageAdmin);
@@ -806,10 +806,16 @@ namespace Arbeitsplan.Win
 
         static readonly System.Text.RegularExpressions.Regex Tok = new System.Text.RegularExpressions.Regex(@"[^\s,;/]+");
 
-        // Loeschen = Inhalt kuerzer oder ein Kuerzel gegenueber dem gespeicherten Stand entfernt.
+        // Loeschen = Inhalt kuerzer, ODER im Inhalt verschwinden mehr alte Woerter als neue dazukommen (Ersetzen 1:1 bleibt erlaubt,
+        // Ueberschreiben mit Leerzeichen/Zusammenziehen nicht), ODER ein Kuerzel gegenueber dem gespeicherten Stand entfernt.
         static bool RemovesText(Entry old, Entry n)
         {
             if (n.Content.Length < old.Content.Length) return true;
+            List<string> added = new List<string>();
+            foreach (System.Text.RegularExpressions.Match m in Tok.Matches(n.Content)) added.Add(m.Value);
+            int lost = 0;
+            foreach (System.Text.RegularExpressions.Match m in Tok.Matches(old.Content)) if (!added.Remove(m.Value)) lost++;
+            if (lost > added.Count) return true;   // added = nur noch die neu hinzugekommenen Woerter
             for (int s = 0; s < 3; s++)
             {
                 List<string> now = new List<string>();
@@ -1158,7 +1164,10 @@ namespace Arbeitsplan.Win
             }
             Entry o = new Entry(); o.Content = "abc"; o.People = new[] { "AB, CD", "", "" };
             Entry n1 = o.Clone(); n1.Content = "ab"; Entry n2 = o.Clone(); n2.People[0] = "AB"; Entry n3 = o.Clone(); n3.Content = "abd"; n3.People[0] = "ab, cd, EF";
+            Entry w = new Entry(); w.Content = "Lauf 1234 A"; Entry w1 = w.Clone(); w1.Content = "           "; Entry w2 = w.Clone(); w2.Content = "Lauf 1234AB";
+            Entry w3 = w.Clone(); w3.Content = "Lauf 1235 B";
             sb.AppendLine("Löschen erkannt: kürzer=" + Ok(RemovesText(o, n1)) + " Kürzel=" + Ok(RemovesText(o, n2)) + " nurErgänzt=" + Ok(!RemovesText(o, n3))
+                + " gleichlang überschrieben=" + Ok(RemovesText(w, w1)) + " zusammengezogen=" + Ok(RemovesText(w, w2)) + " Wort ersetzt=" + Ok(!RemovesText(w, w3))
                 + " Recht Produktion=" + Ok(users.Package("Produktion") != null && Array.IndexOf(users.Package("Produktion").Rights, Perm.DeleteText) >= 0));
             byte[] blob = Protected.Protect("Geheim äöü", "pw1");
             bool wrong = false, tampered = false;
@@ -1167,6 +1176,7 @@ namespace Arbeitsplan.Win
             try { Protected.Unprotect(blob, "pw1"); } catch (System.Security.Cryptography.CryptographicException) { tampered = true; }
             blob[40] ^= 1;
             sb.AppendLine("Protected: ok=" + (Protected.Unprotect(blob, "pw1") == "Geheim äöü") + " falschesPw=" + wrong + " manipuliert=" + tampered);
+            sb.AppendLine(UserAdminForm.SelfTest());
             if (systemPc) sb.AppendLine("Protokoll/Sicherung: übersprungen (Systemrechner, Speichern nicht möglich)"); else SelfTestData(sb);
             SelfTestFiles(sb);
             sb.AppendLine(PackageForm.TestFlow(store, equip, start));
