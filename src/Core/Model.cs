@@ -217,6 +217,13 @@ namespace Arbeitsplan.Core
                 }
                 s.Save(monday.AddDays(d), suite1, e);
             }
+            // Folgewoche (fuer die Testansicht "2 Wochen")
+            string[] nxt = { "Rüsten Suite 1, Filter prüfen", "Wartung Pumpe H1-P-0101-05", "Probenahme laut Plan" };
+            for (int d = 0; d < nxt.Length; d++)
+            {
+                Entry e = new Entry(); e.Content = nxt[d]; e.People = new[] { "ABCD, EFGH", "IJKL", "" };
+                s.Save(monday.AddDays(7 + d), suite1, e);
+            }
             // viele Kuerzel in einer Schicht: Feld waechst, alle Spalten der Zeile bleiben gleich hoch
             Entry m = s.Get(monday, suite1);
             m.People[0] = "MUMA, WEPA, BEER, ABCD, EFGH, IJKL, MNOP, QRST, UVWX, YZAB, CDEF, GHIJ, KLMN, OPQR, STUV, WXYZ";

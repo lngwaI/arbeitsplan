@@ -544,6 +544,12 @@ namespace Arbeitsplan.Win
                 view.LayoutDone += delegate { if (week2 != null) week2.Place(view); };
                 week2.Load(store, rowInfo, start.AddDays(7));
                 ResizeView();
+                if (IsHandleCreated) BeginInvoke((MethodInvoker)delegate   // Woche 2 liegt unter der ersten: dorthin scrollen, damit man etwas sieht
+                {
+                    if (week2 == null) return;
+                    ResizeView();
+                    canvas.AutoScrollPosition = new Point(0, Math.Max(0, week2.View.Top - 56 - canvas.AutoScrollPosition.Y));
+                });
             }
             else if (n == 1 && week2 != null) { week2.Remove(); week2 = null; }
         }
@@ -965,6 +971,7 @@ namespace Arbeitsplan.Win
         public void TestSearch(string q) { search.Text = q; }
 
         public void TestScroll(int y) { canvas.AutoScrollPosition = new Point(0, y); }
+        public void TestWeeksLate() { SetWeeks(2); }
 
         // Messung: n Wochenwechsel inkl. Neuzeichnen (ms je Wechsel).
         public double Bench(int n)
