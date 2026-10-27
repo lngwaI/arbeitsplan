@@ -1,0 +1,92 @@
+ARBEITSPLAN - TEST IN DER FIRMA, SCHRITT FÜR SCHRITT
+====================================================
+Dieser Ordner wird automatisch aus dem abgenommenen Stand erzeugt (scripts\test-arbeitsplan.cmd).
+Welche Version es ist, steht in VERSION.txt (Commit + Prüfsumme der exe).
+
+INHALT
+  0_ANLEITUNG.txt        diese Datei (für dich, nicht aufs Laufwerk)
+  VERSION.txt            Stand und Prüfsumme (für dich und die IT)
+  1_Aufs-Laufwerk\       NUR der Ordner Arbeitsplan_Test darin kommt aufs Laufwerk
+  2_Fuer-die-IT\         IT-Unterlage (Freigabe, Ordnerrechte, offene Fragen) und Kurzanleitung
+  3_Zum-Ausdrucken\      Unterlagen für das Gespräch (nicht aufs Laufwerk)
+
+
+SCHRITT 0 - VORHER (Pflicht)
+  [ ] OK vom Vorgesetzten, dass getestet werden darf.
+  [ ] OK der IT: Wie kommt der Ordner in die Firma (USB? Download? die IT kopiert ihn)?
+      NICHT eigenmächtig per USB-Stick oder Mail. Ohne Freigabe nichts auf Firmen-PCs starten.
+  [ ] IT-Unterlage aus 2_Fuer-die-IT übergeben.
+
+
+SCHRITT 1 - AUFS LAUFWERK
+  Den Ordner 1_Aufs-Laufwerk\Arbeitsplan_Test so wie er ist in einen eigenen Testordner auf dem
+  Laufwerk legen, NICHT zum echten (alten) Arbeitsplan, z. B.
+      \\Server\Freigabe\Abteilung\Arbeitsplan_Test\
+  Danach sieht es dort so aus:
+      Arbeitsplan_Test\
+        LIESMICH.txt           Kurzanleitung für alle
+        Programm\              Arbeitsplan.exe, Arbeitsplan.ini
+        daten\                 noch leer (nur Pakete\Testprodukt.apkg und sicherung\)
+  Prüfen, ob beim Kopieren nichts kaputtging (Eingabeaufforderung im Ordner Programm):
+      certutil -hashfile Arbeitsplan.exe SHA256       -> muss mit VERSION.txt übereinstimmen
+
+
+SCHRITT 2 - EINRICHTEN (nur du, einmal)
+  1. Eigenen Windows-Anmeldenamen anzeigen: Eingabeaufforderung -> whoami
+     Ergebnis DOMÄNE\name -> nur "name" verwenden.
+  2. Programm\Arbeitsplan.ini mit dem Editor öffnen, eintragen:  Admins=name   speichern.
+  3. Programm\Arbeitsplan.exe doppelklicken.
+     "Neuen Arbeitsplan einrichten?" -> Ja.  (Der Ordner daten wird danach versteckt.)
+  4. "Verknüpfung auf dem Desktop anlegen?" -> Ja.
+  5. Hilfe -> Info: Version, Datenordner, Nutzer, Domäne notieren (unten).
+  Blockiert Windows den Start ("Richtlinie", "App Control", SmartScreen): NICHT umgehen,
+  Foto/Wortlaut der Meldung notieren und an die IT geben.
+
+
+SCHRITT 3 - KOLLEGEN ANLEGEN
+  Einstellungen -> Nutzerverwaltung -> "+": Windows-Anmeldename, Kürzel, Rechtepaket
+  (Leser = nur ansehen, Produktion = eintragen, Admin = alles).
+
+
+SCHRITT 4 - WAS DIE KOLLEGEN TUN (sonst nichts!)
+  1. Auf dem Laufwerk Arbeitsplan_Test\Programm öffnen, Arbeitsplan.exe doppelklicken.
+  2. "Verknüpfung auf dem Desktop anlegen?" -> Ja. Ab dann nur noch das Desktop-Symbol.
+  Es wird NICHTS kopiert: kein Ordner auf C:, keine exe, keine ini, keine Daten.
+
+  WAS LIEGT WO
+    Programm und Daten        Laufwerk, Arbeitsplan_Test\        von dir, einmal
+    Desktop-Verknüpfung       Desktop des Nutzers (OneDrive)     legt das Programm selbst an
+    Offline-Stand (nur Lesen) %LOCALAPPDATA%\Arbeitsplan         legt das Programm selbst an
+    alles andere              -                                  nichts
+
+
+SCHRITT 5 - TESTEN (abhaken, Auffälligkeiten notieren)
+  [ ] Zweiter PC: aus dem Ordner starten, Verknüpfung anlegen, an einem dritten PC prüfen,
+      ob die Verknüpfung dort auch da ist (OneDrive-Desktop).
+  [ ] Zwei Kollegen gleichzeitig: verschiedene Zeilen ändern -> beide Änderungen bleiben.
+  [ ] Zwei Kollegen gleichzeitig: dieselbe Zeile ändern -> Rückfrage mit beiden Fassungen.
+  [ ] Nicht angelegter Kollege startet -> Meldung "Vorgesetzten/Admin fragen", Programm endet.
+  [ ] Pakete -> Kampagne starten -> Testprodukt: Läufe erscheinen im Plan.
+  [ ] Update: laufende Programm\Arbeitsplan.exe umbenennen (z. B. Arbeitsplan_alt.exe) und
+      dieselbe exe neu hineinlegen -> offene Fenster zeigen "NEUE VERSION".
+  [ ] Die exe allein nach C: kopieren und starten -> nur "OFFLINE" (ansehen) oder gar kein Start.
+  [ ] Systemrechner (ERST nach Freigabe): Konto/Rechnername in Programm\Arbeitsplan.ini bei
+      NurLesenFuer= eintragen -> dort nur ansehen.
+
+  NOTIZEN
+    UNC-Pfad des Testordners: ______________________________________________
+    Domäne (Hilfe -> Info):   ______________________________________________
+    Konto/Rechnername der Systemrechner: ___________________________________
+    Blockiermeldungen (Wortlaut/Foto): _____________________________________
+    Was war anders als erwartet: ___________________________________________
+
+
+NEUE VERSION EINSPIELEN
+  Neuen Ordner Test-Arbeitsplan nehmen (VERSION.txt zeigt den Stand). Auf dem Laufwerk
+  Programm\Arbeitsplan.exe umbenennen, die neue Arbeitsplan.exe hineinlegen. Die ini und den
+  Ordner daten NICHT ersetzen (dort liegen die Testeingaben und der Schlüssel).
+
+
+NACH DEM TEST
+  Im Testordner liegen echte Eingaben: nicht nach Hause mitnehmen, nichts davon fotografieren.
+  Ordner für den Pilot weiterverwenden oder von der IT löschen lassen.

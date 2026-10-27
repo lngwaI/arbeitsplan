@@ -72,10 +72,12 @@ namespace Arbeitsplan.Core
         public List<EquipPosition> Positions = new List<EquipPosition>();
         public List<EquipGroup> Groups = new List<EquipGroup>();
         public List<Baustein> Bausteine = new List<Baustein>();
+        public EquipMaster Master = new EquipMaster();     // Equipment-Stammdaten (Klassen, Reihen, Geraete, Regeln)
 
         public Catalog Clone()
         {
             Catalog c = new Catalog();
+            c.Master = Master.Clone();
             foreach (EquipPosition p in Positions) c.Positions.Add(p.Clone());
             foreach (EquipGroup g in Groups) c.Groups.Add(g.Clone());
             foreach (Baustein b in Bausteine) c.Bausteine.Add(b.Clone());
@@ -116,6 +118,7 @@ namespace Arbeitsplan.Core
         public static Catalog Default()
         {
             Catalog c = new Catalog();
+            c.Master = EquipMaster.Default();
             c.Positions.Add(Pos("TFF-Skid", "TFF", "H1-X-0101", "H1-X-0102", "H1-X-0103"));
             c.Positions.Add(Pos("Membranhalter", "MH", "H1-X-0111", "H1-X-0112"));
             c.Positions.Add(Pos("Pumpe", "Pumpe", "H1-P-0101-05", "H1-P-0102-05"));

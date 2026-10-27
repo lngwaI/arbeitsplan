@@ -103,7 +103,7 @@ namespace Arbeitsplan.Win
                 return Icon.FromHandle(b.GetHicon());
             }
         }
-        // Aufruf: Arbeitsplan.exe [--theme xp|win7|win10] [--user <login>] [--nosave] [--data <ordner>] [--4x3 | --size BxH]
+        // Aufruf: Arbeitsplan.exe [--user <login>] [--nosave] [--data <ordner>] [--4x3 | --size BxH]
         //   Release: Daten laut Arbeitsplan.ini neben der exe (FileStore); Test-Build ohne --data: Testdaten im Speicher
         //   Test:  --shot <png> [--size BxH] [--edit spalte,zeile]  (rendert die Ansicht als Bild und beendet)
         [STAThread]
@@ -118,9 +118,9 @@ namespace Arbeitsplan.Win
             AppDomain.CurrentDomain.UnhandledException += delegate { Fatal(); };
 #endif
 
-            Theme.Select(Arg(args, "--theme"));
+            Theme.Select(null);
             InstallIcon();
-            DateTime t0 = DateTime.Now;   // xp | win7 | win10, sonst passend zum Betriebssystem (auch im Release)
+            DateTime t0 = DateTime.Now;
 #if TESTHOOKS
             string login = Arg(args, "--user") ?? Environment.UserName;
             bool nosave = Array.IndexOf(args, "--nosave") >= 0;

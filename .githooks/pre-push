@@ -1,0 +1,10 @@
+#!/bin/sh
+# Letzte Sperre: kein Commit mit _privat/-Dateien darf das Repo verlassen.
+while read lref lsha rref rsha; do
+  [ "$lsha" = "0000000000000000000000000000000000000000" ] && continue
+  range="$lsha"; [ "$rsha" != "0000000000000000000000000000000000000000" ] && range="$rsha..$lsha"
+  if git log --name-only --pretty=format: $range 2>/dev/null | grep -qi '^_privat/'; then
+    echo "ABBRUCH: Push enthaelt _privat/-Dateien." >&2; exit 1
+  fi
+done
+exit 0

@@ -27,3 +27,10 @@ cache.apdb
 
 # Lokale Notizen (nie ins oeffentliche Repo)
 *.local.md
+
+# Vertrauliches Material (Original-exe, Screenshots, Texte): lokal, niemals committen/pushen
+_privat/
+
+# Erzeugte Ausgaben (scripts/test-arbeitsplan.cmd, scripts/ci-ergebnis.sh)
+Test-Arbeitsplan/
+testergebnis/

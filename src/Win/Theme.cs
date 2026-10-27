@@ -6,19 +6,15 @@ using System.Windows.Forms;
 namespace Arbeitsplan.Win
 {
     // Alle Farben, Masse und Schriften der Oberflaeche an einer Stelle. Nur Optik: keine Logik, keine Daten.
-    // Drei Modelle (Start: --theme xp|win7|win10, sonst passend zum Betriebssystem):
-    //   xp    = urspruenglicher Look (Tahoma, Systemgrau, farbige Kopfleisten, eckig)
-    //   win7  = Segoe UI, dezent blaeuliche Flaechen, leichter Verlauf in den Kopfleisten (kein Glanz/Schatten)
-    //   win10 = heller, flacher Look (Seitenstreifen der Schichten, eigene Checkbox), Akzentstreifen + 2-px-Auswahl, flache Menues/Buttons
-    // Alle laufen ab XP SP3: nur .NET-2.0/4.0-GDI-APIs, Schrift mit Rueckfall (Segoe UI -> Tahoma -> Systemschrift).
+    // Ein Look (Mindestsystem Windows 10): heller, flacher Look (Seitenstreifen der Schichten, eigene Checkbox),
+    // Akzentstreifen + 2-px-Auswahl, flache Menues/Buttons. Schrift Segoe UI mit Rueckfall (Tahoma -> Systemschrift).
     class Theme
     {
-        public static Theme Current = Make(Detect());
+        public static Theme Current = Make("win10");
 
         public string Name, FontName;
         public float FontSize;
         public bool Modern;          // heller Look: Tageskoepfe ohne Flaeche, eigene Checkbox, kleiner Pfeil
-        public bool Gradient;        // win7: leichter Verlauf in den Kopfleisten
         public bool Stripe;          // win10: Akzentstreifen oben + 2-px-Auswahlrahmen
         public bool FlatButtons;     // flache Schaltflaechen mit Hover, Farbfelder mit Auswahlrahmen
         public bool ShiftSep;        // duenne Trennlinien zwischen den Schichten
@@ -42,8 +38,7 @@ namespace Arbeitsplan.Win
             t.Name = name;
             t.BorderSel = C(40, 100, 200); t.BorderEdit = C(255, 140, 0); t.Dot = C(215, 100, 0);
             t.CellBack = Color.White;
-            if (name == "win10")       // heller, flacher Look (UI-Umbau) + Akzentstreifen, flache Menues
-            {
+            {   // heller, flacher Look + Akzentstreifen, flache Menues
                 t.FontName = "Segoe UI"; t.FontSize = 9f; t.Modern = true; t.Stripe = true; t.FlatButtons = true; t.ShiftSep = true;
                 t.HeadH = 27; t.LW = 18; t.Pad = 10; t.Gap = 10; t.HeadTextX = 9; t.ButtonH = 30; t.BarH = 36;
                 t.Window = C(245, 246, 248); t.Bar = t.Window; t.BorderSel = C(0, 120, 215); t.Dot = C(232, 110, 0);
@@ -59,47 +54,16 @@ namespace Arbeitsplan.Win
                 t.ShiftBack = new Color[] { C(255, 251, 238), C(255, 246, 238), C(242, 246, 253) };
                 t.ButtonBack = Color.White; t.ButtonBorder = C(205, 210, 219); t.ButtonHover = C(232, 238, 248); t.ButtonDown = C(213, 224, 242);
                 t.ButtonOn = C(214, 228, 248); t.SwatchSelected = C(40, 100, 200); t.SwatchBorder = C(205, 210, 219);
-                return t;
             }
-            // xp (Original) und win7 teilen die Grundwerte
-            t.HeadH = 24; t.LW = 26; t.Pad = 4; t.Gap = 4; t.HeadTextX = 3; t.ButtonH = 30; t.BarH = 34;
-            t.Window = SystemColors.Control; t.Bar = SystemColors.Control; t.CellBorder = C(150, 160, 175);
-            t.DayHead = C(205, 218, 234); t.DayHeadToday = C(255, 224, 130); t.RowHead = t.DayHead; t.RowHeadToday = t.DayHeadToday;
-            t.CellBackWeekend = C(244, 246, 250); t.CellBackToday = C(255, 250, 230);
-            t.HeadText = Color.Black; t.HeadTextCollapsed = C(70, 70, 70); t.Arrow = C(70, 80, 100);
-            t.DayWeekday = Color.Black; t.DayDate = Color.Black; t.DayTodayText = Color.Black; t.DayLine = t.DayHead; t.DayLineToday = t.DayHeadToday;
-            t.Separator = C(200, 205, 215); t.LkzOn = C(150, 220, 150); t.LkzText = Color.Black;
-            t.ShiftLine = C(200, 205, 215); t.ShiftLabelText = Color.Black;
-            t.ShiftLabel = new Color[] { C(255, 225, 130), C(255, 190, 130), C(150, 175, 225) };
-            t.ShiftBack = new Color[] { C(255, 248, 225), C(255, 240, 225), C(232, 238, 250) };
-            t.ButtonBack = SystemColors.Control; t.ButtonBorder = SystemColors.ControlDark; t.ButtonHover = SystemColors.Control; t.ButtonDown = SystemColors.Control;
-            t.ButtonOn = C(190, 210, 240); t.SwatchSelected = Color.Black; t.SwatchBorder = Color.Black;
-            if (name == "xp") { t.FontName = "Tahoma"; t.FontSize = 8.25f; return t; }
-
-            t.Name = "win7";           // dezent blaeulich, leichter Verlauf, keine Schatten
-            t.FontName = "Segoe UI"; t.FontSize = 9f; t.Gradient = true; t.HeadH = 25; t.Pad = 6; t.Gap = 6; t.HeadTextX = 5; t.BarH = 36;
-            t.Window = C(233, 239, 247); t.Bar = C(242, 246, 251); t.CellBorder = C(165, 182, 208);
-            t.DayHead = C(214, 226, 242); t.DayHeadToday = C(255, 226, 150); t.RowHead = t.DayHead; t.RowHeadToday = t.DayHeadToday;
-            t.CellBackWeekend = C(245, 248, 252); t.CellBackToday = C(255, 251, 235);
-            t.HeadText = C(25, 40, 70); t.HeadTextCollapsed = C(80, 95, 120); t.Arrow = C(80, 100, 135);
-            t.Separator = C(208, 218, 232); t.LkzOn = C(180, 228, 180);
             return t;
         }
 
-        // XP (5.x) -> xp, Vista/7 (6.0/6.1) -> win7, ab 6.2 -> win10 (ohne Manifest meldet auch Win 10 "6.2").
-        public static string Detect()
-        {
-            Version v = Environment.OSVersion.Version;
-            return v.Major < 6 ? "xp" : (v.Major == 6 && v.Minor < 2 ? "win7" : "win10");
-        }
-
+        // Bleibt als Einstieg fuer Program.cs; es gibt nur noch einen Look.
         public static void Select(string name)
         {
-            name = name == null ? "" : name.ToLowerInvariant().Replace("windows", "").Replace("win", "").Replace(" ", "");   // winXP, Win7, windows10, 10 ...
-            name = name == "xp" ? "xp" : (name == "7" ? "win7" : (name == "10" ? "win10" : Detect()));
             Current.FreeGdi();
-            Current = Make(name);
-            ToolStripManager.Renderer = Current.Stripe ? (ToolStripRenderer)new FlatRenderer() : new ToolStripProfessionalRenderer();
+            Current = Make("win10");
+            ToolStripManager.Renderer = new FlatRenderer();
         }
 
         // ---- Schrift: gewuenschte Familie, sonst Tahoma (XP), sonst Systemschrift ----
@@ -130,7 +94,6 @@ namespace Arbeitsplan.Win
         // ---- Gecachte Pinsel/Stifte (nur UI-Thread; nie selbst freigeben, das macht FreeGdi beim Modellwechsel) ----
         readonly System.Collections.Generic.Dictionary<int, SolidBrush> brushes = new System.Collections.Generic.Dictionary<int, SolidBrush>();
         readonly System.Collections.Generic.Dictionary<long, Pen> pens = new System.Collections.Generic.Dictionary<long, Pen>();
-        readonly System.Collections.Generic.Dictionary<long, LinearGradientBrush> grads = new System.Collections.Generic.Dictionary<long, LinearGradientBrush>();
 
         // Zellhintergrund: heute, Wochenende oder normal.
         public Color CellBackFor(DateTime day)
@@ -158,26 +121,11 @@ namespace Arbeitsplan.Win
         {
             foreach (SolidBrush b in brushes.Values) b.Dispose();
             foreach (Pen p in pens.Values) p.Dispose();
-            foreach (LinearGradientBrush b in grads.Values) b.Dispose();
-            brushes.Clear(); pens.Clear(); grads.Clear();
+            brushes.Clear(); pens.Clear();
         }
 
-        // Kopfleiste: leichter Verlauf (win7), sonst flache Farbe. Verlauf je Farbe+Groesse gecacht, an r verschoben gezeichnet.
-        public void FillHead(Graphics g, Rectangle r, Color c)
-        {
-            if (!Gradient || r.Width < 1 || r.Height < 2) { g.FillRectangle(Brush(c), r); return; }
-            long k = ((long)c.ToArgb() << 32) | ((long)(r.Width & 0xFFFF) << 16) | (uint)(r.Height & 0xFFFF);
-            LinearGradientBrush b;
-            if (!grads.TryGetValue(k, out b))
-            {
-                if (grads.Count > 100) { foreach (LinearGradientBrush x in grads.Values) x.Dispose(); grads.Clear(); }   // viele Fenstergroessen
-                b = new LinearGradientBrush(new Rectangle(0, 0, r.Width, r.Height), Lighten(c, 18), Lighten(c, -6), LinearGradientMode.Vertical);
-                grads[k] = b;
-            }
-            g.TranslateTransform(r.X, r.Y);   // Brush-Transform nicht anfassen (enthaelt die Verlaufsabbildung)
-            g.FillRectangle(b, 0, 0, r.Width, r.Height);
-            g.TranslateTransform(-r.X, -r.Y);
-        }
+        // Kopfleiste: flache Farbe.
+        public void FillHead(Graphics g, Rectangle r, Color c) { g.FillRectangle(Brush(c), r); }
 
         // Eigene Checkbox (13x13, GDI+), nur im Modern-Look.
         public void DrawCheck(Graphics g, Point p, bool on)

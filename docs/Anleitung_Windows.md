@@ -15,7 +15,7 @@
 - Beide mit dem in Windows enthaltenen Compiler, kein SDK nötig.
 
 ## Look umschalten
-Startparameter `--theme xp|win7|win10` (ohne Angabe passend zum Betriebssystem; Win 10/11 = heller Look). Das Modell steht im Fenstertitel.
+Die Oberfläche hat einen Look (Mindestsystem Windows 10).
 
 ## Kurz testen
 1. Woche wechseln (« Woche, ‹ Tag, Heute, Tag ›, Woche »).

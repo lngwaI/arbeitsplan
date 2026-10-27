@@ -72,6 +72,10 @@ namespace Arbeitsplan.Win
                 Warn(); changed();
             };
             cbFb.TextChanged += delegate { if (!loading) { a.Fallback = cbFb.Text.Trim(); changed(); } };
+            // Stammdaten: Ersatzgeraete des gewaehlten Geraets zuerst vorschlagen; Hinweise (Reihen-Notiz, Wartung, Regeln) als Tooltip
+            cbFb.DropDown += delegate { SuggestFallbacks(); };
+            cbId.TextChanged += delegate { ShowInfo(tip); };
+            ShowInfo(tip);
             note.TextChanged += delegate { if (!loading) { a.Note = note.Text.Trim(); changed(); } };
             chkAlt.CheckedChanged += delegate
             {
@@ -104,7 +108,7 @@ namespace Arbeitsplan.Win
             if (a.Alternate) foreach (EquipChoice c in a.Choices) more.Add(c.Id);
             if (a.Fallback.Length > 0) more.Add(a.Fallback);
             foreach (string id in more)
-                if (id.Length > 0 && !r.Contains(id) && (p == null || id != p.Placeholder()) && !grp.Exists(delegate(EquipChoice c) { return c.Id == id; })) r.Add(id);
+                if (id.Length > 0 && !r.Contains(id) && (p == null || id != p.Placeholder()) && cat.Master.Device(id) == null && !grp.Exists(delegate(EquipChoice c) { return c.Id == id; })) r.Add(id);
             return r;
         }
 
@@ -134,7 +138,35 @@ namespace Arbeitsplan.Win
             Warn();
         }
 
-        void Warn() { cbId.ForeColor = Known(a, cat) ? SystemColors.WindowText : Color.DarkOrange; }
+        void Warn()
+        {
+            EquipDevice dev = a.Alternate || a.Choices.Count == 0 ? null : cat.Master.Device(a.Choices[0].Id);
+            cbId.ForeColor = dev != null && !dev.Active ? Color.Firebrick : Known(a, cat) ? SystemColors.WindowText : Color.DarkOrange;   // rot = in Wartung
+        }
+
+        string CurrentId() { return a.Alternate || a.Choices.Count == 0 ? "" : a.Choices[0].Id; }
+
+        void SuggestFallbacks()
+        {
+            string id = CurrentId(); if (id.Length == 0) return;
+            string text = cbFb.Text;
+            List<string> first = new List<string>();
+            foreach (EquipSubst s in cat.Master.SubstitutesFor(id)) first.Add(s.Id);
+            foreach (string c in cat.Master.CompatibleWith(id)) { EquipDevice d = cat.Master.Device(c); if (d != null && d.Class == (cat.Master.Device(id) != null ? cat.Master.Device(id).Class : d.Class) && !first.Contains(c)) first.Add(c); }
+            if (first.Count == 0) return;
+            loading = true;
+            for (int i = cbFb.Items.Count - 1; i >= 0; i--) if (first.Contains(cbFb.Items[i].ToString())) cbFb.Items.RemoveAt(i);
+            for (int i = first.Count - 1; i >= 0; i--) cbFb.Items.Insert(0, first[i]);
+            cbFb.Text = text; loading = false;
+        }
+
+        void ShowInfo(ToolTip tip)
+        {
+            string id = CurrentId(), info = id.Length > 0 ? cat.Master.Info(id) : "";
+            foreach (EquipSubst s in id.Length > 0 ? cat.Master.SubstitutesFor(id) : new List<EquipSubst>())
+                info += (info.Length > 0 ? "\n" : "") + "Ersatz: " + s.Id + (s.Note.Length > 0 ? " (" + s.Note + ")" : "");
+            tip.SetToolTip(cbId, "Gerät aus der validierten Liste wählen oder eigenes eintippen (nicht validierte Eingabe wird orange)." + (info.Length > 0 ? "\n\n" + info : ""));
+        }
 
         void PickAlternatives()
         {

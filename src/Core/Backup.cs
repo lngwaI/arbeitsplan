@@ -34,7 +34,7 @@ namespace Arbeitsplan.Core
     public static class Backup
     {
         // Datenformat; bei inkompatibler Aenderung erhoehen (aeltere exe lesen die Datei dann nicht mehr und schreiben nie zurueck)
-        public const int FormatVersion = 1;
+        public const int FormatVersion = 2;   // 2: Equipment-Stammdaten im Katalog
         public const string Ext = ".apbak", Prefix = "Arbeitsplan_";
         public const int Keep = 14;
         static readonly UTF8Encoding Utf8 = new UTF8Encoding(false);
@@ -261,7 +261,80 @@ namespace Arbeitsplan.Core
                 foreach (string s in b.Positions) { w.WriteStartElement("P"); w.WriteAttributeString("v", s); w.WriteEndElement(); }
                 w.WriteEndElement();
             }
+            WriteMaster(w, c.Master);
             w.WriteEndElement();
+        }
+
+        static void WriteMaster(XmlWriter w, EquipMaster m)
+        {
+            w.WriteStartElement("Stammdaten");
+            foreach (EquipClass c in m.Classes)
+            {
+                w.WriteStartElement("Klasse"); w.WriteAttributeString("name", c.Name);
+                foreach (string f in c.Fields) { w.WriteStartElement("F"); w.WriteAttributeString("v", f); w.WriteEndElement(); }
+                w.WriteEndElement();
+            }
+            foreach (EquipSeries s in m.Series)
+            {
+                w.WriteStartElement("Reihe"); w.WriteAttributeString("name", s.Name); w.WriteAttributeString("klasse", s.Class);
+                w.WriteAttributeString("von", s.From); w.WriteAttributeString("bis", s.To); w.WriteAttributeString("notiz", s.Note);
+                foreach (string id in s.Ids) { w.WriteStartElement("Id"); w.WriteAttributeString("v", id); w.WriteEndElement(); }
+                w.WriteEndElement();
+            }
+            foreach (EquipDevice d in m.Devices)
+            {
+                w.WriteStartElement("Geraet"); w.WriteAttributeString("id", d.Id); w.WriteAttributeString("klasse", d.Class);
+                w.WriteAttributeString("notiz", d.Note); w.WriteAttributeString("aktiv", B(d.Active));
+                foreach (EquipProp p in d.Props) { w.WriteStartElement("E"); w.WriteAttributeString("name", p.Name); w.WriteAttributeString("v", p.Value); w.WriteEndElement(); }
+                w.WriteEndElement();
+            }
+            foreach (EquipLink l in m.Links)
+            {
+                w.WriteStartElement("Verwendbar"); w.WriteAttributeString("von", l.From); w.WriteAttributeString("notiz", l.Note);
+                foreach (string t in l.To) { w.WriteStartElement("Z"); w.WriteAttributeString("v", t); w.WriteEndElement(); }
+                w.WriteEndElement();
+            }
+            foreach (EquipSubst s in m.Substs)
+            {
+                w.WriteStartElement("Ersatz"); w.WriteAttributeString("id", s.Id); w.WriteAttributeString("ersetzt", s.Replaces);
+                w.WriteAttributeString("notiz", s.Note); w.WriteAttributeString("beide", B(s.Both)); w.WriteEndElement();
+            }
+            w.WriteEndElement();
+        }
+
+        static void ReadMaster(XmlElement sd, EquipMaster m)
+        {
+            foreach (XmlElement e in Kids(sd, "Klasse"))
+            {
+                EquipClass c = new EquipClass(); c.Name = e.GetAttribute("name");
+                foreach (XmlElement x in Kids(e, "F")) c.Fields.Add(x.GetAttribute("v"));
+                m.Classes.Add(c);
+            }
+            foreach (XmlElement e in Kids(sd, "Reihe"))
+            {
+                EquipSeries s = new EquipSeries(); s.Name = e.GetAttribute("name"); s.Class = e.GetAttribute("klasse");
+                s.From = e.GetAttribute("von"); s.To = e.GetAttribute("bis"); s.Note = e.GetAttribute("notiz");
+                foreach (XmlElement x in Kids(e, "Id")) s.Ids.Add(x.GetAttribute("v"));
+                m.Series.Add(s);
+            }
+            foreach (XmlElement e in Kids(sd, "Geraet"))
+            {
+                EquipDevice d = new EquipDevice(); d.Id = e.GetAttribute("id"); d.Class = e.GetAttribute("klasse");
+                d.Note = e.GetAttribute("notiz"); d.Active = Bool(e, "aktiv");
+                foreach (XmlElement x in Kids(e, "E")) d.Props.Add(new EquipProp(x.GetAttribute("name"), x.GetAttribute("v")));
+                m.Devices.Add(d);
+            }
+            foreach (XmlElement e in Kids(sd, "Verwendbar"))
+            {
+                EquipLink l = new EquipLink(); l.From = e.GetAttribute("von"); l.Note = e.GetAttribute("notiz");
+                foreach (XmlElement x in Kids(e, "Z")) l.To.Add(x.GetAttribute("v"));
+                m.Links.Add(l);
+            }
+            foreach (XmlElement e in Kids(sd, "Ersatz"))
+            {
+                EquipSubst s = new EquipSubst(); s.Id = e.GetAttribute("id"); s.Replaces = e.GetAttribute("ersetzt");
+                s.Note = e.GetAttribute("notiz"); s.Both = Bool(e, "beide"); m.Substs.Add(s);
+            }
         }
 
         static IEnumerable<XmlElement> Kids(XmlNode n, string name)
@@ -316,6 +389,8 @@ namespace Arbeitsplan.Core
                 foreach (XmlElement x in Kids(e, "P")) b.Positions.Add(x.GetAttribute("v"));
                 d.Catalog.Bausteine.Add(b);
             }
+            XmlElement sd = Kid(k, "Stammdaten");
+            if (sd != null) ReadMaster(sd, d.Catalog.Master);
             XmlElement pr = Kid(root, "Protokoll");
             if (pr != null)
                 foreach (XmlElement e in Kids(pr, "Eintrag"))
