@@ -34,3 +34,4 @@ _privat/
 # Erzeugte Ausgaben (scripts/test-arbeitsplan.cmd, scripts/ci-ergebnis.sh)
 Test-Arbeitsplan/
 testergebnis/
+!config/Testprodukt.apkg
