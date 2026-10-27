@@ -14,19 +14,15 @@ if exist %T% if not exist %T%\VERSION.txt (echo %T% wurde nicht von diesem Skrip
 if exist release\Arbeitsplan.exe del release\Arbeitsplan.exe
 call .\build_release.cmd > "%LOG%" 2>&1
 if not exist release\Arbeitsplan.exe (type "%LOG%" & echo Release-Build fehlgeschlagen. & goto fehler)
-rem Test-Build nur fuer das Testpaket (--makepkg), in einen eigenen Ordner (bin\ kann gerade laufen)
-set TB=%TEMP%\arbeitsplan_testhooks
-if not exist "%TB%" mkdir "%TB%"
-call .\build.cmd "%TB%\Arbeitsplan.exe" > "%LOG%" 2>&1
-findstr /c:"BUILD FEHLER" "%LOG%" >nul && (type "%LOG%" & echo Test-Build fehlgeschlagen. & goto fehler)
 
 if exist %T% rmdir /s /q %T%
 mkdir "%L%\Programm" "%L%\daten\Pakete" "%L%\daten\sicherung" "%T%\2_Fuer-die-IT" "%T%\3_Zum-Ausdrucken"
 copy /y release\Arbeitsplan.exe "%L%\Programm\" >nul
 copy /y config\Arbeitsplan.ini "%L%\Programm\" >nul
 copy /y config\LIESMICH.txt "%L%\" >nul
-"%TB%\Arbeitsplan.exe" --makepkg "%L%\daten\Pakete\Testprodukt.apkg"
-if not exist "%L%\daten\Pakete\Testprodukt.apkg" echo Hinweis: Testpaket konnte nicht erzeugt werden.
+rem Testpaket liegt fest im Repo, damit hier keine exe gestartet wird (Smart App Control blockiert unsignierte Builds).
+rem Neu erzeugen, wenn sich Package.SampleCampaign aendert: bin\Arbeitsplan.exe --makepkg config\Testprodukt.apkg
+copy /y config\Testprodukt.apkg "%L%\daten\Pakete\" >nul
 copy /y config\Test-Arbeitsplan-ANLEITUNG.txt "%T%\0_ANLEITUNG.txt" >nul
 copy /y docs\IT-Freigabe.md "%T%\2_Fuer-die-IT\IT-Freigabe.txt" >nul
 copy /y config\LIESMICH.txt "%T%\2_Fuer-die-IT\" >nul

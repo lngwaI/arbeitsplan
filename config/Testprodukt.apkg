@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Paket name="Testprodukt" version="3" produkt="1234">
+  <Schritt titel="Packen" quelle="Packen" block="Suite 1" tag="1" anzahl="1" abstand="6" startnr="1" text="Auftrag/Netzwerk-ID: siehe Lauf&#xA;DMO-Hinweis: Packanweisung im DMO beachten" notiz="">
+    <Equipment kurz="TFF" abwechselnd="0" ausweich="" notiz="">
+      <Geraet kurz="TFF" id="H1-X-0101" />
+    </Equipment>
+    <Equipment kurz="Pumpe" abwechselnd="0" ausweich="" notiz="">
+      <Geraet kurz="Pumpe" id="H1-P-0101-05" />
+    </Equipment>
+    <Equipment kurz="VS" abwechselnd="0" ausweich="" notiz="">
+      <Geraet kurz="VS" id="H1-F-0103-04" />
+    </Equipment>
+  </Schritt>
+  <Schritt titel="Packen Backup" quelle="" block="Suite 1" tag="2" anzahl="1" abstand="6" startnr="1" text="Reservetag, falls Packen nicht abgeschlossen" notiz="" />
+  <Schritt titel="Lauf – Auftrag/Netzwerk-ID" quelle="Lauf" block="Suite 1" tag="3" anzahl="4" abstand="6" startnr="1" art="lauf" text="" notiz="" kennung="PA 40010001, PA 40010017, PA 40010032, PA 40010048">
+    <Equipment kurz="Pumpe" abwechselnd="0" ausweich="" notiz="">
+      <Geraet kurz="Pumpe" id="H1-P-0101-05" />
+    </Equipment>
+    <Equipment kurz="TFF" abwechselnd="1" ausweich="H1-X-0103" notiz="">
+      <Geraet kurz="TFF" id="H1-X-0101" />
+      <Geraet kurz="TFF" id="H1-X-0102" />
+    </Equipment>
+    <Equipment kurz="Reds" abwechselnd="0" ausweich="" notiz="">
+      <Geraet kurz="Reds" id="H1-T-0131" />
+    </Equipment>
+    <Equipment kurz="EV" abwechselnd="0" ausweich="" notiz="">
+      <Geraet kurz="EV" id="H2-X-0201" />
+    </Equipment>
+    <Equipment kurz="EVT" abwechselnd="0" ausweich="" notiz="">
+      <Geraet kurz="EVT" id="H2-T-0201" />
+    </Equipment>
+    <Equipment kurz="PT" abwechselnd="0" ausweich="" notiz="">
+      <Geraet kurz="PT" id="H1-T-0102" />
+    </Equipment>
+    <Equipment kurz="RT" abwechselnd="0" ausweich="" notiz="">
+      <Geraet kurz="RT" id="H1-T-0112" />
+    </Equipment>
+    <Equipment kurz="VS" abwechselnd="0" ausweich="" notiz="(nur eins vorhanden)">
+      <Geraet kurz="VS" id="H1-F-0103-04" />
+    </Equipment>
+    <Equipment kurz="ST1" abwechselnd="0" ausweich="" notiz="">
+      <Geraet kurz="ST1" id="H2-T-0211" />
+    </Equipment>
+    <Equipment kurz="ST2" abwechselnd="0" ausweich="" notiz="">
+      <Geraet kurz="ST2" id="H2-T-0212" />
+    </Equipment>
+  </Schritt>
+  <Schritt titel="Mischen" quelle="Mischen" block="Suite 1" tag="4" anzahl="4" abstand="6" startnr="1" art="lauf" text="" notiz="">
+    <Equipment kurz="MT" abwechselnd="0" ausweich="" notiz="">
+      <Geraet kurz="MT" id="H2-T-0210" />
+    </Equipment>
+    <Equipment kurz="ST1" abwechselnd="0" ausweich="" notiz="">
+      <Geraet kurz="ST1" id="H2-T-0211" />
+    </Equipment>
+    <Equipment kurz="ST2" abwechselnd="0" ausweich="" notiz="">
+      <Geraet kurz="ST2" id="H2-T-0212" />
+    </Equipment>
+    <Equipment kurz="MS" abwechselnd="0" ausweich="" notiz="">
+      <Geraet kurz="MS" id="H2-X-0210" />
+    </Equipment>
+    <Equipment kurz="EV" abwechselnd="0" ausweich="" notiz="">
+      <Geraet kurz="EV" id="H2-X-0201" />
+    </Equipment>
+    <Equipment kurz="Pumpe" abwechselnd="0" ausweich="" notiz="">
+      <Geraet kurz="Pumpe" id="H1-P-0102-05" />
+    </Equipment>
+  </Schritt>
+  <Schritt titel="Backfill" quelle="Backfill" block="Suite 1" tag="6" anzahl="4" abstand="6" startnr="1" art="lauf" text="Tag 1 von 2" notiz="" />
+  <Schritt titel="Backfill" quelle="Backfill" block="Suite 1" tag="7" anzahl="4" abstand="6" startnr="1" art="lauf" text="Tag 2 von 2" notiz="" />
+</Paket>
