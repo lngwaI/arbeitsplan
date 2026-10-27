@@ -7,8 +7,8 @@ INHALT
   0_ANLEITUNG.txt        diese Datei (für dich, nicht aufs Laufwerk)
   VERSION.txt            Stand und Prüfsumme (für dich und die IT)
   1_Aufs-Laufwerk\       NUR der Ordner Arbeitsplan_Test darin kommt aufs Laufwerk
-  2_Fuer-die-IT\         IT-Unterlage (Freigabe, Ordnerrechte, offene Fragen) und Kurzanleitung
-  3_Zum-Ausdrucken\      Unterlagen für das Gespräch (nicht aufs Laufwerk)
+  2_Fuer-die-IT\         IT-Unterlage (Freigabe, Ordnerrechte, offene Fragen), Kurzanleitung, Übersicht
+  3_Zum-Ausdrucken\      Übersicht "Was liegt wo?" zum Zeigen, Unterlagen für das Gespräch (nicht aufs Laufwerk)
 
 
 SCHRITT 0 - VORHER (Pflicht)

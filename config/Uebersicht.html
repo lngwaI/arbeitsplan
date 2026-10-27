@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="de"><head><meta charset="utf-8"><title>Arbeitsplan – Was liegt wo?</title>
+<style>
+@page { size: A4; margin: 14mm 16mm; }
+body { font: 9.6pt/1.4 "Segoe UI", Arial, sans-serif; color: #1f2329; margin: 0; background: #fff; }
+h1 { font-size: 17pt; margin: 0 0 2pt; }
+.sub { color: #5b6470; margin-bottom: 8pt; border-bottom: 2px solid #2f6fb3; padding-bottom: 5pt; }
+h2 { font-size: 11pt; color: #2f6fb3; margin: 10pt 0 4pt; break-after: avoid; }
+p { margin: 0 0 4pt; }
+table { border-collapse: collapse; width: 100%; break-inside: auto; }
+th { text-align: left; font-size: 8.6pt; color: #5b6470; font-weight: 600; border-bottom: 1.5px solid #c9cfd6; padding: 2pt 5pt; }
+td { padding: 3pt 5pt; border-bottom: 1px solid #e3e6ea; vertical-align: top; }
+tr { break-inside: avoid; }
+td.p { font-family: Consolas, "Courier New", monospace; font-size: 8.8pt; white-space: nowrap; }
+td.p .i1 { padding-left: 12pt; } td.p .i2 { padding-left: 24pt; }
+.tag { display: inline-block; font-size: 7.8pt; padding: 0 4pt; border-radius: 3px; margin-left: 3pt; vertical-align: 1px; }
+.auto { background: #e7f3ea; color: #1e6b34; } .hand { background: #fff1dc; color: #8a5300; } .hid { background: #eceef1; color: #4a525c; }
+.cols { display: flex; gap: 10pt; } .cols > div { flex: 1; }
+.box { background: #f3f6fa; border-left: 3px solid #2f6fb3; padding: 5pt 8pt; margin-top: 6pt; }
+.warn { border-left-color: #c0392b; background: #fbf1f0; }
+ul { margin: 0; padding-left: 13pt; } li { margin: 1pt 0; }
+.foot { color: #7a828c; font-size: 8pt; margin-top: 10pt; border-top: 1px solid #e3e6ea; padding-top: 4pt; }
+</style></head><body>
+
+<h1>Arbeitsplan (Test) – Was liegt wo?</h1>
+<div class="sub">Übersicht für Vorgesetzte, Kollegen und IT: welche Dateien es gibt, wo sie liegen, wann sie entstehen und wofür sie da sind.</div>
+
+<p><b>Kurz:</b> Der Arbeitsplan ist eine einzelne Programmdatei, die alle direkt vom Laufwerk starten. Die Plandaten liegen verschlüsselt in einem Ordner daneben. Auf den einzelnen PCs wird <b>nichts installiert und nichts von Hand kopiert</b>.
+<span class="tag hand">von Hand</span> = legt der Admin einmal ab &nbsp; <span class="tag auto">automatisch</span> = legt das Programm selbst an &nbsp; <span class="tag hid">versteckt</span> = im Explorer nicht sichtbar</p>
+
+<h2>1. Auf dem Laufwerk (ein Ordner für alle)</h2>
+<table>
+<tr><th style="width:44%">Datei / Ordner</th><th style="width:20%">Wann</th><th>Was steht drin / was macht es</th></tr>
+<tr><td class="p">Arbeitsplan_Test\<span class="tag hand">von Hand</span></td><td>einmal beim Einrichten</td><td>Der gemeinsame Ordner. Nur dieser Ordner kommt aufs Laufwerk.</td></tr>
+<tr><td class="p"><div class="i1">LIESMICH.txt</div></td><td>mit dem Ordner</td><td>Kurzanleitung für Mitarbeiter und Admin.</td></tr>
+<tr><td class="p"><div class="i1">Programm\</div></td><td>mit dem Ordner</td><td>Das Programm. Mitarbeiter brauchen hier nur Lesen/Ausführen.</td></tr>
+<tr><td class="p"><div class="i2">Arbeitsplan.exe</div></td><td>mit dem Ordner; Update = austauschen</td><td>Das Programm selbst. Wird von hier gestartet (Doppelklick oder Desktop-Verknüpfung). Wird sie ausgetauscht, zeigen offene Fenster „NEUE VERSION“.</td></tr>
+<tr><td class="p"><div class="i2">Arbeitsplan.ini</div></td><td>mit dem Ordner; Admin ändert</td><td>Einstellungen für alle: wer einrichten darf (<code>Admins=</code>), welche Systemrechner nur ansehen (<code>NurLesenFuer=</code>), wie oft nach Änderungen geschaut wird, Offline-Tage.</td></tr>
+<tr><td class="p"><div class="i1">daten\<span class="tag hid">versteckt</span></div></td><td>leer mitgeliefert, gefüllt beim Einrichten</td><td>Alle Daten. Hier nichts von Hand kopieren, verschieben oder löschen.</td></tr>
+<tr><td class="p"><div class="i2">arbeitsplan.apdb<span class="tag auto">automatisch</span></div></td><td>beim Einrichten; bei jedem Speichern</td><td>Die Plandaten, verschlüsselt: alle Tage und Blöcke, Blockstruktur, Nutzer und Rechte, Equipment-Katalog, Änderungsprotokoll (wer hat wann was geändert).</td></tr>
+<tr><td class="p"><div class="i2">arbeitsplan.key<span class="tag hid">versteckt</span></div></td><td>einmal beim Einrichten</td><td>Der Schlüssel zu den Daten und Sicherungen. Ohne ihn ist nichts lesbar. Kopie getrennt aufbewahren (IT), nie neu erzeugen.</td></tr>
+<tr><td class="p"><div class="i2">arbeitsplan.apdb.bak1–3<span class="tag auto">automatisch</span></div></td><td>bei jedem Speichern</td><td>Die letzten drei Stände, falls die Datei beschädigt wird.</td></tr>
+<tr><td class="p"><div class="i2">arbeitsplan.lock, .tmp<span class="tag auto">automatisch</span></div></td><td>nur während des Speicherns</td><td>Sorgt dafür, dass zwei PCs nie gleichzeitig schreiben.</td></tr>
+<tr><td class="p"><div class="i2">sperren\<span class="tag auto">automatisch</span></div></td><td>beim Bearbeiten eines Blocks</td><td>Kleine Datei je Block: „wird gerade von … bearbeitet“. Verfällt nach 30 Minuten.</td></tr>
+<tr><td class="p"><div class="i2">Pakete\</div></td><td>wenn jemand ein Paket speichert</td><td>Vorlagen für Kampagnen (<code>.apkg</code>): Ablauf, Läufe, Equipment. Im Test: <code>Testprodukt.apkg</code> mit erfundenen Daten.</td></tr>
+<tr><td class="p"><div class="i2">sicherung\<span class="tag auto">automatisch</span></div></td><td>beim Beenden, höchstens einmal am Tag</td><td>Komplette Sicherungen (<code>.apbak</code>, verschlüsselt). Die letzten 14 bleiben.</td></tr>
+</table>
+
+<h2>2. Auf jedem PC (legt das Programm selbst an)</h2>
+<table>
+<tr><th style="width:44%">Datei</th><th style="width:20%">Wann</th><th>Was steht drin / was macht es</th></tr>
+<tr><td class="p">Desktop\Arbeitsplan.lnk<span class="tag auto">automatisch</span></td><td>erster Start, nach Rückfrage</td><td>Verknüpfung auf die exe im Laufwerk. Liegt der Desktop in OneDrive, ist sie an jedem PC da, an dem man sich anmeldet.</td></tr>
+<tr><td class="p">%LOCALAPPDATA%\Arbeitsplan\<br>cache.apdb, cache.key<span class="tag auto">automatisch</span></td><td>bei jedem Start</td><td>Letzter Stand für den Fall, dass das Laufwerk weg ist: dann nur ansehen („OFFLINE“), höchstens 7 Tage. Nur für diesen Windows-Nutzer lesbar.</td></tr>
+<tr><td class="p">%APPDATA%\Arbeitsplan\<br>keine-verknuepfung<span class="tag auto">automatisch</span></td><td>wenn man „Nein“ sagt</td><td>Merker, damit nicht nochmal nach der Verknüpfung gefragt wird.</td></tr>
+</table>
+<p style="margin-top:4pt">Sonst nichts: keine Installation, keine Registry-Einträge, kein Internet, keine Kopie des Programms auf C:.</p>
+
+<h2>3. Wer macht was</h2>
+<div class="cols">
+<div><b>Mitarbeiter</b><ul>
+<li>Arbeitsplan_Test\Programm\Arbeitsplan.exe starten</li>
+<li>„Verknüpfung anlegen?“ → Ja, danach nur noch das Desktop-Symbol</li>
+<li>Meldung „noch nicht angelegt“ → Admin fragen</li></ul></div>
+<div><b>Admin des Arbeitsplans</b><ul>
+<li>Ordner einmal aufs Laufwerk legen und einrichten</li>
+<li>Nutzer anlegen, Rechte vergeben</li>
+<li>Systemrechner in der ini eintragen</li>
+<li>neue Version: exe austauschen</li></ul></div>
+<div><b>IT</b><ul>
+<li>Ausführung freigeben (Signatur oder Regel)</li>
+<li>Ordnerrechte setzen</li>
+<li>Ordner <code>daten</code> in die Server-Sicherung</li>
+<li>Kopie des Schlüssels sicher aufbewahren</li></ul></div>
+</div>
+
+<div class="box warn"><b>Schutz:</b> Die exe allein startet außerhalb der Firma nicht (kein Datenordner). Kopierte Daten öffnen sich nur in der freigegebenen Windows-Domäne. Die Daten sind verschlüsselt, jede Veränderung von außen wird erkannt. Grenzen dieses Schutzes: siehe IT-Unterlage.</div>
+
+<h2>4. Unterlagen im Testpaket (nicht aufs Laufwerk)</h2>
+<table>
+<tr><td class="p" style="width:44%">0_ANLEITUNG.txt</td><td>Schritt für Schritt: Freigabe, aufs Laufwerk legen, einrichten, Kollegen anlegen, Test-Checkliste mit Notizfeldern, neue Version einspielen.</td></tr>
+<tr><td class="p">VERSION.txt</td><td>Welcher Programmstand es ist und die Prüfsumme der exe (zum Kontrollieren nach dem Kopieren).</td></tr>
+<tr><td class="p">2_Fuer-die-IT\</td><td>IT-Unterlage: was das Programm tut, Ordnerrechte, Freigabe, offene Fragen an die IT.</td></tr>
+<tr><td class="p">3_Zum-Ausdrucken\</td><td>Diese Übersicht und Unterlagen für das Gespräch.</td></tr>
+</table>
+
+<div class="foot">Diese Übersicht wird mit jedem freigegebenen Programmstand neu erzeugt. Stand: siehe VERSION.txt.</div>
+</body></html>
