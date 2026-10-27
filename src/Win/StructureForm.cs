@@ -7,7 +7,7 @@ using Arbeitsplan.Core;
 namespace Arbeitsplan.Win
 {
     // Einstellungen zur Blockstruktur (getrennt vom Tagesgeschaeft): Reihenfolge, Anzahl, Namen, F/S/N-Bezeichnung,
-    // Mindesthoehe, "LKZ gemessen?"-Feld. Zeilen werden nie geloescht (nur neue, noch ungespeicherte lassen sich entfernen).
+    // Mindesthoehe, "LKZ gemessen?"-Feld, Schichtmodus (F/S/N, F/S, Tagesaufgabe), Varianten. Zeilen werden nie geloescht (nur neue, noch ungespeicherte lassen sich entfernen).
     class StructureForm : Form
     {
         readonly DataGridView grid = new DataGridView();
@@ -19,35 +19,61 @@ namespace Arbeitsplan.Win
         {
             this.canNames = canNames; this.canHeight = canHeight; this.canSort = canSort;
             Text = "Blockstruktur";
-            Ui.Dialog(this, 700, 460);
+            Ui.Dialog(this, 860, 460);
 
             Label hint = new Label();
-            hint.Text = "Gilt für alle Tage. Neue Zeilen erscheinen am Ende und lassen sich mit \"Hoch\" verschieben.";
-            hint.SetBounds(10, 8, 680, 20);
+            hint.Text = "Gilt für alle Tage. Neue Zeilen erscheinen am Ende und lassen sich mit \"Hoch\" verschieben. Varianten mit | trennen (z. B. mobil|stationaer).";
+            hint.SetBounds(10, 8, 840, 20);
 
-            grid.SetBounds(10, 32, 680, 372);
+            grid.SetBounds(10, 32, 840, 372);
             grid.AllowUserToAddRows = false; grid.AllowUserToDeleteRows = false; grid.AllowUserToResizeRows = false;
             grid.RowHeadersVisible = false; grid.MultiSelect = false; grid.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
             grid.BackgroundColor = SystemColors.Window;
-            AddText("Name", 190, !canNames); AddText("F", 40, !canNames); AddText("S", 40, !canNames); AddText("N", 40, !canNames);
-            AddText("Höhe (Zeilen)", 100, !canHeight);
-            DataGridViewCheckBoxColumn lk = new DataGridViewCheckBoxColumn(); lk.HeaderText = "LKZ-Feld"; lk.Width = 80; lk.ReadOnly = !canNames;
+            AddText("Name", 170, !canNames); AddText("F", 40, !canNames); AddText("S", 40, !canNames); AddText("N", 40, !canNames);
+            AddText("Höhe (Zeilen)", 90, !canHeight);
+            DataGridViewCheckBoxColumn lk = new DataGridViewCheckBoxColumn(); lk.HeaderText = "LKZ-Feld"; lk.Width = 70; lk.ReadOnly = !canNames;
             grid.Columns.Add(lk);
+            DataGridViewComboBoxColumn md = new DataGridViewComboBoxColumn(); md.HeaderText = "Schichtmodus"; md.Width = 140; md.ReadOnly = !canNames;
+            md.Items.AddRange(ModeNames); md.FlatStyle = FlatStyle.Flat; md.DisplayStyle = DataGridViewComboBoxDisplayStyle.ComboBox;
+            grid.Columns.Add(md);
+            AddText("Varianten", 230, !canNames);
             foreach (RowInfo r in rows)
             {
-                int i = grid.Rows.Add(r.Name, r.Labels[0], r.Labels[1], r.Labels[2], r.MinLines.ToString(), r.HasLkz);
+                int i = grid.Rows.Add(r.Name, r.Labels[0], r.Labels[1], r.Labels[2], r.MinLines.ToString(), r.HasLkz, ModeNames[(int)r.Mode], r.Variants);
                 grid.Rows[i].Tag = r.Clone();
+                LockLabels(i);
             }
+            // Schichtmodus sofort uebernehmen: F/S/N-Bezeichnungen ausgeblendeter Schichten sperren
+            grid.CurrentCellDirtyStateChanged += delegate { if (grid.CurrentCell != null && grid.CurrentCell.ColumnIndex == 6) grid.CommitEdit(DataGridViewDataErrorContexts.Commit); };
+            grid.CellValueChanged += delegate(object s, DataGridViewCellEventArgs e) { if (e.RowIndex >= 0 && e.ColumnIndex == 6) LockLabels(e.RowIndex); };
 
             bAdd.Text = "+ Zeile"; bAdd.SetBounds(10, 414, 80, 30); bAdd.Enabled = canNames; bAdd.Click += delegate { AddRow(); };
             bUp.Text = "Hoch"; bUp.SetBounds(96, 414, 70, 30); bUp.Enabled = canSort; bUp.Click += delegate { MoveSel(-1); };
             bDown.Text = "Runter"; bDown.SetBounds(172, 414, 70, 30); bDown.Enabled = canSort; bDown.Click += delegate { MoveSel(1); };
             bRemove.Text = "Neue entfernen"; bRemove.SetBounds(248, 414, 120, 30); bRemove.Enabled = canNames; bRemove.Click += delegate { RemoveNew(); };
-            bOk.Text = "Speichern"; bOk.SetBounds(490, 414, 95, 30); bOk.Click += delegate { Commit(); };
-            bCancel.Text = "Abbrechen"; bCancel.SetBounds(595, 414, 95, 30); bCancel.DialogResult = DialogResult.Cancel;
+            bOk.Text = "Speichern"; bOk.SetBounds(650, 414, 95, 30); bOk.Click += delegate { Commit(); };
+            bCancel.Text = "Abbrechen"; bCancel.SetBounds(755, 414, 95, 30); bCancel.DialogResult = DialogResult.Cancel;
             CancelButton = bCancel;
 
             Controls.AddRange(new Control[] { hint, grid, bAdd, bUp, bDown, bRemove, bOk, bCancel });
+        }
+
+        // Reihenfolge = ShiftMode (FSN, FS, Task)
+        static readonly string[] ModeNames = { "Früh/Spät/Nacht", "Früh/Spät", "Tagesaufgabe" };
+
+        static ShiftMode ModeOf(object v) { int i = Array.IndexOf(ModeNames, v as string); return i < 0 ? ShiftMode.FSN : (ShiftMode)i; }
+
+        // Bezeichnungen ausgeblendeter Schichten sind gesperrt (grau), bleiben aber erhalten
+        void LockLabels(int i)
+        {
+            if (!canNames) return;   // Spalten sind ohnehin gesperrt
+            RowInfo m = new RowInfo(); m.Mode = ModeOf(grid.Rows[i].Cells[6].Value);
+            for (int s = 0; s < 3; s++)
+            {
+                DataGridViewCell c = grid.Rows[i].Cells[1 + s];
+                c.ReadOnly = !m.HasShift(s) || m.Mode == ShiftMode.Task;
+                c.Style.ForeColor = c.ReadOnly ? SystemColors.GrayText : Color.Empty;
+            }
         }
 
         void AddText(string title, int width, bool readOnly)
@@ -60,7 +86,7 @@ namespace Arbeitsplan.Win
         void AddRow()
         {
             RowInfo r = new RowInfo(); r.Id = 0;
-            int i = grid.Rows.Add("", r.Labels[0], r.Labels[1], r.Labels[2], r.MinLines.ToString(), false);
+            int i = grid.Rows.Add("", r.Labels[0], r.Labels[1], r.Labels[2], r.MinLines.ToString(), false, ModeNames[0], "");
             grid.Rows[i].Tag = r;
             grid.CurrentCell = grid.Rows[i].Cells[0];
         }
@@ -106,6 +132,10 @@ namespace Arbeitsplan.Win
                     r.Name = S(row.Cells[0].Value);
                     for (int s = 0; s < 3; s++) r.Labels[s] = S(row.Cells[1 + s].Value);
                     r.HasLkz = row.Cells[5].Value is bool && (bool)row.Cells[5].Value;
+                    r.Mode = ModeOf(row.Cells[6].Value);
+                    List<string> v = new List<string>();
+                    foreach (string x in S(row.Cells[7].Value).Split('|')) if (x.Trim().Length > 0 && !v.Contains(x.Trim())) v.Add(x.Trim());
+                    r.Variants = string.Join("|", v.ToArray());
                 }
                 if (canHeight)
                 {

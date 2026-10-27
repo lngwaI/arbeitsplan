@@ -50,7 +50,7 @@ namespace Arbeitsplan.Win
             }
             Entry keep = c.Cur, r = old.Clone();
             c.Cur = r; LoadEditors(c); c.Cur = keep;
-            c.Content = r.Content; c.People = (string[])r.People.Clone(); c.Lkz = old.Lkz; c.Dirty = true;
+            c.Show(r);
             fmtChanged = r.SpanKey() != keep.SpanKey();
             UpdateChanged();
             view.Relayout();

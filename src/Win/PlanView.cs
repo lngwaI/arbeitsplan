@@ -17,7 +17,15 @@ namespace Arbeitsplan.Win
         public string Content;                              // angezeigter/bearbeiteter Text
         public string[] People = { "", "", "" };
         public bool Lkz;                                    // angezeigter/bearbeiteter LKZ-Haken
+        public string Variant = "";                         // angezeigte/bearbeitete Variante
+        public List<string> Marks = new List<string>();     // angezeigte/bearbeitete Pflichtpunkte
         public bool Editing, Dirty = true;
+
+        // Angezeigten Stand aus e uebernehmen (ohne Cur zu aendern)
+        public void Show(Entry e)
+        {
+            Content = e.Content; People = (string[])e.People.Clone(); Lkz = e.Lkz; Variant = e.Variant; Marks = new List<string>(e.Marks); Dirty = true;
+        }
         public TextBlock CB;
         public TextBlock[] PB = new TextBlock[3];
         public int Hits;
@@ -31,7 +39,7 @@ namespace Arbeitsplan.Win
     // Nur beim Bearbeiten legt MainForm Eingabefelder ueber Inhalt und Kuerzel des aktiven Blocks.
     class PlanView : Control
     {
-        public const int TP = 3, TV = 3, ShiftLines = 3;
+        public const int TP = 3, TV = 3, ShiftLines = 3, TaskLines = 1;
         public static int HeadH { get { return Theme.Current.HeadH; } }
         public static int LkzH { get { return Theme.Current.LkzH; } }
         public static int LW { get { return Theme.Current.LW; } }
@@ -57,6 +65,7 @@ namespace Arbeitsplan.Win
         int lastW = -1;
         int lkzLabelW, lkzTagW;                             // Textbreiten, einmal je Layout gemessen (nicht je Zelle im Paint)
         int[] nameW;                                        // null = neu messen
+        int[] lblW;                                         // Breite der Schichtbezeichnung je Zeile (LabelW)
         readonly Dictionary<string, EquipmentInfo> equipCache = new Dictionary<string, EquipmentInfo>();   // je Rebuild (MarkAllDirty)
 
         public PlanView(Font f)
@@ -86,17 +95,17 @@ namespace Arbeitsplan.Win
                     CellData d = new CellData();
                     d.Day = start.AddDays(c); d.Col = c; d.RowIndex = r;
                     d.Cur = store.Get(d.Day, Rows[r].Id) ?? new Entry();
-                    d.Content = d.Cur.Content; d.People = (string[])d.Cur.People.Clone(); d.Lkz = d.Cur.Lkz;
+                    d.Show(d.Cur);
                     Cells.Add(d);
                 }
         }
 
-        // Standard-Zuklappen: Zeile ohne Inhalt und ohne LKZ-Haken im angezeigten Zeitraum ist zugeklappt.
+        // Standard-Zuklappen: Zeile ohne Inhalt und ohne Haken/Variante im angezeigten Zeitraum ist zugeklappt.
         public bool[] DefaultFold()
         {
             bool[] d = new bool[Rows.Count];
             for (int r = 0; r < d.Length; r++) d[r] = true;
-            foreach (CellData c in Cells) if (c.RowIndex < d.Length && (!c.Cur.IsEmpty || c.Cur.Lkz)) d[c.RowIndex] = false;
+            foreach (CellData c in Cells) if (c.RowIndex < d.Length && !c.Cur.IsBlank) d[c.RowIndex] = false;
             return d;
         }
         // Alle Bloecke neu umbrechen; Equipment-Status wird dabei neu abgefragt.
@@ -208,7 +217,7 @@ namespace Arbeitsplan.Win
             else
             {
                 c.CB = TextBlock.Build(ContentPieces(c, out h), Font, tw);
-                for (int s = 0; s < 3; s++) { c.PB[s] = TextBlock.Build(PeoplePieces(c.People[s], out h2), Font, pw); h += h2; }
+                for (int s = 0; s < 3; s++) { c.PB[s] = TextBlock.Build(PeoplePieces(c.People[s], out h2), Font, pw); if (Rows[c.RowIndex].HasShift(s)) h += h2; }
             }
             c.Hits = h;
             c.Dirty = false;
@@ -223,11 +232,13 @@ namespace Arbeitsplan.Win
             if (w < 100 || n == 0) return;
             if (w != lastW) { MarkAllDirty(); lastW = w; }
             ColW = Math.Max(60, (w - 2 * Pad - 6 * Gap) / 7);
-            int iw = ColW - 2, tw = iw - 2 * TP, pw = iw - LW - 2 * TP, lh = Font.Height;
+            int iw = ColW - 2, tw = iw - 2 * TP, lh = Font.Height;
+            lblW = new int[n];
+            for (int r = 0; r < n; r++) lblW[r] = LabelW(Rows[r]);
 
             if (Collapsed.Length != n) Collapsed = new bool[n];
             HitCount = 0;
-            foreach (CellData c in Cells) { if (Collapsed[c.RowIndex]) continue; if (c.Dirty) Build(c, tw, pw); HitCount += c.Hits; }
+            foreach (CellData c in Cells) { if (Collapsed[c.RowIndex]) continue; if (c.Dirty) Build(c, tw, iw - lblW[c.RowIndex] - 2 * TP); HitCount += c.Hits; }
 
             nameW = null;   // Textbreiten beim naechsten Zeichnen neu messen
 
@@ -261,11 +272,11 @@ namespace Arbeitsplan.Win
                 c.RLkz = new Rectangle(x + 1, cy, iw, lk[r]);
                 cy += lk[r];
                 c.RContent = new Rectangle(x + 1, cy, iw, ch[r]);
-                int sy = cy + ch[r] + 1;
-                for (int s = 0; s < 3; s++)
+                int sy = cy + ch[r] + 1, lw = lblW[r];
+                for (int s = 0; s < 3; s++)   // ausgeblendete Schicht: Hoehe 0 (nicht gezeichnet, nicht anklickbar, kein Editor)
                 {
-                    c.RLbl[s] = new Rectangle(x + 1, sy, LW, sh[r][s]);
-                    c.RPpl[s] = new Rectangle(x + 1 + LW, sy, iw - LW, sh[r][s]);
+                    c.RLbl[s] = new Rectangle(x + 1, sy, lw, sh[r][s]);
+                    c.RPpl[s] = new Rectangle(x + 1 + lw, sy, iw - lw, sh[r][s]);
                     sy += sh[r][s];
                 }
             }
@@ -277,28 +288,50 @@ namespace Arbeitsplan.Win
         // Benoetigte Hoehe von Inhaltsfeld (Rueckgabe) und Schichtfeldern einer aufgeklappten Zeile (ueber alle 7 Spalten).
         int RowNeeds(int r, int lh, out int[] sh)
         {
-            int ch = Rows[r].MinLines * lh + 2 * TV;
-            sh = new int[] { ShiftLines * lh + 2 * TV, ShiftLines * lh + 2 * TV, ShiftLines * lh + 2 * TV };
+            RowInfo ri = Rows[r];
+            int ch = ri.MinLines * lh + 2 * TV, min = (ri.Mode == ShiftMode.Task ? TaskLines : ShiftLines) * lh + 2 * TV;
+            sh = new int[3];
+            for (int s = 0; s < 3; s++) sh[s] = ri.HasShift(s) ? min : 0;
             if (Collapsed[r]) return ch;
             foreach (CellData c in Cells)
             {
                 if (c.RowIndex != r) continue;
                 int extra = c.Editing ? lh : 0;      // Editor bricht minimal anders um: eine Zeile Reserve
                 ch = Math.Max(ch, c.CB.Height + 2 * TV + extra);
-                for (int s = 0; s < 3; s++) sh[s] = Math.Max(sh[s], c.PB[s].Height + 2 * TV + extra);
+                for (int s = 0; s < 3; s++) if (sh[s] > 0) sh[s] = Math.Max(sh[s], c.PB[s].Height + 2 * TV + extra);
             }
             return ch;
+        }
+
+        // Breite der Schichtbezeichnung: Standard (ein Buchstabe) = schmaler Farbstreifen, laengere Namen so breit wie noetig
+        // (hoechstens 1/3 der Spalte), Tagesaufgabe ohne Bezeichnung.
+        int LabelW(RowInfo ri)
+        {
+            if (ri.Mode == ShiftMode.Task) return 0;
+            int w = LW;
+            for (int s = 0; s < 3; s++)
+                if (ri.HasShift(s) && ri.Labels[s].Length > 1) w = Math.Max(w, TextW(ri.Labels[s], bold) + 8);
+            return Math.Min(w, ColW / 3);
+        }
+
+        readonly Dictionary<string, int> textW = new Dictionary<string, int>();
+        int TextW(string s, Font f)
+        {
+            string k = (f == bold ? "b|" : "n|") + s;
+            int w;
+            if (!textW.TryGetValue(k, out w)) { w = TextRenderer.MeasureText(s, f, new Size(1000, 100), TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix).Width; textW[k] = w; }
+            return w;
         }
 
         // Nach einer Eingabe im Editor: nur diesen Block neu umbrechen; volles Layout nur, wenn sich die Hoehe der Zeile aendert.
         public void RelayoutCell(CellData c)
         {
             int n = Rows.Count;
-            bool full = c == null || Width != lastW || Collapsed.Length != n || c.RowIndex >= n || Collapsed[c.RowIndex] || c.RContent.IsEmpty;
+            bool full = c == null || Width != lastW || Collapsed.Length != n || lblW == null || lblW.Length != n || c.RowIndex >= n || Collapsed[c.RowIndex] || c.RContent.IsEmpty;
             if (!full) foreach (CellData x in Cells) if (x != c && x.Dirty && !Collapsed[x.RowIndex]) { full = true; break; }
             if (full) { Relayout(); return; }
             int hits = c.Hits;
-            if (c.Dirty) Build(c, ColW - 2 - 2 * TP, ColW - 2 - LW - 2 * TP);
+            if (c.Dirty) Build(c, ColW - 2 - 2 * TP, ColW - 2 - lblW[c.RowIndex] - 2 * TP);
             int[] sh;
             int ch = RowNeeds(c.RowIndex, Font.Height, out sh);
             if (c.Hits != hits || ch != c.RContent.Height || sh[0] != c.RPpl[0].Height || sh[1] != c.RPpl[1].Height || sh[2] != c.RPpl[2].Height) { Relayout(); return; }
@@ -372,7 +405,7 @@ namespace Arbeitsplan.Win
             Rectangle nr = new Rectangle(c.RHead.X + th.HeadTextX + mk, c.RHead.Y, c.RHead.Width - 2 * th.HeadTextX - right - mk, c.RHead.Height);
             if (collapsed)
             {
-                bool filled = !c.Cur.IsEmpty || c.Cur.Lkz;
+                bool filled = !c.Cur.IsBlank;
                 if (filled)   // zugeklappt, aber Inhalt vorhanden: Hinweispunkt vor dem Pfeil
                     g.FillEllipse(th.Brush(th.Dot),c.RHead.Right - 29, c.RHead.Y + (c.RHead.Height - 7) / 2, 8, 8);
                 nr.Width -= filled ? 12 : 0;
@@ -396,13 +429,20 @@ namespace Arbeitsplan.Win
             }
 
             if (!c.Editing) c.CB.Draw(g, c.RContent.X + TP, c.RContent.Y + TV);
+            bool task = ri.Mode == ShiftMode.Task;
             for (int s = 0; s < 3; s++)
             {
-                Fill(g, th.ShiftLabel[s], c.RLbl[s]);
-                Fill(g, th.ShiftBack[s], c.RPpl[s]);
-                TextRenderer.DrawText(g, ri.Labels[s], bold, new Rectangle(c.RLbl[s].X, c.RLbl[s].Y + 1, c.RLbl[s].Width, c.RLbl[s].Height), th.ShiftLabelText, tf | TextFormatFlags.HorizontalCenter | TextFormatFlags.EndEllipsis);
+                if (c.RPpl[s].Height == 0) continue;   // ausgeblendete Schicht (Daten bleiben erhalten)
+                Fill(g, task ? th.TaskBack : th.ShiftBack[s], c.RPpl[s]);
+                if (c.RLbl[s].Width > 0)
+                {
+                    Fill(g, th.ShiftLabel[s], c.RLbl[s]);
+                    TextRenderer.DrawText(g, ri.Labels[s], bold, new Rectangle(c.RLbl[s].X, c.RLbl[s].Y + 1, c.RLbl[s].Width, c.RLbl[s].Height), th.ShiftLabelText, tf | TextFormatFlags.HorizontalCenter | TextFormatFlags.EndEllipsis);
+                }
                 if (!c.Editing) c.PB[s].Draw(g, c.RPpl[s].X + TP, c.RPpl[s].Y + TV);
-                if (th.ShiftSep) g.DrawLine(th.Pen(th.ShiftLine, 1),c.RLbl[s].X, c.RLbl[s].Y, c.RPpl[s].Right - 1, c.RLbl[s].Y);
+                if (task && !c.Editing && c.People[s].Trim().Length == 0)   // Tagesaufgabe: Hinweis statt Schichtname
+                    TextRenderer.DrawText(g, "Erledigt von", Font, new Rectangle(c.RPpl[s].X + TP, c.RPpl[s].Y + TV, c.RPpl[s].Width - TP, Font.Height), th.Muted, tf);
+                if (th.ShiftSep) g.DrawLine(th.Pen(th.ShiftLine, 1), c.RLbl[s].X, c.RLbl[s].Y, c.RPpl[s].Right - 1, c.RLbl[s].Y);
             }
         }
 

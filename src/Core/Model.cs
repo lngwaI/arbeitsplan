@@ -39,6 +39,9 @@ namespace Arbeitsplan.Core
             return e;
         }
         public bool IsEmpty { get { return Content.Length == 0 && People[0].Length == 0 && People[1].Length == 0 && People[2].Length == 0; } }
+        // Leer UND ohne Haken/Variante (Zuklappen, Hinweispunkt); IsEmpty bleibt fuer Rechte/Pakete wie bisher
+        public bool IsBlank { get { return IsEmpty && !Lkz && Variant.Length == 0 && Marks.Count == 0; } }
+        public string MarksKey() { return string.Join("|", Marks.ToArray()); }
         public string SpanKey() { string k = ""; foreach (FormatSpan s in Spans) k += s.Key(); return k; }
     }
 
@@ -55,6 +58,9 @@ namespace Arbeitsplan.Core
         public bool HasLkz;                         // Feld "LKZ gemessen?" zwischen Titel und Inhalt
 
         public RowInfo Clone() { RowInfo r = (RowInfo)MemberwiseClone(); r.Labels = (string[])Labels.Clone(); return r; }
+        // Schichtfeld s (0=F, 1=S, 2=N) sichtbar? FS ohne N, Tagesaufgabe nur ein Feld (F = "Erledigt von"); Daten bleiben erhalten.
+        public bool HasShift(int s) { return s == 0 || (s == 1 && Mode != ShiftMode.Task) || (s == 2 && Mode == ShiftMode.FSN); }
+        public string[] VariantList() { return Variants.Length == 0 ? new string[0] : Variants.Split('|'); }
     }
 
     public class SearchHit { public DateTime Day; public int RowId; }
@@ -347,6 +353,12 @@ namespace Arbeitsplan.Core
             }
             Entry c = new Entry(); c.Content = "Raumreinigung"; c.People = new[] { "BEER, WEPA", "", "" };
             s.Save(monday.AddDays(2), cc, c);
+            // Schichtmodus: Raum CC = Tagesaufgabe ("Erledigt von"), Versand = nur Frueh/Spaet
+            List<RowInfo> rs = s.GetRows();
+            foreach (RowInfo r in rs) { if (r.Name == "Raum CC") r.Mode = ShiftMode.Task; if (r.Name == "Versand") r.Mode = ShiftMode.FS; }
+            s.SaveStructure(rs);
+            Entry v = new Entry(); v.Content = "Versand Kühlware"; v.People = new[] { "WEPA", "BEER", "" };
+            s.Save(monday.AddDays(1), s.IdOf("Versand"), v);
             return s;
         }
     }
