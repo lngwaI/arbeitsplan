@@ -57,7 +57,34 @@ namespace Arbeitsplan.Core
             return defaultFolder;
         }
 
-        public static void SaveFolder(string iniPath, string folder) { File.WriteAllText(iniPath, "ordner=" + folder + "\r\n", Utf8); }
+        public static void SaveFolder(string iniPath, string folder) { SaveSetting(iniPath, "ordner", folder); }
+
+        // "stunden=<n>": Abstand der automatischen Sicherung (hat wie "ordner=" Vorrang vor Arbeitsplan.ini)
+        public static int LoadHours(string iniPath, int defaultHours)
+        {
+            int n;
+            try
+            {
+                if (File.Exists(iniPath))
+                    foreach (string l in File.ReadAllLines(iniPath, Utf8))
+                        if (l.StartsWith("stunden=") && int.TryParse(l.Substring(8).Trim(), NumberStyles.Integer, Inv, out n)) return ClampHours(n);
+            }
+            catch (IOException) { }
+            catch (UnauthorizedAccessException) { }
+            return ClampHours(defaultHours);
+        }
+
+        public const int MaxHours = 720;
+        public static int ClampHours(int h) { return Math.Max(1, Math.Min(MaxHours, h)); }
+
+        // Eine Zeile "key=value" setzen, andere Zeilen bleiben erhalten
+        public static void SaveSetting(string iniPath, string key, string value)
+        {
+            List<string> lines = new List<string>();
+            if (File.Exists(iniPath)) foreach (string l in File.ReadAllLines(iniPath, Utf8)) if (!l.StartsWith(key + "=") && l.Trim().Length > 0) lines.Add(l);
+            lines.Add(key + "=" + value);
+            File.WriteAllText(iniPath, string.Join("\r\n", lines.ToArray()) + "\r\n", Utf8);
+        }
 
         // ---------- Schreiben / Aufraeumen ----------
 
@@ -75,7 +102,14 @@ namespace Arbeitsplan.Core
             return f.Length == 0 ? (DateTime?)null : File.GetLastWriteTime(f[f.Length - 1]);
         }
 
-        public static bool AutoDue(string folder) { DateTime? l = Last(folder); return l == null || DateTime.Now - l.Value > TimeSpan.FromHours(24); }
+        public static bool AutoDue(string folder, int hours) { return Due(Last(folder), DateTime.Now, hours); }
+
+        // Automatische Sicherung faellig: noch keine oder die letzte ist mindestens "hours" Stunden alt. Liegt die letzte in der
+        // Zukunft (Uhr des Servers vor), ist nichts faellig: sonst wuerde bei jeder Pruefung gesichert und die Historie verdraengt.
+        public static bool Due(DateTime? last, DateTime now, int hours)
+        {
+            return last == null || now - last.Value >= TimeSpan.FromHours(ClampHours(hours));
+        }
 
         // Schreibt die Sicherung (erst .tmp, dann umbenennen) und behaelt die letzten Keep Dateien. Liefert den Pfad.
         // Schluessel des Datenspeichers (Datei arbeitsplan.key); null = Store ohne Schluessel (MemoryStore/Testdaten:
@@ -88,11 +122,14 @@ namespace Arbeitsplan.Core
 
         public static string WriteTo(IDataStore store, string folder, string tag) { return WriteTo(store, folder, tag, KeyOf(store)); }
 
-        public static string WriteTo(IDataStore store, string folder, string tag, string key)
+        public static string WriteTo(IDataStore store, string folder, string tag, string key) { return WriteTo(store.Snapshot(), folder, tag, key); }
+
+        // Schreibt einen bereits geholten Stand (auch aus einem Hintergrund-Thread: braucht den Store nicht mehr)
+        public static string WriteTo(StoreData snapshot, string folder, string tag, string key)
         {
             Directory.CreateDirectory(folder);
             string path = Path.Combine(folder, Prefix + DateTime.Now.ToString("yyyy-MM-dd_HHmmss", Inv) + (tag != null ? "_" + tag : "") + Ext);
-            Write(store.Snapshot(), path, key);
+            Write(snapshot, path, key);
             string[] f = Files(folder);
             for (int i = 0; i < f.Length - Keep; i++)
                 try { File.Delete(f[i]); } catch (Exception) { }   // ohne Loeschrecht (Ordnerrechte der IT) bleiben aeltere liegen
@@ -171,14 +208,14 @@ namespace Arbeitsplan.Core
             return ms;
         }
 
-        static byte[] Hash(byte[] b) { return Hash(b, 0, b.Length); }
-        static byte[] Hash(byte[] b, int off, int len)
+        internal static byte[] Hash(byte[] b) { return Hash(b, 0, b.Length); }
+        internal static byte[] Hash(byte[] b, int off, int len)
         {
             try { using (SHA256 h = new SHA256Managed()) return h.ComputeHash(b, off, len); }
             catch (InvalidOperationException) { using (SHA256 h = new SHA256CryptoServiceProvider()) return h.ComputeHash(b, off, len); }   // FIPS-Richtlinie
         }
 
-        static string Hex(byte[] b) { StringBuilder sb = new StringBuilder(); foreach (byte x in b) sb.Append(x.ToString("x2")); return sb.ToString(); }
+        internal static string Hex(byte[] b) { StringBuilder sb = new StringBuilder(); foreach (byte x in b) sb.Append(x.ToString("x2")); return sb.ToString(); }
 
         // ---------- XML ----------
 

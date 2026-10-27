@@ -57,6 +57,7 @@ namespace Arbeitsplan.Win
             crumbs.Height = Font.Height * 2 + 8; crumbs.TabStop = false; crumbs.PartClicked += CrumbClicked;
             Controls.Add(details); Controls.Add(left); Controls.Add(preview); Controls.Add(bar); Controls.Add(crumbs);   // zuletzt hinzugefuegt = zuerst angedockt
             left.TabIndex = 0; details.TabIndex = 1; preview.TabIndex = 2; bar.TabIndex = 3;
+            InitSizing();   // Doppelpuffer, Layoutsperre beim Ziehen (PackageForm.Sizing.cs)
             Theme.Current.Style(this);
             LoadPackage(initial);
             ActiveControl = lv;   // Start im Ablauf, nicht mit markiertem Namen
@@ -325,7 +326,8 @@ namespace Arbeitsplan.Win
             Text = "Paket-Editor – " + nm + (dirty ? " *" : "");
             List<string> parts = new List<string>();
             parts.Add((tName.Text.Trim().Length > 0 ? "Produkt „" + nm + "“" : "Produkt (noch ohne Namen)") + (Package.IsCode4(Product) ? " (" + Product + ")" : ""));
-            parts.Add("Ablauf: " + steps.Count + (steps.Count == 1 ? " Schritt" : " Schritte"));
+            string camp = CampaignText();
+            parts.Add("Ablauf: " + steps.Count + (steps.Count == 1 ? " Schritt" : " Schritte") + (camp != null ? " (" + camp + ")" : ""));
             if (cur != null) parts.Add("Schritt " + No(cur) + ": " + TitleOf(cur));
             if (dirty) crumbs.Set(parts.ToArray(), "● Ungespeicherte Änderungen", Theme.Current.BorderEdit);
             else crumbs.Set(parts.ToArray(), file != null ? "Gespeichert: " + System.IO.Path.GetFileName(file) : "Noch nicht als Datei gespeichert", Section.HelpColor);

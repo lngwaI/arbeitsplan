@@ -259,6 +259,7 @@ namespace Arbeitsplan.Win
             SelfTestStammdaten(sb);
             SelfTestRoles(sb);
             SelfTestPlan(sb);
+            SelfTestF(sb);   // Plan-Datei, Sicherung nach Zeitplan, Paket-Editor-Groesse (MainForm.SelfTestF.cs)
             sb.AppendLine(PackageForm.TestFlow(store, equip, start));
             quiet = false;
             return sb.ToString();

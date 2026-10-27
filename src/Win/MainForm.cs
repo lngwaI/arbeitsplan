@@ -28,6 +28,7 @@ namespace Arbeitsplan.Win
         UserDb users;
         readonly FileStore fstore;   // null = Testdaten im Speicher
         readonly AppConfig cfg;
+        readonly PlanSnapshot shownPlan;   // != null: Fenster zeigt eine Plan-Datei (nur ansehen)
         readonly IEquipmentStatusProvider equip = new MockEquipmentProvider();
         readonly User me;
         readonly List<RowInfo> rowInfo = new List<RowInfo>();
@@ -60,9 +61,12 @@ namespace Arbeitsplan.Win
         int hitPos = -1;
 
         // cfg == null: Testdaten im Speicher (nur Test-Build); sonst verschluesselte Datendatei im Datenordner (FileStore)
-        public MainForm(string login, bool failSaves, AppConfig cfg, FileStore fs)
+        public MainForm(string login, bool failSaves, AppConfig cfg, FileStore fs) : this(login, failSaves, cfg, fs, null) { }
+
+        // plan != null: Plan-Datei (.applan) nur ansehen, ohne Datenordner (MainForm.PlanFile.cs)
+        MainForm(string login, bool failSaves, AppConfig cfg, FileStore fs, PlanSnapshot plan)
         {
-            this.cfg = cfg;
+            this.cfg = cfg; shownPlan = plan;
             StartPosition = FormStartPosition.CenterScreen;
             ClientSize = new Size(1280, 720);
             MinimumSize = new Size(900, 600);
@@ -72,7 +76,13 @@ namespace Arbeitsplan.Win
             KeyPreview = true;
 
             start = MondayOf(DateTime.Today);
-            if (cfg == null)
+            if (plan != null)
+            {
+                start = MondayOf(plan.From);
+                store = ViewStore(plan); systemPc = true;
+                users = UserDb.Default(); locks = new MemoryLockService();
+            }
+            else if (cfg == null)
             {
                 MemoryStore ms = MemoryStore.Sample(start);
                 ms.FailSaves = failSaves; systemPc = failSaves;
@@ -162,13 +172,16 @@ namespace Arbeitsplan.Win
             file.DropDownItems.Add("Als PDF speichern…", null, delegate { ExportImage(true); }).Enabled = exp;
             file.DropDownItems.Add("In Zwischenablage kopieren", null, delegate { ExportClipboard(); }).Enabled = exp;
             file.DropDownItems.Add("Als Paket speichern (.apkg)…", null, delegate { ExportPackage(); }).Enabled = exp;
+            file.DropDownItems.Add(new ToolStripSeparator());
+            file.DropDownItems.Add("Als Plan-Datei speichern (.applan)…", null, delegate { SavePlanFile(); }).Enabled = exp;
+            file.DropDownItems.Add("Plan-Datei ansehen…", null, delegate { OpenPlanFile(); });
 
             ToolStripMenuItem pk = new ToolStripMenuItem("Pakete");
             pk.DropDownItems.Add("Kampagne starten…", null, delegate { StartCampaignFromFile(); }).Enabled = me.Has(Perm.ImportPackage);
             pk.DropDownItems.Add(new ToolStripSeparator());
             pk.DropDownItems.Add("Neues Paket anlegen…", null, delegate { OpenPackageEditor(null); });
             pk.DropDownItems.Add("Paket öffnen und bearbeiten…", null, delegate { ImportPackageFile(); });
-            pk.Enabled = pkg;
+            pk.Enabled = pkg && shownPlan == null;
 
             ToolStripMenuItem set = new ToolStripMenuItem("Einstellungen");
             ToolStripItem st = set.DropDownItems.Add("Blockstruktur…", null, delegate { EditStructure(); }); st.Enabled = structure;
