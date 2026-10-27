@@ -1,0 +1,90 @@
+using System;
+using System.Drawing;
+using System.Reflection;
+using System.Windows.Forms;
+using Arbeitsplan.Core;
+
+namespace Arbeitsplan.Win
+{
+    // Paket-Editor beim Vergroessern/Verkleinern: Doppelpuffer gegen Flackern; waehrend des Ziehens am Fensterrand (ResizeBegin..ResizeEnd)
+    // nur die Dock-Bereiche mitziehen, Schritt-Details und Pruefhinweise erst am Ende einmal neu anordnen. Listen werden nie neu aufgebaut.
+    partial class PackageForm
+    {
+        bool sizing, sizePending;
+        int hintsW;   // Breite, fuer die die Pruefhinweise zuletzt umbrochen wurden
+
+        // Standard-Steuerelemente (Panel, ListView) puffern; die Eigenschaft ist protected
+        static void Buffered(params Control[] cs)
+        {
+            PropertyInfo p = typeof(Control).GetProperty("DoubleBuffered", BindingFlags.Instance | BindingFlags.NonPublic);
+            foreach (Control c in cs) p.SetValue(c, true, null);
+        }
+
+        void InitSizing()
+        {
+            DoubleBuffered = true;
+            Buffered(left, lv, scroll, body, equipRows, stripScroll);
+            body.Resize += delegate { if (sizing) sizePending = true; else LayoutDetails(); };
+            lbHints.Resize += delegate { if (sizing) sizePending = true; else RewrapHints(); };
+        }
+
+        void RewrapHints() { if (lbHints.Width != hintsW) { hintsW = lbHints.Width; UpdateHints(); } }
+
+        protected override void OnResizeBegin(EventArgs e) { sizing = true; base.OnResizeBegin(e); }
+
+        protected override void OnResizeEnd(EventArgs e)
+        {
+            base.OnResizeEnd(e);
+            sizing = false;
+            if (!sizePending) return;
+            sizePending = false;
+            body.SuspendLayout();
+            LayoutDetails();
+            body.ResumeLayout();
+            RewrapHints();
+        }
+
+        // Kopfzeile: Kampagne aus dem Hauptlauf (wie Package.Schedule: Lauf-Schritt mit den meisten Wiederholungen) aus
+        // Startnummer, Wiederholen und Abstand: "Lauf 12340001 bis 12340005 · alle 3 Tage"; null = kein Lauf im Ablauf
+        string CampaignText()
+        {
+            PackageStep m = null;
+            foreach (PackageStep s in Ordered()) if (s.Kind == StepKind.Run && (m == null || s.Count > m.Count)) m = s;
+            if (m == null) return null;
+            int iv = Math.Max(1, m.Interval);
+            return "Lauf " + m.RunNo(Product, 0) + (m.Count > 1 ? " bis " + m.RunNo(Product, m.Count - 1) + " · alle " + iv + (iv == 1 ? " Tag" : " Tage") : "");
+        }
+
+#if TESTHOOKS
+        // Fenster ziehen (ResizeBegin, mehrere Groessen, ResizeEnd): Eintraege der Ablaufliste, Geraetezeilen und Pruefhinweise bleiben
+        // dieselben Objekte (kein Neuaufbau); nach dem Loslassen passt die Equipment-Gruppe wieder genau in die neue Breite.
+        public static string TestResize(IDataStore store, IEquipmentStatusProvider equip, DateTime start)
+        {
+            PackageForm f = new PackageForm(store, equip, start, Package.SampleCampaign("Groessentest"), true, true);
+            f.StartPosition = FormStartPosition.Manual; f.Location = new Point(0, 0);
+            try
+            {
+                f.Show(); Application.DoEvents();
+                foreach (PackageStep s in f.Ordered()) if (s.Equipment.Count > 0) { f.Bind(s); break; }
+                Application.DoEvents();
+                ListViewItem it0 = f.lv.Items.Count > 0 ? f.lv.Items[0] : null;
+                Control eq0 = f.equipRows.Controls.Count > 0 ? f.equipRows.Controls[0] : null;
+                object h0 = f.lbHints.Items.Count > 0 ? f.lbHints.Items[0] : null;
+                int w0 = f.gEquip.Width;
+                f.OnResizeBegin(EventArgs.Empty);
+                for (int i = 1; i <= 5; i++) { f.ClientSize = new Size(1190 - 40 * i, 700 - 10 * i); Application.DoEvents(); }
+                bool locked = f.gEquip.Width == w0 && f.sizePending;
+                bool same = f.lv.Items.Count > 0 && f.lv.Items[0] == it0 && eq0 != null && f.equipRows.Controls.Count > 0 && f.equipRows.Controls[0] == eq0
+                    && (h0 == null || (f.lbHints.Items.Count > 0 && f.lbHints.Items[0] == h0));
+                f.OnResizeEnd(EventArgs.Empty); Application.DoEvents();
+                bool fit = f.gEquip.Width == f.body.ClientSize.Width && !f.sizePending && f.equipRows.Controls.Count > 0 && f.equipRows.Controls[0] == eq0;
+                string camp = f.CampaignText() ?? "";
+                return "Paket-Editor Größe: Layoutsperre beim Ziehen " + (locked ? "ok" : "FEHLER") + ", kein Neuaufbau " + (same ? "ok" : "FEHLER")
+                    + ", danach angepasst " + (fit ? "ok" : "FEHLER") + ", Kopfzeile Kampagne " + (camp.StartsWith("Lauf ") ? "ok (" + camp + ")" : "FEHLER");
+            }
+            catch (Exception ex) { return "Paket-Editor Größe: FEHLER " + ex.GetType().Name + ": " + ex.Message; }
+            finally { f.dirty = false; f.Close(); f.Dispose(); }
+        }
+#endif
+    }
+}

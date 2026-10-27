@@ -57,8 +57,7 @@ namespace Arbeitsplan.Win
             sec.Dock = DockStyle.Fill;
             marker.Height = Font.Height + 14; marker.TabStop = false;
             scroll.Dock = DockStyle.Fill; scroll.AutoScroll = true; scroll.Tag = "keep";
-            body.Dock = DockStyle.Top; body.Tag = "keep"; body.Width = 680;
-            body.Resize += delegate { LayoutDetails(); };
+            body.Dock = DockStyle.Top; body.Tag = "keep"; body.Width = 680;   // Resize -> LayoutDetails (PackageForm.Sizing.cs)
             scroll.Controls.Add(body);
             Panel gap = new Panel(); gap.Tag = "keep"; gap.Dock = DockStyle.Top; gap.Height = 8;
             sec.Controls.Add(scroll); sec.Controls.Add(gap); sec.Controls.Add(marker);
@@ -160,8 +159,7 @@ namespace Arbeitsplan.Win
                 Rectangle r = new Rectangle(e.Bounds.X + 3, e.Bounds.Y + 2, e.Bounds.Width - 6, e.Bounds.Height - 2);
                 TextRenderer.DrawText(e.Graphics, lbHints.Items[e.Index].ToString(), Font, r, sel ? SystemColors.HighlightText : lbHints.ForeColor, TextFormatFlags.WordBreak | TextFormatFlags.NoPrefix);
             };
-            int hintsW = 0;   // nur bei echter Breitenaenderung neu umbrechen
-            lbHints.Resize += delegate { if (lbHints.Width != hintsW) { hintsW = lbHints.Width; UpdateHints(); } };
+            // Resize: nur bei echter Breitenaenderung neu umbrechen (RewrapHints, PackageForm.Sizing.cs)
             lbHints.Click += delegate { Hint h = lbHints.SelectedItem as Hint; if (h == null) return; if (h.Step != null) Bind(h.Step); if (h.Field != null) h.Field.Focus(); };
             stripScroll.Dock = DockStyle.Fill; stripScroll.AutoScroll = true; stripScroll.BackColor = Color.White; stripScroll.BorderStyle = BorderStyle.FixedSingle; stripScroll.Tag = "keep";
             strip.Location = Point.Empty; strip.StepClicked += delegate(PackageStep s) { Bind(s); };
