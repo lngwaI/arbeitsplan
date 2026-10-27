@@ -33,17 +33,18 @@ namespace Arbeitsplan.Win
         {
             cat = catalog.Clone(); this.rowNames = rowNames;
             Text = "Equipment-Positionen und Bausteine einrichten";
-            Ui.Dialog(this, 760, 520);
+            Ui.Dialog(this, 760, 540);
+            Controls.Add(Ui.Hint("Hier gilt alles für alle Produkte (Standard). Geräte je Produkt: Einstellungen → Produkte & Equipment; Geräte selbst: Equipment-Stammdaten.", 8, 6, 744));
 
-            TabControl tabs = new TabControl(); tabs.SetBounds(8, 8, 744, 462);
+            TabControl tabs = new TabControl(); tabs.SetBounds(8, 28, 744, 462);
             TabPage t1 = new TabPage("Equipment-Positionen"), t2 = new TabPage("Bausteine (Ablaufschritte)");
             tabs.SelectedIndexChanged += delegate { if (tabs.SelectedIndex == 1) { RefillPos(); LoadBau(); } else if (tabs.SelectedIndex == 2) { RefillGroupPos(); LoadGrp(); } };
             TabPage t3 = new TabPage("Austausch-Gruppen");
             tabs.TabPages.Add(t1); tabs.TabPages.Add(t2); tabs.TabPages.Add(t3);
             BuildPositions(t1); BuildBausteine(t2); BuildGroups(t3);
 
-            Button ok = new Button(); ok.Text = "Speichern"; ok.SetBounds(560, 480, 95, 30); ok.Click += delegate { Commit(); };
-            Button cancel = new Button(); cancel.Text = "Abbrechen"; cancel.SetBounds(660, 480, 95, 30); cancel.DialogResult = DialogResult.Cancel;
+            Button ok = new Button(); ok.Text = "Speichern"; ok.SetBounds(560, 500, 95, 30); ok.Click += delegate { Commit(); };
+            Button cancel = new Button(); cancel.Text = "Abbrechen"; cancel.SetBounds(660, 500, 95, 30); cancel.DialogResult = DialogResult.Cancel;
             CancelButton = cancel;
             Controls.AddRange(new Control[] { tabs, ok, cancel });
         }

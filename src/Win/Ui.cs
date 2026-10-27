@@ -24,6 +24,13 @@ namespace Arbeitsplan.Win
             f.ClientSize = new System.Drawing.Size(w, h);
         }
 
+        // Einzeiliger grauer Erklaertext ("Was ist das?") in Pflegedialogen.
+        public static Label Hint(string text, int x, int y, int w)
+        {
+            Label l = new Label(); l.Text = text; l.AutoSize = false; l.AutoEllipsis = true; l.ForeColor = SystemColors.GrayText; l.SetBounds(x, y, w, 18);
+            return l;
+        }
+
         // Notizblock mit Stift, per GDI+ gezeichnet (keine Bilddatei, keine Sonderzeichen-Schrift noetig).
         public static Bitmap MakePencil()
         {
