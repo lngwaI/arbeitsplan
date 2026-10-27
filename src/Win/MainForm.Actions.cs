@@ -97,6 +97,15 @@ namespace Arbeitsplan.Win
             }
         }
 
+        void EditMaster()
+        {
+            using (EquipMasterForm f = new EquipMasterForm(store.GetCatalog()))
+            {
+                if (f.ShowDialog(this) != DialogResult.OK) return;
+                try { store.SaveCatalog(f.Result); } catch (Exception ex) { ShowSaveError(ex); }
+            }
+        }
+
         // ---------- Suche ----------
 
         void OnSearchChanged()

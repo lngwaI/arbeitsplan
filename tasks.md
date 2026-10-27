@@ -70,3 +70,4 @@ Reihenfolge = Priorität. Entscheidungen stehen jeweils dabei, nicht erneut nach
 - Nutzer-IDs bleiben wie sie sind (Nutzer wird mit "+" angelegt: Kürzel, Windows-Name, Vor-/Nachname, Rechte; Login und Kürzel sind eindeutig).
 - Rechte "Text ändern/löschen": Wer keine Bearbeitungsrechte hat, kommt nicht in den Editor. Wer sie hat, darf frei bearbeiten/löschen/formatieren; Kontrolle über das Änderungsprotokoll. Kein weiteres Verschärfen (Wort-für-Wort-Ersetzen ist akzeptiert).
 - Abfrage-Timer: ohne API/Server nur lokal testbar (siehe Tests).
+- [x] Equipment-Stammdaten (Klassen, Reihen, Geräte, Verwendbar-mit, Ersatz) + Windows 10 als Minimum, Themes xp/win7 entfernt (G-Mail / 2. Account, fertig, 2026-10-27; CI-Selbsttest steht aus)

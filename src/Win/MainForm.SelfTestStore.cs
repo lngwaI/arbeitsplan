@@ -291,6 +291,13 @@ namespace Arbeitsplan.Win
             }
             sb.AppendLine("Sicherung APBAK2: Roundtrip verschlüsselt=" + Ok(okV2) + " falscher Schlüssel abgelehnt=" + Ok(wrongKey && noKey) + " Byte verändert abgelehnt=" + Ok(flip)
                 + " APBAK1 lesbar=" + Ok(okV1) + " 200-MB-Grenze=" + Ok(bomb));
+            EquipMaster gm = g2.Catalog.Master, sm = snap.Catalog.Master;
+            EquipSeries ser = gm.Series.Count > 0 ? gm.Series[0] : null;
+            bool okM = sm.Devices.Count > 0 && gm.Devices.Count == sm.Devices.Count && gm.Classes.Count == sm.Classes.Count && gm.Links.Count == sm.Links.Count && gm.Substs.Count == sm.Substs.Count
+                && gm.Device("H1-F-0101-02") != null && gm.Device("H1-F-0101-02").Props.Count > 0 && ser != null && ser.Note.Length > 0;
+            bool okSer = ser != null && ser.Contains("H1-T-0103") && ser.Contains("H1-T-0104") && !ser.Contains("H1-T-0102") && !ser.Contains("H1-T-0105") && gm.Members(ser).Count == 2;
+            bool okC = gm.CompatibleWith("H1-F-0101-04").Contains("H1-X-0101") && gm.CompatibleWith("H1-X-0101").Count == 3 && gm.SubstitutesFor("H1-F-0101-01").Count == 1 && gm.SubstitutesFor("H1-F-0101-02").Count == 0;
+            sb.AppendLine("Stammdaten: Sicherung Roundtrip=" + Ok(okM) + " Nummernbereich=" + Ok(okSer) + " Regeln/Ersatz=" + Ok(okC));
             for (int i = 0; i < Backup.Keep + 2; i++) Backup.WriteTo(store, dir, "t" + i.ToString("00"));
             sb.AppendLine("Sicherung manipuliert abgelehnt: Byte=" + Ok(rej1) + " Inhalt=" + Ok(rej2) + " | behalten=" + Backup.Files(dir).Length + " (soll " + Backup.Keep + ")");
         }
