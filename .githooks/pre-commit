@@ -1,0 +1,7 @@
+#!/bin/sh
+# Blockiert vertrauliches Material (_privat/) im Commit, auch bei git add -f.
+if git diff --cached --name-only | grep -qi '^_privat/'; then
+  echo "ABBRUCH: Dateien aus _privat/ im Commit. Mit 'git reset -- _privat' entfernen." >&2
+  exit 1
+fi
+exit 0
