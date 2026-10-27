@@ -8,7 +8,7 @@ using Arbeitsplan.Core;
 
 namespace Arbeitsplan.Win
 {
-    // Bearbeitungsmodus: Eingabefelder, LKZ-Haken, Rechte, Speichern mit Konfliktpruefung, Tasten, Schliessen.
+    // Bearbeitungsmodus: Eingabefelder (Haken/Variante: MainForm.Checks.cs), Rechte, Speichern mit Konfliktpruefung, Tasten, Schliessen.
     partial class MainForm
     {
         void BuildEditors()
@@ -30,37 +30,6 @@ namespace Arbeitsplan.Win
                 t.TextChanged += delegate { if (!loadingEditor && editCell != null) { editCell.People[si] = Norm(t.Text); editCell.Dirty = true; UpdateChanged(); view.RelayoutCell(editCell); } };
                 view.Controls.Add(t); editors.Add(t);
             }
-        }
-
-        // ---------- LKZ-Haken ----------
-
-        void ToggleLkz(CellData c)
-        {
-            bool want = !c.Lkz;                     // Ziel = Gegenteil dessen, was der Nutzer sieht
-            if (!c.Editing) FreshCur(c);
-            if (!CanEdit(c)) return;
-            if (c.Editing) { c.Lkz = want; UpdateChanged(); view.Invalidate(); return; }   // wird mit dem Block gespeichert
-            RowInfo ri = rowInfo[c.RowIndex];
-            if (c.Cur.Lkz == want) { view.Relayout(); return; }   // anderer PC hat den Haken schon so gesetzt
-            Entry n = c.Cur.Clone(); n.Lkz = want;
-            try
-            {
-                bool ok = Audit.Save(store, c.Day, ri, me, n);                 // Haken sofort speichern
-                if (!ok)
-                {   // anderer PC hat den Block geaendert: dessen Inhalt behalten, nur den Haken setzen (einmal still erneut)
-                    Entry latest = store.Get(c.Day, ri.Id);
-                    n = latest != null ? latest.Clone() : new Entry(); n.Lkz = want;
-                    ok = (latest != null && latest.Lkz == want) || Audit.Save(store, c.Day, ri, me, n);
-                }
-                if (!ok) { if (!quiet) MessageBox.Show("Der Haken konnte nicht gespeichert werden, weil der Block gerade geändert wird. Bitte erneut klicken.", "Arbeitsplan", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
-            }
-            catch (Exception ex)
-            {
-                if (!quiet) MessageBox.Show("Der Haken konnte nicht gespeichert werden.\n" + ex.Message, "Speichern fehlgeschlagen", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                return;
-            }
-            SetCur(c, n);
-            view.Relayout();
         }
 
         // Bearbeiten erlaubt: Text aendern, oder leerer Block und Text hinzufuegen; sonst Meldung.
@@ -228,6 +197,7 @@ namespace Arbeitsplan.Win
             c.Editing = false;
             editCell = null; editChanged = fmtChanged = false;
             foreach (Control f in fmtControls) f.Enabled = false;
+            ComputeChecks();   // Pflichtpunkt-Zustaende nach dem Speichern
             view.Relayout();
             return true;
         }

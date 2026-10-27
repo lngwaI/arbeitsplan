@@ -16,8 +16,8 @@ namespace Arbeitsplan.Win
         void InitData()
         {
             ContextMenuStrip vm = new ContextMenuStrip();
-            vm.Items.Add("Verlauf…", null, delegate { if (view.Selected != null) ShowHistory(view.Selected); });
-            vm.Opening += delegate(object s, System.ComponentModel.CancelEventArgs e) { e.Cancel = view.Selected == null; };
+            vm.Items.Add("Verlauf…", null, delegate { if (view.MenuRound != null) ShowRoundHistory(view.MenuRound); else if (view.Selected != null) ShowHistory(view.Selected); });
+            vm.Opening += delegate(object s, System.ComponentModel.CancelEventArgs e) { e.Cancel = view.Selected == null && view.MenuRound == null; };
             view.ContextMenuStrip = vm;
             ContextMenuStrip cm = edContent.ContextMenuStrip;
             cm.Items.Add(new ToolStripSeparator());

@@ -58,6 +58,15 @@ namespace Arbeitsplan.Core
             foreach (string[] x in r) { RoundDef d = new RoundDef(); d.Key = x[0]; d.Name = x[1]; d.Short = x[2]; c.Rounds.Add(d); }
             return c;
         }
+
+        // Standard fuer die Zeile "Puffer" (neue Datenbestaende): Tagesprobe werktags (mobil = mit Herstellung erledigt),
+        // WFI-Probe einmal je KW (entfaellt bei stationaerer Herstellung).
+        public void AddPufferDefaults(int rowId)
+        {
+            CheckDef p = new CheckDef(); p.Key = "PROBE"; p.Name = "Tagesprobe"; p.Short = "Probe"; p.RowId = rowId; p.Rule = CheckRule.Workdays; p.Cond = "+mobil";
+            CheckDef w = new CheckDef(); w.Key = "WFIW"; w.Name = "WFI-Probe der Woche"; w.Short = "WFI"; w.RowId = rowId; w.Rule = CheckRule.WeeklyOnce; w.Cond = "!stationaer";
+            Defs.Add(p); Defs.Add(w);
+        }
     }
 
     // Wochenhaken (Rundgang) je ISO-KW; Version wie bei Entry (Konflikterkennung).

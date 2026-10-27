@@ -113,6 +113,7 @@ namespace Arbeitsplan.Core
             foreach (string n in DefaultRows)
             {
                 RowInfo r = new RowInfo(); r.Id = nextId++; r.Name = n; r.HasLkz = Array.IndexOf(LkzRows, n) >= 0;
+                if (n == "Puffer") { r.Variants = "mobil|stationaer"; duties.AddPufferDefaults(r.Id); }
                 rows.Add(r);
             }
         }
@@ -359,6 +360,16 @@ namespace Arbeitsplan.Core
             s.SaveStructure(rs);
             Entry v = new Entry(); v.Content = "Versand Kühlware"; v.People = new[] { "WEPA", "BEER", "" };
             s.Save(monday.AddDays(1), s.IdOf("Versand"), v);
+            // Puffer: Herstellung mobil (Tagesprobe automatisch), stationaer mit Tagesprobe, ohne Angabe
+            string[][] pf = { new[] { "Herstellung Puffer A", "mobil", "" }, new[] { "Herstellung Puffer B", "stationaer", "PROBE" }, new[] { "Puffer B abfüllen", "", "" } };
+            for (int d = 0; d < pf.Length; d++)
+            {
+                Entry e = new Entry(); e.Content = pf[d][0]; e.Variant = pf[d][1]; e.People = new[] { "WEPA", "", "" };
+                if (pf[d][2].Length > 0) e.Marks.Add(pf[d][2]);
+                s.Save(monday.AddDays(d), s.IdOf("Puffer"), e);
+            }
+            WeekMark gmp = new WeekMark(); gmp.Monday = monday; gmp.Key = "GMP1"; gmp.Done = true;
+            s.SaveWeekMark(gmp, null);
             return s;
         }
     }

@@ -31,13 +31,15 @@ namespace Arbeitsplan.Win
         public int Hits;
         public List<RunRef> Runs = new List<RunRef>();      // Laufnummern im Inhalt (Kennzeichnung je Produkt)
         public string RunsFor;
-        public Rectangle R, RHead, RLkz, RContent;
+        public DayState[] States;                           // je Pflichtpunkt der Zeile (PlanView.Defs), von MainForm berechnet
+        public string Note = "";                            // Kopf-Hinweis, z. B. "LKZ KW44 offen"
+        public Rectangle R, RHead, RChecks, RContent;
         public Rectangle[] RLbl = new Rectangle[3], RPpl = new Rectangle[3];
     }
 
     // Wochenansicht, selbst gezeichnet: schneller Tag-/Wochenwechsel (keine Hunderte Steuerelemente).
     // Nur beim Bearbeiten legt MainForm Eingabefelder ueber Inhalt und Kuerzel des aktiven Blocks.
-    class PlanView : Control
+    partial class PlanView : Control
     {
         public const int TP = 3, TV = 3, ShiftLines = 3, TaskLines = 1;
         public static int HeadH { get { return Theme.Current.HeadH; } }
@@ -56,16 +58,14 @@ namespace Arbeitsplan.Win
         public string MyKuerzel = "", Query = "";
         public CellData Selected;
         public int HitCount, ColW;
-        public Action<CellData> CellActivated, LkzClicked;
+        public Action<CellData> CellActivated;
         public Action<int> RowToggled;                      // Klick auf den Kopf einer Zeile: ein-/ausklappen (nur lokal)
         public bool[] Collapsed = new bool[0];              // je Zeile: zugeklappt (nur Kopfleiste sichtbar)
         public event EventHandler LayoutDone;
 
         readonly Font bold;
         int lastW = -1;
-        int lkzLabelW, lkzTagW;                             // Textbreiten, einmal je Layout gemessen (nicht je Zelle im Paint)
-        int[] nameW;                                        // null = neu messen
-        int[] lblW;                                         // Breite der Schichtbezeichnung je Zeile (LabelW)
+        int[] lblW;                                       // Breite der Schichtbezeichnung je Zeile (LabelW)
         readonly Dictionary<string, EquipmentInfo> equipCache = new Dictionary<string, EquipmentInfo>();   // je Rebuild (MarkAllDirty)
 
         public PlanView(Font f)
@@ -240,18 +240,18 @@ namespace Arbeitsplan.Win
             HitCount = 0;
             foreach (CellData c in Cells) { if (Collapsed[c.RowIndex]) continue; if (c.Dirty) Build(c, tw, iw - lblW[c.RowIndex] - 2 * TP); HitCount += c.Hits; }
 
-            nameW = null;   // Textbreiten beim naechsten Zeichnen neu messen
-
             int[] ch = new int[n], lk = new int[n];
             int[][] sh = new int[n][];
+            slots = new CheckSlot[n][];
             for (int r = 0; r < n; r++)
             {
                 ch[r] = RowNeeds(r, lh, out sh[r]);
-                lk[r] = Rows[r].HasLkz ? LkzH : 0;
+                lk[r] = LayoutChecks(r, iw);
             }
 
             int[] rowY = new int[n], rowH = new int[n];
             int y = Pad;
+            y += LayoutRounds(y);
             for (int r = 0; r < n; r++)
             {
                 rowH[r] = Collapsed[r] ? 1 + HeadH + 1 : 1 + HeadH + lk[r] + ch[r] + 1 + sh[r][0] + sh[r][1] + sh[r][2] + 1;
@@ -264,12 +264,12 @@ namespace Arbeitsplan.Win
                 c.RHead = new Rectangle(x + 1, rowY[r] + 1, iw, HeadH - 1);
                 if (Collapsed[r])
                 {
-                    c.RLkz = c.RContent = Rectangle.Empty;
+                    c.RChecks = c.RContent = Rectangle.Empty;
                     for (int s = 0; s < 3; s++) c.RLbl[s] = c.RPpl[s] = Rectangle.Empty;
                     continue;
                 }
                 int cy = rowY[r] + 1 + HeadH;
-                c.RLkz = new Rectangle(x + 1, cy, iw, lk[r]);
+                c.RChecks = new Rectangle(x + 1, cy, iw, lk[r]);
                 cy += lk[r];
                 c.RContent = new Rectangle(x + 1, cy, iw, ch[r]);
                 int sy = cy + ch[r] + 1, lw = lblW[r];
@@ -346,16 +346,7 @@ namespace Arbeitsplan.Win
         {
             Graphics g = e.Graphics;
             g.Clear(BackColor);
-            if (nameW == null || nameW.Length != Rows.Count)   // einmal je Layout mit dem Zeichen-Graphics messen (wie zuvor je Zelle)
-            {
-                const TextFormatFlags tf = TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix;
-                Size big = new Size(1000, 100);
-                lkzLabelW = TextRenderer.MeasureText(g, "LKZ gemessen?", Font, big, tf).Width;
-                lkzTagW = TextRenderer.MeasureText(g, "(LKZ)", bold, big, tf).Width;
-                int[] w = new int[Rows.Count];
-                for (int r = 0; r < w.Length; r++) if (Rows[r].HasLkz) w[r] = TextRenderer.MeasureText(g, Rows[r].Name, bold, big, tf).Width;
-                nameW = w;
-            }
+            PaintRounds(g, e.ClipRectangle);
             foreach (CellData c in Cells)
                 if (c.R.IntersectsWith(e.ClipRectangle)) { PaintCell(g, c); Overlay(g, c); }
         }
@@ -409,24 +400,15 @@ namespace Arbeitsplan.Win
                 if (filled)   // zugeklappt, aber Inhalt vorhanden: Hinweispunkt vor dem Pfeil
                     g.FillEllipse(th.Brush(th.Dot),c.RHead.Right - 29, c.RHead.Y + (c.RHead.Height - 7) / 2, 8, 8);
                 nr.Width -= filled ? 12 : 0;
+                nr.Width -= PaintNote(g, c, nr);   // Hinweis "KW offen" auch zugeklappt
                 TextRenderer.DrawText(g, ri.Name, bold, nr, th.HeadTextCollapsed,tf | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
-                LkzTag(g, c, ri, nr, tf);
                 return;
             }
+            nr.Width -= PaintNote(g, c, nr);
             TextRenderer.DrawText(g, ri.Name, bold, nr, th.HeadText,tf | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
-            LkzTag(g, c, ri, nr, tf);
             if (c.Editing && Pencil != null) g.DrawImage(Pencil, c.RHead.Right - 38, c.RHead.Y + (c.RHead.Height - 17) / 2, 18, 18);
 
-            if (ri.HasLkz)
-            {
-                Fill(g, c.Lkz ? th.LkzOn : back, c.RLkz);
-                g.DrawLine(th.Pen(th.Separator, 1), c.RLkz.X, c.RLkz.Bottom - 1, c.RLkz.Right, c.RLkz.Bottom - 1);
-                Rectangle lr = new Rectangle(c.RLkz.X + TP, c.RLkz.Y, c.RLkz.Width - TP, c.RLkz.Height);
-                TextRenderer.DrawText(g, "LKZ gemessen?", Font, lr, th.LkzText, tf | TextFormatFlags.VerticalCenter);
-                Point cp = new Point(c.RLkz.X + TP + lkzLabelW + 6, c.RLkz.Y + (c.RLkz.Height - 13) / 2);
-                if (!th.Modern) CheckBoxRenderer.DrawCheckBox(g, cp, c.Lkz ? CheckBoxState.CheckedNormal : CheckBoxState.UncheckedNormal);
-                else th.DrawCheck(g, cp, c.Lkz);
-            }
+            if (c.RChecks.Height > 0) PaintChecks(g, c, back);
 
             if (!c.Editing) c.CB.Draw(g, c.RContent.X + TP, c.RContent.Y + TV);
             bool task = ri.Mode == ShiftMode.Task;
@@ -469,15 +451,6 @@ namespace Arbeitsplan.Win
             return prods.Count * 5 + 1;
         }
 
-        // "(LKZ)" neben dem Zeilennamen: rot = noch zu messen, gruen = gemessen (nur Zeilen mit LKZ-Feld).
-        void LkzTag(Graphics g, CellData c, RowInfo ri, Rectangle nr, TextFormatFlags tf)
-        {
-            if (!ri.HasLkz) return;
-            int w = nameW[c.RowIndex], tw = lkzTagW;
-            if (w + 6 + tw > nr.Width) return;
-            TextRenderer.DrawText(g, "(LKZ)", bold, new Rectangle(nr.X + w + 6, nr.Y, tw + 2, nr.Height), c.Lkz ? Color.FromArgb(30, 140, 60) : Color.FromArgb(200, 30, 30), tf | TextFormatFlags.VerticalCenter);
-        }
-
         // ---------- Maus ----------
 
         CellData CellAt(Point p)
@@ -493,19 +466,25 @@ namespace Arbeitsplan.Win
         {
             base.OnMouseMove(e);
             CellData c = CellAt(e.Location);
-            string t = c != null && c.RHead.Contains(e.Location) && c.Runs.Count > 0 ? RunNumbers.Describe(c.Runs) : "";
+            CheckSlot s = c != null ? SlotAt(c, e.Location) : null;
+            string t = c == null ? RoundTip(e.Location) : s != null ? CheckTip(c, s)
+                : c.RHead.Contains(e.Location) ? (c.Runs.Count > 0 ? RunNumbers.Describe(c.Runs) : c.Note) : "";
             if (t != tipText) { tipText = t; tip.SetToolTip(this, t.Length > 0 ? t : null); }
         }
 
         protected override void OnMouseDown(MouseEventArgs e)
         {
             base.OnMouseDown(e);
+            if (RoundsMouse(e.Location, e.Clicks == 1 ? e.Button : MouseButtons.None)) return;
             CellData c = CellAt(e.Location);
             if (c == null) return;
             if (c != Selected) { Selected = c; Invalidate(); }
             if (e.Clicks != 1 || e.Button != MouseButtons.Left) return;
             if (c.RHead.Contains(e.Location)) { if (RowToggled != null) RowToggled(c.RowIndex); return; }
-            if (!Collapsed[c.RowIndex] && Rows[c.RowIndex].HasLkz && c.RLkz.Contains(e.Location) && LkzClicked != null) LkzClicked(c);
+            CheckSlot s = SlotAt(c, e.Location);
+            if (s == null) return;
+            if (s.Def < 0) { if (VariantClicked != null) VariantClicked(c, PointToScreen(new Point(c.RChecks.X + s.R.X, c.RChecks.Y + s.R.Bottom))); }
+            else if (MarkClicked != null && StateOf(c, s.Def) != DayState.NA && StateOf(c, s.Def) != DayState.Auto) MarkClicked(c, DefsOf(c.RowIndex)[s.Def].Key);
         }
 
         protected override void OnMouseDoubleClick(MouseEventArgs e)
@@ -513,7 +492,7 @@ namespace Arbeitsplan.Win
             base.OnMouseDoubleClick(e);
             CellData c = CellAt(e.Location);
             if (c == null || Collapsed[c.RowIndex] || c.RHead.Contains(e.Location)) return;
-            if (!(Rows[c.RowIndex].HasLkz && c.RLkz.Contains(e.Location)) && CellActivated != null) CellActivated(c);
+            if (!c.RChecks.Contains(e.Location) && CellActivated != null) CellActivated(c);
         }
     }
 }

@@ -74,6 +74,7 @@ namespace Arbeitsplan.Win
             Form f;
             if (which == "campaign2") { CampaignForm cf = new CampaignForm(demo, store, start, ApplyMode.Overwrite); cf.SetRoom(7, "Suite 2", false); f = cf; }
             else if (which == "structure") f = new StructureForm(store.GetRows(), true, true, true);
+            else if (which == "duties") f = new DutiesForm(store.GetDuties(), store.GetRows());
             else if (which == "catalog") { List<string> nm = new List<string>(); foreach (RowInfo r in store.GetRows()) nm.Add(r.Name); f = new CatalogForm(store.GetCatalog(), nm); }
             else if (which == "history" || which == "backup") f = TestDataForm(which);
             else if (which == "conflict")   // Rueckfrage bei gleicher Stelle (Testbild)

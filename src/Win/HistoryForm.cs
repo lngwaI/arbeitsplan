@@ -35,7 +35,7 @@ namespace Arbeitsplan.Win
             {
                 AuditEntry a = audit[i];
                 ListViewItem it = new ListViewItem(new[] { a.Version.ToString(), a.Time.ToString("dd.MM.yyyy HH:mm:ss"),
-                    a.Kuerzel.Length > 0 ? a.Login + " (" + a.Kuerzel + ")" : a.Login, Audit.Preview(a.After) });
+                    a.Kuerzel.Length > 0 ? a.Login + " (" + a.Kuerzel + ")" : a.Login, a.Mark.Length > 0 ? MarkText(a) : Audit.Preview(a.After) });
                 it.Tag = a;
                 list.Items.Add(it);
             }
@@ -66,11 +66,15 @@ namespace Arbeitsplan.Win
 
         AuditEntry Sel() { return list.SelectedItems.Count > 0 ? (AuditEntry)list.SelectedItems[0].Tag : null; }
 
+        // Wochenhaken (Rundgang): Name und neuer Wert
+        static string MarkText(AuditEntry a) { return (a.RowName.Length > 0 ? a.RowName : a.Mark) + ": " + (a.Value == "1" ? "abgehakt" : "Haken entfernt"); }
+
         void ShowSel()
         {
             AuditEntry a = Sel();
-            before.Text = a == null ? "" : Audit.Text(a.Before, labels).Replace("\n", "\r\n");
-            after.Text = a == null ? "" : Audit.Text(a.After, labels).Replace("\n", "\r\n");
+            bool mk = a != null && a.Mark.Length > 0;
+            before.Text = a == null ? "" : mk ? (a.Value == "1" ? "offen" : "abgehakt") : Audit.Text(a.Before, labels).Replace("\n", "\r\n");
+            after.Text = a == null ? "" : mk ? MarkText(a) : Audit.Text(a.After, labels).Replace("\n", "\r\n");
             bRestore.Enabled = canRestore && a != null && a.After != null;
         }
     }
