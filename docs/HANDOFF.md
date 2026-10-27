@@ -29,3 +29,9 @@ Jeder Eintrag beginnt mit `## JJJJ-MM-TT HH:MM – <Label>`.
 - Branch `gmail/laufwerk-mehrplatz` (auf main aufgebaut): Start zentral vom Laufwerk ohne Kopie, Desktop-Verknüpfung (UNC), Start nur im Firmennetz (`Umgebung.Open`: kein Datenordner → Ende, Ersteinrichtung nur `Admins=`, Domänenbindung `UserDb.Domains`), unbekannte Nutzer → Meldung+Ende, `NurLesenFuer=`, Dreiwege-Zusammenführung bei Konflikt (`Conflict.Merge`, `ConflictForm`), Formatversion, Update-Hinweis, Paket-Menü "Kampagne starten…", Prüfhinweise, Datum TT.MM.JJJJ. Doku: `docs/IT-Freigabe.md`, `config/LIESMICH.txt`, `config/Arbeitsplan.ini` (Pilot=0).
 - Tests ohne Login: `bash scripts/ci-ergebnis.sh <sha> <branch> <ordner>` (Annotationen + Branch `bilder/<branch>` mit selftest.txt und Testbildern). Lasttest: zwei Prozesse gleichzeitig im Workflow.
 - Lokal: `dist\Arbeitsplan` enthält Altlasten früherer Aufbauten (exe/ini/Vorlagen im Hauptordner, alte ini mit Pilot=1 in Programm\); vor dem Verteilen frisch erzeugen (Ordner vorher selbst wegräumen).
+
+## 2026-10-27 05:20 – G-Mail / 2. Account
+- `gmail/laufwerk-mehrplatz` ist in `main` (CI grün). Neu: `docs/Testanleitung.md` (Laptop holen/klonen, bauen, Mehrplatz mit zwei Fenstern `--data C:\APTest`, Release-Checks, Checkliste vor Ort).
+- Laptop auf denselben Stand: neu klonen (Historie am 26.10. neu geschrieben), danach `git config core.hooksPath .githooks`. Alles Versionierte ist auf GitHub; alle lokalen Branches sind in `main` enthalten.
+- Nur lokal auf dem Desktop-PC (bewusst nicht im Repo): `docs/historie-mapping.local.md` (echte Altwerte, nie veröffentlichen), erzeugbare Ordner `bin`, `release`, `dist`, `shots`, `testpakete`; `../Arbeitsplan-backup.git` (alter Stand mit Altwerten, nicht auf den Laptop kopieren). Auf diesem PC war `core.hooksPath` nicht gesetzt (Commits bis 18881dc ohne Account-Zeile); jetzt gesetzt.
+- Offen: Test vor Ort (Nutzer), Review-Befunde niedriger Priorität (tasks.md).

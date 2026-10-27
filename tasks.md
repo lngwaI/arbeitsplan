@@ -25,8 +25,11 @@
 - [x] Repo bereinigt: nur erfundene Nummern/Kürzel, neutrale Firmenbegriffe, .gitignore für Daten; MainForm in Teildateien (GMX / Haupt-Account, erledigt, 2026-10-26 18:36)
 
 - [x] **Laufwerk-Start und Mehrplatz** (Nutzerauftrag 2026-10-26 nachts): exe zentral vom Laufwerk, Desktop-Verknüpfung (UNC, OneDrive), Start nur im Firmennetz (Datenordner/Ersteinrichtung/Domäne), unbekannte Nutzer → Meldung, `NurLesenFuer=` für Systemrechner, Dreiwege-Zusammenführung bei gleichzeitiger Änderung, Formatversion, Update-Hinweis, IT-Unterlage. Branch `gmail/laufwerk-mehrplatz`. (G-Mail / 2. Account, erledigt, 2026-10-26 22:10)
+- [x] Testanleitung für Laptop und Test vor Ort: `docs/Testanleitung.md` (holen/klonen, bauen, Mehrplatz mit zwei Fenstern, Release-Checks, Checkliste Firma) (G-Mail / 2. Account, erledigt, 2026-10-27 05:20)
 
 ## Als Nächstes
+- [ ] **Test vor Ort** nach `docs/Testanleitung.md` Teil 6; Ergebnisse (UNC-Pfad, Domäne, Konto der Systemrechner, Wortlaut von Blockiermeldungen, Umbenennen der laufenden exe) hier eintragen (Nutzer, offen, 2026-10-27 05:20)
+- [ ] Review-Befunde niedriger Priorität: FormatSpans nach dem Zusammenführen normalisieren; Domänenliste bei gleichzeitiger Admin-Änderung; nach "Vorschlag übernehmen" kann ohne Recht "Text löschen" gekürzt werden (G-Mail / 2. Account, offen, 2026-10-27 05:20)
 - [ ] Paket-Editor: Schritte per Ziehen umsortieren, Vorlagenordner, Muster über mehrere Schritte wiederholen (z. B. Lauf A + Lauf B im Wechsel)
 - [ ] PDF: mehrere Seiten statt einer langen Seite (falls gedruckt werden soll)
 - [ ] Tastatur-Bedienung: Bearbeitungsmodus ohne Maus, Tab-Reihenfolge, Zeile per Tastatur ein-/ausklappen

@@ -1,11 +1,11 @@
 # Arbeitsplan – Anleitung Windows
 
 ## Starten
-- **Release** (`release\Arbeitsplan.exe`): Doppelklick. Läuft ohne Installation und ohne weitere Dateien (Win 10/11; ab XP SP3 mit .NET Framework 4.0). Angemeldet wird mit dem Windows-Namen.
-  Im Release gibt es keine Testnutzer: jeder Windows-Nutzer erhält nur Leserechte (Ansehen, Export). Zum Vorführen von Bearbeiten, Rechten und Katalog den Test-Build verwenden. Daten sind Testdaten und liegen nur im Speicher.
+- **Release** (`make_dist.cmd` → `dist\Arbeitsplan\Programm\Arbeitsplan.exe`): läuft ohne Installation (Win 10/11; ab XP SP3 mit .NET Framework 4.0) und braucht den Ordner `daten` daneben (Laufwerk). Angemeldet wird mit dem Windows-Namen. Nur angelegte Nutzer starten. Ein leerer Datenordner wird einmalig von einem Nutzer aus `Admins=` (Arbeitsplan.ini) eingerichtet. Ablauf und Tests: `docs/Testanleitung.md`.
 - **Test-Build** (`bin\Arbeitsplan.exe`, nur Entwicklung): zusätzliche Schalter
   - `--user mmuster` (Admin) | `ebeispiel` (Leser) | `pwerk` (Produktion)
   - `--nosave` simuliert einen PC ohne Speichern
+  - `--data <ordner>` verschlüsselte Datendatei statt Testdaten (Mehrplatz-Test, siehe `docs/Testanleitung.md`)
   - `--4x3` Fenster 1024×768, `--size BxH` beliebig
   - Beispiel: `bin\Arbeitsplan.exe --user mmuster --nosave --4x3`
 
