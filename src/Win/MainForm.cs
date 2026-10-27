@@ -96,7 +96,10 @@ namespace Arbeitsplan.Win
             view.Pencil = pencilIcon;
             view.Rows = rowInfo;
             view.CellActivated = BeginEdit;
-            view.LkzClicked = ToggleLkz;
+            view.MarkClicked = ClickMark;
+            view.VariantClicked = ChooseVariant;
+            view.RoundClicked = ToggleRound;
+            view.RoundToggled = ToggleRoundFold;
             view.RowToggled = ToggleRow;
             view.LayoutDone += delegate { PositionEditors(); hitsLabel.Text = view.Query.Length > 0 ? view.HitCount + " in dieser Woche" : ""; };
             view.MouseEnter += delegate { if (editCell == null && !(ActiveControl is TextBox)) view.Focus(); };   // Mausrad scrollt
@@ -172,6 +175,7 @@ namespace Arbeitsplan.Win
             ToolStripItem us = set.DropDownItems.Add("Nutzerverwaltung…", null, delegate { RefreshUsers(); using (UserAdminForm f = new UserAdminForm(users, me)) { f.ShowDialog(this); SaveUsers(f.Changes); } }); us.Enabled = usr;
             ToolStripItem cf = set.DropDownItems.Add("Equipment && Bausteine…", null, delegate { EditCatalog(); }); cf.Enabled = me.Has(Perm.PackageAdmin);
             ToolStripItem mf = set.DropDownItems.Add("Equipment-Stammdaten…", null, delegate { EditMaster(); }); mf.Enabled = me.Has(Perm.PackageAdmin);
+            ToolStripItem du = set.DropDownItems.Add("Pflichtpunkte && Feiertage…", null, delegate { EditDuties(); }); du.Enabled = me.Has(Perm.PackageAdmin);
             ToolStripItem bk = set.DropDownItems.Add("Sicherung…", null, delegate { OpenBackup(); }); bk.Enabled = me.Has(Perm.PackageAdmin);
             set.Visible = structure || usr || me.Has(Perm.PackageAdmin);
 
@@ -280,12 +284,14 @@ namespace Arbeitsplan.Win
             }
             int selRow = -1; DateTime selDay = DateTime.MinValue;
             if (view.Selected != null && view.Selected.RowIndex < rowInfo.Count) { selRow = rowInfo[view.Selected.RowIndex].Id; selDay = view.Selected.Day; }
-            if (resetFold) fold.Clear();
+            if (resetFold) { fold.Clear(); roundFold.Clear(); }
 
             if (fstore != null) viewGen = fstore.Generation;
             rowInfo.Clear(); rowInfo.AddRange(store.GetRows());
+            duties = store.GetDuties();
             view.LoadCells(store, start);
             foreach (CellData d in view.Cells) if (rowInfo[d.RowIndex].Id == selRow && d.Day == selDay) view.Selected = d;
+            ComputeChecks();
             view.MarkAllDirty();   // Equipment-Status neu abfragen
             ApplyFold();
 #if TESTHOOKS

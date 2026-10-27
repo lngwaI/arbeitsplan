@@ -148,9 +148,15 @@ namespace Arbeitsplan.Win
         {
             if (!EndEdit(true)) return null;
             bool[] keep = view.Collapsed; CellData sel = view.Selected;
+            List<bool> rk = new List<bool>();   // Rundgangsleiste im Export immer aufgeklappt
+            foreach (RoundGroup g in view.Rounds) { rk.Add(g.Collapsed); g.Collapsed = false; }
             view.Collapsed = view.DefaultFold(); view.Selected = null; view.Relayout();
             try { return Export.RenderWeek(view, weekLabel.Text, start); }
-            finally { view.Collapsed = keep; view.Selected = sel; view.Relayout(); }
+            finally
+            {
+                for (int i = 0; i < rk.Count; i++) view.Rounds[i].Collapsed = rk[i];
+                view.Collapsed = keep; view.Selected = sel; view.Relayout();
+            }
         }
 
         void ExportImage(bool pdf)

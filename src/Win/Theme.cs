@@ -29,6 +29,10 @@ namespace Arbeitsplan.Win
             ButtonBack, ButtonBorder, ButtonHover, ButtonDown, ButtonOn, SwatchSelected, SwatchBorder;
         public Color[] ShiftLabel, ShiftBack;
         public readonly Color CheckBorder = C(140, 148, 162), CheckMark = C(30, 120, 60);   // eigene Checkbox (Modern)
+        // Tagesaufgabe, Pruefleiste (erledigt = LkzOn, automatisch, fehlt), gedaempfter Text, Rundgaenge vollstaendig
+        public readonly Color TaskBack = C(247, 248, 251), CheckAuto = C(234, 246, 236), CheckMissing = C(253, 222, 222), CheckMissingText = C(185, 30, 30),
+            Muted = C(150, 156, 168), DoneText = C(30, 130, 60);
+        public int RoundH = 21;      // Zeilenhoehe der Rundgangsleiste
 
         static Color C(int r, int g, int b) { return Color.FromArgb(r, g, b); }
 
@@ -40,7 +44,7 @@ namespace Arbeitsplan.Win
             t.CellBack = Color.White;
             {   // heller, flacher Look + Akzentstreifen, flache Menues
                 t.FontName = "Segoe UI"; t.FontSize = 9f; t.Modern = true; t.Stripe = true; t.FlatButtons = true; t.ShiftSep = true;
-                t.HeadH = 27; t.LW = 18; t.Pad = 10; t.Gap = 10; t.HeadTextX = 9; t.ButtonH = 30; t.BarH = 36;
+                t.HeadH = 27; t.LW = 14; t.Pad = 10; t.Gap = 10; t.HeadTextX = 9; t.ButtonH = 30; t.BarH = 36;
                 t.Window = C(245, 246, 248); t.Bar = t.Window; t.BorderSel = C(0, 120, 215); t.Dot = C(232, 110, 0);
                 t.CellBorder = C(214, 218, 225); t.DayHead = C(228, 233, 241); t.DayHeadToday = C(255, 232, 160);
                 t.RowHead = C(238, 241, 246); t.RowHeadToday = C(255, 240, 200);

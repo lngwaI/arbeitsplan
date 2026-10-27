@@ -74,6 +74,7 @@ namespace Arbeitsplan.Win
             Form f;
             if (which == "campaign2") { CampaignForm cf = new CampaignForm(demo, store, start, ApplyMode.Overwrite); cf.SetRoom(7, "Suite 2", false); f = cf; }
             else if (which == "structure") f = new StructureForm(store.GetRows(), true, true, true);
+            else if (which == "duties") f = new DutiesForm(store.GetDuties(), store.GetRows());
             else if (which == "catalog") { List<string> nm = new List<string>(); foreach (RowInfo r in store.GetRows()) nm.Add(r.Name); f = new CatalogForm(store.GetCatalog(), nm); }
             else if (which == "history" || which == "backup") f = TestDataForm(which);
             else if (which == "conflict")   // Rueckfrage bei gleicher Stelle (Testbild)
@@ -111,6 +112,7 @@ namespace Arbeitsplan.Win
         }
 
         public void TestSearch(string q) { search.Text = q; }
+        public void TestGo(int days) { Go(days); }
 
         public void TestScroll(int y) { canvas.AutoScrollPosition = new Point(0, y); }
         public void TestWeeksLate() { SetWeeks(2); }
@@ -254,6 +256,7 @@ namespace Arbeitsplan.Win
             SelfTestDuties(sb);
             SelfTestProducts(sb);
             SelfTestRoles(sb);
+            SelfTestPlan(sb);
             sb.AppendLine(PackageForm.TestFlow(store, equip, start));
             quiet = false;
             return sb.ToString();

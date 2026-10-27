@@ -55,7 +55,10 @@ namespace Arbeitsplan.Core
             if (e == null) return "(leer)";
             string s = e.Content;
             for (int i = 0; i < 3; i++) s += "\n" + labels[i] + ": " + e.People[i];
-            return s + "\nLKZ gemessen: " + (e.Lkz ? "ja" : "nein");
+            s += "\nLKZ gemessen: " + (e.Lkz ? "ja" : "nein");
+            if (e.Variant.Length > 0) s += "\nHerstellung: " + e.Variant;
+            if (e.Marks.Count > 0) s += "\nAbgehakt: " + string.Join(", ", e.Marks.ToArray());
+            return s;
         }
 
         public static string Preview(Entry e)

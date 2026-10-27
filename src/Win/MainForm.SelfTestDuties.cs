@@ -110,7 +110,7 @@ namespace Arbeitsplan.Win
             AuditEntry a3 = x3.Audit.Find(delegate(AuditEntry a) { return a.RowId == -1; });
             bool okV3 = x3.Rows[0].Mode == ShiftMode.FS && x3.Rows[1].Mode == ShiftMode.Task && x3.Rows[1].Variants == "mobil|stationaer" && x3.Rows[2].Mode == ShiftMode.FSN
                 && e3 != null && e3.Marks.Count == 1 && e3.Marks[0] == "PROBE" && x3.Entries.Exists(delegate(StoredEntry se) { return se.Data.Variant == "stationaer"; })
-                && x3.Duties.Land == "BY" && x3.Duties.Defs.Count == 1 && x3.Duties.Defs[0].Rule == CheckRule.WeeklyOnce && x3.Duties.Defs[0].Cond == "!stationaer"
+                && x3.Duties.Land == "BY" && x3.Duties.Defs.Count == 3 && x3.Duties.Defs[2].Rule == CheckRule.WeeklyOnce && x3.Duties.Defs[2].Cond == "!stationaer"   // 2 Puffer-Standards + wfi
                 && x3.Duties.Rounds.Count == 5 && !x3.Duties.Rounds[4].Active && x3.Duties.ExtraHolidays[0] == D(2026, 7, 1) && x3.Duties.RemovedHolidays[0] == D(2026, 12, 26)
                 && x3.WeekMarks.Count == 1 && x3.WeekMarks[0].Done && x3.WeekMarks[0].Version == 1 && a3 != null && a3.Mark == "GMP1" && a3.Value == "1" && a3.Day == w43;
             string v2 = "<Arbeitsplan version=\"2\"><Zeilen><Zeile id=\"1\" name=\"Suite 1\" l0=\"F\" l1=\"S\" l2=\"N\" min=\"3\" lkz=\"1\"/></Zeilen>"

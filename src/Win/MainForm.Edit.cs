@@ -8,7 +8,7 @@ using Arbeitsplan.Core;
 
 namespace Arbeitsplan.Win
 {
-    // Bearbeitungsmodus: Eingabefelder, LKZ-Haken, Rechte, Speichern mit Konfliktpruefung, Tasten, Schliessen.
+    // Bearbeitungsmodus: Eingabefelder (Haken/Variante: MainForm.Checks.cs), Rechte, Speichern mit Konfliktpruefung, Tasten, Schliessen.
     partial class MainForm
     {
         void BuildEditors()
@@ -32,37 +32,6 @@ namespace Arbeitsplan.Win
             }
         }
 
-        // ---------- LKZ-Haken ----------
-
-        void ToggleLkz(CellData c)
-        {
-            bool want = !c.Lkz;                     // Ziel = Gegenteil dessen, was der Nutzer sieht
-            if (!c.Editing) FreshCur(c);
-            if (!CanEdit(c)) return;
-            if (c.Editing) { c.Lkz = want; UpdateChanged(); view.Invalidate(); return; }   // wird mit dem Block gespeichert
-            RowInfo ri = rowInfo[c.RowIndex];
-            if (c.Cur.Lkz == want) { view.Relayout(); return; }   // anderer PC hat den Haken schon so gesetzt
-            Entry n = c.Cur.Clone(); n.Lkz = want;
-            try
-            {
-                bool ok = Audit.Save(store, c.Day, ri, me, n);                 // Haken sofort speichern
-                if (!ok)
-                {   // anderer PC hat den Block geaendert: dessen Inhalt behalten, nur den Haken setzen (einmal still erneut)
-                    Entry latest = store.Get(c.Day, ri.Id);
-                    n = latest != null ? latest.Clone() : new Entry(); n.Lkz = want;
-                    ok = (latest != null && latest.Lkz == want) || Audit.Save(store, c.Day, ri, me, n);
-                }
-                if (!ok) { if (!quiet) MessageBox.Show("Der Haken konnte nicht gespeichert werden, weil der Block gerade geändert wird. Bitte erneut klicken.", "Arbeitsplan", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
-            }
-            catch (Exception ex)
-            {
-                if (!quiet) MessageBox.Show("Der Haken konnte nicht gespeichert werden.\n" + ex.Message, "Speichern fehlgeschlagen", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                return;
-            }
-            SetCur(c, n);
-            view.Relayout();
-        }
-
         // Bearbeiten erlaubt: Text aendern, oder leerer Block und Text hinzufuegen; sonst Meldung.
         bool CanEdit(CellData c)
         {
@@ -80,7 +49,7 @@ namespace Arbeitsplan.Win
 
         void SetCur(CellData c, Entry e)
         {
-            c.Cur = e; c.Content = e.Content; c.People = (string[])e.People.Clone(); c.Lkz = e.Lkz; c.Dirty = true;
+            c.Cur = e; c.Show(e);
         }
 
         // Hat ein anderer PC seit dem letzten Rebuild Daten geaendert, den Block aus dem aktuellen Stand nehmen
@@ -134,7 +103,8 @@ namespace Arbeitsplan.Win
                 edContent.SelectionColor = Ui.Rgb(sp.Rgb);
             }
             edContent.Select(edContent.TextLength, 0);
-            for (int s = 0; s < 3; s++) { edPpl[s].Text = Win(c.Cur.People[s]); edPpl[s].BackColor = Theme.Current.ShiftBack[s]; }
+            bool task = rowInfo[c.RowIndex].Mode == ShiftMode.Task;
+            for (int s = 0; s < 3; s++) { edPpl[s].Text = Win(c.Cur.People[s]); edPpl[s].BackColor = task ? Theme.Current.TaskBack : Theme.Current.ShiftBack[s]; }
             loadingEditor = false;
             fmtChanged = false; editChanged = false;
             SyncFormat();
@@ -144,7 +114,8 @@ namespace Arbeitsplan.Win
         void UpdateChanged()
         {
             CellData c = editCell;
-            editChanged = c != null && (fmtChanged || c.Lkz != c.Cur.Lkz || c.Content != c.Cur.Content
+            editChanged = c != null && (fmtChanged || c.Lkz != c.Cur.Lkz || c.Content != c.Cur.Content || c.Variant != c.Cur.Variant
+                || string.Join("|", c.Marks.ToArray()) != c.Cur.MarksKey()
                 || c.People[0] != c.Cur.People[0] || c.People[1] != c.Cur.People[1] || c.People[2] != c.Cur.People[2]);
         }
 
@@ -156,7 +127,8 @@ namespace Arbeitsplan.Win
             edContent.SetBounds(c0.RContent.X + PlanView.TP - 3, c0.RContent.Y + PlanView.TV, c0.RContent.Width - 2 * (PlanView.TP - 3) - 6, c0.RContent.Height - 2 * PlanView.TV);
             for (int s = 0; s < 3; s++)
                 edPpl[s].SetBounds(c0.RPpl[s].X + PlanView.TP - 2, c0.RPpl[s].Y + PlanView.TV, c0.RPpl[s].Width - 2 * (PlanView.TP - 2), c0.RPpl[s].Height - 2 * PlanView.TV);
-            foreach (Control c in editors) c.Visible = true;
+            edContent.Visible = true;
+            for (int s = 0; s < 3; s++) edPpl[s].Visible = c0.RPpl[s].Height > 0;   // ausgeblendete Schicht: kein Editor (Text bleibt im Block)
         }
 
         Entry WorkEntry(CellData c)
@@ -165,14 +137,14 @@ namespace Arbeitsplan.Win
             n.Content = Norm(edContent.Text);
             n.Spans = ExtractSpans();
             for (int s = 0; s < 3; s++) n.People[s] = Norm(edPpl[s].Text);
-            n.Lkz = c.Lkz;
+            n.Lkz = c.Lkz; n.Variant = c.Variant; n.Marks = new List<string>(c.Marks);
             return n;
         }
 
         bool EntryDirty(CellData c, Entry n)
         {
             return n.Content != c.Cur.Content || n.People[0] != c.Cur.People[0] || n.People[1] != c.Cur.People[1] || n.People[2] != c.Cur.People[2]
-                || n.Lkz != c.Cur.Lkz || n.SpanKey() != c.Cur.SpanKey();
+                || n.Lkz != c.Cur.Lkz || n.Variant != c.Cur.Variant || n.MarksKey() != c.Cur.MarksKey() || n.SpanKey() != c.Cur.SpanKey();
         }
 
         static bool quiet;   // Selbsttest: keine Meldungsfenster
@@ -230,10 +202,11 @@ namespace Arbeitsplan.Win
                 }
             }
             locks.Release(c.Day, rowInfo[c.RowIndex].Id, me.Display);
-            c.Content = c.Cur.Content; c.People = (string[])c.Cur.People.Clone(); c.Lkz = c.Cur.Lkz;
-            c.Editing = false; c.Dirty = true;
+            c.Show(c.Cur);
+            c.Editing = false;
             editCell = null; editChanged = fmtChanged = false;
             foreach (Control f in fmtControls) f.Enabled = false;
+            ComputeChecks();   // Pflichtpunkt-Zustaende nach dem Speichern
             view.Relayout();
             return true;
         }
@@ -301,7 +274,7 @@ namespace Arbeitsplan.Win
         void LoadMerged(CellData c, Entry latest, Entry merged)
         {
             c.Cur = merged; LoadEditors(c);
-            c.Cur = latest; c.Content = merged.Content; c.People = (string[])merged.People.Clone(); c.Lkz = merged.Lkz;
+            c.Cur = latest; c.Show(merged);
             fmtChanged = merged.SpanKey() != latest.SpanKey();
             UpdateChanged();
             view.Relayout();

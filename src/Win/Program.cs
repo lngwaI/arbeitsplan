@@ -245,6 +245,7 @@ namespace Arbeitsplan.Win
             string edit = Arg(args, "--edit");
             if (edit != null) f.TestEdit(int.Parse(edit.Split(',')[0]), int.Parse(edit.Split(',')[1]));
             if (Arg(args, "--applypkg") != null) f.TestApply(Arg(args, "--applypkg"));
+            if (Arg(args, "--go") != null) f.TestGo(int.Parse(Arg(args, "--go")));   // Fenster um n Tage verschieben (z. B. -2 = ab Samstag)
             if (Arg(args, "--search") != null) f.TestSearch(Arg(args, "--search"));
             if (Arg(args, "--bench") != null) System.IO.File.WriteAllText(Arg(args, "--bench"), f.Bench(20).ToString("0.0") + " ms je Wechsel");
             if (Arg(args, "--selftest") != null) System.IO.File.WriteAllText(Arg(args, "--selftest"), f.SelfTest());
