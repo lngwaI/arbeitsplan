@@ -71,3 +71,11 @@ Reihenfolge = Priorität. Entscheidungen stehen jeweils dabei, nicht erneut nach
 - Rechte "Text ändern/löschen": Wer keine Bearbeitungsrechte hat, kommt nicht in den Editor. Wer sie hat, darf frei bearbeiten/löschen/formatieren; Kontrolle über das Änderungsprotokoll. Kein weiteres Verschärfen (Wort-für-Wort-Ersetzen ist akzeptiert).
 - Abfrage-Timer: ohne API/Server nur lokal testbar (siehe Tests).
 - [x] Equipment-Stammdaten (Klassen, Reihen, Geräte, Verwendbar-mit, Ersatz) + Windows 10 als Minimum, Themes xp/win7 entfernt (G-Mail / 2. Account, fertig, 2026-10-27; CI-Selbsttest steht aus)
+
+## Nachtschicht 2026-10-27 (G-Mail / 2. Account; Sicherung: Tag `sicherung-vor-nachtschicht-2026-10-27`, Branch `sicherung/vor-nachtschicht`; Branch `gmail/nachtschicht`)
+- [ ] A Statusleiste (Name/Rolle/Kürzel), Titel nur "Arbeitsplan (online)", Verknüpfung erkennen, Datenordner-Adresse bei fehlendem Laufwerk (G-Mail / 2. Account, in Arbeit, 2026-10-27)
+- [ ] B Blockstruktur entschlacken (FSN-Modus: F/S/N, F/S, Tagesaufgabe), LKZ-Wochenlogik, Puffer-Proben (täglich/WFI wöchentlich)
+- [ ] C Rundgänge je Kalenderwoche (GMP 1/2, Kühlraum, EHS, WFI-Probenahme)
+- [ ] D Rollen umbenennen/anlegen/beenden, Rechte je Rolle, Einzelrechte + "Rolle +/-"-Kennzeichnung
+- [ ] E Equipment je Produkt, Stammdaten-UI verständlicher (Klasse/Reihe/Gerät, Zugehörigkeit Filter→Skid/Tank)
+- [ ] F Paket-Editor-Ruckeln/Ablauf, Plan als eigene Datei teilen, automatische Sicherung nach Zeitplan
