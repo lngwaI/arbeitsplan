@@ -176,6 +176,7 @@ namespace Arbeitsplan.Win
             ToolStripItem cf = set.DropDownItems.Add("Equipment && Bausteine…", null, delegate { EditCatalog(); }); cf.Enabled = me.Has(Perm.PackageAdmin);
             ToolStripItem mf = set.DropDownItems.Add("Equipment-Stammdaten…", null, delegate { EditMaster(); }); mf.Enabled = me.Has(Perm.PackageAdmin);
             ToolStripItem du = set.DropDownItems.Add("Pflichtpunkte && Feiertage…", null, delegate { EditDuties(); }); du.Enabled = me.Has(Perm.PackageAdmin);
+            ToolStripItem pf = set.DropDownItems.Add("Produkte && Equipment…", null, delegate { EditProducts(); }); pf.Enabled = me.Has(Perm.PackageAdmin);
             ToolStripItem bk = set.DropDownItems.Add("Sicherung…", null, delegate { OpenBackup(); }); bk.Enabled = me.Has(Perm.PackageAdmin);
             set.Visible = structure || usr || me.Has(Perm.PackageAdmin);
 
