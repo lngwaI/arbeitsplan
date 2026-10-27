@@ -72,17 +72,19 @@ namespace Arbeitsplan.Win
                 object h0 = f.lbHints.Items.Count > 0 ? f.lbHints.Items[0] : null;
                 int w0 = f.gEquip.Width;
                 f.OnResizeBegin(EventArgs.Empty);
-                for (int i = 1; i <= 5; i++) { f.ClientSize = new Size(1190 - 40 * i, 700 - 10 * i); Application.DoEvents(); }
+                Size cs = f.ClientSize;   // OnLoad passt das Fenster an kleine Bildschirme an (CI: 1024x768): nur verkleinern
+                for (int i = 1; i <= 5; i++) { f.ClientSize = new Size(cs.Width - 15 * i, cs.Height - 5 * i); Application.DoEvents(); }
                 bool locked = f.gEquip.Width == w0 && f.sizePending;
                 bool same = f.lv.Items.Count > 0 && f.lv.Items[0] == it0 && eq0 != null && f.equipRows.Controls.Count > 0 && f.equipRows.Controls[0] == eq0
                     && (h0 == null || (f.lbHints.Items.Count > 0 && f.lbHints.Items[0] == h0));
                 f.OnResizeEnd(EventArgs.Empty); Application.DoEvents();
-                bool fit = f.gEquip.Width == f.body.ClientSize.Width && !f.sizePending && f.equipRows.Controls.Count > 0 && f.equipRows.Controls[0] == eq0;
+                // Toleranz: ein Bildlauf, der erst durch die neue Hoehe erscheint/verschwindet, aendert die Breite danach noch
+                bool fit = f.gEquip.Width != w0 && Math.Abs(f.gEquip.Width - f.body.ClientSize.Width) <= SystemInformation.VerticalScrollBarWidth && !f.sizePending && f.equipRows.Controls.Count > 0 && f.equipRows.Controls[0] == eq0;
                 string camp = f.CampaignText() ?? "";
-                return "Paket-Editor Größe: Layoutsperre beim Ziehen " + (locked ? "ok" : "FEHLER") + ", kein Neuaufbau " + (same ? "ok" : "FEHLER")
+                return "Paket-Editor Resize: Layoutsperre beim Ziehen " + (locked ? "ok" : "FEHLER") + ", kein Neuaufbau " + (same ? "ok" : "FEHLER")
                     + ", danach angepasst " + (fit ? "ok" : "FEHLER") + ", Kopfzeile Kampagne " + (camp.StartsWith("Lauf ") ? "ok (" + camp + ")" : "FEHLER");
             }
-            catch (Exception ex) { return "Paket-Editor Größe: FEHLER " + ex.GetType().Name + ": " + ex.Message; }
+            catch (Exception ex) { return "Paket-Editor Resize: FEHLER " + ex.GetType().Name + ": " + ex.Message; }
             finally { f.dirty = false; f.Close(); f.Dispose(); }
         }
 #endif
