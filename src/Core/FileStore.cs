@@ -356,6 +356,17 @@ namespace Arbeitsplan.Core
         public List<SearchHit> Find(string q) { return mem.Find(q); }
         public Catalog GetCatalog() { return mem.GetCatalog(); }
         public void SaveCatalog(Catalog c) { Write(delegate(MemoryStore m) { m.SaveCatalog(c); return true; }); }
+        public DutyConfig GetDuties() { return mem.GetDuties(); }
+        public void SaveDuties(DutyConfig c) { Write(delegate(MemoryStore m) { m.SaveDuties(c); return true; }); }
+        public List<WeekMark> GetWeekMarks(DateTime monday) { return mem.GetWeekMarks(monday); }
+        // Wie SaveWithAudit: neu einlesen, Versionspruefung, Haken + Protokoll in einem Schreibvorgang
+        public bool SaveWeekMark(WeekMark w, AuditEntry a)
+        {
+            WeekMark c = w.Clone();
+            if (!Write(delegate(MemoryStore m) { return m.SaveWeekMark(c, a); })) return false;
+            w.Version = c.Version;
+            return true;
+        }
         public void AppendAudit(AuditEntry a) { Write(delegate(MemoryStore m) { m.AppendAudit(a); return true; }); }
         public List<AuditEntry> GetAudit(DateTime day, int rowId) { return mem.GetAudit(day, rowId); }
         // Fuer die Sicherung erst den aktuellen Dateistand holen (unter der Sperre); Fehler -> keine veraltete Sicherung

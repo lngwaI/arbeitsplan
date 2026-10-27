@@ -16,6 +16,8 @@ namespace Arbeitsplan.Core
         public Entry Before;                // null = Block war leer/neu
         public Entry After;
         public int Version;                 // Version nach dem Speichern
+        // Wochenhaken (Rundgang): RowId = -1, Day = Montag, Mark = Schluessel, Value = "1"/"0"; sonst leer
+        public string Mark = "", Value = "";
 
         public AuditEntry Clone()
         {
@@ -26,7 +28,7 @@ namespace Arbeitsplan.Core
         }
 
         // Eindeutig genug, um Protokolle zusammenzufuehren (Wiederherstellen einer Sicherung).
-        public string Key() { return Time.Ticks + "|" + Day.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) + "|" + RowId + "|" + Version + "|" + Login; }
+        public string Key() { return Time.Ticks + "|" + Day.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) + "|" + RowId + "|" + Version + "|" + Login + (Mark.Length > 0 ? "|" + Mark : ""); }
     }
 
     public static class Audit

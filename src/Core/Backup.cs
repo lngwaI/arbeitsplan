@@ -18,7 +18,9 @@ namespace Arbeitsplan.Core
         public List<StoredEntry> Entries = new List<StoredEntry>();
         public Catalog Catalog = new Catalog();
         public List<AuditEntry> Audit = new List<AuditEntry>();
-        public UserDb Users;                 // nur in der Datendatei (FileStore), nie in Sicherungen
+        public DutyConfig Duties = DutyConfig.Default();
+        public List<WeekMark> WeekMarks = new List<WeekMark>();
+        public UserDb Users;                // nur in der Datendatei (FileStore), nie in Sicherungen
     }
 
     // Datensicherung als eine Datei (.apbak): Nutzlast GZip( "APBAK2\n" + SHA-256-Hex des XML + "\n" + XML ), als APBAK2 mit dem
@@ -34,7 +36,7 @@ namespace Arbeitsplan.Core
     public static class Backup
     {
         // Datenformat; bei inkompatibler Aenderung erhoehen (aeltere exe lesen die Datei dann nicht mehr und schreiben nie zurueck)
-        public const int FormatVersion = 2;   // 2: Equipment-Stammdaten im Katalog
+        public const int FormatVersion = 3;   // 2: Equipment-Stammdaten im Katalog; 3: Pflichtpunkte, Varianten, Wochenhaken
         public const string Ext = ".apbak", Prefix = "Arbeitsplan_";
         public const int Keep = 14;
         static readonly UTF8Encoding Utf8 = new UTF8Encoding(false);
@@ -202,6 +204,8 @@ namespace Arbeitsplan.Core
                         w.WriteStartElement("Zeile"); w.WriteAttributeString("id", I(r.Id)); w.WriteAttributeString("name", r.Name);
                         for (int i = 0; i < 3; i++) w.WriteAttributeString("l" + i, r.Labels[i]);
                         w.WriteAttributeString("min", I(r.MinLines)); w.WriteAttributeString("lkz", B(r.HasLkz));
+                        if (r.Mode != ShiftMode.FSN) w.WriteAttributeString("modus", r.Mode.ToString());
+                        if (r.Variants.Length > 0) w.WriteAttributeString("varianten", r.Variants);
                         w.WriteEndElement();
                     }
                     w.WriteEndElement();
@@ -209,11 +213,20 @@ namespace Arbeitsplan.Core
                     foreach (StoredEntry s in d.Entries) { w.WriteStartElement("Block"); w.WriteAttributeString("tag", s.Day.ToString("yyyy-MM-dd", Inv)); w.WriteAttributeString("zeile", I(s.RowId)); WriteEntry(w, s.Data); w.WriteEndElement(); }
                     w.WriteEndElement();
                     WriteCatalog(w, d.Catalog);
+                    WriteDuties(w, d.Duties);
+                    w.WriteStartElement("Wochen");
+                    foreach (WeekMark m in d.WeekMarks)
+                    {
+                        w.WriteStartElement("Woche"); w.WriteAttributeString("montag", m.Monday.ToString("yyyy-MM-dd", Inv)); w.WriteAttributeString("k", m.Key);
+                        w.WriteAttributeString("erledigt", B(m.Done)); w.WriteAttributeString("ver", I(m.Version)); w.WriteEndElement();
+                    }
+                    w.WriteEndElement();
                     w.WriteStartElement("Protokoll");
                     foreach (AuditEntry a in d.Audit)
                     {
                         w.WriteStartElement("Eintrag"); w.WriteAttributeString("zeit", I(a.Time.Ticks)); w.WriteAttributeString("login", a.Login); w.WriteAttributeString("kuerzel", a.Kuerzel);
                         w.WriteAttributeString("tag", a.Day.ToString("yyyy-MM-dd", Inv)); w.WriteAttributeString("zeile", I(a.RowId)); w.WriteAttributeString("name", a.RowName); w.WriteAttributeString("ver", I(a.Version));
+                        if (a.Mark.Length > 0) { w.WriteAttributeString("pflicht", a.Mark); w.WriteAttributeString("wert", a.Value); }
                         if (a.Before != null) { w.WriteStartElement("Vorher"); WriteEntry(w, a.Before); w.WriteEndElement(); }
                         if (a.After != null) { w.WriteStartElement("Nachher"); WriteEntry(w, a.After); w.WriteEndElement(); }
                         w.WriteEndElement();
@@ -230,6 +243,8 @@ namespace Arbeitsplan.Core
             w.WriteAttributeString("ver", I(e.Version)); w.WriteAttributeString("lkz", B(e.Lkz));
             w.WriteAttributeString("inhalt", e.Content);
             for (int i = 0; i < 3; i++) w.WriteAttributeString("p" + i, e.People[i]);
+            if (e.Variant.Length > 0) w.WriteAttributeString("variante", e.Variant);
+            foreach (string m in e.Marks) { w.WriteStartElement("Mark"); w.WriteAttributeString("k", m); w.WriteEndElement(); }
             foreach (FormatSpan f in e.Spans)
             {
                 w.WriteStartElement("Fmt"); w.WriteAttributeString("start", I(f.Start)); w.WriteAttributeString("len", I(f.Length)); w.WriteAttributeString("rgb", I(f.Rgb));
@@ -263,6 +278,45 @@ namespace Arbeitsplan.Core
             }
             WriteMaster(w, c.Master);
             w.WriteEndElement();
+        }
+
+        static void WriteDuties(XmlWriter w, DutyConfig c)
+        {
+            w.WriteStartElement("Pflichten"); w.WriteAttributeString("land", c.Land);
+            foreach (CheckDef d in c.Defs)
+            {
+                w.WriteStartElement("Def"); w.WriteAttributeString("k", d.Key); w.WriteAttributeString("name", d.Name); w.WriteAttributeString("kurz", d.Short);
+                w.WriteAttributeString("zeile", I(d.RowId)); w.WriteAttributeString("regel", d.Rule.ToString()); w.WriteAttributeString("bed", d.Cond);
+                w.WriteAttributeString("woche", B(d.Weekly)); w.WriteEndElement();
+            }
+            foreach (RoundDef r in c.Rounds)
+            {
+                w.WriteStartElement("Rundgang"); w.WriteAttributeString("k", r.Key); w.WriteAttributeString("name", r.Name); w.WriteAttributeString("kurz", r.Short);
+                w.WriteAttributeString("aktiv", B(r.Active)); w.WriteEndElement();
+            }
+            foreach (DateTime x in c.ExtraHolidays) { w.WriteStartElement("Feiertag"); w.WriteAttributeString("tag", x.ToString("yyyy-MM-dd", Inv)); w.WriteEndElement(); }
+            foreach (DateTime x in c.RemovedHolidays) { w.WriteStartElement("KeinFeiertag"); w.WriteAttributeString("tag", x.ToString("yyyy-MM-dd", Inv)); w.WriteEndElement(); }
+            w.WriteEndElement();
+        }
+
+        static DutyConfig ReadDuties(XmlElement p)
+        {
+            DutyConfig c = new DutyConfig();
+            if (p.GetAttribute("land").Length > 0) c.Land = p.GetAttribute("land");
+            foreach (XmlElement e in Kids(p, "Def"))
+            {
+                CheckDef d = new CheckDef(); d.Key = e.GetAttribute("k"); d.Name = e.GetAttribute("name"); d.Short = e.GetAttribute("kurz");
+                d.RowId = Int(e, "zeile"); d.Rule = En(e, "regel", CheckRule.IfOccupied); d.Cond = e.GetAttribute("bed"); d.Weekly = Bool(e, "woche");
+                c.Defs.Add(d);
+            }
+            foreach (XmlElement e in Kids(p, "Rundgang"))
+            {
+                RoundDef r = new RoundDef(); r.Key = e.GetAttribute("k"); r.Name = e.GetAttribute("name"); r.Short = e.GetAttribute("kurz"); r.Active = Bool(e, "aktiv");
+                c.Rounds.Add(r);
+            }
+            foreach (XmlElement e in Kids(p, "Feiertag")) c.ExtraHolidays.Add(Day(e));
+            foreach (XmlElement e in Kids(p, "KeinFeiertag")) c.RemovedHolidays.Add(Day(e));
+            return c;
         }
 
         static void WriteMaster(XmlWriter w, EquipMaster m)
@@ -344,6 +398,14 @@ namespace Arbeitsplan.Core
         static XmlElement Kid(XmlNode n, string name) { foreach (XmlElement e in Kids(n, name)) return e; return null; }
         static int Int(XmlElement e, string a) { return int.Parse(e.GetAttribute(a), Inv); }
         static bool Bool(XmlElement e, string a) { return e.GetAttribute(a) == "1"; }
+        // fehlendes Attribut = Standard; unbekannter Wert = FormatException (wie andere Lesefehler)
+        static T En<T>(XmlElement e, string a, T def) where T : struct
+        {
+            string s = e.GetAttribute(a);
+            if (s.Length == 0) return def;
+            try { return (T)Enum.Parse(typeof(T), s); }
+            catch (ArgumentException) { throw new FormatException(); }
+        }
         static DateTime Day(XmlElement e) { return DateTime.ParseExact(e.GetAttribute("tag"), "yyyy-MM-dd", Inv); }
 
         internal static StoreData FromXml(byte[] xml) { return FromXml(new MemoryStream(xml)); }
@@ -363,6 +425,7 @@ namespace Arbeitsplan.Core
                 RowInfo r = new RowInfo(); r.Id = Int(z, "id"); r.Name = z.GetAttribute("name");
                 for (int i = 0; i < 3; i++) r.Labels[i] = z.GetAttribute("l" + i);
                 r.MinLines = Int(z, "min"); r.HasLkz = Bool(z, "lkz");
+                r.Mode = En(z, "modus", ShiftMode.FSN); r.Variants = z.GetAttribute("varianten");
                 d.Rows.Add(r);
             }
             if (d.Rows.Count == 0) throw new FormatException();
@@ -391,12 +454,22 @@ namespace Arbeitsplan.Core
             }
             XmlElement sd = Kid(k, "Stammdaten");
             if (sd != null) ReadMaster(sd, d.Catalog.Master);
+            XmlElement pf = Kid(root, "Pflichten");
+            if (pf != null) d.Duties = ReadDuties(pf);   // sonst Standard (v2-Dateien)
+            XmlElement wo = Kid(root, "Wochen");
+            if (wo != null)
+                foreach (XmlElement e in Kids(wo, "Woche"))
+                {
+                    WeekMark m = new WeekMark(); m.Monday = DateTime.ParseExact(e.GetAttribute("montag"), "yyyy-MM-dd", Inv); m.Key = e.GetAttribute("k");
+                    m.Done = Bool(e, "erledigt"); m.Version = Int(e, "ver"); d.WeekMarks.Add(m);
+                }
             XmlElement pr = Kid(root, "Protokoll");
             if (pr != null)
                 foreach (XmlElement e in Kids(pr, "Eintrag"))
                 {
                     AuditEntry a = new AuditEntry(); a.Time = new DateTime(long.Parse(e.GetAttribute("zeit"), Inv), DateTimeKind.Local);
                     a.Login = e.GetAttribute("login"); a.Kuerzel = e.GetAttribute("kuerzel"); a.Day = Day(e); a.RowId = Int(e, "zeile"); a.RowName = e.GetAttribute("name"); a.Version = Int(e, "ver");
+                    a.Mark = e.GetAttribute("pflicht"); a.Value = e.GetAttribute("wert");
                     XmlElement v = Kid(e, "Vorher"), n = Kid(e, "Nachher");
                     if (v != null) a.Before = ReadEntry(v);
                     if (n != null) a.After = ReadEntry(n);
@@ -411,6 +484,8 @@ namespace Arbeitsplan.Core
         {
             Entry x = new Entry(); x.Version = Int(e, "ver"); x.Lkz = Bool(e, "lkz"); x.Content = e.GetAttribute("inhalt");
             for (int i = 0; i < 3; i++) x.People[i] = e.GetAttribute("p" + i);
+            x.Variant = e.GetAttribute("variante");
+            foreach (XmlElement m in Kids(e, "Mark")) x.Marks.Add(m.GetAttribute("k"));
             foreach (XmlElement f in Kids(e, "Fmt"))
             {
                 FormatSpan s = new FormatSpan(); s.Start = Int(f, "start"); s.Length = Int(f, "len"); s.Rgb = Int(f, "rgb");
