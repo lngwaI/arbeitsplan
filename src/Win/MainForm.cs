@@ -172,6 +172,7 @@ namespace Arbeitsplan.Win
             ToolStripItem us = set.DropDownItems.Add("Nutzerverwaltung…", null, delegate { RefreshUsers(); using (UserAdminForm f = new UserAdminForm(users, me)) { f.ShowDialog(this); SaveUsers(f.Changes); } }); us.Enabled = usr;
             ToolStripItem cf = set.DropDownItems.Add("Equipment && Bausteine…", null, delegate { EditCatalog(); }); cf.Enabled = me.Has(Perm.PackageAdmin);
             ToolStripItem mf = set.DropDownItems.Add("Equipment-Stammdaten…", null, delegate { EditMaster(); }); mf.Enabled = me.Has(Perm.PackageAdmin);
+            ToolStripItem pf = set.DropDownItems.Add("Produkte && Equipment…", null, delegate { EditProducts(); }); pf.Enabled = me.Has(Perm.PackageAdmin);
             ToolStripItem bk = set.DropDownItems.Add("Sicherung…", null, delegate { OpenBackup(); }); bk.Enabled = me.Has(Perm.PackageAdmin);
             set.Visible = structure || usr || me.Has(Perm.PackageAdmin);
 

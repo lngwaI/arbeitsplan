@@ -106,6 +106,15 @@ namespace Arbeitsplan.Win
             }
         }
 
+        void EditProducts()
+        {
+            using (ProductForm f = new ProductForm(store.GetCatalog()))
+            {
+                if (f.ShowDialog(this) != DialogResult.OK) return;
+                try { store.SaveCatalog(f.Result); } catch (Exception ex) { ShowSaveError(ex); }
+            }
+        }
+
         // ---------- Suche ----------
 
         void OnSearchChanged()

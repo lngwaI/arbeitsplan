@@ -76,6 +76,7 @@ namespace Arbeitsplan.Win
             else if (which == "structure") f = new StructureForm(store.GetRows(), true, true, true);
             else if (which == "catalog") { List<string> nm = new List<string>(); foreach (RowInfo r in store.GetRows()) nm.Add(r.Name); f = new CatalogForm(store.GetCatalog(), nm); }
             else if (which == "history" || which == "backup") f = TestDataForm(which);
+            else if (which.StartsWith("stammdaten") || which == "products") f = TestStammForm(which);
             else if (which == "conflict")   // Rueckfrage bei gleicher Stelle (Testbild)
             {
                 Entry b = new Entry(), m = new Entry(), t = new Entry();
@@ -253,6 +254,7 @@ namespace Arbeitsplan.Win
             SelfTestEquipment(sb);
             SelfTestDuties(sb);
             SelfTestProducts(sb);
+            SelfTestStammdaten(sb);
             sb.AppendLine(PackageForm.TestFlow(store, equip, start));
             quiet = false;
             return sb.ToString();
