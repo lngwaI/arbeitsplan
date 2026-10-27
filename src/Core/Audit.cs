@@ -10,6 +10,7 @@ namespace Arbeitsplan.Core
     {
         public DateTime Time;               // Speicherzeitpunkt (lokal)
         public string Login = "", Kuerzel = "";
+        public string Role = "";            // Rolle beim Speichern (User.RoleText), alte Eintraege leer
         public DateTime Day;
         public int RowId;
         public string RowName = "";
@@ -43,7 +44,7 @@ namespace Arbeitsplan.Core
         public static AuditEntry New(DateTime day, RowInfo row, User user)
         {
             AuditEntry a = new AuditEntry();
-            a.Time = DateTime.Now; a.Login = user.Login; a.Kuerzel = user.Kuerzel;
+            a.Time = DateTime.Now; a.Login = user.Login; a.Kuerzel = user.Kuerzel; a.Role = user.RoleText;
             a.Day = day.Date; a.RowId = row.Id; a.RowName = row.Name;
             return a;
         }

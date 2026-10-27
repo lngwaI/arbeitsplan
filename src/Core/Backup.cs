@@ -225,6 +225,7 @@ namespace Arbeitsplan.Core
                     foreach (AuditEntry a in d.Audit)
                     {
                         w.WriteStartElement("Eintrag"); w.WriteAttributeString("zeit", I(a.Time.Ticks)); w.WriteAttributeString("login", a.Login); w.WriteAttributeString("kuerzel", a.Kuerzel);
+                        if (a.Role.Length > 0) w.WriteAttributeString("rolle", a.Role);
                         w.WriteAttributeString("tag", a.Day.ToString("yyyy-MM-dd", Inv)); w.WriteAttributeString("zeile", I(a.RowId)); w.WriteAttributeString("name", a.RowName); w.WriteAttributeString("ver", I(a.Version));
                         if (a.Mark.Length > 0) { w.WriteAttributeString("pflicht", a.Mark); w.WriteAttributeString("wert", a.Value); }
                         if (a.Before != null) { w.WriteStartElement("Vorher"); WriteEntry(w, a.Before); w.WriteEndElement(); }
@@ -471,7 +472,7 @@ namespace Arbeitsplan.Core
                 foreach (XmlElement e in Kids(pr, "Eintrag"))
                 {
                     AuditEntry a = new AuditEntry(); a.Time = new DateTime(long.Parse(e.GetAttribute("zeit"), Inv), DateTimeKind.Local);
-                    a.Login = e.GetAttribute("login"); a.Kuerzel = e.GetAttribute("kuerzel"); a.Day = Day(e); a.RowId = Int(e, "zeile"); a.RowName = e.GetAttribute("name"); a.Version = Int(e, "ver");
+                    a.Login = e.GetAttribute("login"); a.Kuerzel = e.GetAttribute("kuerzel"); a.Role = e.GetAttribute("rolle"); a.Day = Day(e); a.RowId = Int(e, "zeile"); a.RowName = e.GetAttribute("name"); a.Version = Int(e, "ver");
                     a.Mark = e.GetAttribute("pflicht"); a.Value = e.GetAttribute("wert");
                     XmlElement v = Kid(e, "Vorher"), n = Kid(e, "Nachher");
                     if (v != null) a.Before = ReadEntry(v);

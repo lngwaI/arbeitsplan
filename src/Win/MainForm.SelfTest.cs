@@ -253,6 +253,7 @@ namespace Arbeitsplan.Win
             SelfTestEquipment(sb);
             SelfTestDuties(sb);
             SelfTestProducts(sb);
+            SelfTestRoles(sb);
             sb.AppendLine(PackageForm.TestFlow(store, equip, start));
             quiet = false;
             return sb.ToString();

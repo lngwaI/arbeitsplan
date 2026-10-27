@@ -17,7 +17,7 @@ namespace Arbeitsplan.Win
         readonly bool canRestore;
         public Entry Result;
 
-        public HistoryForm(string title, List<AuditEntry> audit, string[] labels, bool canRestore)
+        public HistoryForm(string title, List<AuditEntry> audit, string[] labels, bool canRestore, UserDb users = null)
         {
             this.labels = labels; this.canRestore = canRestore;
             Text = "Verlauf – " + title;
@@ -30,12 +30,12 @@ namespace Arbeitsplan.Win
 
             list.SetBounds(10, 32, 740, 190);
             list.View = View.Details; list.FullRowSelect = true; list.HideSelection = false; list.MultiSelect = false;
-            list.Columns.Add("Version", 60); list.Columns.Add("Gespeichert", 130); list.Columns.Add("Nutzer", 170); list.Columns.Add("Inhalt", 355);
+            list.Columns.Add("Version", 60); list.Columns.Add("Gespeichert", 130); list.Columns.Add("Nutzer", 140); list.Columns.Add("Rolle", 150); list.Columns.Add("Inhalt", 235);
             for (int i = audit.Count - 1; i >= 0; i--)
             {
                 AuditEntry a = audit[i];
                 ListViewItem it = new ListViewItem(new[] { a.Version.ToString(), a.Time.ToString("dd.MM.yyyy HH:mm:ss"),
-                    a.Kuerzel.Length > 0 ? a.Login + " (" + a.Kuerzel + ")" : a.Login, Audit.Preview(a.After) });
+                    a.Kuerzel.Length > 0 ? a.Login + " (" + a.Kuerzel + ")" : a.Login, RoleOf(a, users), Audit.Preview(a.After) });
                 it.Tag = a;
                 list.Items.Add(it);
             }
@@ -62,6 +62,14 @@ namespace Arbeitsplan.Win
             Controls.AddRange(new Control[] { hint, list, lb, la, before, after, bRestore, note, bClose });
             if (list.Items.Count > 0) list.Items[0].Selected = true;
             ShowSel();
+        }
+
+        // Rolle beim Speichern; alte Eintraege ohne Rolle: heutige Rolle des Nutzers, gekennzeichnet
+        static string RoleOf(AuditEntry a, UserDb users)
+        {
+            if (a.Role.Length > 0 || users == null) return a.Role;
+            User u = users.FindByLogin(a.Login);
+            return u != null ? "(heute) " + users.RoleLabel(u) : "";
         }
 
         AuditEntry Sel() { return list.SelectedItems.Count > 0 ? (AuditEntry)list.SelectedItems[0].Tag : null; }
