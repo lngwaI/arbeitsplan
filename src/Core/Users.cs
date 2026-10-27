@@ -34,30 +34,75 @@ namespace Arbeitsplan.Core
             }
             return r;
         }
+
+        // Kurzname fuer die Rollenanzeige, z. B. "Produktion (+Export, -Format)"
+        public static string Short(string r)
+        {
+            switch (r)
+            {
+                case Read: return "Lesen";
+                case EditText: return "Ändern";
+                case DeleteText: return "Löschen";
+                case AddText: return "Hinzufügen";
+                case EditNames: return "Blocknamen";
+                case EditHeight: return "Blockhöhe";
+                case SortRows: return "Sortieren";
+                case Export: return "Export";
+                case ImportPackage: return "Import";
+                case PackageAdmin: return "Pakete einrichten";
+                case UserCreate: return "Nutzer anlegen";
+                case UserEdit: return "Nutzer bearbeiten";
+                case UserDelete: return "Nutzer löschen";
+                case Rounds: return "Rundgänge";
+            }
+            return r;
+        }
     }
 
     public class User
     {
         public int Id;
         public string First = "", Last = "", Login = "", Kuerzel = "";
-        public HashSet<string> Rights = new HashSet<string>();
+        public string RoleId = "";                                   // Rolle (RightsPackage.Id); nie leer bei gespeicherten Nutzern
+        public List<string> Plus = new List<string>(), Minus = new List<string>();   // Einzelrechte zusaetzlich/entzogen
+        public HashSet<string> Rights = new HashSet<string>();      // wirksam = Rolle + Plus - Minus (UserDb.Resolve)
+        public string RoleText = "";                                 // Rollenanzeige (UserDb.Resolve), z. B. fuer das Protokoll
 
         public string Display
         {
             get { string n = (First + " " + Last).Trim(); return n.Length > 0 ? n : Login; }
         }
         public bool Has(string right) { return Rights.Contains(right); }
+
+        public User Clone()
+        {
+            User c = (User)MemberwiseClone();
+            c.Rights = new HashSet<string>(Rights); c.Plus = new List<string>(Plus); c.Minus = new List<string>(Minus);
+            return c;
+        }
+
+        public void CopyFrom(User o)
+        {
+            User c = o.Clone();
+            Id = c.Id; First = c.First; Last = c.Last; Login = c.Login; Kuerzel = c.Kuerzel;
+            RoleId = c.RoleId; Plus = c.Plus; Minus = c.Minus; Rights = c.Rights; RoleText = c.RoleText;
+        }
     }
 
+    // Rolle (frueher "Rechtepaket"): feste Ids "leser", "produktion", "admin", eigene "r<n>".
+    // Nie geloescht, nur beendet (Active = false). "admin" hat immer alle Rechte (UserDb.ResolveAll).
     public class RightsPackage
     {
-        public string Name;
+        public string Id, Name;
         public string[] Rights;
-        public RightsPackage(string name, params string[] rights) { Name = name; Rights = rights; }
+        public bool Active = true;
+        public bool Builtin { get { return Id == "leser" || Id == "produktion" || Id == UserDb.AdminId; } }
+        public RightsPackage(string id, string name, params string[] rights) { Id = id; Name = name; Rights = rights; }
+        public RightsPackage Clone() { RightsPackage c = (RightsPackage)MemberwiseClone(); c.Rights = (string[])Rights.Clone(); return c; }
     }
 
-    // In-Memory-Nutzerdatenbank (spaeter Server-DB).
-    public class UserDb
+    // In-Memory-Nutzerdatenbank (spaeter Server-DB). Rollenlogik in Roles.cs.
+    public partial class UserDb
     {
         public readonly List<User> Users = new List<User>();
         public readonly List<RightsPackage> Packages = new List<RightsPackage>();
@@ -71,29 +116,25 @@ namespace Arbeitsplan.Core
             return null;
         }
 
-        public RightsPackage Package(string name)
+        // Rolle nach Id, sonst nach Name (Gross/Klein egal)
+        public RightsPackage Package(string idOrName)
         {
-            foreach (RightsPackage p in Packages) if (p.Name == name) return p;
+            foreach (RightsPackage p in Packages) if (p.Id == idOrName) return p;
+            foreach (RightsPackage p in Packages) if (string.Equals(p.Name, idOrName, StringComparison.OrdinalIgnoreCase)) return p;
             return null;
         }
 
-        public User Add(string first, string last, string login, string package)
+        public User Add(string first, string last, string login, string role)
         {
             User u = new User();
             foreach (User x in Users) u.Id = Math.Max(u.Id, x.Id);
             u.Id++; u.First = first; u.Last = last; u.Login = login;
-            ApplyPackage(u.Rights, Package(package));
+            Assign(u, role);
             Users.Add(u);
             return u;
         }
 
-        public static void ApplyPackage(HashSet<string> rights, RightsPackage p)
-        {
-            rights.Clear();
-            if (p != null) foreach (string r in p.Rights) rights.Add(r);
-        }
-
-        // "ausgewaehlt" nur bei exakt gleichen Rechten.
+        // exakt gleiche Rechte (Rueckfall fuer Nutzer ohne Rolle)
         public static bool Matches(HashSet<string> rights, RightsPackage p)
         {
             if (rights.Count != p.Rights.Length) return false;
@@ -107,47 +148,21 @@ namespace Arbeitsplan.Core
             return null;
         }
 
-        // Rolle fuer Statusleiste/Info: Name des Rechtepakets; ohne exakt passendes Paket "benutzerdefiniert"
-        // (einzige Stelle; spaeter z. B. "Produktion (+/-)" bei abweichenden Einzelrechten)
-        public string RoleLabel(User u)
-        {
-            RightsPackage p = PackageOf(u);
-            return p != null ? p.Name : "benutzerdefiniert";
-        }
-
         // Admin = alle Rechte
         public static bool IsAdmin(HashSet<string> rights) { foreach (string r in Perm.All) if (!rights.Contains(r)) return false; return true; }
         public int AdminCount(User except) { int n = 0; foreach (User u in Users) if (u != except && IsAdmin(u.Rights)) n++; return n; }
 
-        // Aenderungen der Nutzerverwaltung nach Id in den aktuellen Stand einarbeiten (fremde parallele Aenderungen bleiben):
-        // geaenderte ersetzen/anhaengen, geloeschte entfernen; neue Nutzer, deren Id inzwischen vergeben ist, bekommen eine freie.
-        public void Merge(UserChanges c)
-        {
-            if (c.Domains != null) { Domains.Clear(); Domains.AddRange(c.Domains); }
-            Users.RemoveAll(delegate(User x) { return c.Deleted.Contains(x.Id); });
-            foreach (User u in c.Changed)
-            {
-                int i = Users.FindIndex(delegate(User x) { return x.Id == u.Id; });
-                if (i >= 0 && Users[i] == u) continue;
-                if (i >= 0 && c.Added.Contains(u))
-                {
-                    foreach (User x in Users) u.Id = Math.Max(u.Id, x.Id + 1);
-                    i = -1;
-                }
-                if (i >= 0) Users[i] = u; else Users.Add(u);
-            }
-        }
-
-        // Nur Rechtepakete, keine Nutzer (Erststart der Datendatei)
+        // Nur Rollen, keine Nutzer (Erststart der Datendatei)
         public static UserDb Default()
         {
             UserDb db = new UserDb();
-            db.Packages.Add(new RightsPackage("Leser", Perm.Read, Perm.Export));
-            db.Packages.Add(new RightsPackage("Produktion", Perm.Read, Perm.EditText, Perm.DeleteText, Perm.AddText, Perm.Format, Perm.Export, Perm.ImportPackage, Perm.Rounds));
-            db.Packages.Add(new RightsPackage("Admin", Perm.All));
+            db.Packages.Add(new RightsPackage("leser", "Leser", Perm.Read, Perm.Export));
+            db.Packages.Add(new RightsPackage("produktion", "Produktion", Perm.Read, Perm.EditText, Perm.DeleteText, Perm.AddText, Perm.Format, Perm.Export, Perm.ImportPackage, Perm.Rounds));
+            db.Packages.Add(new RightsPackage(AdminId, "Admin", (string[])Perm.All.Clone()));
             return db;
         }
 
+        // Rolle id/name/aktiv; Person rolle/plus/minus. Die R-Kinder bleiben (wirksame Rechte) als Rueckfall fuer aeltere Programmstaende.
         public void WriteXml(XmlWriter w)
         {
             w.WriteStartElement("Nutzer");
@@ -155,7 +170,8 @@ namespace Arbeitsplan.Core
             if (Domains.Count > 0) w.WriteAttributeString("domaenen", string.Join(",", Domains.ToArray()));
             foreach (RightsPackage p in Packages)
             {
-                w.WriteStartElement("Paket"); w.WriteAttributeString("name", p.Name);
+                w.WriteStartElement("Paket"); w.WriteAttributeString("id", p.Id); w.WriteAttributeString("name", p.Name);
+                if (!p.Active) w.WriteAttributeString("aktiv", "0");
                 foreach (string r in p.Rights) { w.WriteStartElement("R"); w.WriteAttributeString("v", r); w.WriteEndElement(); }
                 w.WriteEndElement();
             }
@@ -163,6 +179,9 @@ namespace Arbeitsplan.Core
             {
                 w.WriteStartElement("Person"); w.WriteAttributeString("id", u.Id.ToString(CultureInfo.InvariantCulture));
                 w.WriteAttributeString("vorname", u.First); w.WriteAttributeString("nachname", u.Last); w.WriteAttributeString("login", u.Login); w.WriteAttributeString("kuerzel", u.Kuerzel);
+                w.WriteAttributeString("rolle", u.RoleId);
+                if (u.Plus.Count > 0) w.WriteAttributeString("plus", string.Join(",", u.Plus.ToArray()));
+                if (u.Minus.Count > 0) w.WriteAttributeString("minus", string.Join(",", u.Minus.ToArray()));
                 foreach (string r in u.Rights) { w.WriteStartElement("R"); w.WriteAttributeString("v", r); w.WriteEndElement(); }
                 w.WriteEndElement();
             }
@@ -180,15 +199,32 @@ namespace Arbeitsplan.Core
                 List<string> rights = new List<string>();
                 foreach (XmlNode r in x.ChildNodes) { XmlElement re = r as XmlElement; if (re != null && re.Name == "R") rights.Add(re.GetAttribute("v")); }
                 if (e.GetAttribute("rechte").Length == 0 && rights.Contains(Perm.EditText)) rights.Add(Perm.Rounds);   // alte Datei: Produktion/Admin bekommen das neue Recht
-                if (x.Name == "Paket") db.Packages.Add(new RightsPackage(x.GetAttribute("name"), rights.ToArray()));
+                if (x.Name == "Paket")
+                {
+                    string name = x.GetAttribute("name"), id = x.GetAttribute("id");
+                    if (id.Length == 0) id = name == "Leser" ? "leser" : name == "Produktion" ? "produktion" : name == "Admin" ? AdminId : "";   // alte Datei: feste Rollen ueber den Namen
+                    RightsPackage p = new RightsPackage(id, name, rights.ToArray());
+                    p.Active = x.GetAttribute("aktiv") != "0";
+                    db.Packages.Add(p);
+                }
                 else if (x.Name == "Person")
                 {
                     User u = new User(); u.Id = int.Parse(x.GetAttribute("id"), CultureInfo.InvariantCulture);
                     u.First = x.GetAttribute("vorname"); u.Last = x.GetAttribute("nachname"); u.Login = x.GetAttribute("login"); u.Kuerzel = x.GetAttribute("kuerzel");
+                    u.RoleId = x.GetAttribute("rolle"); u.Plus = Umgebung.SplitList(x.GetAttribute("plus")); u.Minus = Umgebung.SplitList(x.GetAttribute("minus"));
                     foreach (string r in rights) u.Rights.Add(r);
                     db.Users.Add(u);
                 }
             }
+            foreach (RightsPackage p in db.Packages) if (p.Id.Length == 0) p.Id = db.FreeRoleId();
+            db.ResolveAll();   // admin = alle Rechte, bevor Nutzer ohne Rolle zugeordnet werden
+            foreach (User u in db.Users)
+                if (u.RoleId.Length == 0)
+                {   // alte Datei: Rolle mit den wenigsten Abweichungen, Abweichungen als Plus/Minus (wirksame Rechte bleiben gleich)
+                    RightsPackage r = db.Closest(u.Rights);
+                    if (r != null) db.SetRights(u, r.Id, new List<string>(u.Rights));
+                }
+            db.ResolveAll();
             return db;
         }
 
@@ -204,13 +240,15 @@ namespace Arbeitsplan.Core
         }
     }
 
-    // Was die Nutzerverwaltung geaendert hat (Changed enthaelt auch die neuen Nutzer aus Added).
+    // Was die Nutzerverwaltung geaendert hat (Changed enthaelt auch die neuen Nutzer aus Added, Roles die neuen Rollen aus AddedRoles).
     public class UserChanges
     {
         public readonly HashSet<User> Changed = new HashSet<User>(), Added = new HashSet<User>();
         public readonly HashSet<int> Deleted = new HashSet<int>();
+        public readonly HashSet<RightsPackage> Roles = new HashSet<RightsPackage>(), AddedRoles = new HashSet<RightsPackage>();
         public List<string> Domains;   // null = unveraendert
-        public bool Any { get { return Changed.Count > 0 || Deleted.Count > 0 || Domains != null; } }
+        public User By;                // wer aendert: Merge prueft "im Rahmen der eigenen Rechte"; null = nur Grundregeln
+        public bool Any { get { return Changed.Count > 0 || Deleted.Count > 0 || Roles.Count > 0 || Domains != null; } }
     }
 
     // Soft-Lock: nur Anzeige, wer gerade bearbeitet; blockiert nie.

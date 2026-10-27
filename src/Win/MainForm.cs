@@ -236,6 +236,7 @@ namespace Arbeitsplan.Win
                 statusBar.Controls.Add(l);
             }
             statusLeft.Text = me.Display + "  ·  " + users.RoleLabel(me) + (me.Kuerzel.Length > 0 ? "  ·  " + me.Kuerzel : "");
+            ToolTip roleTip = new ToolTip(); roleTip.AutoPopDelay = 20000; roleTip.SetToolTip(statusLeft, users.RoleTooltip(me));
             Status(fstore != null ? "Aktualisiert " + DateTime.Now.ToString("HH:mm") : null, false);
         }
 

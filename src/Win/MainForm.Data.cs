@@ -31,7 +31,7 @@ namespace Arbeitsplan.Win
             RowInfo ri = rowInfo[c.RowIndex];
             string title = BlockTitle(c) + ", " + Ui.DayText(c.Day);
             Entry pick;
-            using (HistoryForm f = new HistoryForm(title, store.GetAudit(c.Day, ri.Id), ri.Labels, me.Has(Perm.EditText)))
+            using (HistoryForm f = new HistoryForm(title, store.GetAudit(c.Day, ri.Id), ri.Labels, me.Has(Perm.EditText), users))
             {
                 if (f.ShowDialog(this) != DialogResult.OK) return;
                 pick = f.Result;

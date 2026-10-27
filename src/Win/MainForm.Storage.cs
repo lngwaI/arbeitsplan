@@ -32,7 +32,7 @@ namespace Arbeitsplan.Win
                 if (u != null) return u;
                 // Annahme (Prototyp): unbekannter Windows-Nutzer = Produktion mit Windows-Namen.
                 u = new User(); u.Login = login;
-                UserDb.ApplyPackage(u.Rights, users.Package("Produktion"));
+                users.Assign(u, "produktion");
                 return u;
             }
             bool admin = cfg.IsAdmin(login, users);   // nur solange die Nutzerliste keinen Admin hat (Ersteinrichtung)
@@ -40,14 +40,14 @@ namespace Arbeitsplan.Win
             {   // Admin aus Arbeitsplan.ini einmalig in die Nutzerliste (Kuerzel dort eintragen)
                 UserChanges ch = new UserChanges();
                 if (u == null) { u = users.Add("", "", login, "Admin"); ch.Added.Add(u); }
-                else UserDb.ApplyPackage(u.Rights, users.Package("Admin"));
+                else users.Assign(u, UserDb.AdminId);
                 ch.Changed.Add(u);
                 try { fstore.SaveUsers(ch); users = fstore.Users; } catch (Exception) { }
             }
             if (u == null) { u = new User(); u.Login = login; }
-            string pkg = admin ? "Admin" : users.FindByLogin(login) != null ? null : (cfg.Pilot ? "Produktion" : "Leser");
-            if (fstore.ReadOnly) { pkg = "Leser"; offlineStart = fstore.Offline; }   // Systemrechner / OFFLINE: nur ansehen
-            if (pkg != null) UserDb.ApplyPackage(u.Rights, users.Package(pkg));
+            string pkg = admin ? UserDb.AdminId : users.FindByLogin(login) != null ? null : (cfg.Pilot ? "produktion" : "leser");
+            if (fstore.ReadOnly) { pkg = "leser"; offlineStart = fstore.Offline; }   // Systemrechner / OFFLINE: nur ansehen
+            if (pkg != null) users.Assign(u, pkg);
             List<string> bind = Umgebung.AutoBind(Umgebung.UserDomain, Umgebung.MachineDomain, Umgebung.Machine);
             if (!fstore.ReadOnly && users.Domains.Count == 0 && UserDb.IsAdmin(u.Rights) && bind.Count > 0)
             {   // erster Admin mit Domaenenkonto bindet die Daten an diese Umgebung (Umgebung.Allowed); aenderbar in der Nutzerverwaltung

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Windows.Forms;
@@ -6,79 +6,84 @@ using Arbeitsplan.Core;
 
 namespace Arbeitsplan.Win
 {
-    // Nutzerverwaltung: anlegen (+), bearbeiten, loeschen; Rechte einzeln oder per Rechtepaket.
-    class UserAdminForm : Form
+    // Nutzerverwaltung: Reiter Nutzer (anlegen, bearbeiten, loeschen; Rolle + Einzelrechte), Rollen (UserAdminForm.Roles.cs), Umgebung (Domaenen).
+    // Jede Aenderung wird gegen den Stand beim Oeffnen geprueft (UserDb.Validate: letzter Admin, nur eigene Rechte, eigene Zeile, beendete Rolle).
+    partial class UserAdminForm : Form
     {
-        readonly UserDb db;
+        readonly UserDb db, orig;
         readonly User me;
+        readonly TabControl tabs = new TabControl();
+        readonly TabPage pUsers = new TabPage("Nutzer"), pRoles = new TabPage("Rollen"), pEnv = new TabPage("Umgebung");
         readonly ListBox list = new ListBox();
         readonly TextBox tFirst = new TextBox(), tLast = new TextBox(), tLogin = new TextBox(), tKuerzel = new TextBox(), tDomains = new TextBox();
-        readonly Button bNew = new Button(), bDel = new Button(), bSave = new Button();
-        readonly List<CheckBox> pkBoxes = new List<CheckBox>();
+        readonly ComboBox cbRole = new ComboBox();
+        readonly Label lPreview = new Label();
+        readonly Button bNew = new Button(), bDel = new Button(), bSave = new Button(), bReset = new Button();
         readonly Dictionary<string, CheckBox> rightBoxes = new Dictionary<string, CheckBox>();
         readonly HashSet<User> fresh = new HashSet<User>();   // eben angelegt: darf mit "anlegen"-Recht ausgefuellt werden
         User cur;
         bool loading;
         public readonly UserChanges Changes = new UserChanges();   // nur das wird gespeichert (MainForm.SaveUsers)
 
+        static readonly Color Green = Color.FromArgb(0, 128, 0), Red = Color.FromArgb(192, 0, 0);
+
         public UserAdminForm(UserDb db, User me)
         {
-            this.db = db; this.me = me;
+            this.db = db; this.me = me; orig = db.Copy(); Changes.By = me;
             FormClosed += delegate { foreach (User u in fresh) db.Users.Remove(u); fresh.Clear(); };   // nie uebernommen (ohne Login) = verwerfen
             FormClosing += delegate { TakeDomains(); };
             Text = "Nutzerverwaltung";
-            Ui.Dialog(this, 640, 520);
+            Ui.Dialog(this, 720, 636);
+            tabs.SetBounds(8, 8, 704, 620);
+            tabs.TabPages.AddRange(new[] { pUsers, pRoles, pEnv });
+            Controls.Add(tabs);
 
-            list.SetBounds(10, 10, 200, 430);
+            list.SetBounds(10, 10, 200, 530);
             list.SelectedIndexChanged += delegate { Select(list.SelectedItem as User); };
-            bNew.SetBounds(10, 460, 60, 30); bNew.Text = "+"; bNew.Enabled = me.Has(Perm.UserCreate);
+            bNew.SetBounds(10, 550, 60, 30); bNew.Text = "+"; bNew.Enabled = me.Has(Perm.UserCreate);
             bNew.Click += delegate { AddUser(); };
-            bDel.SetBounds(80, 460, 90, 30); bDel.Text = "Löschen"; bDel.Enabled = me.Has(Perm.UserDelete);
+            bDel.SetBounds(80, 550, 90, 30); bDel.Text = "Löschen"; bDel.Enabled = me.Has(Perm.UserDelete);
             bDel.Click += delegate { DeleteUser(); };
 
-            Label1("Vorname", 230, 14); tFirst.SetBounds(450, 10, 170, 22);
-            Label1("Nachname", 230, 44); tLast.SetBounds(450, 40, 170, 22);
-            Label1("Windows-Login", 230, 74); tLogin.SetBounds(450, 70, 170, 22);
-            Label1("Kürzel (wird im Plan grün markiert)", 230, 104); tKuerzel.SetBounds(450, 100, 170, 22);
-            Label1("Rechtepaket (ein Klick vergibt alle Rechte):", 230, 134);
-            int x = 230;
-            foreach (RightsPackage p in db.Packages)
-            {
-                CheckBox cb = new CheckBox();
-                cb.Text = p.Name; cb.Tag = p; cb.AutoCheck = false; cb.AutoSize = true; cb.Location = new Point(x, 154);
-                cb.Click += OnPackageClick;
-                x += 100; pkBoxes.Add(cb); Controls.Add(cb);
-            }
-            Label1("Einzelrechte:", 230, 184);
-            int y = 206;
+            Label1(pUsers, "Vorname", 225, 10); tFirst.SetBounds(440, 10, 240, 22);
+            Label1(pUsers, "Nachname", 225, 40); tLast.SetBounds(440, 40, 240, 22);
+            Label1(pUsers, "Windows-Login", 225, 70); tLogin.SetBounds(440, 70, 240, 22);
+            Label1(pUsers, "Kürzel (wird im Plan grün markiert)", 225, 100); tKuerzel.SetBounds(440, 100, 240, 22);
+            Label1(pUsers, "Rolle", 225, 132); cbRole.SetBounds(440, 132, 240, 22); cbRole.DropDownStyle = ComboBoxStyle.DropDownList;
+            cbRole.SelectedIndexChanged += delegate { if (!loading) TakeRole(); };
+            Label1(pUsers, "Einzelrechte (Haken = wirksam; grün + = zusätzlich, rot − = entzogen):", 225, 164);
+            int y = 186;
             foreach (string r in Perm.All)
             {
                 CheckBox cb = new CheckBox();
-                cb.Text = Perm.Label(r); cb.Tag = r; cb.AutoSize = true; cb.Location = new Point(240, y);
-                cb.CheckedChanged += delegate { if (!loading) RefreshPackages(); };
-                y += 24; rightBoxes[r] = cb; Controls.Add(cb);
+                cb.Tag = r; cb.AutoSize = true; cb.Location = new Point(235, y);
+                cb.CheckedChanged += delegate { if (!loading) RefreshMarks(); };
+                y += 22; rightBoxes[r] = cb; pUsers.Controls.Add(cb);
             }
-            int by = y + 10;                         // Buttons unter der Rechteliste; Dialoghoehe richtet sich nach der Anzahl der Rechte
-            // Umgebung (nur Admin): wo das Programm starten darf (Umgebung.Allowed); leer = ueberall
-            Label1("Freigegebene Windows-Domänen/Rechner (Komma, * erlaubt; nur Admin):", 10, by + 44);
-            tDomains.SetBounds(10, by + 66, 610, 22); tDomains.Text = string.Join(", ", db.Domains.ToArray());
-            tDomains.Enabled = UserDb.IsAdmin(me.Rights); Ui.SimpleMenu(tDomains);
-            new ToolTip().SetToolTip(tDomains, "Das Programm startet nur auf PCs dieser Windows-Domänen (oder Rechner). * = überall (keine Prüfung).\n"
-                + "Leer = der nächste Admin mit Domänenkonto trägt seine Domäne ein. Ihre Umgebung: " + Umgebung.Home(Umgebung.UserDomain, Umgebung.MachineDomain, Umgebung.Machine));
-            ClientSize = new Size(640, by + 100);
-            list.Height = by - 20;
-            bNew.Top = bDel.Top = by;
-            bSave.SetBounds(230, by, 120, 30); bSave.Text = "Übernehmen";
+            lPreview.SetBounds(225, y + 6, 460, 20);
+            bReset.SetBounds(225, 550, 200, 30); bReset.Text = "Abweichungen zurücksetzen";
+            bReset.Click += delegate { TakeRole(); };
+            bSave.SetBounds(435, 550, 120, 30); bSave.Text = "Übernehmen";
             bSave.Click += delegate { Apply(); };
+            pUsers.Controls.AddRange(new Control[] { list, bNew, bDel, tFirst, tLast, tLogin, tKuerzel, cbRole, lPreview, bReset, bSave });
 
-            Controls.AddRange(new Control[] { list, bNew, bDel, tFirst, tLast, tLogin, tKuerzel, bSave, tDomains });
+            // Umgebung (nur Admin): wo das Programm starten darf (Umgebung.Allowed); leer = ueberall
+            Label1(pEnv, "Freigegebene Windows-Domänen/Rechner (Komma, * erlaubt; nur Admin):", 10, 10);
+            tDomains.SetBounds(10, 34, 670, 22); tDomains.Text = string.Join(", ", db.Domains.ToArray());
+            tDomains.Enabled = UserDb.IsAdmin(me.Rights); Ui.SimpleMenu(tDomains);
+            string tip = "Das Programm startet nur auf PCs dieser Windows-Domänen (oder Rechner). * = überall (keine Prüfung).\n"
+                + "Leer = der nächste Admin mit Domänenkonto trägt seine Domäne ein. Ihre Umgebung: " + Umgebung.Home(Umgebung.UserDomain, Umgebung.MachineDomain, Umgebung.Machine);
+            new ToolTip().SetToolTip(tDomains, tip);
+            Label hint = new Label(); hint.Text = tip; hint.SetBounds(10, 66, 670, 60); pEnv.Controls.AddRange(new Control[] { tDomains, hint });
+
+            BuildRoles();
             Reload(null);
         }
 
-        void Label1(string text, int x, int y)
+        static void Label1(Control parent, string text, int x, int y)
         {
             Label l = new Label(); l.Text = text; l.AutoSize = true; l.Location = new Point(x, y + 3);
-            Controls.Add(l);
+            parent.Controls.Add(l);
         }
 
         void Reload(User select)
@@ -91,18 +96,33 @@ namespace Arbeitsplan.Win
             else Select(null);
         }
 
+        // Rollen-Auswahl: aktive Rollen im Rahmen der eigenen Rechte, dazu die bisherige Rolle des Nutzers (auch beendet)
+        void FillRoles(User u)
+        {
+            cbRole.Items.Clear();
+            foreach (RightsPackage r in db.Packages)
+                if ((r.Active && Array.TrueForAll(r.Rights, me.Has)) || (u != null && r.Id == u.RoleId))
+                {
+                    cbRole.Items.Add(new RoleItem(r, -1));
+                    if (u != null && r.Id == u.RoleId) cbRole.SelectedIndex = cbRole.Items.Count - 1;
+                }
+        }
+
+        RightsPackage SelectedRole() { RoleItem it = cbRole.SelectedItem as RoleItem; return it != null ? it.R : null; }
+
         void Select(User u)
         {
             cur = u;
             loading = true;
             tFirst.Text = u != null ? u.First : ""; tLast.Text = u != null ? u.Last : ""; tLogin.Text = u != null ? u.Login : ""; tKuerzel.Text = u != null ? u.Kuerzel : "";
+            FillRoles(u);
             foreach (KeyValuePair<string, CheckBox> kv in rightBoxes) kv.Value.Checked = u != null && u.Has(kv.Key);
             loading = false;
-            RefreshPackages();
+            RefreshMarks();
             bool canEdit = u != null && (me.Has(Perm.UserEdit) || (fresh.Contains(u) && me.Has(Perm.UserCreate)));
             tFirst.Enabled = tLast.Enabled = tLogin.Enabled = tKuerzel.Enabled = bSave.Enabled = canEdit;
             bool canRights = canEdit && u != me;   // eigene Rechte schreibgeschuetzt; vergeben/entziehen nur, was man selbst hat
-            foreach (CheckBox cb in pkBoxes) cb.Enabled = canRights && Array.TrueForAll(((RightsPackage)cb.Tag).Rights, me.Has);
+            cbRole.Enabled = bReset.Enabled = canRights;
             foreach (KeyValuePair<string, CheckBox> kv in rightBoxes) kv.Value.Enabled = canRights && me.Has(kv.Key);
             bDel.Enabled = u != null && u != me && me.Has(Perm.UserDelete);
         }
@@ -114,23 +134,31 @@ namespace Arbeitsplan.Win
             return s;
         }
 
-        // Paket gilt als "ausgewaehlt", wenn die gesetzten Rechte exakt seinen Rechten entsprechen.
-        void RefreshPackages()
+        // Rolle uebernehmen (Auswahl oder "Abweichungen zuruecksetzen"): eigene Rechte wie die Rolle, fremde Rechte bleiben
+        void TakeRole()
         {
-            HashSet<string> now = CheckedRights();
-            foreach (CheckBox cb in pkBoxes) cb.Checked = cur != null && UserDb.Matches(now, (RightsPackage)cb.Tag);
+            RightsPackage r = SelectedRole();
+            if (r == null || cur == null) return;
+            loading = true;
+            foreach (KeyValuePair<string, CheckBox> kv in rightBoxes) if (me.Has(kv.Key)) kv.Value.Checked = Array.IndexOf(r.Rights, kv.Key) >= 0;
+            loading = false;
+            RefreshMarks();
         }
 
-        void OnPackageClick(object sender, EventArgs e)
+        // Kennzeichnung je Recht (aus Rolle / + / −) und Vorschau der Rollenanzeige
+        void RefreshMarks()
         {
-            CheckBox pb = (CheckBox)sender;
-            if (!pb.Enabled) return;
-            HashSet<string> set = new HashSet<string>();
-            UserDb.ApplyPackage(set, (RightsPackage)pb.Tag);
-            loading = true;
-            foreach (KeyValuePair<string, CheckBox> kv in rightBoxes) if (me.Has(kv.Key)) kv.Value.Checked = set.Contains(kv.Key);   // fremde Rechte bleiben
-            loading = false;
-            RefreshPackages();   // danach einzeln feinjustierbar
+            RightsPackage r = SelectedRole();
+            foreach (KeyValuePair<string, CheckBox> kv in rightBoxes)
+            {
+                bool inRole = r != null && Array.IndexOf(r.Rights, kv.Key) >= 0, on = kv.Value.Checked;
+                string l = Perm.Label(kv.Key);
+                kv.Value.Text = on && !inRole ? "+ " + l : !on && inRole ? "− " + l : on ? l + "   (aus Rolle)" : l;
+                kv.Value.ForeColor = on && !inRole ? Green : !on && inRole ? Red : ForeColor;
+            }
+            if (cur == null || r == null) { lPreview.Text = ""; return; }
+            User t = new User(); t.RoleId = r.Id; t.Rights = CheckedRights();
+            lPreview.Text = "Anzeige: " + db.RoleLabel(t);
         }
 
         // Domaenenliste beim Schliessen uebernehmen; nie so, dass der eigene PC ausgesperrt waere
@@ -150,7 +178,7 @@ namespace Arbeitsplan.Win
 
         void AddUser()
         {
-            User u = db.Add("Neu", "Nutzer", "", "Leser");
+            User u = db.Add("Neu", "Nutzer", "", "leser");
             fresh.Add(u);
             Reload(u);
         }
@@ -158,7 +186,7 @@ namespace Arbeitsplan.Win
         void DeleteUser()
         {
             if (cur == null || cur == me) return;
-            if (UserDb.IsAdmin(cur.Rights) && db.AdminCount(cur) == 0) { Warn(LastAdmin); return; }
+            if (UserDb.IsAdmin(cur.Rights) && db.AdminCount(cur) == 0) { Warn(UserDb.LastAdmin); return; }
             if (!Quiet && MessageBox.Show("Nutzer " + cur.Display + " löschen?", "Nutzerverwaltung", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
             db.Users.Remove(cur);
             if (Changes.Added.Contains(cur) || fresh.Contains(cur)) Changes.Added.Remove(cur);   // nie gespeichert: nichts zu loeschen
@@ -167,7 +195,6 @@ namespace Arbeitsplan.Win
             Reload(null);
         }
 
-        const string LastAdmin = "Mindestens ein Admin (alle Rechte) muss bleiben.";
         static bool Quiet;   // Selbsttest: keine Meldungsfenster
         static void Warn(string text) { if (!Quiet) MessageBox.Show(text, "Nutzerverwaltung", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
 
@@ -177,60 +204,28 @@ namespace Arbeitsplan.Win
             string login = tLogin.Text.Trim();
             User other = db.FindByLogin(login);
             if (login.Length == 0 || (other != null && other != cur)) { Warn("Der Windows-Login muss ausgefüllt und eindeutig sein."); return; }
-            HashSet<string> rights = cur == me ? cur.Rights : CheckedRights();
-            if (UserDb.IsAdmin(cur.Rights) && !UserDb.IsAdmin(rights) && db.AdminCount(cur) == 0) { Warn(LastAdmin); return; }
-            string first = tFirst.Text.Trim(), last = tLast.Text.Trim(), kz = tKuerzel.Text.Trim();
-            bool isNew = fresh.Remove(cur);
-            if (!isNew && cur.First == first && cur.Last == last && cur.Login == login && cur.Kuerzel == kz && cur.Rights.SetEquals(rights)) return;   // nichts geaendert
-            cur.First = first; cur.Last = last; cur.Login = login; cur.Kuerzel = kz; cur.Rights = rights;
+            User save = cur.Clone();
+            cur.First = tFirst.Text.Trim(); cur.Last = tLast.Text.Trim(); cur.Login = login; cur.Kuerzel = tKuerzel.Text.Trim();
+            RightsPackage r = SelectedRole();
+            if (cur != me && r != null) db.SetRights(cur, r.Id, CheckedRights());
+            bool isNew = fresh.Contains(cur);
+            if (!isNew && cur.First == save.First && cur.Last == save.Last && cur.Login == save.Login && cur.Kuerzel == save.Kuerzel
+                && cur.RoleId == save.RoleId && cur.Rights.SetEquals(save.Rights) && cur.Plus.Count == save.Plus.Count && cur.Minus.Count == save.Minus.Count) return;   // nichts geaendert
+            string err = db.Validate(orig, me);
+            if (err != null) { cur.CopyFrom(save); Warn(err); Select(cur); return; }
+            fresh.Remove(cur);
             Changes.Changed.Add(cur);
             if (isNew) Changes.Added.Add(cur);
             Reload(cur);
+            ReloadRoles(curRole);   // Nutzerzahl je Rolle
         }
 
-#if TESTHOOKS
-        // Selbsttest: eigene Rechte gesperrt, nur eigene Rechte vergebbar, letzter Admin bleibt, nur Aenderungen gemeldet, leerer neuer Nutzer verworfen
-        public static string SelfTest()
+        // Eintrag fuer Rollen-Auswahl und -Liste (n >= 0: mit Nutzerzahl)
+        class RoleItem
         {
-            Quiet = true;
-            UserDb db = UserDb.Default();
-            User adm = db.Add("A", "Admin", "aadmin", "Admin"), pr = db.Add("P", "Prod", "pprod", "Produktion");
-            pr.Rights.Add(Perm.UserEdit); pr.Rights.Add(Perm.UserCreate); pr.Rights.Add(Perm.UserDelete);
-            bool own, limit, last, lastDel, admOk, onlyChg, discard, dom;
-            using (UserAdminForm f = new UserAdminForm(db, pr))
-            {
-                f.Select(pr);
-                own = !f.rightBoxes[Perm.Read].Enabled && !f.pkBoxes[0].Enabled && f.tKuerzel.Enabled;
-                dom = !f.tDomains.Enabled;   // Domaenen nur fuer Admins
-                f.Select(adm);
-                limit = f.rightBoxes[Perm.EditText].Enabled && !f.rightBoxes[Perm.PackageAdmin].Enabled && f.pkBoxes[0].Enabled && !f.pkBoxes[2].Enabled;
-                f.rightBoxes[Perm.EditText].Checked = false; f.Apply();
-                last = UserDb.IsAdmin(adm.Rights) && !f.Changes.Any;
-                f.DeleteUser();
-                lastDel = db.Users.Contains(adm) && !f.Changes.Any;
-            }
-            User adm2 = db.Add("B", "Admin", "badmin", "Admin");
-            using (UserAdminForm f = new UserAdminForm(db, adm))
-            {
-                f.Opacity = 0; f.ShowInTaskbar = false; f.Show();
-                f.Select(adm2); f.Apply();
-                onlyChg = !f.Changes.Any;
-                f.OnPackageClick(f.pkBoxes[0], EventArgs.Empty); f.Apply();
-                admOk = !UserDb.IsAdmin(adm2.Rights) && f.Changes.Changed.Contains(adm2) && f.Changes.Added.Count == 0;
-                f.tDomains.Text = "FREMD-XYZ"; f.TakeDomains();   // wuerde diesen PC aussperren: abgelehnt
-                dom &= f.tDomains.Enabled && f.Changes.Domains == null;
-                f.tDomains.Text = Umgebung.Home(Umgebung.UserDomain, Umgebung.MachineDomain, Umgebung.Machine) + ", Zweite"; f.TakeDomains();
-                dom &= f.Changes.Domains != null && f.Changes.Domains.Count == 2;
-                int n = db.Users.Count;
-                f.AddUser(); f.Close();
-                discard = db.Users.Count == n && f.Changes.Added.Count == 0;
-            }
-            Quiet = false;
-            return "Nutzerverwaltung: eigene Rechte gesperrt=" + Ok(own) + " nur eigene Rechte vergebbar=" + Ok(limit) + " letzter Admin bleibt=" + Ok(last && lastDel)
-                + " Admin herabstufen (2 Admins)=" + Ok(admOk) + " ohne Änderung nichts=" + Ok(onlyChg) + " leerer Neuer verworfen=" + Ok(discard)
-                + " Domänen nur Admin/kein Aussperren=" + Ok(dom);
+            public readonly RightsPackage R; readonly int n;
+            public RoleItem(RightsPackage r, int n) { R = r; this.n = n; }
+            public override string ToString() { return UserDb.Display(R) + (n >= 0 ? "   (" + n + " Nutzer)" : ""); }
         }
-        static string Ok(bool b) { return b ? "OK" : "FEHLER"; }
-#endif
     }
 }
