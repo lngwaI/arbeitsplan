@@ -135,6 +135,11 @@ namespace Arbeitsplan.Win
             foreach (ComboBox c in new[] { cbId, cbFb }) if (!c.Focused) c.SelectionLength = 0;   // Groessenaenderung markiert sonst den ganzen Text
         }
 
+#if TESTHOOKS
+        internal ComboBox TestIdBox { get { return cbId; } }
+        internal CheckBox TestAltBox { get { return chkAlt; } }
+#endif
+
         string Display(EquipChoice c) { return c.Short == a.Short ? c.Id : c.ToString(); }
 
         void Refill()

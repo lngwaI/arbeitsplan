@@ -216,7 +216,16 @@ namespace Arbeitsplan.Win
                             "Keine Berechtigung", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                         return false;
                     }
+                    List<string> eqWarn = new List<string>(), eqErr = store.GetCatalog().CheckText(n.Content, eqWarn);   // Zubehoer/Hauptgeraet
+                    if (eqErr.Count > 0)
+                    {
+                        string t = "Equipment passt nicht zusammen:\n\n" + string.Join("\n", eqErr.ToArray());
+                        bool admin = me.Has(Perm.PackageAdmin);   // nur "Pakete einrichten" darf trotzdem speichern
+                        if (!admin) { if (!quiet) MessageBox.Show(t + "\n\nDer Block bleibt im Bearbeitungsmodus.", "Equipment", MessageBoxButtons.OK, MessageBoxIcon.Warning); return false; }
+                        if (!quiet && MessageBox.Show(t + "\n\nTrotzdem speichern?", "Equipment", MessageBoxButtons.YesNo, MessageBoxIcon.Warning, MessageBoxDefaultButton.Button2) != DialogResult.Yes) return false;
+                    }
                     if (!TrySave(c, ref n)) return false;
+                    if (eqWarn.Count > 0) Status("Hinweis: " + string.Join(" ", eqWarn.ToArray()), true);   // Produkt-Freigabe nur als Hinweis
                     c.Cur = n;
                 }
             }
