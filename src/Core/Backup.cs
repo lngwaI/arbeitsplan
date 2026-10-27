@@ -36,7 +36,7 @@ namespace Arbeitsplan.Core
     public static class Backup
     {
         // Datenformat; bei inkompatibler Aenderung erhoehen (aeltere exe lesen die Datei dann nicht mehr und schreiben nie zurueck)
-        public const int FormatVersion = 3;   // 2: Equipment-Stammdaten im Katalog; 3: Pflichtpunkte, Varianten, Wochenhaken
+        public const int FormatVersion = 3;   // 2: Equipment-Stammdaten im Katalog; 3: Pflichtpunkte, Varianten, Wochenhaken, Produktprofile, "gehoertzu"
         public const string Ext = ".apbak", Prefix = "Arbeitsplan_";
         public const int Keep = 14;
         static readonly UTF8Encoding Utf8 = new UTF8Encoding(false);
@@ -277,6 +277,7 @@ namespace Arbeitsplan.Core
                 w.WriteEndElement();
             }
             WriteMaster(w, c.Master);
+            ProductXml.Write(w, c.Products);
             w.WriteEndElement();
         }
 
@@ -339,6 +340,7 @@ namespace Arbeitsplan.Core
             {
                 w.WriteStartElement("Geraet"); w.WriteAttributeString("id", d.Id); w.WriteAttributeString("klasse", d.Class);
                 w.WriteAttributeString("notiz", d.Note); w.WriteAttributeString("aktiv", B(d.Active));
+                if (d.Parent.Length > 0) w.WriteAttributeString("gehoertzu", d.Parent);
                 foreach (EquipProp p in d.Props) { w.WriteStartElement("E"); w.WriteAttributeString("name", p.Name); w.WriteAttributeString("v", p.Value); w.WriteEndElement(); }
                 w.WriteEndElement();
             }
@@ -374,7 +376,7 @@ namespace Arbeitsplan.Core
             foreach (XmlElement e in Kids(sd, "Geraet"))
             {
                 EquipDevice d = new EquipDevice(); d.Id = e.GetAttribute("id"); d.Class = e.GetAttribute("klasse");
-                d.Note = e.GetAttribute("notiz"); d.Active = Bool(e, "aktiv");
+                d.Note = e.GetAttribute("notiz"); d.Active = Bool(e, "aktiv"); d.Parent = e.GetAttribute("gehoertzu");
                 foreach (XmlElement x in Kids(e, "E")) d.Props.Add(new EquipProp(x.GetAttribute("name"), x.GetAttribute("v")));
                 m.Devices.Add(d);
             }
@@ -454,6 +456,7 @@ namespace Arbeitsplan.Core
             }
             XmlElement sd = Kid(k, "Stammdaten");
             if (sd != null) ReadMaster(sd, d.Catalog.Master);
+            ProductXml.Read(k, d.Catalog.Products);   // fehlt in aelteren Dateien = keine Produktprofile
             XmlElement pf = Kid(root, "Pflichten");
             if (pf != null) d.Duties = ReadDuties(pf);   // sonst Standard (v2-Dateien)
             XmlElement wo = Kid(root, "Wochen");

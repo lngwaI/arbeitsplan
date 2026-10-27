@@ -24,7 +24,8 @@ namespace Arbeitsplan.Core
     public class EquipDevice
     {
         public string Id = "", Class = "", Note = "";
-        public bool Active = true;                           // false = in Wartung / nicht verfuegbar
+        public string Parent = "";                           // Hauptgeraet (Skid/Tank), zu dem dieses Zubehoerteil gehoert; leer = eigenstaendig
+        public bool Active = true;                          // false = in Wartung / nicht verfuegbar
         public List<EquipProp> Props = new List<EquipProp>();
 
         public EquipDevice Clone()
@@ -155,6 +156,29 @@ namespace Arbeitsplan.Core
             return r;
         }
 
+        // Zugehoerigkeit in einem gemeinsam eingesetzten Geraetesatz: Fehler, wenn ein Zubehoerteil dabei ist, sein Hauptgeraet fehlt,
+        // aber ein anderes Geraet derselben Klasse wie das Hauptgeraet (Filter von Tank A mit Tank B). Mit A oder allein = ok.
+        public List<string> CheckBelongs(IEnumerable<string> ids)
+        {
+            List<string> set = new List<string>(), err = new List<string>();
+            foreach (string id in ids) if (!string.IsNullOrEmpty(id) && !Has(set, id)) set.Add(id);
+            foreach (string id in set)
+            {
+                EquipDevice d = Device(id), main = d != null && d.Parent.Length > 0 ? Device(d.Parent) : null;
+                if (main == null || main.Class.Length == 0 || Has(set, d.Parent)) continue;
+                foreach (string o in set)
+                {
+                    EquipDevice x = Device(o);
+                    if (x == null || x == d || x.Class != main.Class) continue;
+                    err.Add("Gerät " + d.Id + " gehört zu " + main.Id + ", eingeplant ist aber " + x.Id + ".");
+                    break;
+                }
+            }
+            return err;
+        }
+
+        static bool Has(List<string> l, string id) { return l.Exists(delegate(string s) { return string.Equals(s, id, StringComparison.OrdinalIgnoreCase); }); }
+
         // Hinweistext zu einem Geraet (Klasse, Eigenschaften, Notiz, Reihen-Notizen, Wartung) fuer Tooltips; leer, wenn unbekannt.
         public string Info(string id)
         {
@@ -163,6 +187,7 @@ namespace Arbeitsplan.Core
             StringBuilder sb = new StringBuilder();
             sb.Append(d.Id); if (d.Class.Length > 0) sb.Append(" (").Append(d.Class).Append(')');
             if (!d.Active) sb.Append("  – IN WARTUNG");
+            if (d.Parent.Length > 0) sb.Append("\ngehört zu ").Append(d.Parent);
             foreach (EquipProp p in d.Props) if (p.Value.Length > 0) sb.Append("\n").Append(p.Name).Append(": ").Append(p.Value);
             if (d.Note.Length > 0) sb.Append("\n").Append(d.Note);
             foreach (EquipSeries s in SeriesOf(id)) if (s.Note.Length > 0) sb.Append("\n").Append(s.Name).Append(": ").Append(s.Note);
@@ -186,6 +211,7 @@ namespace Arbeitsplan.Core
             m.Devices.Add(Dev("H1-F-0101-01", "Filtergehäuse", "Größe", "10 Zoll"));
             m.Devices.Add(Dev("H1-F-0101-02", "Filtergehäuse", "Größe", "5 Zoll"));
             m.Devices.Add(Dev("H1-F-0101-04", "Filtergehäuse", "Größe", "5 Zoll"));
+            foreach (EquipDevice f in m.Devices) if (f.Class == "Filtergehäuse") f.Parent = "H1-X-0101";   // Gehaeuse gehoeren zu diesem Skid
 
             EquipSeries s = new EquipSeries(); s.Name = "Tanks 0103 bis 0104"; s.Class = "Tank"; s.From = "H1-T-0103"; s.To = "H1-T-0104";
             s.Note = "Probenahmeport neben dem Bodenablass anbauen"; m.Series.Add(s);

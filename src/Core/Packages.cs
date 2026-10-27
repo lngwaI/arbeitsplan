@@ -581,6 +581,8 @@ namespace Arbeitsplan.Core
         // Ergebnis der Uebernahme (Meldung fuer den Nutzer). schedule: Tage je Lauf (aus Schedule(), ggf. verschoben); null = Paket-Rhythmus.
         public string Apply(IDataStore store, DateTime start, ApplyMode mode, List<RunDate> schedule, User by = null)
         {
+            List<string> belongs = store.GetCatalog().CheckPackage(this);   // harter Fehler: Zubehoer eines anderen Hauptgeraets
+            if (belongs.Count > 0) throw new InvalidOperationException("Equipment passt nicht zusammen:\n" + string.Join("\n", belongs.ToArray()));
             List<RowInfo> rows = store.GetRows();
             int written = 0, skipped = 0, unknownRow, conflicts = 0;
             // Alle Bloecke in EINEM Schreibvorgang (Versionspruefung je Block)

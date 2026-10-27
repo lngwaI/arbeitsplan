@@ -67,7 +67,7 @@ namespace Arbeitsplan.Core
         public override string ToString() { return Name; }
     }
 
-    public class Catalog
+    public partial class Catalog
     {
         public List<EquipPosition> Positions = new List<EquipPosition>();
         public List<EquipGroup> Groups = new List<EquipGroup>();
@@ -81,6 +81,7 @@ namespace Arbeitsplan.Core
             foreach (EquipPosition p in Positions) c.Positions.Add(p.Clone());
             foreach (EquipGroup g in Groups) c.Groups.Add(g.Clone());
             foreach (Baustein b in Bausteine) c.Bausteine.Add(b.Clone());
+            foreach (ProductProfile p in Products) c.Products.Add(p.Clone());
             return c;
         }
 
