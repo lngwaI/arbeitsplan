@@ -79,7 +79,7 @@ Die Reihenfolge einhalten: Schritte 1 und 2 nur vor der Einrichtung.
 2. `dist\Arbeitsplan\Programm\Arbeitsplan.exe` starten, `Admins=` ist noch leer. Erwartet: „noch nicht eingerichtet“.
 3. Den eigenen Windows-Anmeldenamen anzeigen: `$env:USERNAME`. In `dist\Arbeitsplan\Programm\Arbeitsplan.ini` eintragen: `Admins=<Name>`. Erneut starten → „Neuen Arbeitsplan einrichten?“ → Ja. Der Ordner `daten` wird versteckt.
 4. Hilfe → Info… zeigt Version, Datenordner, Nutzer und Domäne. Auf einem privaten Laptop gibt es keine Domänenbindung, das ist richtig so.
-5. Hilfe → „Verknüpfung auf dem Desktop anlegen“. Auf dem Laptop kommt der Hinweis „liegt nicht auf dem Laufwerk“; vor Ort zeigt sie auf `\\Server\…`.
+5. Hilfe → „Verknüpfung prüfen / anlegen“ (listet vorhandene Verknüpfungen; keine auf dieses Programm → anlegen mit Ja). Auf dem Laptop kommt der Hinweis „liegt nicht auf dem Laufwerk“; vor Ort zeigt sie auf `\\Server\…`.
 6. Die Kopie auf dem Desktop noch einmal starten. Jetzt zeigt sie „OFFLINE“ mit dem letzten Stand dieses PCs: nur Lesen, höchstens `CacheTage` (7) Tage. Das ist für Laptops ohne Netz gewollt; auf einem fremden PC (z. B. zu Hause) startet sie nicht. Danach die Kopie löschen.
 
 ## 5. Automatische Tests (GitHub)

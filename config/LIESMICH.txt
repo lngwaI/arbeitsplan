@@ -7,14 +7,19 @@ FÜR ALLE MITARBEITER
 - Beim ersten Start fragt das Programm: "Verknüpfung auf dem Desktop anlegen?" -> Ja.
   Liegt Ihr Desktop in OneDrive, ist die Verknüpfung danach an JEDEM PC da, an dem Sie sich anmelden.
   Die Verknüpfung zeigt direkt auf das Laufwerk (\\Server\...), ein verbundener Laufwerksbuchstabe ist nicht nötig.
-  Später jederzeit: Menü Hilfe > "Verknüpfung auf dem Desktop anlegen".
-- Anmeldung: automatisch mit Ihrer Windows-Anmeldung. Der Startbildschirm begrüßt Sie mit Namen, unten links steht,
-  wer angemeldet ist. Sie können genau das, was Ihre Rechte erlauben (Lesen hat jeder angelegte Nutzer).
+  Gibt es schon eine Arbeitsplan-Verknüpfung (Desktop, OneDrive-Desktop, Startmenü), fragt es nicht.
+  Später jederzeit: Menü Hilfe > "Verknüpfung prüfen / anlegen" (zeigt auch Verknüpfungen auf einen alten Ort).
+- Anmeldung: automatisch mit Ihrer Windows-Anmeldung. Der Startbildschirm begrüßt Sie mit Namen, die Statusleiste
+  unten links zeigt Name · Rolle · Kürzel. Sie können genau das, was Ihre Rechte erlauben (Lesen hat jeder angelegte Nutzer).
+- Statusleiste unten rechts: "Aktualisiert 12:34", "Daten von anderem PC übernommen" (kurz gelb), "Gespeichert".
+- "Datenordner nicht gefunden" (Laufwerk nicht verbunden, neuer PC): Laufwerk verbinden oder den Ordner
+  angeben (z. B. L:\...\Arbeitsplan\daten oder \\Server\Freigabe\...\daten). Das Programm merkt ihn sich für Sie.
 - Meldung "noch nicht als Nutzer angelegt": Vorgesetzten oder einen Admin des Arbeitsplans bitten, Sie unter
   Einstellungen > Nutzerverwaltung mit Ihrem Windows-Anmeldenamen anzulegen (steht in der Meldung).
 - Mehrere PCs gleichzeitig: Änderungen anderer erscheinen spätestens nach 30 Sekunden (beim Blättern sofort).
   Haben zwei Personen denselben Block geändert, führt das Programm beide Änderungen zusammen. Nur wenn beide
   dieselbe Stelle geändert haben, zeigt es beide Fassungen und einen Vorschlag; überschrieben wird nie ohne Rückfrage.
+- Titel zeigt den Zustand: "Arbeitsplan (√ online, aktuell)", kurz "(aktualisiere…)" beim Laden/Speichern.
 - Titel zeigt "OFFLINE": Laufwerk nicht erreichbar, es wird der letzte Stand dieses PCs angezeigt (nur Lesen).
 - Titel zeigt "NEUE VERSION": Programm schließen und neu starten.
 - Probleme: Menü Hilfe > Info zeigt Version, Datenordner, Nutzer und Domäne (für den Admin/die IT).

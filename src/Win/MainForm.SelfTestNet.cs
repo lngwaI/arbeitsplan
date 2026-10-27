@@ -76,9 +76,32 @@ namespace Arbeitsplan.Win
             Shortcut.Write(lnk, Application.ExecutablePath);
             bool okLnk = File.Exists(lnk) && string.Equals(Shortcut.Target(lnk), Application.ExecutablePath, StringComparison.OrdinalIgnoreCase)
                 && Shortcut.Unc(@"C:\x\y.exe") == @"C:\x\y.exe" && Shortcut.OnNetwork(@"\\server\freigabe\a.exe");
+            // vorhandene Verknuepfungen erkennen: eine auf diese exe, eine auf alten Ort, fremde zaehlt nicht
+            string lk = Path.Combine(root, "links"), alt = Path.Combine(root, "alt\\Arbeitsplan.exe"), other = Path.Combine(root, "notiz.txt");
+            Directory.CreateDirectory(Path.GetDirectoryName(alt)); File.WriteAllText(alt, ""); File.WriteAllText(other, ""); Directory.CreateDirectory(lk);
+            Shortcut.Write(Path.Combine(lk, "Arbeitsplan.lnk"), Application.ExecutablePath);
+            Shortcut.Write(Path.Combine(lk, "Plan alt.lnk"), alt); Shortcut.Write(Path.Combine(lk, "Notiz.lnk"), other);
+            List<KeyValuePair<string, string>> fl2 = Shortcut.Find(new[] { lk, lk + "\\", Path.Combine(root, "fehlt") });
+            okLnk &= fl2.Count == 2 && fl2.Exists(delegate(KeyValuePair<string, string> k) { return Shortcut.Same(k.Value, Application.ExecutablePath); })
+                && fl2.Exists(delegate(KeyValuePair<string, string> k) { return !Shortcut.Same(k.Value, Application.ExecutablePath); });
+            // Datenordner: Merkdatei je Programmordner, Suche im Ordner und in "daten" darunter, Zeitlimit
+            string mf = Path.Combine(root, "merk\\datenordner.txt");
+            Umgebung.Remember(mf, @"\\srv\a\Programm", data); Umgebung.Remember(mf, @"\\srv\b\Programm", @"\\srv\b\daten"); Umgebung.Remember(mf, @"\\SRV\a\Programm\", data);
+            bool okMem = File.ReadAllLines(mf).Length == 2 && Umgebung.Remembered(mf, @"\\srv\A\Programm") == data && Umgebung.Remembered(mf, @"\\srv\b\Programm") == @"\\srv\b\daten"
+                && Umgebung.Remembered(mf, @"\\srv\c\Programm") == null && Umgebung.Remembered(Path.Combine(root, "keine.txt"), "x") == null
+                && string.Equals(Umgebung.FindData(data, 5000), data, StringComparison.OrdinalIgnoreCase)
+                && string.Equals(Umgebung.FindData(Path.GetDirectoryName(data), 5000), data, StringComparison.OrdinalIgnoreCase)
+                && Umgebung.FindData(home, 5000) == null && Umgebung.Reachable(home, 5000) && !Umgebung.Reachable(Path.Combine(root, "fehlt"), 5000);
+            AppConfig uc = Cfg(prog, cache); uc.UseDataFolder(@"\\srv\x\daten");
+            okMem &= uc.PackageFolder == @"\\srv\x\daten\Pakete" && uc.BackupFolder == @"\\srv\x\daten\sicherung";
+            // Rolle in der Statusleiste: Paketname, sonst "benutzerdefiniert"
+            UserDb rdb = UserDb.Sample(); User cu = new User(); cu.Rights.Add(Perm.Read); cu.Rights.Add(Perm.EditText);
+            bool okRole = rdb.RoleLabel(rdb.FindByLogin("mmuster")) == "Admin" && rdb.RoleLabel(rdb.FindByLogin("ebeispiel")) == "Leser"
+                && rdb.RoleLabel(rdb.FindByLogin("pwerk")) == "Produktion" && rdb.RoleLabel(cu) == "benutzerdefiniert";
             sb.AppendLine("Umgebung: Muster=" + Ok(okLike) + " Domäne=" + Ok(okDom) + " kopierte exe=" + Ok(okCopy) + " Laufwerk-Aufbau=" + Ok(okLayout)
                 + " nicht eingerichtet=" + Ok(okNotSet) + " Einrichtung=" + Ok(okSetup) + " Einrichter=" + Ok(okAdmin) + " fremde Domäne=" + Ok(okForeign)
                 + " unbekannter Nutzer=" + Ok(okUnknown) + " NurLesenFuer=" + Ok(okRO) + " Pilot=" + Ok(okPilot) + " Datei weg->kein Neuanlegen=" + Ok(okGone) + " neueres Format=" + Ok(okNewer) + " Verknüpfung=" + Ok(okLnk)
+                + " Datenordner merken=" + Ok(okMem) + " Rolle=" + Ok(okRole)
                 + " (hier: " + Umgebung.Home(ud, md, pc) + ")");
         }
 

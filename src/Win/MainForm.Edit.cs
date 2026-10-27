@@ -234,6 +234,14 @@ namespace Arbeitsplan.Win
         // n ist danach das Gespeicherte. false = nicht gespeichert, Block bleibt im Editor (ggf. mit dem Vorschlag).
         bool TrySave(CellData c, ref Entry n)
         {
+            refreshing = true; Status("Speichern…", false); statusBar.Update();   // Titel "aktualisiere…", Statusleiste sofort zeichnen
+            bool ok = false;
+            try { ok = TrySaveCore(c, ref n); return ok; }
+            finally { refreshing = false; Status(ok ? "Gespeichert " + DateTime.Now.ToString("HH:mm") : "Nicht gespeichert", !ok); }
+        }
+
+        bool TrySaveCore(CellData c, ref Entry n)
+        {
             RowInfo ri = rowInfo[c.RowIndex];
             Entry bas = c.Cur;   // Stand beim Beginn der Bearbeitung; nach einer Zusammenfuehrung der damals gespeicherte Stand
             try

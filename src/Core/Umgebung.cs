@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Net.NetworkInformation;
+using System.Text;
+using System.Threading;
 
 namespace Arbeitsplan.Core
 {
@@ -128,6 +130,66 @@ namespace Arbeitsplan.Core
         }
 
         static string Show(string s) { return s.Length > 0 ? s : "?"; }
+
+        // ---------- Datenordner nicht erreichbar: gewaehlten Ordner je Nutzer merken (nicht in der Programm-ini) ----------
+        public static string RememberFile { get { return Path.Combine(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Arbeitsplan"), "datenordner.txt"); } }
+
+        // Zeilen "<Programmordner><Tab><Datenordner>": je Programmordner, damit sich mehrere Installationen (Test, Demo) nicht stoeren
+        public static string Remembered(string file, string exeDir)
+        {
+            try
+            {
+                if (File.Exists(file))
+                    foreach (string l in File.ReadAllLines(file, Encoding.UTF8))
+                    {
+                        int t = l.IndexOf('\t');
+                        if (t > 0 && SameDir(l.Substring(0, t), exeDir) && l.Substring(t + 1).Trim().Length > 0) return l.Substring(t + 1).Trim();
+                    }
+            }
+            catch (Exception) { }
+            return null;
+        }
+
+        public static void Remember(string file, string exeDir, string folder)
+        {
+            try
+            {
+                List<string> keep = new List<string>();
+                if (File.Exists(file))
+                    foreach (string l in File.ReadAllLines(file, Encoding.UTF8)) { int t = l.IndexOf('\t'); if (t > 0 && !SameDir(l.Substring(0, t), exeDir)) keep.Add(l); }
+                keep.Add(exeDir.TrimEnd('\\') + "\t" + folder);
+                Directory.CreateDirectory(Path.GetDirectoryName(file));
+                File.WriteAllLines(file, keep.ToArray(), Encoding.UTF8);
+            }
+            catch (Exception) { }   // nur Komfort
+        }
+
+        static bool SameDir(string a, string b) { return string.Equals(a.Trim().TrimEnd('\\'), b.Trim().TrimEnd('\\'), StringComparison.OrdinalIgnoreCase); }
+
+        // Ordner mit arbeitsplan.apdb: der angegebene oder sein Unterordner "daten"; sonst/nicht erreichbar/nach ms ohne Antwort: null.
+        // Laeuft in einem Hintergrund-Thread, damit ein getrenntes Netzlaufwerk den Start nicht aufhaelt. Legt nie etwas an.
+        public static string FindData(string folder, int ms)
+        {
+            string found = null;
+            return Within(delegate
+            {
+                string f = Path.GetFullPath(folder.Trim());
+                foreach (string c in new[] { f, Path.Combine(f, "daten") })
+                    if (File.Exists(Path.Combine(c, FileStore.FileName))) { found = c; return true; }
+                return false;
+            }, ms) ? found : null;
+        }
+
+        // Ordner vorhanden (auch leer, dann Ersteinrichtung/Meldung wie bisher)? Nach ms ohne Antwort: false.
+        public static bool Reachable(string folder, int ms) { return Within(delegate { return Directory.Exists(folder); }, ms); }
+
+        static bool Within(Func<bool> f, int ms)
+        {
+            bool res = false;
+            Thread t = new Thread(delegate () { try { res = f(); } catch (Exception) { } });
+            t.IsBackground = true; t.Start();
+            return t.Join(ms) && res;
+        }
 
         static string NoData(AppConfig cfg)
         {

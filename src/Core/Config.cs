@@ -66,9 +66,21 @@ namespace Arbeitsplan.Core
             if (data.Length == 0 && Directory.Exists(Path.Combine(exeDir, Path.Combine("..", "daten")))) data = Path.Combine("..", "daten");
             try { c.DataFolder = Path.GetFullPath(Path.Combine(exeDir, data.Length > 0 ? data : "daten")); }
             catch (Exception) { c.DataFolder = Path.Combine(exeDir, "daten"); c.Note = "Datenordner in Arbeitsplan.ini ist ungültig: " + data; }
-            c.BackupFolder = v.TryGetValue("Sicherungsordner", out s) && s.Length > 0 ? Path.Combine(exeDir, s) : Path.Combine(c.DataFolder, "sicherung");
-            c.PackageFolder = v.TryGetValue("Paketordner", out s) && s.Length > 0 ? Path.Combine(exeDir, s) : Path.Combine(c.DataFolder, "Pakete");
+            c.ownBackup = v.TryGetValue("Sicherungsordner", out s) && s.Length > 0;
+            c.BackupFolder = c.ownBackup ? Path.Combine(exeDir, s) : Path.Combine(c.DataFolder, "sicherung");
+            c.ownPackages = v.TryGetValue("Paketordner", out s) && s.Length > 0;
+            c.PackageFolder = c.ownPackages ? Path.Combine(exeDir, s) : Path.Combine(c.DataFolder, "Pakete");
             return c;
+        }
+
+        bool ownBackup, ownPackages;   // in der ini angegeben (sonst Unterordner des Datenordners)
+
+        // Anderer Datenordner (gemerkt bzw. im Dialog gewaehlt); Sicherung/Pakete ziehen mit, wenn die ini sie nicht festlegt
+        public void UseDataFolder(string folder)
+        {
+            DataFolder = folder; Note = null;
+            if (!ownBackup) BackupFolder = Path.Combine(folder, "sicherung");
+            if (!ownPackages) PackageFolder = Path.Combine(folder, "Pakete");
         }
     }
 }

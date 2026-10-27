@@ -33,9 +33,9 @@ namespace Arbeitsplan.Win
         readonly List<RowInfo> rowInfo = new List<RowInfo>();
         readonly Dictionary<int, bool> fold = new Dictionary<int, bool>();   // nur lokal in dieser Instanz, wird nicht gespeichert/synchronisiert
         readonly PlanView view;
-        readonly Label weekLabel = new Label(), userLabel = new Label(), searchLabel = new Label(), hitsLabel = new Label();
+        readonly Label weekLabel = new Label(), statusLeft = new Label(), statusRight = new Label(), searchLabel = new Label(), hitsLabel = new Label();
         readonly TextBox search = new TextBox();
-        readonly Panel topBar = new Panel(), dateBar = new Panel(), bar = new Panel(), fmtBar = new Panel();
+        readonly Panel topBar = new Panel(), dateBar = new Panel(), bar = new Panel(), fmtBar = new Panel(), statusBar = new Panel();
         readonly QuietPanel canvas = new QuietPanel();
         readonly DayLabel[] dateLabels = new DayLabel[7];
         readonly FlowLayoutPanel nav = new FlowLayoutPanel();
@@ -126,6 +126,7 @@ namespace Arbeitsplan.Win
             Controls.Add(topBar);
             Controls.Add(BuildMenu());
             Controls.Add(bar);
+            Controls.Add(statusBar);   // zuletzt = ganz unten
 
             ResizeEnd += delegate { RefitIfScreenChanged(); };
             EventHandler displayChanged = delegate { RefitIfScreenChanged(); };   // statisches Ereignis: beim Schliessen abmelden
@@ -175,7 +176,7 @@ namespace Arbeitsplan.Win
             set.Visible = structure || usr || me.Has(Perm.PackageAdmin);
 
             ToolStripMenuItem help = new ToolStripMenuItem("Hilfe");
-            help.DropDownItems.Add("Verknüpfung auf dem Desktop anlegen", null, delegate { Shortcut.Create(this); });
+            help.DropDownItems.Add("Verknüpfung prüfen / anlegen…", null, delegate { Shortcut.Check(this); });
             help.DropDownItems.Add("Info…", null, delegate { ShowInfo(); });
 
             ms.Items.AddRange(new ToolStripItem[] { file, pk, set, help });
@@ -222,13 +223,20 @@ namespace Arbeitsplan.Win
             AddNav("Heute", delegate { Go(MondayOf(DateTime.Today) - start); });
             AddNav("Tag  ›", delegate { Go(1); });
             AddNav("Woche  »", delegate { Go(7); });
-            userLabel.AutoSize = true;
-            userLabel.Location = new Point(10, 16);
-            userLabel.Text = "Angemeldet: " + me.Display + " (" + PackageName() + ")";
-            UpdateTitle();
-            bar.Controls.Add(nav); bar.Controls.Add(userLabel);
+            bar.Controls.Add(nav);
             bar.Resize += delegate { CenterBar(); };
             Shown += delegate { CenterBar(); };
+
+            // Statusleiste: links Nutzer · Rolle · Kuerzel, rechts Datenstand (Status in MainForm.Storage.cs)
+            statusBar.Dock = DockStyle.Bottom; statusBar.Height = Font.Height + 8;
+            statusBar.Paint += delegate(object s, PaintEventArgs e) { using (Pen p = new Pen(Theme.Current.ButtonBorder)) e.Graphics.DrawLine(p, 0, 0, statusBar.Width, 0); };
+            foreach (Label l in new[] { statusLeft, statusRight })
+            {
+                l.AutoSize = true; l.Padding = new Padding(8, 3, 8, 0); l.Dock = l == statusLeft ? DockStyle.Left : DockStyle.Right;
+                statusBar.Controls.Add(l);
+            }
+            statusLeft.Text = me.Display + "  ·  " + users.RoleLabel(me) + (me.Kuerzel.Length > 0 ? "  ·  " + me.Kuerzel : "");
+            Status(fstore != null ? "Aktualisiert " + DateTime.Now.ToString("HH:mm") : null, false);
         }
 
         void AddNav(string text, EventHandler click)
@@ -240,7 +248,7 @@ namespace Arbeitsplan.Win
             nav.Controls.Add(b);
         }
 
-        void CenterBar() { nav.Left = Math.Max(userLabel.Right + 10, (bar.ClientSize.Width - nav.Width) / 2); }
+        void CenterBar() { nav.Left = Math.Max(10, (bar.ClientSize.Width - nav.Width) / 2); }
 
         // ---------- Navigation ----------
 

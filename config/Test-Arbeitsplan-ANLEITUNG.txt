@@ -57,12 +57,20 @@ SCHRITT 4 - WAS DIE KOLLEGEN TUN (sonst nichts!)
     Programm und Daten        Laufwerk, Arbeitsplan_Test\        von dir, einmal
     Desktop-Verknüpfung       Desktop des Nutzers (OneDrive)     legt das Programm selbst an
     Offline-Stand (nur Lesen) %LOCALAPPDATA%\Arbeitsplan         legt das Programm selbst an
+    gewählter Datenordner     %APPDATA%\Arbeitsplan\datenordner.txt  nur nach Dialog "Datenordner nicht gefunden"
     alles andere              -                                  nichts
 
 
 SCHRITT 5 - TESTEN (abhaken, Auffälligkeiten notieren)
   [ ] Zweiter PC: aus dem Ordner starten, Verknüpfung anlegen, an einem dritten PC prüfen,
-      ob die Verknüpfung dort auch da ist (OneDrive-Desktop).
+      ob die Verknüpfung dort auch da ist (OneDrive-Desktop). Mit vorhandener Verknüpfung
+      fragt das Programm nicht mehr; Hilfe -> "Verknüpfung prüfen / anlegen" listet sie auf.
+  [ ] Statusleiste unten: links Name · Rolle · Kürzel, rechts "Aktualisiert HH:MM"; ändert ein
+      anderer PC etwas, steht dort kurz gelb "Daten von anderem PC übernommen". Titel nur
+      "Arbeitsplan (√ online, aktuell)".
+  [ ] Laufwerk getrennt (oder Datenordner in der ini falsch) -> Dialog "Datenordner nicht
+      gefunden": Pfad als L:\... oder \\Server\...\daten eingeben -> startet; nächster Start
+      ohne Dialog. Ordner ohne arbeitsplan.apdb wird abgelehnt.
   [ ] Zwei Kollegen gleichzeitig: verschiedene Zeilen ändern -> beide Änderungen bleiben.
   [ ] Zwei Kollegen gleichzeitig: dieselbe Zeile ändern -> Rückfrage mit beiden Fassungen.
   [ ] Nicht angelegter Kollege startet -> Meldung "Vorgesetzten/Admin fragen", Programm endet.

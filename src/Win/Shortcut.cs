@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Runtime.InteropServices.ComTypes;
@@ -39,12 +40,75 @@ namespace Arbeitsplan.Win
             catch (Exception) { return false; }
         }
 
-        // Beim Start vom Laufwerk einmal anbieten; nicht, wenn sie schon da ist oder "nicht mehr fragen" gewaehlt wurde
+        // Wo Arbeitsplan-Verknuepfungen liegen koennen: Desktop, OneDrive-Desktop, Startmenue (Programme + eine Ebene Unterordner)
+        public static List<string> Folders()
+        {
+            List<string> l = new List<string>();
+            l.Add(Desktop);
+            foreach (string v in new[] { "OneDrive", "OneDriveCommercial", "OneDriveConsumer" })
+            {
+                string od = Environment.GetEnvironmentVariable(v);
+                if (!string.IsNullOrEmpty(od)) l.Add(Path.Combine(od, "Desktop"));
+            }
+            string pr = Environment.GetFolderPath(Environment.SpecialFolder.Programs);
+            l.Add(pr);
+            try { if (Directory.Exists(pr)) l.AddRange(Directory.GetDirectories(pr)); } catch (Exception) { }
+            return l;
+        }
+
+        // Vorhandene Arbeitsplan-Verknuepfungen (Verknuepfung -> Ziel): Ziel heisst Arbeitsplan.exe oder der Name beginnt mit "Arbeitsplan"
+        public static List<KeyValuePair<string, string>> Find(IEnumerable<string> folders)
+        {
+            List<KeyValuePair<string, string>> l = new List<KeyValuePair<string, string>>();
+            HashSet<string> seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (string f in folders)
+            {
+                string[] files;
+                try { if (!seen.Add(Path.GetFullPath(f).TrimEnd('\\')) || !Directory.Exists(f)) continue; files = Directory.GetFiles(f, "*.lnk"); }
+                catch (Exception) { continue; }
+                foreach (string lnk in files)
+                    try
+                    {
+                        string t = Target(lnk);
+                        if (string.Equals(Path.GetFileName(t), "Arbeitsplan.exe", StringComparison.OrdinalIgnoreCase)
+                            || Path.GetFileName(lnk).StartsWith("Arbeitsplan", StringComparison.OrdinalIgnoreCase))
+                            l.Add(new KeyValuePair<string, string>(lnk, t));
+                    }
+                    catch (Exception) { }
+            }
+            return l;
+        }
+
+        // Zeigt das Ziel auf diese exe (auch L:\... gegen \\Server\...)?
+        public static bool Same(string target, string exe)
+        {
+            try { return target.Length > 0 && string.Equals(Unc(Path.GetFullPath(target)), Unc(Path.GetFullPath(exe)), StringComparison.OrdinalIgnoreCase); }
+            catch (Exception) { return false; }
+        }
+
+        // Menue Hilfe: vorhandene Verknuepfungen zeigen; keine zeigt auf dieses Programm -> Desktop-Verknuepfung anbieten (nie automatisch aendern)
+        public static void Check(IWin32Window owner)
+        {
+            string exe = Application.ExecutablePath;
+            StringBuilder sb = new StringBuilder();
+            bool ok = false;
+            foreach (KeyValuePair<string, string> k in Find(Folders()))
+            {
+                bool s = Same(k.Value, exe); ok |= s;
+                sb.Append("\n• " + k.Key + "\n    → " + (k.Value.Length > 0 ? k.Value : "(kein Ziel)") + (s ? "  (dieses Programm)" : "  (anderer Ort / alte Version)"));
+            }
+            string head = sb.Length > 0 ? "Gefundene Verknüpfungen:" + sb + "\n\n" : "Keine Arbeitsplan-Verknüpfung gefunden.\n\n";
+            if (ok) { MessageBox.Show(owner, head + "Mindestens eine Verknüpfung startet dieses Programm.", "Arbeitsplan", MessageBoxButtons.OK, MessageBoxIcon.Information); return; }
+            if (MessageBox.Show(owner, head + "Desktop-Verknüpfung \"Arbeitsplan\" auf dieses Programm anlegen?\n" + Unc(exe),
+                "Arbeitsplan", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes) Create(owner);
+        }
+
+        // Beim Start vom Laufwerk einmal anbieten; nicht, wenn schon eine Arbeitsplan-Verknuepfung da ist oder "nicht mehr fragen" gewaehlt wurde
         public static void Offer(IWin32Window owner)
         {
             try
             {
-                if (!OnNetwork(Application.ExecutablePath) || File.Exists(Path.Combine(Desktop, LinkName)) || File.Exists(NoAskFile)) return;
+                if (!OnNetwork(Application.ExecutablePath) || File.Exists(NoAskFile) || Find(Folders()).Count > 0) return;
             }
             catch (Exception) { return; }
             DialogResult r = MessageBox.Show(owner, "Verknüpfung \"Arbeitsplan\" auf dem Desktop anlegen?\n\nDann starten Sie den Arbeitsplan künftig per Doppelklick, "

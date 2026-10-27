@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Drawing;
 using System.IO;
 using System.Text;
 using System.Windows.Forms;
@@ -66,36 +67,57 @@ namespace Arbeitsplan.Win
             MessageBox.Show(this, "Arbeitsplan " + ver + "  (Stand " + File.GetLastWriteTime(exe).ToString("dd.MM.yyyy HH:mm") + ")"
                 + "\n\nProgramm: " + Shortcut.Unc(exe) + (Shortcut.OnNetwork(exe) ? "" : "  (lokale Kopie)")
                 + "\nDaten: " + state
-                + "\n\nNutzer: " + me.Display + (me.Kuerzel.Length > 0 ? " (" + me.Kuerzel + ")" : "") + ", Rechte: " + PackageName()
+                + "\n\nNutzer: " + me.Display + (me.Kuerzel.Length > 0 ? " (" + me.Kuerzel + ")" : "") + ", Rechte: " + users.RoleLabel(me)
                 + "\nWindows: " + Umgebung.UserDomain + "\\" + Environment.UserName + " auf " + Umgebung.Machine + (Umgebung.MachineDomain.Length > 0 ? " (" + Umgebung.MachineDomain + ")" : "")
                 + "\nFreigegebene Domänen: " + (users.Domains.Count > 0 ? string.Join(", ", users.Domains.ToArray()) : "(noch keine)")
                 + (newVersion ? "\n\nAuf dem Laufwerk liegt eine neuere Programmversion: bitte das Programm neu starten." : ""),
                 "Info", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
+        // Titel nur "Arbeitsplan (Zustand)"; Einzelheiten stehen in der Statusleiste und unter Hilfe > Info.
+        // "√" statt "✓": Segoe UI hat kein U+2713 (nur ueber Schriftersatz), √ ist sicher enthalten.
+        bool refreshing;   // Datendatei wird gerade neu eingelesen bzw. gespeichert
         void UpdateTitle()
         {
-            string src;
-            if (fstore == null)
-#if TESTHOOKS
-                src = "Prototyp, lokale Testdaten" + (systemPc ? ", System-PC, kein Speichern" : "");
-#else
-                src = "Testdaten, keine Speicherung";
-#endif
-            else
-            {
-                string f = fstore.Folder;
-                if (f.Length > 45) f = f.Substring(0, 20) + "…" + f.Substring(f.Length - 22);
-                src = "Daten: " + f + (fstore.Offline ? " - OFFLINE" : "") + (cfg.ReadOnly ? " - NUR LESEN" : "")
-                    + (offlineStart && !fstore.Offline ? " - wieder verbunden, zum Bearbeiten neu starten" : "");
-            }
-            if (newVersion) src += " - NEUE VERSION: bitte neu starten";
-            Text = "Arbeitsplan (" + src + ") - Oberfläche: " + Theme.Current.Name
-                + " - Nutzer: " + me.Display + " (" + PackageName() + ")";
+            string st = newVersion ? "NEUE VERSION: bitte neu starten"
+                : fstore == null ? "Testdaten" + (systemPc ? ", kein Speichern" : "")
+                : fstore.Offline ? "OFFLINE"
+                : refreshing ? "aktualisiere…" : "√ online, aktuell";
+            Text = "Arbeitsplan (" + st + ")";
         }
 
-        // Name des Rechtepakets des Nutzers; ohne exakt passendes Paket "benutzerdefiniert".
-        string PackageName() { return users.PackageOf(me) != null ? users.PackageOf(me).Name : "benutzerdefiniert"; }
+        // Rechts in der Statusleiste: Datenstand + letztes Ereignis (ev == null: unveraendert). flash = kurz gelb hinterlegen.
+        string lastEvent = "";
+        Timer flashTimer;
+        void Status(string ev, bool flash)
+        {
+            if (ev != null) lastEvent = ev;
+            List<string> p = new List<string>();
+            bool off = fstore != null && fstore.Offline;
+            if (newVersion) p.Add("NEUE VERSION: bitte neu starten");
+            if (off) p.Add("OFFLINE – nur Lesen");
+            else
+            {
+                if (fstore == null) p.Add("Testdaten");
+                else if (offlineStart) p.Add("wieder verbunden, zum Bearbeiten neu starten");
+                else if (cfg.ReadOnly) p.Add("nur Lesen");
+                if (lastEvent.Length > 0) p.Add(lastEvent);
+            }
+            statusRight.Text = string.Join("  ·  ", p.ToArray());
+            statusRight.ForeColor = newVersion || off ? Color.FromArgb(192, 0, 0) : ForeColor;
+            if (flash)
+            {
+                if (flashTimer == null)
+                {
+                    flashTimer = new Timer(); flashTimer.Interval = 4000;
+                    flashTimer.Tick += delegate { flashTimer.Stop(); statusRight.ResetBackColor(); };
+                    FormClosed += delegate { flashTimer.Dispose(); };
+                }
+                statusRight.BackColor = Color.FromArgb(255, 232, 150);
+                flashTimer.Stop(); flashTimer.Start();
+            }
+            UpdateTitle();
+        }
 
         // Vor der Nutzerverwaltung: aktuelle Nutzerliste der Datendatei; der eigene Eintrag bleibt dasselbe Objekt (kein Selbstloeschen)
         void RefreshUsers()
@@ -149,19 +171,28 @@ namespace Arbeitsplan.Win
                         {
                             busy = false;
                             if (closed || IsDisposed) return;
-                            if ((upd || fstore.NewerFormat) && !newVersion) { newVersion = true; UpdateTitle(); }
+                            if ((upd || fstore.NewerFormat) && !newVersion) { newVersion = true; Status(null, true); }
                             if (editCell != null || Application.OpenForms.Count > 1) return;
                             if (fl >= 0 && (ft != seenTime || fl != seenLen)) { seenTime = ft; seenLen = fl; tries = 2; }
                             bool wasOffline = fstore.Offline, fresh = false;
                             if (fl >= 0 && tries > 0)
                             {
                                 int g0 = fstore.Generation;
-                                fresh = fstore.Refresh();
+                                refreshing = true; UpdateTitle();
+                                try { fresh = fstore.Refresh(); } finally { refreshing = false; }
                                 tries = fresh || fstore.Generation != g0 ? 0 : tries - 1;
                             }
-                            if (!fresh && fstore.Generation == viewGen) return;   // auch still beim Speichern/Bearbeiten nachgeladene Daten
-                            Rebuild(false);
-                            if (wasOffline) UpdateTitle();
+                            string now = DateTime.Now.ToString("HH:mm");
+                            if (fresh || fstore.Generation != viewGen)   // auch still beim Speichern/Bearbeiten nachgeladene Daten
+                            {
+                                Rebuild(false);
+                                Status("Daten von anderem PC übernommen " + now, true);
+                            }
+                            else
+                            {
+                                string ev = fl >= 0 ? "Aktualisiert " + now : "Datenordner nicht erreichbar";
+                                Status(ev, wasOffline != fstore.Offline || (fl < 0 && ev != lastEvent));
+                            }
                         });
                     }
                     catch (Exception) { }   // Fenster bereits geschlossen

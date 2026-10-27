@@ -106,6 +106,14 @@ namespace Arbeitsplan.Core
             return null;
         }
 
+        // Rolle fuer Statusleiste/Info: Name des Rechtepakets; ohne exakt passendes Paket "benutzerdefiniert"
+        // (einzige Stelle; spaeter z. B. "Produktion (+/-)" bei abweichenden Einzelrechten)
+        public string RoleLabel(User u)
+        {
+            RightsPackage p = PackageOf(u);
+            return p != null ? p.Name : "benutzerdefiniert";
+        }
+
         // Admin = alle Rechte
         public static bool IsAdmin(HashSet<string> rights) { foreach (string r in Perm.All) if (!rights.Contains(r)) return false; return true; }
         public int AdminCount(User except) { int n = 0; foreach (User u in Users) if (u != except && IsAdmin(u.Rights)) n++; return n; }
