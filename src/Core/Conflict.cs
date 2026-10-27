@@ -32,6 +32,15 @@ namespace Arbeitsplan.Core
                 else { r.People[s] = preferMine ? ms : JoinPeople(ts, ms); clashes.Add(names[s]); }
             }
             r.Lkz = mine.Lkz == b.Lkz ? theirs.Lkz : mine.Lkz;   // Haken: geaendert gewinnt (beide geaendert = gleicher Wert)
+            r.Marks = new List<string>();                         // Pflichtpunkte je Schluessel wie der LKZ-Haken
+            List<string> keys = new List<string>(b.Marks);
+            foreach (string k in mine.Marks) if (!keys.Contains(k)) keys.Add(k);
+            foreach (string k in theirs.Marks) if (!keys.Contains(k)) keys.Add(k);
+            foreach (string k in keys)
+                if (mine.Marks.Contains(k) == b.Marks.Contains(k) ? theirs.Marks.Contains(k) : mine.Marks.Contains(k)) r.Marks.Add(k);
+            if (mine.Variant == b.Variant || mine.Variant == theirs.Variant) r.Variant = theirs.Variant;
+            else if (theirs.Variant == b.Variant) r.Variant = mine.Variant;
+            else { r.Variant = preferMine ? mine.Variant : theirs.Variant; clashes.Add("Herstellung"); }
             return r;
         }
 

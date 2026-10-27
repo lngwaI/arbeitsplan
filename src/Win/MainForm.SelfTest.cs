@@ -251,6 +251,7 @@ namespace Arbeitsplan.Win
             if (!systemPc) SelfTestMulti(sb);
             SelfTestCampaignStart(sb);
             SelfTestEquipment(sb);
+            SelfTestDuties(sb);
             sb.AppendLine(PackageForm.TestFlow(store, equip, start));
             quiet = false;
             return sb.ToString();

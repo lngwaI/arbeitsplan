@@ -25,12 +25,15 @@ namespace Arbeitsplan.Core
         public List<FormatSpan> Spans = new List<FormatSpan>();
         public string[] People = { "", "", "" };   // Kuerzel je Schicht (F, S, N)
         public bool Lkz;                            // "LKZ gemessen?" (nur Zeilen mit HasLkz)
+        public string Variant = "";                 // Herstellungsvariante (aus RowInfo.Variants), "" = keine
+        public List<string> Marks = new List<string>();   // gesetzte Pflichtpunkte (CheckDef.Key, ausser LKZ)
         public int Version;                         // Konflikterkennung
 
         public Entry Clone()
         {
             Entry e = (Entry)MemberwiseClone();
             e.People = (string[])People.Clone();
+            e.Marks = new List<string>(Marks);
             e.Spans = new List<FormatSpan>();
             foreach (FormatSpan s in Spans) e.Spans.Add(s.Clone());
             return e;
@@ -39,8 +42,12 @@ namespace Arbeitsplan.Core
         public string SpanKey() { string k = ""; foreach (FormatSpan s in Spans) k += s.Key(); return k; }
     }
 
+    public enum ShiftMode { FSN, FS, Task }
+
     public class RowInfo   // gilt fuer die ganze Zeile (alle Tage); wird nur ueber die Blockstruktur-Einstellungen geaendert
     {
+        public ShiftMode Mode = ShiftMode.FSN;
+        public string Variants = "";                // z. B. "mobil|stationaer", "" = keine
         public int Id;                              // stabil; Reihenfolge ergibt sich aus der Listenposition
         public string Name = "";
         public string[] Labels = { "F", "S", "N" };
@@ -68,6 +75,11 @@ namespace Arbeitsplan.Core
         List<SearchHit> Find(string query);                  // Inhalt und Kuerzel (nicht Raumnamen), nach Datum/Zeile sortiert
         Catalog GetCatalog();                                // Equipment-Positionen und Bausteine fuer Pakete (Kopie)
         void SaveCatalog(Catalog catalog);
+        DutyConfig GetDuties();                              // Pflichtpunkte, Rundgaenge, Feiertage (Kopie)
+        void SaveDuties(DutyConfig duties);
+        List<WeekMark> GetWeekMarks(DateTime monday);        // Kopien
+        // Wochenhaken + Protokoll atomar; false = Konflikt (m.Version veraltet); setzt sonst m.Version neu. a darf null sein.
+        bool SaveWeekMark(WeekMark m, AuditEntry a);
         // Historie ohne Obergrenze: alte Wochen und Protokolleintraege werden nie geloescht ("ein Jahr zurueck" und mehr).
         void AppendAudit(AuditEntry a);                      // append-only, kein Aendern/Loeschen
         // Save + Protokolleintrag atomar (beides oder nichts); setzt a.Before/After/Version auf den Stand beim Speichern
@@ -106,6 +118,32 @@ namespace Arbeitsplan.Core
         Catalog catalog = Catalog.Default();
         public Catalog GetCatalog() { return catalog.Clone(); }
         public void SaveCatalog(Catalog c) { CheckWrite(); catalog = c.Clone(); }
+
+        DutyConfig duties = DutyConfig.Default();
+        public DutyConfig GetDuties() { return duties.Clone(); }
+        public void SaveDuties(DutyConfig d) { CheckWrite(); duties = d.Clone(); }
+
+        readonly Dictionary<string, WeekMark> marks = new Dictionary<string, WeekMark>();
+        static string MarkKey(DateTime monday, string k) { return monday.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) + "|" + k; }
+        public List<WeekMark> GetWeekMarks(DateTime monday)
+        {
+            List<WeekMark> l = new List<WeekMark>();
+            foreach (WeekMark m in marks.Values) if (m.Monday == monday.Date) l.Add(m.Clone());
+            return l;
+        }
+        public bool SaveWeekMark(WeekMark m, AuditEntry a)
+        {
+            CheckWrite();
+            string k = MarkKey(m.Monday.Date, m.Key);
+            WeekMark cur;
+            marks.TryGetValue(k, out cur);
+            if (cur != null && cur.Version != m.Version) return false;
+            WeekMark c = m.Clone(); c.Monday = m.Monday.Date; c.Version = (cur == null ? 0 : cur.Version) + 1;
+            marks[k] = c;
+            m.Version = c.Version;
+            if (a != null) { a.Day = c.Monday; a.RowId = -1; a.Mark = c.Key; a.Value = c.Done ? "1" : "0"; a.Version = c.Version; AppendAudit(a); }
+            return true;
+        }
 
         public List<RowInfo> GetRows() { List<RowInfo> l = new List<RowInfo>(); foreach (RowInfo r in rows) l.Add(r.Clone()); return l; }
 
@@ -180,6 +218,8 @@ namespace Arbeitsplan.Core
         {
             StoreData d = new StoreData();
             d.Rows = copy ? GetRows() : new List<RowInfo>(rows); d.Catalog = copy ? GetCatalog() : catalog;
+            d.Duties = copy ? GetDuties() : duties;
+            foreach (WeekMark m in marks.Values) d.WeekMarks.Add(copy ? m.Clone() : m);
             foreach (KeyValuePair<string, Entry> kv in items)
             {
                 StoredEntry s = new StoredEntry(); string[] p = kv.Key.Split('|');
@@ -198,7 +238,9 @@ namespace Arbeitsplan.Core
             foreach (StoredEntry s in d.Entries) items[Key(s.Day, s.RowId)] = s.Data;
             rows.Clear(); nextId = 1;
             foreach (RowInfo r in d.Rows) { rows.Add(r); nextId = Math.Max(nextId, r.Id + 1); }
-            catalog = d.Catalog;
+            catalog = d.Catalog; duties = d.Duties;
+            marks.Clear();
+            foreach (WeekMark m in d.WeekMarks) marks[MarkKey(m.Monday, m.Key)] = m;
             audit.Clear(); audit.AddRange(d.Audit);
         }
 
@@ -219,7 +261,17 @@ namespace Arbeitsplan.Core
                 if (!items.ContainsKey(kv.Key)) { Entry e = new Entry(); e.Version = kv.Value.Version + 1; items[kv.Key] = e; }
             rows.Clear(); nextId = 1;
             foreach (RowInfo r in d.Rows) { rows.Add(r.Clone()); nextId = Math.Max(nextId, r.Id + 1); }
-            catalog = d.Catalog.Clone();
+            catalog = d.Catalog.Clone(); duties = d.Duties.Clone();
+            Dictionary<string, WeekMark> oldMarks = new Dictionary<string, WeekMark>(marks);   // Versionen wie bei den Bloecken
+            marks.Clear();
+            foreach (WeekMark m in d.WeekMarks)
+            {
+                WeekMark c = m.Clone(), o; string k = MarkKey(c.Monday, c.Key);
+                if (oldMarks.TryGetValue(k, out o)) c.Version = Math.Max(o.Version, c.Version) + 1;
+                marks[k] = c;
+            }
+            foreach (KeyValuePair<string, WeekMark> kv in oldMarks)
+                if (!marks.ContainsKey(kv.Key)) { WeekMark c = kv.Value.Clone(); c.Done = false; c.Version++; marks[kv.Key] = c; }
             // Protokoll bleibt append-only: Eintraege nach der Sicherung gehen nicht verloren
             Dictionary<string, AuditEntry> all = new Dictionary<string, AuditEntry>();
             foreach (AuditEntry a in d.Audit) all[a.Key()] = a.Clone();

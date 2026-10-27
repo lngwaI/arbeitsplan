@@ -8,9 +8,9 @@ namespace Arbeitsplan.Core
     public static class Perm
     {
         public const string Read = "Lesen", EditText = "TextAendern", DeleteText = "TextLoeschen", AddText = "TextHinzufuegen",
-            Format = "Format", SortRows = "ZeilenSortieren", PackageAdmin = "PaketeEinrichten", Export = "Exportieren", ImportPackage = "PaketeImportieren", EditNames = "BlockNamenAendern", EditHeight = "BlockhoeheAendern", UserCreate = "NutzerAnlegen", UserEdit = "NutzerBearbeiten", UserDelete = "NutzerLoeschen";
+            Format = "Format", SortRows = "ZeilenSortieren", PackageAdmin = "PaketeEinrichten", Export = "Exportieren", ImportPackage = "PaketeImportieren", EditNames = "BlockNamenAendern", EditHeight = "BlockhoeheAendern", UserCreate = "NutzerAnlegen", UserEdit = "NutzerBearbeiten", UserDelete = "NutzerLoeschen", Rounds = "RundgangAbhaken";
 
-        public static readonly string[] All = { Read, EditText, DeleteText, AddText, Format, EditNames, EditHeight, SortRows, Export, ImportPackage, PackageAdmin, UserCreate, UserEdit, UserDelete };
+        public static readonly string[] All = { Read, EditText, DeleteText, AddText, Format, EditNames, EditHeight, SortRows, Export, ImportPackage, Rounds, PackageAdmin, UserCreate, UserEdit, UserDelete };
 
         public static string Label(string r)
         {
@@ -30,6 +30,7 @@ namespace Arbeitsplan.Core
                 case UserCreate: return "Nutzer anlegen";
                 case UserEdit: return "Nutzer bearbeiten";
                 case UserDelete: return "Nutzer löschen";
+                case Rounds: return "Rundgänge abhaken";
             }
             return r;
         }
@@ -142,7 +143,7 @@ namespace Arbeitsplan.Core
         {
             UserDb db = new UserDb();
             db.Packages.Add(new RightsPackage("Leser", Perm.Read, Perm.Export));
-            db.Packages.Add(new RightsPackage("Produktion", Perm.Read, Perm.EditText, Perm.DeleteText, Perm.AddText, Perm.Format, Perm.Export, Perm.ImportPackage));
+            db.Packages.Add(new RightsPackage("Produktion", Perm.Read, Perm.EditText, Perm.DeleteText, Perm.AddText, Perm.Format, Perm.Export, Perm.ImportPackage, Perm.Rounds));
             db.Packages.Add(new RightsPackage("Admin", Perm.All));
             return db;
         }
@@ -150,6 +151,7 @@ namespace Arbeitsplan.Core
         public void WriteXml(XmlWriter w)
         {
             w.WriteStartElement("Nutzer");
+            w.WriteAttributeString("rechte", "2");   // 2: mit Perm.Rounds
             if (Domains.Count > 0) w.WriteAttributeString("domaenen", string.Join(",", Domains.ToArray()));
             foreach (RightsPackage p in Packages)
             {
@@ -177,6 +179,7 @@ namespace Arbeitsplan.Core
                 if (x == null) continue;
                 List<string> rights = new List<string>();
                 foreach (XmlNode r in x.ChildNodes) { XmlElement re = r as XmlElement; if (re != null && re.Name == "R") rights.Add(re.GetAttribute("v")); }
+                if (e.GetAttribute("rechte").Length == 0 && rights.Contains(Perm.EditText)) rights.Add(Perm.Rounds);   // alte Datei: Produktion/Admin bekommen das neue Recht
                 if (x.Name == "Paket") db.Packages.Add(new RightsPackage(x.GetAttribute("name"), rights.ToArray()));
                 else if (x.Name == "Person")
                 {
