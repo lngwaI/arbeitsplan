@@ -248,7 +248,12 @@ namespace Arbeitsplan.Win
             if (Arg(args, "--go") != null) f.TestGo(int.Parse(Arg(args, "--go")));   // Fenster um n Tage verschieben (z. B. -2 = ab Samstag)
             if (Arg(args, "--search") != null) f.TestSearch(Arg(args, "--search"));
             if (Arg(args, "--bench") != null) System.IO.File.WriteAllText(Arg(args, "--bench"), f.Bench(20).ToString("0.0") + " ms je Wechsel");
-            if (Arg(args, "--selftest") != null) System.IO.File.WriteAllText(Arg(args, "--selftest"), f.SelfTest());
+            if (Arg(args, "--selftest") != null)
+            {
+                string res;
+                try { res = f.SelfTest(); } catch (Exception ex) { res = "FEHLER: Selbsttest abgebrochen: " + ex; }
+                System.IO.File.WriteAllText(Arg(args, "--selftest"), res);
+            }
             if (Arg(args, "--weeks") == "late") f.TestWeeksLate();   // wie Menue "2 Wochen" nach dem Start
             if (Arg(args, "--scroll") != null) f.TestScroll(int.Parse(Arg(args, "--scroll")));
             Form target = Array.IndexOf(args, "--users") >= 0 ? f.TestUsers() : (Arg(args, "--form") != null ? f.TestForm(Arg(args, "--form")) : f);
