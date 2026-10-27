@@ -13,6 +13,7 @@ namespace Arbeitsplan.Win
         readonly EquipAssign a;
         readonly EquipPosition pos;
         readonly Catalog cat;
+        readonly string product;    // Produktcode des Pakets: erlaubte Geraete/Austauschgruppen aus dem Produktprofil
         readonly Action changed;
         readonly Label name = new Label();
         readonly ComboBox cbId = new ComboBox(), cbFb = new ComboBox();
@@ -31,20 +32,23 @@ namespace Arbeitsplan.Win
             return x;
         }
 
-        public EquipRow(EquipAssign a, Catalog cat, Action changed, Action<EquipAssign> remove)
+        public EquipRow(EquipAssign a, Catalog cat, string product, Action changed, Action<EquipAssign> remove)
         {
-            this.a = a; this.cat = cat; this.pos = cat.Position(a.Short); this.changed = changed;
+            this.a = a; this.cat = cat; this.product = product; this.pos = cat.Position(a.Short); this.changed = changed;
             name.Text = pos != null && pos.Name != a.Short ? pos.Name + " (" + a.Short + ")" : a.Short; name.AutoEllipsis = true;
 
-            List<string> own = pos != null ? pos.Ids : new List<string>();
-            string ph = pos != null ? pos.Placeholder() : "";
+            List<string> own = cat.Allowed(product, a.Short);   // nur erlaubte Geraete (Produktprofil, sonst global)
+            string ph = Placeholder(cat, product, a.Short);
             cbId.DropDownStyle = ComboBoxStyle.DropDown;   // frei eintippbar (Notfall-/Ausweichgeraet)
             cbId.Items.AddRange(own.ToArray()); if (ph.Length > 0) cbId.Items.Add(ph);
             cbFb.DropDownStyle = ComboBoxStyle.DropDown;
-            foreach (EquipChoice c in cat.Interchangeable(a.Short)) cbFb.Items.Add(c.Short == a.Short ? c.Id : c.Short + " " + c.Id);
+            foreach (string id in cat.SwapsFor(product, a.Short, "")) cbFb.Items.Add(id);   // Austauschgruppe des Produkts zuerst
+            foreach (EquipChoice c in cat.Interchangeable(a.Short)) { string t = c.Short == a.Short ? c.Id : c.Short + " " + c.Id; if (!cbFb.Items.Contains(t)) cbFb.Items.Add(t); }
             chkAlt.Text = "abwechselnd";
             bool rot = pos != null && pos.AllowRotation;      // nur wo der Admin Rotation hinterlegt hat (z. B. Abfüllskid)
             chkAlt.Visible = btnAlt.Visible = rot || a.Alternate;   // bereits gesetzte Rotation (Import) bleibt sicht- und aenderbar, nichts wird still veraendert
+            bool fix = cat.IsFixed(product, a.Short);          // festes Geraet je Kampagne: nur Abschalten einer vorhandenen Rotation erlaubt
+            chkAlt.Enabled = !fix || a.Alternate;
             btnAlt.Text = "…";
             Ui.SimpleMenu(note);
             del.Text = "x"; del.Click += delegate { remove(a); };
@@ -53,7 +57,7 @@ namespace Arbeitsplan.Win
             ToolTip tip = new ToolTip();
             tip.SetToolTip(name, name.Text);
             tip.SetToolTip(cbId, "Gerät aus der validierten Liste wählen oder eigenes eintippen (nicht validierte Eingabe wird orange).");
-            tip.SetToolTip(chkAlt, "Läufe wechseln reihum zwischen den gewählten Geräten (Lauf 1 → A, Lauf 2 → B, Lauf 3 → wieder A …). Zur Auswahl stehen alle Geräte, die laut Admin gleich eingesetzt werden können.");
+            tip.SetToolTip(chkAlt, fix ? "Für dieses Produkt ist ein festes Gerät je Kampagne vorgegeben – kein Wechsel." : "Läufe wechseln reihum zwischen den gewählten Geräten (Lauf 1 → A, Lauf 2 → B, Lauf 3 → wieder A …). Zur Auswahl stehen alle Geräte, die laut Admin gleich eingesetzt werden können.");
             tip.SetToolTip(btnAlt, "Geräte für den Wechsel auswählen");
             tip.SetToolTip(cbFb, "Ausweich-Gerät (Backup), falls das geplante ausfällt.");
             tip.SetToolTip(note, "Notiz/Bezeichnung zu diesem Gerät (steht im Plan hinter der Nummer).");
@@ -88,27 +92,30 @@ namespace Arbeitsplan.Win
             btnAlt.Click += delegate { PickAlternatives(); loading = true; Refill(); loading = false; changed(); };
         }
 
-        // Ist das eingetragene Geraet validiert (oder leer/abwechselnd)? Fuer die Pruefhinweise.
-        public static bool Known(EquipAssign a, Catalog cat)
+        // Platzhalter aus den erlaubten Geraeten (Produktprofil oder global), z. B. H1-X-010X
+        static string Placeholder(Catalog cat, string product, string sh) { EquipPosition t = new EquipPosition(); t.Ids = cat.Allowed(product, sh); return t.Placeholder(); }
+
+        // Ist das eingetragene Geraet fuer das Produkt erlaubt (oder leer/abwechselnd)? Fuer die Pruefhinweise.
+        public static bool Known(EquipAssign a, Catalog cat, string product)
         {
             if (a.Alternate || a.Choices.Count == 0) return true;
-            EquipPosition p = cat.Position(a.Short);
             string t = a.Choices[0].Id;
-            return p != null && (p.Ids.Contains(t) || t == p.Placeholder());
+            return cat.Allowed(product, a.Short).Contains(t) || (t.Length > 0 && t == Placeholder(cat, product, a.Short));
         }
 
-        // Frei eingetippte (nicht validierte) Geraete einer Zeile: Geraet, Wechselgeraete, Ausweich-Geraet (Austausch-Gruppe)
-        public static List<string> Unvalidated(EquipAssign a, Catalog cat)
+        // Frei eingetippte (nicht erlaubte/validierte) Geraete einer Zeile: Geraet, Wechselgeraete, Ausweich-Geraet (Austausch-Gruppe)
+        public static List<string> Unvalidated(EquipAssign a, Catalog cat, string product)
         {
             List<string> r = new List<string>();
-            if (!Known(a, cat)) r.Add(a.Choices[0].Id);
+            if (!Known(a, cat, product)) r.Add(a.Choices[0].Id);
             List<EquipChoice> grp = cat.Interchangeable(a.Short);
-            EquipPosition p = cat.Position(a.Short);
+            List<string> swaps = cat.SwapsFor(product, a.Short, ""), allowed = cat.Allowed(product, a.Short);
+            string ph = Placeholder(cat, product, a.Short);
             List<string> more = new List<string>();
             if (a.Alternate) foreach (EquipChoice c in a.Choices) more.Add(c.Id);
             if (a.Fallback.Length > 0) more.Add(a.Fallback);
             foreach (string id in more)
-                if (id.Length > 0 && !r.Contains(id) && (p == null || id != p.Placeholder()) && cat.Master.Device(id) == null && !grp.Exists(delegate(EquipChoice c) { return c.Id == id; })) r.Add(id);
+                if (id.Length > 0 && !r.Contains(id) && id != ph && !allowed.Contains(id) && !swaps.Contains(id) && cat.Master.Device(id) == null && !grp.Exists(delegate(EquipChoice c) { return c.Id == id; })) r.Add(id);
             return r;
         }
 
@@ -141,7 +148,7 @@ namespace Arbeitsplan.Win
         void Warn()
         {
             EquipDevice dev = a.Alternate || a.Choices.Count == 0 ? null : cat.Master.Device(a.Choices[0].Id);
-            cbId.ForeColor = dev != null && !dev.Active ? Color.Firebrick : Known(a, cat) ? SystemColors.WindowText : Color.DarkOrange;   // rot = in Wartung
+            cbId.ForeColor = dev != null && !dev.Active ? Color.Firebrick : Known(a, cat, product) ? SystemColors.WindowText : Color.DarkOrange;   // rot = in Wartung
         }
 
         string CurrentId() { return a.Alternate || a.Choices.Count == 0 ? "" : a.Choices[0].Id; }
@@ -150,8 +157,8 @@ namespace Arbeitsplan.Win
         {
             string id = CurrentId(); if (id.Length == 0) return;
             string text = cbFb.Text;
-            List<string> first = new List<string>();
-            foreach (EquipSubst s in cat.Master.SubstitutesFor(id)) first.Add(s.Id);
+            List<string> first = cat.SwapsFor(product, a.Short, id);   // zuerst Austauschgruppe des Produkts, dann Ersatz
+            foreach (EquipSubst s in cat.Master.SubstitutesFor(id)) if (!first.Contains(s.Id)) first.Add(s.Id);
             foreach (string c in cat.Master.CompatibleWith(id)) { EquipDevice d = cat.Master.Device(c); if (d != null && d.Class == (cat.Master.Device(id) != null ? cat.Master.Device(id).Class : d.Class) && !first.Contains(c)) first.Add(c); }
             if (first.Count == 0) return;
             loading = true;
@@ -165,14 +172,31 @@ namespace Arbeitsplan.Win
             string id = CurrentId(), info = id.Length > 0 ? cat.Master.Info(id) : "";
             foreach (EquipSubst s in id.Length > 0 ? cat.Master.SubstitutesFor(id) : new List<EquipSubst>())
                 info += (info.Length > 0 ? "\n" : "") + "Ersatz: " + s.Id + (s.Note.Length > 0 ? " (" + s.Note + ")" : "");
+            if (!Known(a, cat, product)) info = "ACHTUNG: " + id + " ist " + (cat.Product(product) != null ? "für Produkt " + product + " nicht vorgesehen." : "nicht validiert.") + (info.Length > 0 ? "\n" + info : "");
             tip.SetToolTip(cbId, "Gerät aus der validierten Liste wählen oder eigenes eintippen (nicht validierte Eingabe wird orange)." + (info.Length > 0 ? "\n\n" + info : ""));
         }
 
         void PickAlternatives()
         {
-            using (AlternativesPicker p = new AlternativesPicker(cat.Interchangeable(a.Short), a.Choices, a.Short))
+            List<EquipChoice> offer = new List<EquipChoice>();   // erlaubte Geraete des Produkts + Positionen der Austausch-Gruppe
+            foreach (string id in cat.Allowed(product, a.Short)) offer.Add(new EquipChoice(a.Short, id));
+            foreach (EquipChoice c in cat.Interchangeable(a.Short)) if (!string.Equals(c.Short, a.Short, StringComparison.OrdinalIgnoreCase)) offer.Add(c);
+            using (AlternativesPicker p = new AlternativesPicker(offer, a.Choices, a.Short))
                 if (p.ShowDialog(this) == DialogResult.OK) a.Choices = p.Result;
             if (a.Choices.Count < 2) { a.Alternate = false; loading = true; chkAlt.Checked = false; loading = false; }
+        }
+    }
+
+    partial class PackageForm
+    {
+        // Harter Fehler vor Speichern/Uebernehmen: Zubehoer eines anderen Hauptgeraets im selben Lauf. true = in Ordnung.
+        static bool BelongsOk(IWin32Window owner, Package p, Catalog cat, string action)
+        {
+            List<string> e = cat.CheckPackage(p);
+            if (e.Count == 0) return true;
+            MessageBox.Show(owner, "Das Paket kann nicht " + action + " werden – Zubehör ist mit dem falschen Hauptgerät eingeplant:\n\n" + string.Join("\n", e.ToArray())
+                + "\n\nBitte das Zubehör oder das Hauptgerät anpassen.", "Equipment passt nicht zusammen", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return false;
         }
     }
 

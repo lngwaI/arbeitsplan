@@ -215,8 +215,8 @@ namespace Arbeitsplan.Win
             EquipAssign alt = new EquipAssign(); alt.Short = "TFF"; alt.Alternate = true; alt.Choices.Add(new EquipChoice("TFF", "H1-X-0101")); alt.Choices.Add(new EquipChoice("TFF", "H1-X-9999"));
             EquipAssign fb = new EquipAssign(); fb.Short = "Pumpe"; fb.Choices.Add(new EquipChoice("Pumpe", "H1-P-0101-05")); fb.Fallback = "H1-P-0999-05";
             EquipAssign free = new EquipAssign(); free.Short = "PT"; free.Choices.Add(new EquipChoice("PT", "H1-T-0999"));
-            bool okVal = EquipRow.Unvalidated(ok1, cat).Count == 0 && string.Join(",", EquipRow.Unvalidated(alt, cat).ToArray()) == "H1-X-9999"
-                && string.Join(",", EquipRow.Unvalidated(fb, cat).ToArray()) == "H1-P-0999-05" && string.Join(",", EquipRow.Unvalidated(free, cat).ToArray()) == "H1-T-0999";
+            bool okVal = EquipRow.Unvalidated(ok1, cat, "").Count == 0 && string.Join(",", EquipRow.Unvalidated(alt, cat, "").ToArray()) == "H1-X-9999"
+                && string.Join(",", EquipRow.Unvalidated(fb, cat, "").ToArray()) == "H1-P-0999-05" && string.Join(",", EquipRow.Unvalidated(free, cat, "").ToArray()) == "H1-T-0999";
             sb.AppendLine("Equipment: Nummern erkannt=" + Ok(okPat) + " (" + got.Count + " von 6) Status/Farbe=" + Ok(okStat) + " Wechsel/Ausweich geprüft=" + Ok(okVal));
         }
 

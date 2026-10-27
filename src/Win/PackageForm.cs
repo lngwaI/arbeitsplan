@@ -104,7 +104,10 @@ namespace Arbeitsplan.Win
             Ui.SimpleMenu(tName); Ui.SimpleMenu(tProduct);
             tip.SetToolTip(tProduct, "4 Ziffern XXYY. Die Läufe heißen dann XXYYZZZZ (ZZZZ = Laufnummer). Leer = Läufe ohne Produktnummer.");
             tName.TextChanged += delegate { Changed(); };
-            tProduct.TextChanged += delegate { Changed(); };
+            tProduct.TextChanged += delegate   // anderes Produkt: Geraetelisten der Zeilen neu fuellen (Produktprofil)
+            {
+                if (!loading && cur != null && (Product.Length == 0 || Package.IsCode4(Product))) { dirty = true; Bind(cur); } else Changed();
+            };
 
             Section flow = new Section("2   Ablauf", "Schritte nach Tag sortiert. Anklicken = rechts bearbeiten.", true, w);
             lv.View = View.Details; lv.FullRowSelect = true; lv.HideSelection = false; lv.MultiSelect = false; lv.ShowItemToolTips = true;
@@ -410,7 +413,7 @@ namespace Arbeitsplan.Win
         bool SaveFile(bool saveAs)
         {
             Package p = Collect();
-            if (p == null) return false;
+            if (p == null || !BelongsOk(this, p, cat, "gespeichert")) return false;
             string f = file;
             if (saveAs || f == null)
                 using (SaveFileDialog d = new SaveFileDialog())
@@ -450,6 +453,7 @@ namespace Arbeitsplan.Win
         {
             List<RunDate> schedule; ApplyMode mode;
             start = weekStart;
+            if (!BelongsOk(owner, p, store.GetCatalog(), "übernommen")) return false;
             using (CampaignForm cf = new CampaignForm(p, store, weekStart.Date, ApplyMode.FillEmpty))
             {
                 if (cf.ShowDialog(owner) != DialogResult.OK) return false;

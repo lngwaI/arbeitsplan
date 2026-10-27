@@ -193,7 +193,7 @@ namespace Arbeitsplan.Win
             while (equipRows.Controls.Count > 0) { Control c = equipRows.Controls[0]; equipRows.Controls.RemoveAt(0); c.Dispose(); }
             if (s != null)
             {
-                foreach (EquipAssign a in s.Equipment) equipRows.Controls.Add(new EquipRow(a, cat, delegate { Changed(); }, RemoveAssign));
+                foreach (EquipAssign a in s.Equipment) equipRows.Controls.Add(new EquipRow(a, cat, Product, delegate { Changed(); }, RemoveAssign));
                 tTitle.Text = s.Title;
                 cbKind.SelectedIndex = (int)s.Kind; tSubNos.Text = s.SubNos;
                 if (s.Row.Length > 0 && !cbRow.Items.Contains(s.Row)) cbRow.Items.Add(s.Row);   // unbekannter Block bleibt sichtbar
@@ -358,7 +358,9 @@ namespace Arbeitsplan.Win
                 if (idents > 0 && idents != s.Count) h.Add(new Hint(n + ": " + idents + " Kennung(en), aber " + s.Count + " Wiederholung(en) (Komma = nächster Lauf).", s, tIdent));
                 if (s.Numbered && s.StartNo + s.Count - 1 > 9999) h.Add(new Hint(n + ": Laufnummer über 9999 – kleinere erste Nummer wählen.", s, nStartNo));
                 foreach (EquipAssign a in s.Equipment)
-                    foreach (string id in EquipRow.Unvalidated(a, cat)) h.Add(new Hint(n + ": Gerät " + id + " (" + a.Short + ") ist nicht validiert.", s, null));
+                    foreach (string id in EquipRow.Unvalidated(a, cat, Product)) h.Add(new Hint(n + ": Gerät " + id + " (" + a.Short + ") ist " + (cat.Product(Product) != null ? "für dieses Produkt nicht vorgesehen." : "nicht validiert."), s, null));
+                Package one = new Package(); one.ProductCode = Product; one.Steps.Add(s);   // Zugehoerigkeit: sperrt Speichern/Uebernehmen
+                foreach (string e in cat.CheckPackage(one)) h.Add(new Hint(n + " FEHLER: " + e, s, null));
             }
             bool ok = h.Count == 0;
             if (ok) h.Add(new Hint("Keine Auffälligkeiten – das Muster kann übernommen werden.", null, null));
