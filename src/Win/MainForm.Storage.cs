@@ -27,6 +27,7 @@ namespace Arbeitsplan.Win
         User ResolveUser(string login)
         {
             User u = users.FindByLogin(login);
+            if (shownPlan != null) { u = new User(); u.Login = login; users.Assign(u, "leser"); return u; }   // Plan-Datei: nur ansehen
             if (cfg == null)
             {
                 if (u != null) return u;
@@ -79,6 +80,7 @@ namespace Arbeitsplan.Win
         bool refreshing;   // Datendatei wird gerade neu eingelesen bzw. gespeichert
         void UpdateTitle()
         {
+            if (shownPlan != null) { Text = "Arbeitsplan – Plan-Datei " + shownPlan.Name + " (nur ansehen)"; return; }
             string st = newVersion ? "NEUE VERSION: bitte neu starten"
                 : fstore == null ? "Testdaten" + (systemPc ? ", kein Speichern" : "")
                 : fstore.Offline ? "OFFLINE"
@@ -98,7 +100,8 @@ namespace Arbeitsplan.Win
             if (off) p.Add("OFFLINE – nur Lesen");
             else
             {
-                if (fstore == null) p.Add("Testdaten");
+                if (shownPlan != null) p.Add("Plan-Datei " + Ui.DayText(shownPlan.From) + " – " + Ui.DayText(shownPlan.From.AddDays(shownPlan.Days - 1)) + ", nur ansehen");
+                else if (fstore == null) p.Add("Testdaten");
                 else if (offlineStart) p.Add("wieder verbunden, zum Bearbeiten neu starten");
                 else if (cfg.ReadOnly) p.Add("nur Lesen");
                 if (lastEvent.Length > 0) p.Add(lastEvent);

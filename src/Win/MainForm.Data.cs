@@ -24,6 +24,7 @@ namespace Arbeitsplan.Win
             ToolStripItem h = cm.Items.Add("Verlauf…", null, delegate { if (editCell != null) ShowHistory(editCell); });
             cm.Opening += delegate { h.Enabled = true; };   // nach der Format-Sperre: Lesen genuegt
             FormClosed += delegate { AutoBackup(); };
+            StartBackupTimer();
         }
 
         void ShowHistory(CellData c)
@@ -60,16 +61,53 @@ namespace Arbeitsplan.Win
         void OpenBackup()
         {
             if (!EndEdit(true)) return;
-            using (BackupForm f = new BackupForm(store, BackupIni, BackupFolder)) f.ShowDialog(this);
+            using (BackupForm f = new BackupForm(store, BackupIni, BackupFolder, DefaultBackupHours)) f.ShowDialog(this);
             Rebuild(true);
         }
 
-        // Beim Beenden, wenn die letzte Sicherung aelter als 24 h ist. Fehler blockieren das Beenden nie.
+        // Abstand der automatischen Sicherung: sicherung.ini (Dialog) vor Arbeitsplan.ini (SicherungAlleStunden=), sonst 24
+        int DefaultBackupHours { get { return cfg != null ? cfg.BackupHours : 24; } }
+        int BackupHours { get { return Backup.LoadHours(BackupIni, DefaultBackupHours); } }
+
+        // Beim Beenden, wenn die letzte Sicherung aelter als eingestellt ist. Fehler blockieren das Beenden nie.
         void AutoBackup()
         {
-            if (systemPc) return;
-            try { string f = BackupFolder; if (Backup.AutoDue(f)) Backup.WriteTo(store, f, null); }
+            if (systemPc || backupBusy) return;
+            try { string f = BackupFolder; if (Backup.AutoDue(f, BackupHours)) Backup.WriteTo(store, f, null); }
             catch (Exception) { }
+        }
+
+        // Im laufenden Programm alle 10 min pruefen: faellig -> Stand holen (UI-Thread, FileStore ist nicht thread-sicher), Datei im
+        // Hintergrund schreiben. Nicht im Bearbeitungsmodus, bei offenem Dialog, OFFLINE oder ohne Speichern (wie beim Beenden).
+        bool backupBusy;
+        void StartBackupTimer()
+        {
+            if (systemPc) return;
+            Timer t = new Timer(); t.Interval = 10 * 60 * 1000;
+            t.Tick += delegate { TimedBackup(); };
+            t.Start();
+            FormClosed += delegate { t.Stop(); t.Dispose(); };
+        }
+
+        void TimedBackup()
+        {
+            if (systemPc || backupBusy || editCell != null || Application.OpenForms.Count > 1 || (fstore != null && (fstore.ReadOnly || fstore.Offline))) return;
+            string folder; StoreData snap; string key;
+            try
+            {
+                folder = BackupFolder;
+                if (!Backup.AutoDue(folder, BackupHours)) return;
+                key = Backup.KeyOf(store); snap = store.Snapshot();
+            }
+            catch (Exception) { return; }   // naechster Versuch beim naechsten Takt
+            backupBusy = true;
+            System.Threading.ThreadPool.QueueUserWorkItem(delegate
+            {
+                bool ok = false;
+                try { Backup.WriteTo(snap, folder, null, key); ok = true; } catch (Exception) { }
+                try { BeginInvoke((MethodInvoker)delegate { backupBusy = false; if (ok) Status("Sicherung " + DateTime.Now.ToString("HH:mm"), false); }); }
+                catch (Exception) { }   // Fenster schon geschlossen (Ausnahme im Hintergrund-Thread wuerde das Programm beenden)
+            });
         }
     }
 }
