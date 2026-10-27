@@ -26,6 +26,12 @@ copy /y config\Testprodukt.apkg "%L%\daten\Pakete\" >nul
 copy /y config\Test-Arbeitsplan-ANLEITUNG.txt "%T%\0_ANLEITUNG.txt" >nul
 copy /y docs\IT-Freigabe.md "%T%\2_Fuer-die-IT\IT-Freigabe.txt" >nul
 copy /y config\LIESMICH.txt "%T%\2_Fuer-die-IT\" >nul
+rem Uebersicht "Was liegt wo" als PDF (Edge drucken lassen), ohne Edge als HTML
+set EDGE=%ProgramFiles(x86)%\Microsoft\Edge\Application\msedge.exe
+set PDF=%CD%\%T%\3_Zum-Ausdrucken\Uebersicht.pdf
+if exist "%EDGE%" start "" /wait "%EDGE%" --headless --disable-gpu --no-pdf-header-footer "--user-data-dir=%TEMP%\arbeitsplan_edge" "--print-to-pdf=%PDF%" "%CD%\config\Uebersicht.html"
+if not exist "%PDF%" copy /y config\Uebersicht.html "%T%\3_Zum-Ausdrucken\" >nul
+if exist "%PDF%" copy /y "%PDF%" "%T%\2_Fuer-die-IT\" >nul
 rem nur lokal vorhanden (gitignored)
 if exist _privat\1-Seiter-Vorgesetzter.pdf copy /y _privat\1-Seiter-Vorgesetzter.pdf "%T%\3_Zum-Ausdrucken\" >nul
 
