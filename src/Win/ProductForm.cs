@@ -163,7 +163,14 @@ namespace Arbeitsplan.Win
         public void TestSelect(string code, string shortName)
         {
             SelectProduct(cat.Product(code));
-            foreach (EquipPosition g in cat.Positions) if (g.Short == shortName) { foreach (object o in lbPos.Items) if (((PosItem)o).P == g) lbPos.SelectedItem = o; SelectPos(g); }
+            foreach (EquipPosition g in cat.Positions) if (g.Short == shortName)
+            {
+                object sel = null;
+                foreach (object o in lbPos.Items) if (((PosItem)o).P == g) sel = o;
+                if (sel != null) lbPos.SelectedItem = sel;
+                SelectPos(g);
+                break;
+            }
         }
         public void TestAdd(string code, string name) { AddProduct(code, name); }
         public bool TestCopy(string to, string name) { ProductProfile c = prod != null ? cat.CopyProduct(prod.Code, to, name) : null; FillProducts(c); return c != null; }
