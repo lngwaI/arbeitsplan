@@ -50,7 +50,7 @@ namespace Arbeitsplan.Win
                 + "<Position name=\"TFF-Skid\" kurz=\"TFF\" abwechselnd=\"0\"><Id v=\"H1-X-0101\"/></Position><Stammdaten><Geraet id=\"H1-F-0101-01\" klasse=\"F\" notiz=\"\" aktiv=\"1\"/></Stammdaten></Katalog></Arbeitsplan>"));
             bool okOld = old.Catalog.Products.Count == 0 && old.Catalog.Positions.Count == 1 && old.Catalog.Master.Device("H1-F-0101-01").Parent == ""
                 && Join(old.Catalog.Allowed("1234", "TFF")) == "H1-X-0101";
-            sb.AppendLine("Produkte: Zugehörigkeit (A+B Fehler, A ok, allein ok)=" + Ok(okB) + " erlaubt global/Produkt/fest/Tausch=" + Ok(okA) + " Kopieren=" + Ok(okC)
+            sb.AppendLine("Produkte: Zugehörigkeit (A+B Verstoß, A ok, allein ok)=" + Ok(okB) + " erlaubt global/Produkt/fest/Tausch=" + Ok(okA) + " Kopieren=" + Ok(okC)
                 + " XML-Rundreise=" + Ok(okX) + " Katalog ohne Produkt=" + Ok(okOld));
 
             // ---------- Paket-Editor-Zeile: nur erlaubte Geraete, freie Eingabe = Hinweis, fest sperrt "abwechselnd" ----------
@@ -85,7 +85,7 @@ namespace Arbeitsplan.Win
             alt.Alternate = false; alt.Choices.RemoveAt(1);
             okP &= ps.GetCatalog().CheckPackage(p).Count == 0;
             sb.AppendLine("Produkte Editor: Dropdown nur erlaubte (fest sperrt Wechsel)=" + Ok(okD) + " freie Eingabe -> Hinweis=" + Ok(okF)
-                + " Blocktext Fehler/Hinweis=" + Ok(okT) + " Zugehörigkeit je Lauf sperrt Apply=" + Ok(okP));
+                + " Blocktext Verstoß/Hinweis=" + Ok(okT) + " Zugehörigkeit je Lauf sperrt Apply=" + Ok(okP));
         }
 
         static string Join(List<string> l) { return string.Join(",", l.ToArray()); }
