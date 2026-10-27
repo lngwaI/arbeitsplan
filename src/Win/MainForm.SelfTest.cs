@@ -112,6 +112,7 @@ namespace Arbeitsplan.Win
         }
 
         public void TestSearch(string q) { search.Text = q; }
+        public void TestGo(int days) { Go(days); }
 
         public void TestScroll(int y) { canvas.AutoScrollPosition = new Point(0, y); }
         public void TestWeeksLate() { SetWeeks(2); }
@@ -253,6 +254,7 @@ namespace Arbeitsplan.Win
             SelfTestCampaignStart(sb);
             SelfTestEquipment(sb);
             SelfTestDuties(sb);
+            SelfTestPlan(sb);
             sb.AppendLine(PackageForm.TestFlow(store, equip, start));
             quiet = false;
             return sb.ToString();
