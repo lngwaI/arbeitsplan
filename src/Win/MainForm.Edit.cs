@@ -102,6 +102,11 @@ namespace Arbeitsplan.Win
                 edContent.SelectionFont = PlanView.SpanFont(sp, plainFont);
                 edContent.SelectionColor = Ui.Rgb(sp.Rgb);
             }
+            foreach (System.Text.RegularExpressions.Match m in EquipmentMatcher.Pattern.Matches(edContent.Text))   // Statusfarbe wie in der Ansicht (beim Speichern nicht als Format uebernommen, siehe ExtractSpans)
+            {
+                edContent.Select(m.Index, m.Length);
+                edContent.SelectionColor = Ui.Rgb(view.StatusRgb(m.Value));
+            }
             edContent.Select(edContent.TextLength, 0);
             bool task = rowInfo[c.RowIndex].Mode == ShiftMode.Task;
             for (int s = 0; s < 3; s++) { edPpl[s].Text = Win(c.Cur.People[s]); edPpl[s].BackColor = task ? Theme.Current.TaskBack : Theme.Current.ShiftBack[s]; }

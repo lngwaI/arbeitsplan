@@ -62,17 +62,23 @@ namespace Arbeitsplan.Win
             // Erkannte Equipment-Nummer: Statusfarbe; Status unbekannt/nicht abrufbar -> Standard schwarz (Lesbarkeit).
             foreach (Match m in EquipmentMatcher.Pattern.Matches(text))
             {
-                EquipmentInfo info;
-                if (!equipCache.TryGetValue(m.Value, out info))   // je Nummer nur einmal je Rebuild (langsame Quelle blockiert nicht jedes Layout)
-                {
-                    try { if (Equip != null) info = Equip.Get(m.Value); } catch (Exception) { info = null; /* Quelle nicht erreichbar */ }
-                    equipCache[m.Value] = info;
-                }
-                Color col = info != null ? Rgb(Colors.Get(info.Status)) : Color.Black;
+                Color col = Rgb(StatusRgb(m.Value));
                 for (int i = m.Index; i < m.Index + m.Length; i++) fore[i] = col;
             }
             hits = MarkQuery(text, mode);
             return Group(text, fore, fnt, mode);
+        }
+
+        // Statusfarbe (0xRRGGBB) einer Equipment-Nummer; unbekannt/nicht abrufbar = schwarz. Auch der Editor nutzt sie.
+        public int StatusRgb(string number)
+        {
+            EquipmentInfo info;
+            if (!equipCache.TryGetValue(number, out info))   // je Nummer nur einmal je Rebuild (langsame Quelle blockiert nicht jedes Layout)
+            {
+                try { if (Equip != null) info = Equip.Get(number); } catch (Exception) { info = null; /* Quelle nicht erreichbar */ }
+                equipCache[number] = info;
+            }
+            return info != null ? Colors.Get(info.Status) : 0;
         }
 
         // Erkannte Equipment-Nummer unter dem Mauszeiger (Anzeigemodus, Inhaltsfeld); "" wenn keine

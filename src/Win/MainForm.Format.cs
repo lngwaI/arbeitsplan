@@ -175,6 +175,9 @@ namespace Arbeitsplan.Win
         List<FormatSpan> ExtractSpans(int n, List<FormatSpan> res)
         {
             FormatSpan open = null;
+            int[] stat = new int[n];   // Statusfarbe+1 je Zeichen einer Equipment-Nummer (0 = keine): diese Farbe ist kein manuelles Format
+            foreach (System.Text.RegularExpressions.Match m in EquipmentMatcher.Pattern.Matches(edContent.Text))
+                for (int k = m.Index; k < m.Index + m.Length && k < n; k++) stat[k] = view.StatusRgb(m.Value) + 1;
             for (int i = 0; i <= n; i++)
             {
                 FormatSpan a = null;
@@ -185,6 +188,7 @@ namespace Arbeitsplan.Win
                     Color c = edContent.SelectionColor;
                     FormatSpan t = new FormatSpan();
                     t.Rgb = (c.R << 16) | (c.G << 8) | c.B;
+                    if (stat[i] == t.Rgb + 1) t.Rgb = 0;
                     t.Size = Math.Abs(f.SizeInPoints - plainFont.SizeInPoints) > 0.05f ? f.SizeInPoints : 0;
                     t.Bold = f.Bold; t.Italic = f.Italic;
                     t.Font = f.Name != plainFont.Name ? f.Name : null;
