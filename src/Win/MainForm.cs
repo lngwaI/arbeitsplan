@@ -167,6 +167,7 @@ namespace Arbeitsplan.Win
 
             ToolStripMenuItem file = new ToolStripMenuItem("Woche");
             file.DropDownItems.Add("Meine Schichten…", null, delegate { ShowPersons(); });
+            file.DropDownItems.Add("Offene Pflichten dieser Woche…", null, delegate { ShowOpenDuties(); });
             file.DropDownItems.Add(new ToolStripSeparator());
             file.DropDownItems.Add("Als Bild speichern (PNG)…", null, delegate { ExportImage(false); }).Enabled = exp;
             file.DropDownItems.Add("Als PDF speichern…", null, delegate { ExportImage(true); }).Enabled = exp;

@@ -27,13 +27,7 @@ namespace Arbeitsplan.Win
         List<CheckDef>[] DefsByRow()
         {
             List<CheckDef>[] a = new List<CheckDef>[rowInfo.Count];
-            for (int r = 0; r < rowInfo.Count; r++)
-            {
-                int id = rowInfo[r].Id;
-                List<CheckDef> l = duties.Defs.FindAll(delegate(CheckDef d) { return d.RowId == id; });
-                if (rowInfo[r].HasLkz && !l.Exists(delegate(CheckDef d) { return d.Key == CheckDef.LkzKey; })) l.Insert(0, CheckDef.Lkz(id));
-                a[r] = l;
-            }
+            for (int r = 0; r < rowInfo.Count; r++) a[r] = OpenDuties.DefsFor(rowInfo[r], duties);
             return a;
         }
 

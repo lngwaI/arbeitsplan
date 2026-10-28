@@ -21,6 +21,50 @@ namespace Arbeitsplan.Win
             SelfTestG1(sb);
             SelfTestG2(sb);
             SelfTestG3(sb);
+            SelfTestG4(sb);
+        }
+
+        // Offene Pflichten: bekannte Testdaten KW45/2026 (heute = Mi 04.11.), leere Woche, naechste KW, Springe dorthin
+        void SelfTestG4(StringBuilder sb)
+        {
+            MemoryStore s = new MemoryStore();
+            List<RowInfo> rows = s.GetRows();
+            int s1 = rows.Find(delegate(RowInfo r) { return r.Name == "Suite 1"; }).Id, pid = PufferSetup.Row(rows).Id;
+            DateTime mo = D(2026, 11, 2), today = D(2026, 11, 4);
+            s.Save(mo, s1, E("Lauf 1", false, ""));                 // LKZ fehlt
+            s.Save(mo.AddDays(1), s1, E("Lauf 2", true, ""));       // gemessen -> KW erfuellt
+            s.Save(mo.AddDays(4), s1, E("Lauf 3", false, ""));      // LKZ faellig (Zukunft)
+            s.Save(mo, pid, E("Herstellung", false, "mobil"));      // Tagesprobe automatisch
+            s.Save(mo.AddDays(1), pid, E("Herstellung", false, "stationaer"));   // Tagesprobe fehlt, WFI entfaellt
+            WeekMark gm = new WeekMark(); gm.Monday = mo; gm.Key = "GMP1"; gm.Done = true; s.SaveWeekMark(gm, null);
+            DutyConfig cfg = s.GetDuties();
+            List<OpenDuty> l = OpenDuties.List(s, cfg, rows, mo.AddDays(3), 1, today);
+            Predicate<OpenDuty> lkzMo = delegate(OpenDuty o) { return o.RowId == s1 && o.Day == mo && o.State == "fehlt" && o.Overdue && o.When == "Mo 02.11."; };
+            Predicate<OpenDuty> lkzFr = delegate(OpenDuty o) { return o.RowId == s1 && o.Day == mo.AddDays(4) && o.State == "fällig" && !o.Overdue; };
+            Predicate<OpenDuty> kwOpen = delegate(OpenDuty o) { return o.Week && o.Where == "Mix / Split" && o.State == "KW offen" && o.When == "KW45"; };
+            int probe = l.FindAll(delegate(OpenDuty o) { return o.RowId == pid && o.What == "Tagesprobe"; }).Count;   // Di, Mi fehlt; Do, Fr faellig
+            int rounds = l.FindAll(delegate(OpenDuty o) { return o.RowId == -1; }).Count;
+            bool okList = l.Exists(lkzMo) && l.Exists(lkzFr) && l.Exists(kwOpen) && probe == 4 && rounds == 4
+                && !l.Exists(delegate(OpenDuty o) { return o.What == "WFI-Probe der Woche"; }) && l.Count == 13 && l[0].Week;
+            bool okNext = OpenDuties.List(s, cfg, rows, mo, 2, today).Exists(delegate(OpenDuty o) { return o.Day >= mo.AddDays(7); });
+            // leer: nur Suite 1 mit gemessenem LKZ, alle Rundgaenge der KW abgehakt
+            DateTime k47 = D(2026, 11, 16);
+            s.Save(k47, s1, E("", true, ""));
+            foreach (RoundDef r in cfg.Rounds) { WeekMark m = new WeekMark(); m.Monday = k47; m.Key = r.Key; m.Done = true; s.SaveWeekMark(m, null); }
+            List<RowInfo> only = rows.FindAll(delegate(RowInfo r) { return r.Id == s1; });
+            bool okEmpty = OpenDuties.List(s, cfg, only, k47, 1, today).Count == 0;
+            // Springe dorthin: andere Woche, Zeile aufgeklappt und ausgewaehlt; Rundgang klappt die Leiste auf
+            DateTime keep = start;
+            OpenDuty t = new OpenDuty(); t.Day = start.AddDays(16); t.RowId = rowInfo[rowInfo.Count - 1].Id;
+            JumpTo(t);
+            bool okJump = start == MondayOf(t.Day) && view.Selected != null && view.Selected.Day == t.Day && rowInfo[view.Selected.RowIndex].Id == t.RowId && !view.Collapsed[view.Selected.RowIndex];
+            if (view.Rounds.Count > 0 && !view.Rounds[0].Collapsed) ToggleRoundFold(view.Rounds[0]);
+            OpenDuty tr = new OpenDuty(); tr.Day = start; tr.RowId = -1;
+            JumpTo(tr);
+            okJump &= view.Rounds.Count == 0 || !view.Rounds[0].Collapsed;
+            start = keep; roundFold.Clear(); Rebuild(true);
+            sb.AppendLine("Offene Pflichten: Liste (LKZ fehlt/fällig/KW offen, Tagesprobe, Rundgänge, WFI entfällt)=" + Ok(okList) + " [" + l.Count + "] nächste KW=" + Ok(okNext)
+                + " leer=" + Ok(okEmpty) + " Springe dorthin=" + Ok(okJump));
         }
 
         // Hervorhebung von Aenderungen anderer PCs: welche Bloecke, eigene ausgenommen, Ablauf nach der Dauer, Statustext, Markierung im Plan
