@@ -51,7 +51,12 @@ namespace Arbeitsplan.Win
                 TextRenderer.DrawText(e.Graphics, Convert.ToString(lbHints.Items[e.Index]), Font, r, sel ? SystemColors.HighlightText : lbHints.ForeColor, TextFormatFlags.WordBreak | TextFormatFlags.NoPrefix);
             };
             // Resize: nur bei echter Breitenaenderung neu umbrechen (RewrapHints, PackageForm.Sizing.cs)
-            lbHints.Click += delegate { HintClicked(); };
+            lbHints.MouseUp += delegate(object o, MouseEventArgs e)
+            {
+                if (e.Button != MouseButtons.Left) return;
+                int ix = lbHints.IndexFromPoint(e.Location);   // SelectedItem wirft bei OwnerDraw-Liste (Klick unter dem Eintrag) eine NullReferenceException
+                if (ix >= 0 && ix < lbHints.Items.Count) HintClicked(lbHints.Items[ix] as Hint);
+            };
             stripScroll.Dock = DockStyle.Fill; stripScroll.AutoScroll = true; stripScroll.BackColor = Color.White; stripScroll.BorderStyle = BorderStyle.FixedSingle; stripScroll.Tag = "keep";
             strip.Location = Point.Empty; strip.StepClicked += delegate(PackageStep s) { Bind(s); };
             stripScroll.Controls.Add(strip);

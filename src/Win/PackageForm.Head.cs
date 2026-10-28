@@ -99,9 +99,8 @@ namespace Arbeitsplan.Win
 
         // Klick auf einen Pruefhinweis: erst nach der Mausverarbeitung der Liste ausfuehren (Bind baut die Hinweisliste neu auf,
         // waehrend die ListBox ihren Klick noch abarbeitet); Felder unter "Mehr Optionen" klappen dabei auf.
-        void HintClicked()
+        void HintClicked(Hint h)
         {
-            Hint h = lbHints.SelectedItem as Hint;
             if (h == null || IsDisposed || !IsHandleCreated) return;
             BeginInvoke((MethodInvoker)delegate { GoToHint(h); });
         }

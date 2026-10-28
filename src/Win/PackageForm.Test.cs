@@ -62,7 +62,7 @@ namespace Arbeitsplan.Win
                         seen = clicked;
                         LButton(true); SendMessage(lbHints.Handle, 0x201, (IntPtr)1, lp); SendMessage(lbHints.Handle, 0x202, IntPtr.Zero, lp); LButton(false);
                         n[0]++; if (clicked > seen) n[1]++;
-                        else HintClicked();   // Punkt verdeckt (WindowFromPoint): Klick wie die ListBox ausloesen
+                        else HintClicked(lbHints.Items[i] as Hint);   // Punkt verdeckt (WindowFromPoint): Klick wie die ListBox ausloesen
                         phase = 1;
                     }
                     else
@@ -138,7 +138,7 @@ namespace Arbeitsplan.Win
                 Package col = f.ProductError() == null && f.FirstRunError() == null && f.StepsView().Overflow() == null ? f.Collect() : null;   // Collect zeigt sonst eine Meldung
                 bool collect = col != null && col.ProductCode == "AB1" && col.RunPrefix == "1357" && col.FirstRun == "13570001";
                 // Mehr Optionen: Kennung-Feld nur aufgeklappt; Hinweis-Klick darauf klappt auf
-                f.Bind(lauf); bool slim = !f.more && !f.gExtra.Visible && !f.nCount.Visible;
+                f.SetMore(false); f.Bind(lauf); bool slim = !f.more && !f.gExtra.Visible && !f.nCount.Visible;
                 f.GoToHint(new Hint("x", lauf, f.tIdent)); Application.DoEvents();
                 bool opens = f.more && f.gExtra.Visible && f.tIdent.Visible;
                 f.SetMore(false);
