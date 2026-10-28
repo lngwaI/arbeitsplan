@@ -94,8 +94,11 @@ KURZ ERKLÄRT (zum Mittesten)
     Unter dem Blockkopf stehen die Pflichtpunkte als Haken (LKZ, Tagesprobe, WFI ...).
     LKZ gilt je Kalenderwoche: Block belegt + Haken = grün, belegt ohne Haken = rot (ab heute
     rückwärts), leere Tage "nicht nötig", sobald die KW einen Haken hat; sonst "LKZ KWnn offen".
+    Ist der Sonntag erreicht und die KW hat keinen Haken: Kopf rot "LKZ KWnn NICHT GEMESSEN".
+    Ein Haken an irgendeinem Tag der KW (auch leer oder nachträglich) beendet die Warnung.
   Puffer
-    Herstellung je Tag wählbar: mobil, stationär oder beides (Haken je Variante, auch Sa/So).
+    Herstellung je Tag: Schalter [mobil] [stationär], ein Klick schaltet sofort um (gefüllt = an,
+    beide gleichzeitig möglich, auch Sa/So). Daneben Tagesprobe/WFI-Woche mit Zustand (auto/fehlt/entfällt).
     Tagesprobe: Mo-Fr Pflicht, mobil allein = automatisch erledigt; an Wochenende/Feiertag nur,
     wenn dort stationär hergestellt wird. Wochen-WFI entfällt in einer KW mit stationär.
     Alter Datenbestand: der Admin wird beim Start einmal gefragt "Standard-Pflichtpunkte für
@@ -103,7 +106,8 @@ KURZ ERKLÄRT (zum Mittesten)
     "Standard Puffer einrichten" (vorhandene Einstellungen bleiben).
   Rundgänge
     Leiste über den Zeilen je KW (1./2. GMP, Kühlraum, EHS, WFI-Probenahme). Abhaken braucht
-    das Recht "Rundgänge abhaken"; Rechtsklick zeigt den Verlauf.
+    das Recht "Rundgänge abhaken"; neben dem Haken stehen Tag und Kürzel. Alle erledigt = grüner
+    Rahmen "5/5 erledigt", die Leiste bleibt offen. Rechtsklick zeigt den Verlauf.
   Schichtmodus
     Je Zeile F/S/N, nur F/S oder Tagesaufgabe (ein Feld "Erledigt von"); einstellbar unter
     Einstellungen -> Blockstruktur. Daten ausgeblendeter Schichten bleiben erhalten.
