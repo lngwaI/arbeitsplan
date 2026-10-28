@@ -19,6 +19,25 @@ namespace Arbeitsplan.Win
         {
             SelfTestG0(sb);
             SelfTestG1(sb);
+            SelfTestG2(sb);
+        }
+
+        // 2-Wochen-Ansicht: Pruefleisten-Zustaende und Rundgangsleiste je KW auch in der zweiten Woche (auch nach Neuaufbau)
+        void SelfTestG2(StringBuilder sb)
+        {
+            bool had = week2 != null;
+            SetWeeks(2);
+            int n1 = 0, n2 = 0;
+            foreach (CellData c in view.Cells) if (c.States != null && c.States.Length > 0) n1++;
+            foreach (CellData c in week2.View.Cells) if (c.States != null && c.States.Length > 0) n2++;
+            int r2 = week2.View.Rounds.Count;
+            bool okRounds = r2 > 0 && week2.View.Rounds[0].Monday == IsoWeek.Monday(start.AddDays(7));
+            Rebuild(false);
+            int n3 = 0;
+            foreach (CellData c in week2.View.Cells) if (c.States != null && c.States.Length == week2.View.Defs[c.RowIndex].Count && c.States.Length > 0) n3++;
+            bool okRe = n3 == n2 && week2.View.Rounds.Count == r2;
+            if (!had) SetWeeks(1);
+            sb.AppendLine("2-Wochen: Prüfleiste Zellen " + n2 + "/" + n1 + "=" + Ok(n2 > 0 && n2 == n1) + " Rundgänge je KW (" + r2 + ")=" + Ok(okRounds) + " nach Neuaufbau=" + Ok(okRe));
         }
 
         // Migration alter Bestaende: ohne Recht nichts, mit PackageAdmin genau einmal, Vorhandenes bleibt

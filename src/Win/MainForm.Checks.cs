@@ -17,19 +17,35 @@ namespace Arbeitsplan.Win
         // fuer begonnene KWs ohne Haken, Rundgaenge je KW. Nachbarwochen (Fenster Sa-Fr) liest CheckEval selbst aus dem Store.
         void ComputeChecks()
         {
-            DateTime today = DateTime.Today;
-            view.Defs = new List<CheckDef>[rowInfo.Count];
+            ComputeChecks(view, start);
+#if TESTHOOKS
+            if (week2 != null && week2.View.Start == start.AddDays(7)) { ComputeChecks(week2.View, week2.View.Start); week2.View.Invalidate(); }   // 2-Wochen-Ansicht: gleiche Zustaende
+#endif
+        }
+
+        // Pflichtpunkte je Zeile (wie MainForm, LKZ aus der Blockstruktur), auch fuer die zweite Woche
+        List<CheckDef>[] DefsByRow()
+        {
+            List<CheckDef>[] a = new List<CheckDef>[rowInfo.Count];
             for (int r = 0; r < rowInfo.Count; r++)
             {
                 int id = rowInfo[r].Id;
                 List<CheckDef> l = duties.Defs.FindAll(delegate(CheckDef d) { return d.RowId == id; });
                 if (rowInfo[r].HasLkz && !l.Exists(delegate(CheckDef d) { return d.Key == CheckDef.LkzKey; })) l.Insert(0, CheckDef.Lkz(id));
-                view.Defs[r] = l;
+                a[r] = l;
             }
+            return a;
+        }
+
+        void ComputeChecks(PlanView v, DateTime from)
+        {
+            DateTime today = DateTime.Today;
+            v.Defs = DefsByRow();
             Dictionary<string, bool> open = new Dictionary<string, bool>();   // Zeile|Pflichtpunkt|Montag -> KW offen
-            foreach (CellData c in view.Cells)
+            foreach (CellData c in v.Cells)
             {
-                List<CheckDef> l = view.Defs[c.RowIndex];
+                if (c.RowIndex >= v.Defs.Length) continue;
+                List<CheckDef> l = v.Defs[c.RowIndex];
                 c.States = new DayState[l.Count];
                 DateTime mon = IsoWeek.Monday(c.Day);
                 List<string> o = new List<string>();
@@ -48,25 +64,27 @@ namespace Arbeitsplan.Win
                 }
                 c.Note = o.Count == 0 ? "" : string.Join(", ", o.ToArray()) + " KW" + IsoWeek.Number(c.Day) + " offen";
             }
-            ComputeRounds();
+            ComputeRounds(v, from);
         }
 
+        void ComputeRounds() { ComputeRounds(view, start); }
+
         // Eine Gruppe je KW im Fenster; jede KW zaehlt nur ihre eigenen Haken.
-        void ComputeRounds()
+        void ComputeRounds(PlanView v, DateTime from)
         {
-            view.Rounds.Clear();
+            v.Rounds.Clear();
             List<RoundDef> act = duties.Rounds.FindAll(delegate(RoundDef d) { return d.Active; });
             if (act.Count == 0) return;
             for (int c = 0; c < 7; c++)
             {
-                DateTime mon = IsoWeek.Monday(start.AddDays(c));
-                RoundGroup g = view.Rounds.Count > 0 ? view.Rounds[view.Rounds.Count - 1] : null;
+                DateTime mon = IsoWeek.Monday(from.AddDays(c));
+                RoundGroup g = v.Rounds.Count > 0 ? v.Rounds[v.Rounds.Count - 1] : null;
                 if (g != null && g.Monday == mon) { g.Last = c; continue; }
                 g = new RoundGroup(); g.Monday = mon; g.First = g.Last = c; g.Defs = act;
                 foreach (WeekMark m in store.GetWeekMarks(mon)) if (m.Done) g.Done.Add(m.Key);
                 bool f;
                 g.Collapsed = roundFold.TryGetValue(mon, out f) ? f : g.Complete;   // Standard: offen, solange etwas fehlt
-                view.Rounds.Add(g);
+                v.Rounds.Add(g);
             }
         }
 

@@ -309,7 +309,7 @@ namespace Arbeitsplan.Win
             view.MarkAllDirty();   // Equipment-Status neu abfragen
             ApplyFold();
 #if TESTHOOKS
-            if (week2 != null) week2.Load(store, rowInfo, start.AddDays(7));
+            if (week2 != null) { week2.Load(store, rowInfo, start.AddDays(7)); ComputeChecks(week2.View, week2.View.Start); }
 #endif
             ResizeView();
         }

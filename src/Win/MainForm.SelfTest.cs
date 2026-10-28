@@ -22,6 +22,8 @@ namespace Arbeitsplan.Win
                 week2 = new SecondWeek(canvas, Font, view, rowInfo);
                 view.LayoutDone += delegate { if (week2 != null) week2.Place(view); };
                 week2.Load(store, rowInfo, start.AddDays(7));
+                ComputeChecks(week2.View, week2.View.Start);   // Pruefleiste und Rundgangsleiste wie in der ersten Woche
+                week2.View.RoundToggled = delegate(RoundGroup g) { g.Collapsed = !g.Collapsed; roundFold[g.Monday] = g.Collapsed; week2.View.Relayout(); };
                 ResizeView();
                 if (IsHandleCreated) BeginInvoke((MethodInvoker)delegate   // Woche 2 liegt unter der ersten: dorthin scrollen, damit man etwas sieht
                 {
