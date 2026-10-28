@@ -112,7 +112,7 @@ namespace Arbeitsplan.Win
             if (h.Step != null && steps.Contains(h.Step) && h.Step != cur) Bind(h.Step);
             Control f = h.Field;
             if (f == null || f.IsDisposed) return;
-            if (!more && (f == nCount || f == nInterval || f == nStartNo || f == tIdent || f == tNote)) SetMore(true);
+            if (!more && (f == nStartNo || f == tIdent || f == tNote)) SetMore(true);
             if (f.CanFocus) f.Focus();
         }
     }

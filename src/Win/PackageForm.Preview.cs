@@ -28,7 +28,7 @@ namespace Arbeitsplan.Win
         {
             Panel wrap = new Panel(); wrap.Tag = "keep"; wrap.Dock = DockStyle.Bottom; wrap.Padding = new Padding(8, 0, 8, 0);
             wrap.Height = 9 * Font.Height / 2 + 84;
-            Section sec = new Section("3   Vorschau & Prüfung", "Kalender der Kampagne; der gewählte Schritt ist blau. Klick auf einen Eintrag wählt ihn aus.", true, 1000);
+            Section sec = new Section("3   Vorschau & Prüfung", "Kalender der Kampagne; der gewählte Schritt ist blau. Klick wählt, Ziehen verschiebt (Umschalt = nur diesen Lauf).", true, 1000);
             sec.Dock = DockStyle.Fill;
             previewScroll.AutoScroll = true; previewScroll.BackColor = Color.White; previewScroll.BorderStyle = BorderStyle.FixedSingle; previewScroll.Tag = "keep";
             blockPreview.Location = Point.Empty; blockPreview.Font = Font; previewScroll.Controls.Add(blockPreview);
@@ -53,7 +53,10 @@ namespace Arbeitsplan.Win
             // Resize: nur bei echter Breitenaenderung neu umbrechen (RewrapHints, PackageForm.Sizing.cs)
             lbHints.Click += delegate { HintClicked(); };
             stripScroll.Dock = DockStyle.Fill; stripScroll.AutoScroll = true; stripScroll.BackColor = Color.White; stripScroll.BorderStyle = BorderStyle.FixedSingle; stripScroll.Tag = "keep";
-            strip.Location = Point.Empty; strip.StepClicked += delegate(PackageStep s) { Bind(s); };
+            strip.Location = Point.Empty; strip.StepClicked += delegate(PackageStep s) { if (s != cur) Bind(s); };
+            strip.ItemMoved += delegate(PlanStrip.Item it, int day, bool onlyRun) { MoveInCalendar(it.Step, it.Run, day, onlyRun); };
+            strip.ItemMenu += StripMenu;
+            tip.SetToolTip(strip, "Klick = Schritt wählen. Auf einen anderen Tag ziehen = Schritt verschieben (mit Umschalt nur diesen Lauf). Rechtsklick = Menü.");
             stripScroll.Controls.Add(strip);
             sec.Controls.Add(stripScroll); sec.Controls.Add(Spacer()); sec.Controls.Add(hints); sec.Controls.Add(Spacer()); sec.Controls.Add(right);
             wrap.Controls.Add(sec);
@@ -80,13 +83,16 @@ namespace Arbeitsplan.Win
         {
             List<PlanStrip.Item> items = new List<PlanStrip.Item>();
             foreach (PackageStep s in Ordered())
-                for (int r = 0; r < Math.Max(1, s.Count); r++)
+            {
+                List<int> days = s.Days();
+                for (int r = 0; r < days.Count; r++)
                 {
-                    PlanStrip.Item it = new PlanStrip.Item(); it.Step = s; it.Day = s.DayOf(r);
+                    PlanStrip.Item it = new PlanStrip.Item(); it.Step = s; it.Day = days[r]; it.Run = r; it.Shifted = s.Shifted(r);
                     it.Title = TitleOf(s); it.Missing = s.Row.Length == 0;
                     it.Sub = (s.Row.Length > 0 ? s.Row : "Raum fehlt") + (s.Numbered ? " · " + s.RunNo(prefix, r) : "");
                     items.Add(it);
                 }
+            }
             strip.Set(items, cur);
             if (scrollTo && cur != null)
             {
@@ -96,17 +102,17 @@ namespace Arbeitsplan.Win
             }
 
             List<BlockPreview.Card> cards = new List<BlockPreview.Card>();
-            if (cur != null)
-                for (int r = 0; r < Math.Max(1, cur.Count) && r < 6; r++)
-                {
-                    BlockPreview.Card c = new BlockPreview.Card();
-                    c.Room = cur.Row.Length > 0 ? cur.Row : "Raum fehlt"; c.Missing = cur.Row.Length == 0;
-                    c.Day = "Tag " + cur.DayOf(r) + " · " + weekStart.AddDays(cur.DayOf(r) - 1).ToString("ddd dd.MM.", Ui.De);
-                    c.Data = cur.EntryFor(r, prefix);
-                    if (c.Data.Variant.Length > 0) c.Extra = "Herstellung: " + VarText(c.Data.Variant);
-                    cards.Add(c);
-                }
-            if (cur != null && cur.Count > 6) { BlockPreview.Card m = new BlockPreview.Card(); m.Room = "… " + (cur.Count - 6) + " weitere Wiederholungen"; m.More = true; cards.Add(m); }
+            List<int> cd = cur != null ? cur.Days() : new List<int>();
+            for (int r = 0; r < cd.Count && r < 6; r++)
+            {
+                BlockPreview.Card c = new BlockPreview.Card();
+                c.Room = cur.Row.Length > 0 ? cur.Row : "Raum fehlt"; c.Missing = cur.Row.Length == 0;
+                c.Day = "Tag " + cd[r] + " · " + weekStart.AddDays(cd[r] - 1).ToString("ddd dd.MM.", Ui.De) + (cur.Shifted(r) ? " (verschoben)" : "");
+                c.Data = cur.EntryFor(r, prefix);
+                if (c.Data.Variant.Length > 0) c.Extra = "Herstellung: " + VarText(c.Data.Variant);
+                cards.Add(c);
+            }
+            if (cd.Count > 6) { BlockPreview.Card m = new BlockPreview.Card(); m.Room = "… " + (cd.Count - 6) + " weitere Wiederholungen"; m.More = true; cards.Add(m); }
             lPreview.Text = "So erscheint der Schritt im Plan (Start " + weekStart.ToString("dd.MM.", Ui.De) + "):";
             tip.SetToolTip(lPreview, "Vorschau mit Startdatum " + Ui.DayText(weekStart) + "; das echte Startdatum wird beim Kampagnenstart gewählt.");
             blockPreview.Set(cards, PreviewW);
@@ -129,12 +135,17 @@ namespace Arbeitsplan.Win
                 if (s.IsEmpty) { h.Add(new Hint(n + " ist leer und wird nicht gespeichert.", s, tTitle)); continue; }
                 if (s.Row.Length == 0) h.Add(new Hint(n + " (" + TitleOf(s) + ") hat keinen Raum – unter „Wo im Plan?“ wählen.", s, cbRow));
                 else if (!rowNames.Contains(s.Row)) h.Add(new Hint(n + ": Raum „" + s.Row + "“ gibt es im Plan nicht.", s, cbRow));
+                int nRuns = s.RunCount;
                 if (s.Kind == StepKind.SubRun && s.SubNos.Trim().Length == 0) h.Add(new Hint(n + ": Unterlauf-Nummern fehlen.", s, tSubNos));
-                else if (s.Kind == StepKind.SubRun && s.SubNos.Split(',').Length != s.Count)
-                    h.Add(new Hint(n + ": Unterlauf-Nummern für " + s.SubNos.Split(',').Length + " Lauf/Läufe, aber " + s.Count + " Wiederholung(en) (Komma = nächster Lauf).", s, tSubNos));
+                else if (s.Kind == StepKind.SubRun && s.SubNos.Split(',').Length != nRuns)
+                    h.Add(new Hint(n + ": Unterlauf-Nummern für " + s.SubNos.Split(',').Length + " Lauf/Läufe, aber " + nRuns + " Wiederholung(en) (Komma = nächster Lauf).", s, tSubNos));
                 int idents = s.Ident.Trim().Length == 0 ? 0 : s.Ident.Split(',').Length;
-                if (idents > 0 && idents != s.Count) h.Add(new Hint(n + ": " + idents + " Kennung(en), aber " + s.Count + " Wiederholung(en) (Komma = nächster Lauf).", s, tIdent));
-                if (s.Numbered && s.StartNo + s.Count - 1 > 9999) h.Add(new Hint(n + ": Laufnummer über 9999 – kleinere erste Laufnummer wählen.", s, s.Kind != StepKind.Normal ? (Control)tFirst : nStartNo));
+                if (idents > 0 && idents != nRuns) h.Add(new Hint(n + ": " + idents + " Kennung(en), aber " + nRuns + " Wiederholung(en) (Komma = nächster Lauf).", s, tIdent));
+                if (s.Numbered && s.StartNo + nRuns - 1 > 9999) h.Add(new Hint(n + ": Laufnummer über 9999 – kleinere erste Laufnummer wählen.", s, s.Kind != StepKind.Normal ? (Control)tFirst : nStartNo));
+                if (s.Repeat == RepeatMode.Weekdays && (s.WeekDays & 127) == 0) h.Add(new Hint(n + ": Wiederholung an Wochentagen, aber kein Wochentag gewählt.", s, cbRepeat));
+                if (s.Repeat == RepeatMode.DayList && PackageStep.ParseDays(s.DayList).Count == 0) h.Add(new Hint(n + ": Tage der Kampagne fehlen (z. B. 1, 4, 9).", s, tDays));
+                foreach (string t in s.MissingTanks(cat))
+                    h.Add(new Hint(n + ": Tank (" + t + ") nicht gewählt – Gerät wählen oder Ansatz „Flasche/Gebinde“/„Ohne Gebinde“.", s, cbAnsatz));
                 foreach (EquipAssign a in s.Equipment)
                     foreach (string id in EquipRow.Unvalidated(a, cat, Product)) h.Add(new Hint(n + ": Gerät " + id + " (" + a.Short + ") ist " + (cat.Product(Product) != null ? "für dieses Produkt nicht vorgesehen." : "nicht validiert."), s, null));
                 Package one = new Package(); one.ProductCode = Product; one.RunPrefix = prefix; one.Steps.Add(s);   // Zugehoerigkeit: sperrt Speichern/Uebernehmen

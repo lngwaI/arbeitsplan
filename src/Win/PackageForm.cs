@@ -93,27 +93,14 @@ namespace Arbeitsplan.Win
         {
             left.Dock = DockStyle.Left; left.Width = 400; left.Padding = new Padding(8, 8, 0, 8); left.Tag = "keep";
             int w = 360;
-            Section flow = new Section("1   Ablauf", "Schritte nach Tag sortiert. Anklicken = rechts bearbeiten.", true, w);
+            Section flow = new Section("1   Ablauf", "Nach Tag sortiert, am selben Tag deine Reihenfolge (▲▼, Alt+↑↓, Ziehen).", true, w);
             lv.View = View.Details; lv.FullRowSelect = true; lv.HideSelection = false; lv.MultiSelect = false; lv.ShowItemToolTips = true;
             lv.HeaderStyle = ColumnHeaderStyle.Nonclickable; lv.Dock = DockStyle.Fill;
             lv.Columns.Add("Nr", 30); lv.Columns.Add("Tag", 46); lv.Columns.Add("Raum", 76); lv.Columns.Add("Schritt", 110); lv.Columns.Add("Wiederholung", 96);
             lv.SelectedIndexChanged += delegate { if (!loading && lv.SelectedItems.Count > 0 && lv.SelectedItems[0].Tag != cur) Bind((PackageStep)lv.SelectedItems[0].Tag); };
             lv.MouseUp += delegate { if (lv.SelectedItems.Count == 0) FillList(); };   // Klick ins Leere: Auswahl bleibt beim aktuellen Schritt
             lv.Resize += delegate { FitColumns(); };
-            lv.AllowDrop = true;   // Ziehen = Reihenfolge aendern (wie mehrfach ▲/▼, uebernimmt den Tag am Ziel)
-            lv.ItemDrag += delegate(object o, ItemDragEventArgs e)
-            {
-                PackageStep s = ((ListViewItem)e.Item).Tag as PackageStep;
-                if (s == null) return;
-                if (s != cur) Bind(s);
-                lv.DoDragDrop(s, DragDropEffects.Move);
-            };
-            lv.DragOver += delegate(object o, DragEventArgs e) { e.Effect = e.Data.GetDataPresent(typeof(PackageStep)) ? DragDropEffects.Move : DragDropEffects.None; };
-            lv.DragDrop += delegate(object o, DragEventArgs e)
-            {
-                ListViewItem it = lv.GetItemAt(lv.PointToClient(new Point(e.X, e.Y)).X, lv.PointToClient(new Point(e.X, e.Y)).Y);
-                if (it != null && it.Tag is PackageStep) DropAt(Ordered().IndexOf((PackageStep)it.Tag));
-            };
+            InitListDrag();   // Ziehen = Reihenfolge aendern, Einfuegelinie zeigt das Ziel (PackageForm.Order.cs)
 
             int bh = Theme.Current.ButtonH - 2;
             Panel btns = new Panel(); btns.Tag = "keep"; btns.Dock = DockStyle.Bottom; btns.Height = 2 * bh + 12; btns.Width = w - 16;
@@ -126,8 +113,8 @@ namespace Arbeitsplan.Win
             btns.Controls.AddRange(new Control[] { bAdd, bUp, bDown, bDup, bDel });
             tip.SetToolTip(bAdd, "Baustein (Packen, Lauf, Splitten …) oder leeren Schritt hinzufügen");
             tip.SetToolTip(lv, "Anklicken = rechts bearbeiten. Ziehen = Reihenfolge ändern.");
-            tip.SetToolTip(bUp, "Schritt nach oben (früher); übernimmt dabei ggf. den Tag des Vorgängers");
-            tip.SetToolTip(bDown, "Schritt nach unten (später); übernimmt dabei ggf. den Tag des Nachfolgers");
+            tip.SetToolTip(bUp, "Schritt nach oben (Alt+Hoch); übernimmt dabei ggf. den Tag des Vorgängers");
+            tip.SetToolTip(bDown, "Schritt nach unten (Alt+Runter); übernimmt dabei ggf. den Tag des Nachfolgers");
             tip.SetToolTip(bDup, "Gewählten Schritt kopieren (Strg+D)");
             tip.SetToolTip(bDel, "Gewählten Schritt entfernen (Entf)");
             lBlocks.Dock = DockStyle.Bottom; lBlocks.Height = 2 * Font.Height + 4; lBlocks.ForeColor = Section.HelpColor; lBlocks.Visible = false;
@@ -168,18 +155,18 @@ namespace Arbeitsplan.Win
 
         // ---------- Schritte ----------
 
-        // Schritte nach Tag (bei gleichem Tag in der gespeicherten Reihenfolge); Nummer im Editor = Position in dieser Liste.
-        List<PackageStep> Ordered()
-        {
-            List<PackageStep> o = new List<PackageStep>(steps);
-            o.Sort(delegate(PackageStep a, PackageStep b) { return a.Day != b.Day ? a.Day.CompareTo(b.Day) : steps.IndexOf(a).CompareTo(steps.IndexOf(b)); });
-            return o;
-        }
+        // Schritte nach erstem Tag (bei gleichem Tag in der vom Nutzer gesetzten Reihenfolge); Nummer im Editor = Position in dieser Liste.
+        List<PackageStep> Ordered() { return StepOrder.Sorted(steps); }
 
         int No(PackageStep s) { return Ordered().IndexOf(s) + 1; }
         static string TitleOf(PackageStep s) { return s.Title.Length > 0 ? s.Title : "(ohne Titel)"; }
-        static string DaysOf(PackageStep s) { return s.Count > 1 ? s.Day + "–" + s.DayOf(s.Count - 1) : s.Day.ToString(); }
-        static string RepeatOf(PackageStep s) { return s.Count > 1 ? s.Count + "× alle " + s.Interval + (s.Interval == 1 ? " Tag" : " Tage") : "einmal"; }
+        static string DaysOf(PackageStep s)
+        {
+            List<int> d = s.Days(); int a = d[0], b = d[0];
+            foreach (int x in d) { a = Math.Min(a, x); b = Math.Max(b, x); }
+            return a != b ? a + "–" + b : a.ToString();
+        }
+        static string RepeatOf(PackageStep s) { return s.RepeatText(); }
 
         void FillList()
         {
@@ -210,7 +197,7 @@ namespace Arbeitsplan.Win
         int NextDay()
         {
             int d = 0;
-            foreach (PackageStep s in steps) d = Math.Max(d, s.DayOf(Math.Max(1, s.Count) - 1));
+            foreach (PackageStep s in steps) foreach (int x in s.Days()) d = Math.Max(d, x);
             return d + 1;
         }
 
@@ -254,35 +241,11 @@ namespace Arbeitsplan.Win
         {
             if (cur == null || UniqueBlocked(cur.Source)) return;
             PackageStep c = cur.Clone();
-            c.Day = NextDay();
+            c.MoveAll(NextDay() - c.FirstDay);   // auch Tagesliste/Wochentage wandern mit
             AddStep(c);
         }
 
-        // In der Liste nach oben/unten: bei anderem Tag uebernimmt der Schritt den Tag des Nachbarn und steht davor/dahinter.
-        void MoveStep(int dir)
-        {
-            List<PackageStep> o = Ordered();
-            int j = o.IndexOf(cur) + dir;
-            if (cur == null || j < 0 || j >= o.Count) return;
-            PackageStep n = o[j];
-            cur.Day = n.Day;
-            steps.Remove(cur);
-            int k = steps.IndexOf(n);
-            steps.Insert(dir < 0 ? k : k + 1, cur);
-            dirty = true;
-            Bind(cur);
-        }
-
-        // Gewaehlten Schritt an Position "to" der Ablaufliste bringen (gezogen)
-        void DropAt(int to)
-        {
-            for (int guard = 0; cur != null && guard < 200; guard++)
-            {
-                int i = Ordered().IndexOf(cur);
-                if (i < 0 || i == to) break;
-                MoveStep(i < to ? 1 : -1);
-            }
-        }
+        // Verschieben in der Ablaufliste (Pfeile, Alt+Hoch/Runter, Ziehen): PackageForm.Order.cs
 
         void RemoveStep() { RemoveStep(true); }
 
@@ -325,6 +288,7 @@ namespace Arbeitsplan.Win
         {
             if (keyData == (Keys.Control | Keys.S)) { SaveFile(false); return true; }
             if (keyData == (Keys.Control | Keys.D)) { Duplicate(); return true; }
+            if ((keyData == (Keys.Alt | Keys.Up) || keyData == (Keys.Alt | Keys.Down)) && (lv.Focused || bUp.Focused || bDown.Focused)) { MoveStep(keyData == (Keys.Alt | Keys.Up) ? -1 : 1); return true; }
             if (keyData == Keys.Delete && (lv.Focused || strip.Focused)) { RemoveStep(); return true; }
             return base.ProcessCmdKey(ref msg, keyData);
         }

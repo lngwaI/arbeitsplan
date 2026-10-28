@@ -15,13 +15,12 @@ namespace Arbeitsplan.Win
         readonly Panel scroll = new Panel(), body = new Panel(), equipRows = new Panel();
         Section gWhat, gWhen, gExtra, gEquip;
         readonly TextBox tTitle = new TextBox(), tSubNos = new TextBox(), tIdent = new TextBox(), tNote = new TextBox();
-        readonly ComboBox cbKind = new ComboBox(), cbRow = new ComboBox(), cbVar = new ComboBox();
+        readonly ComboBox cbKind = new ComboBox(), cbRow = new ComboBox();
         readonly NumericUpDown nDay = new NumericUpDown(), nCount = new NumericUpDown(), nInterval = new NumericUpDown(), nStartNo = new NumericUpDown();
-        Label lTitle, lKind, lSub, lSubHelp, lDay, lCount, lCountUnit, lInterval, lIntervalUnit, lStartNo, lNoEx, lRow, rowHint, lVar, lSum, lIdent, lIdentHelp, lNote, lNoEquip;
+        Label lTitle, lKind, lSub, lSubHelp, lRow, rowHint, lVar, lIdent, lIdentHelp, lNote, lNoEquip;
         readonly Label[] equipHead = new Label[5];
         readonly Button bPos = new Button(), bMore = new Button();
         readonly ContextMenuStrip menuPos = new ContextMenuStrip();
-        readonly List<string> varValues = new List<string>();   // Werte zu cbVar ("" = keine Angabe)
         bool laying, more;
 
         static void Grow(params Control[] cs) { foreach (Control c in cs) c.Anchor = TLR; }
@@ -55,7 +54,7 @@ namespace Arbeitsplan.Win
 
             // Was? Wo im Plan? – der Raum steht direkt unter dem Titel
             gWhat = Group("Was? Wo im Plan?", "Titel, Raum (Block im Plan) und Art des Schritts", 280);
-            int lw = LabelW("Unterlauf-Nr.:", "Titel:", "Wo im Plan?", "Art:", "Herstellung:"), x = 8 + lw, w = 280 - 8 - x;
+            int lw = LabelW("Unterlauf-Nr.:", "Titel:", "Wo im Plan?", "Art:", "Herstellung:", "Gebinde:"), x = 8 + lw, w = 280 - 8 - x;
             lTitle = Lbl(gWhat, "Titel:", 8, lw); tTitle.SetBounds(x, 0, w, IH);
             lRow = Lbl(gWhat, "Wo im Plan?", 8, lw); lRow.Font = new Font(Font, FontStyle.Bold);
             cbRow.SetBounds(x, 0, w, IH); cbRow.DropDownStyle = ComboBoxStyle.DropDownList; cbRow.Items.AddRange(rowNames.ToArray());
@@ -63,31 +62,21 @@ namespace Arbeitsplan.Win
             tip.SetToolTip(cbRow, "Raum (Block) im Plan, in dem der Schritt steht. Beim Kampagnenstart je Lauf änderbar.");
             lKind = Lbl(gWhat, "Art:", 8, lw); cbKind.SetBounds(x, 0, w, IH); cbKind.DropDownStyle = ComboBoxStyle.DropDownList;
             cbKind.Items.AddRange(new object[] { "Normaler Schritt", "Lauf mit Laufnummer", "Unterlauf (Splitten/Einfrieren)" });
-            lVar = Lbl(gWhat, "Herstellung:", 8, lw); cbVar.SetBounds(x, 0, w, IH); cbVar.DropDownStyle = ComboBoxStyle.DropDownList;
-            tip.SetToolTip(cbVar, "Herstellungsvariante, die beim Übernehmen am Block gesetzt wird (z. B. Puffer mobil/stationär).");
+            lVar = Lbl(gWhat, "Herstellung:", 8, lw);
+            tip.SetToolTip(lVar, "Herstellungsvarianten mit Anzahl, die beim Übernehmen am Block gesetzt werden (z. B. 2× mobil + 1× stationär).");
             lSub = Lbl(gWhat, "Unterlauf-Nr.:", 8, lw); tSubNos.SetBounds(x, 0, w, IH);
             lSubHelp = Lbl(gWhat, "Komma = nächster Lauf, „/“ = mehrere (z. B. 4186/4187, 4188); 4 Ziffern + Praefix der Laufnummer", x, w);
             lSubHelp.Height = 3 * Font.Height + 2; lSubHelp.TextAlign = ContentAlignment.TopLeft;
-            gWhat.Controls.AddRange(new Control[] { tTitle, cbRow, cbKind, cbVar, tSubNos });
-            Grow(tTitle, cbKind, cbRow, cbVar, rowHint, tSubNos, lSubHelp); Gray(lSubHelp);
+            gWhat.Controls.AddRange(new Control[] { tTitle, cbRow, cbKind, tSubNos });
+            Grow(tTitle, cbKind, cbRow, rowHint, tSubNos, lSubHelp); Gray(lSubHelp);
             tip.SetToolTip(cbKind, "Normaler Schritt: Titel (bei Wiederholung „Titel 1, 2, 3“). Lauf: bekommt die 8-stellige Laufnummer. Unterlauf: Splitten/Einfrieren eines Laufs.");
-
-            // Wann?
-            gWhen = Group("Wann?", "Tag 1 = Startdatum der Kampagne", 270);
-            lw = LabelW("Tag der Kampagne:", "Wiederholen:", "Abstand:", "Laufnummer ab:"); x = 8 + lw;
-            lDay = Lbl(gWhen, "Tag der Kampagne:", 8, lw); Num(nDay, 1, 366, x, 60, gWhen);
-            lSum = Lbl(gWhen, "", 8, 254); lSum.AutoEllipsis = true; Gray(lSum); Grow(lSum);
-            lCount = Lbl(gWhen, "Wiederholen:", 8, lw); Num(nCount, 1, 99, x, 60, gWhen); lCountUnit = Lbl(gWhen, "mal", x + 66, 270 - 8 - x - 66);
-            lInterval = Lbl(gWhen, "Abstand:", 8, lw); Num(nInterval, 1, 30, x, 60, gWhen); lIntervalUnit = Lbl(gWhen, "Tage", x + 66, 270 - 8 - x - 66);
-            lStartNo = Lbl(gWhen, "Laufnummer ab:", 8, lw); Num(nStartNo, 0, 99999, x, 66, gWhen); lNoEx = Lbl(gWhen, "", x + 72, 270 - 8 - x - 72);
-            lNoEx.AutoEllipsis = true;
-            Grow(lCountUnit, lIntervalUnit, lNoEx); Gray(lNoEx);
-            tip.SetToolTip(nStartNo, "Hintere 4 Stellen (ZZZZ) des ersten Laufs dieses Schritts; normalerweise wie „Erste Laufnummer“ oben.");
+            BuildAnsatz(lw, x, w);   // Herstellung mit Anzahl, Ansatz (PackageForm.When.cs)
+            BuildWhen();             // Wann? (PackageForm.When.cs)
 
             // Mehr Optionen (ein-/ausklappen)
             bMore.SetBounds(0, 0, 400, Theme.Current.ButtonH - 2); bMore.TextAlign = ContentAlignment.MiddleLeft; bMore.Click += delegate { SetMore(!more); };
             body.Controls.Add(bMore);
-            tip.SetToolTip(bMore, "Wiederholen, Abstand, eigene Laufnummer, abwechselnde Geräte, Ausweich-Gerät, Kennung und Notiz");
+            tip.SetToolTip(bMore, "Eigene Laufnummer, abwechselnde Geräte, Ausweich-Gerät, Kennung und Notiz");
 
             // Zusaetze
             gExtra = Group("Zusätze", "Optional; erscheinen im Plan unter dem Equipment", 500);
@@ -122,12 +111,7 @@ namespace Arbeitsplan.Win
                 Changed();
             };
             tSubNos.TextChanged += delegate { if (Edit()) { cur.SubNos = tSubNos.Text.Trim(); Changed(); } };
-            nDay.ValueChanged += delegate { if (Edit()) { cur.Day = (int)nDay.Value; Changed(); } };
-            nCount.ValueChanged += delegate { if (Edit()) { cur.Count = (int)nCount.Value; Changed(); } };
-            nInterval.ValueChanged += delegate { if (Edit()) { cur.Interval = (int)nInterval.Value; Changed(); } };
-            nStartNo.ValueChanged += delegate { if (Edit()) { cur.StartNo = (int)nStartNo.Value; Changed(); } };
             cbRow.SelectedIndexChanged += delegate { if (Edit()) { cur.Row = cbRow.Text; loading = true; FillVariants(cur); loading = false; Changed(); } };
-            cbVar.SelectedIndexChanged += delegate { if (Edit() && cbVar.SelectedIndex >= 0) { cur.Variant = varValues[cbVar.SelectedIndex]; Changed(); } };
             tIdent.TextChanged += delegate { if (Edit()) { cur.Ident = tIdent.Text.Trim(); Changed(); } };
             tNote.TextChanged += delegate { if (Edit()) { cur.Note = tNote.Text.Trim(); Changed(); } };
             return wrap;
@@ -145,19 +129,6 @@ namespace Arbeitsplan.Win
 
         static string VarText(string v) { return VariantSet.Display(v).Replace("stationaer", "stationär"); }
 
-        // Herstellung: Varianten der Zeile (RowInfo.Variants), bei mehreren "beides"; gesetzter Wert bleibt auch ohne Zeilen-Varianten sichtbar
-        void FillVariants(PackageStep s)
-        {
-            string[] vs; if (!rowVars.TryGetValue(s.Row, out vs)) vs = new string[0];
-            cbVar.Items.Clear(); varValues.Clear();
-            cbVar.Items.Add("– keine Angabe –"); varValues.Add("");
-            foreach (string v in vs) { cbVar.Items.Add(VarText(v)); varValues.Add(v); }
-            if (vs.Length > 1) { string all = VariantSet.Merge("", "", string.Join("|", vs)); cbVar.Items.Add((vs.Length == 2 ? "beides (" : "alle (") + VarText(all) + ")"); varValues.Add(all); }
-            string curV = VariantSet.Merge("", "", s.Variant);
-            if (!varValues.Contains(curV)) { cbVar.Items.Add(VarText(curV)); varValues.Add(curV); }
-            cbVar.SelectedIndex = varValues.IndexOf(curV);
-        }
-
         // ---------- Schritt anzeigen ----------
 
         void Bind(PackageStep s)
@@ -173,10 +144,7 @@ namespace Arbeitsplan.Win
                 cbKind.SelectedIndex = (int)s.Kind; tSubNos.Text = s.SubNos;
                 if (s.Row.Length > 0 && !cbRow.Items.Contains(s.Row)) cbRow.Items.Add(s.Row);   // unbekannter Block bleibt sichtbar
                 cbRow.SelectedIndex = cbRow.Items.IndexOf(s.Row);
-                FillVariants(s);
-                nDay.Value = Math.Max(nDay.Minimum, Math.Min(nDay.Maximum, s.Day));
-                nCount.Value = Math.Max(1, Math.Min(99, s.Count)); nInterval.Value = Math.Max(1, Math.Min(30, s.Interval));
-                nStartNo.Value = Math.Max(0, Math.Min(nStartNo.Maximum, s.StartNo));
+                FillVariants(s); BindAnsatz(s); BindWhen(s);
                 tNote.Text = s.Note; tIdent.Text = s.Ident;
             }
             body.Visible = s != null;
@@ -231,7 +199,6 @@ namespace Arbeitsplan.Win
         string MoreSummary(PackageStep s)
         {
             List<string> p = new List<string>();
-            if (s.Count > 1) p.Add(s.Count + "× alle " + s.Interval + (s.Interval == 1 ? " Tag" : " Tage"));
             if (s.Equipment.Exists(delegate(EquipAssign a) { return a.Alternate; })) p.Add("abwechselnd");
             if (s.Equipment.Exists(delegate(EquipAssign a) { return a.Fallback.Length > 0; })) p.Add("Ausweich");
             if (s.Ident.Length > 0) p.Add("Kennung");
@@ -244,9 +211,12 @@ namespace Arbeitsplan.Win
             if (laying || cur == null) return;
             laying = true;
             PackageStep s = cur;
-            bool sub = s.Kind == StepKind.SubRun, rep = s.Count > 1, num = s.Numbered;
+            bool sub = s.Kind == StepKind.SubRun;
             string[] vs;
             bool var = (rowVars.TryGetValue(s.Row, out vs) && vs.Length > 0) || s.Variant.Length > 0;
+            int w = body.ClientSize.Width, g = 8;
+            int a = Math.Max((w - g) / 2, Math.Min(w - g - 250, (w - g) * 55 / 100));   // Breite Was? Wo? | Rest Wann?
+            gWhat.Width = a; gWhen.Width = w - a - g;   // Feldbreiten (Anker) stehen vor dem Anordnen fest
 
             Baustein b = cat.Baustein_(s.Source);
             bool off = b != null && b.Row.Length > 0 && s.Row.Length > 0 && s.Row != b.Row;   // z. B. Packen in Suite 2
@@ -254,31 +224,18 @@ namespace Arbeitsplan.Win
             tip.SetToolTip(rowHint, rowHint.Text);
             int y = gWhat.ContentTop;
             y = Row(y, true, lTitle, tTitle); y = Row(y, true, lRow, cbRow); y = Row(y, off, rowHint) - (off ? 4 : 0);
-            y = Row(y, true, lKind, cbKind); y = Row(y, var, lVar, cbVar);
+            y = Row(y, true, lKind, cbKind); y = LayoutVariants(y, var); y = LayoutAnsatz(y, s);
             y = Row(y, sub, lSub, tSubNos); y = Row(y, sub, lSubHelp);
-            int hWhat = y + 2;
-
-            y = gWhen.ContentTop;
-            y = Row(y, true, lDay, nDay);
-            lSum.Text = (rep ? s.Count + "× alle " + s.Interval + (s.Interval == 1 ? " Tag" : " Tage") + " (Tag " + DaysOf(s) + ")" : "einmalig") + (num ? " · " + s.Label(prefix, 0) : "");
-            tip.SetToolTip(lSum, lSum.Text);
-            y = Row(y, !more, lSum);
-            y = Row(y, more, lCount, nCount, lCountUnit); y = Row(y, more && rep, lInterval, nInterval, lIntervalUnit); y = Row(y, more && num, lStartNo, nStartNo, lNoEx);
-            lCountUnit.Text = rep ? "mal" : "mal (einmalig)";
-            lStartNo.Text = s.Kind != StepKind.Normal ? "Laufnummer ab:" : "Erste Nummer:";
-            lNoEx.Text = num ? "→ " + s.RunNo(prefix, 0) : "";
-            tip.SetToolTip(lNoEx, lNoEx.Text);
-            int hWhen = y + 2;
+            int hWhat = y + 2, hWhen = LayoutWhen(s);   // Wann?: PackageForm.When.cs
 
             y = gExtra.ContentTop;
             y = Row(y, true, lIdent, tIdent); y = Row(y, true, lIdentHelp) - 2; y = Row(y, true, lNote, tNote);
             int hExtra = y + 2;
 
-            int w = body.ClientSize.Width, g = 8;
-            int a = Math.Max((w - g) / 2, Math.Min(w - g - 250, (w - g) * 55 / 100)), h = Math.Max(hWhat, hWhen);   // Was? Wo? | Wann?
+            int h = Math.Max(hWhat, hWhen);
             gWhat.SetBounds(0, 0, a, h); gWhen.SetBounds(a + g, 0, w - a - g, h);
             y = h + 4;
-            bMore.Text = (more ? "▾ Weniger Optionen" : "▸ Mehr Optionen (Wiederholen, Abwechseln, Ausweich, Kennung, Notiz)" + MoreSummary(s));
+            bMore.Text = (more ? "▾ Weniger Optionen" : "▸ Mehr Optionen (eigene Nummer, Abwechseln, Ausweich, Kennung, Notiz)" + MoreSummary(s));
             bMore.SetBounds(0, y, w, bMore.Height); y = bMore.Bottom + 4;
             gEquip.SetBounds(0, y, w, ArrangeEquip(w - 16)); y = gEquip.Bottom + g;
             gExtra.Visible = more;

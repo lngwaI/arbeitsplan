@@ -138,7 +138,7 @@ namespace Arbeitsplan.Win
                 Package col = f.ProductError() == null && f.FirstRunError() == null && f.StepsView().Overflow() == null ? f.Collect() : null;   // Collect zeigt sonst eine Meldung
                 bool collect = col != null && col.ProductCode == "AB1" && col.RunPrefix == "1357" && col.FirstRun == "13570001";
                 // Mehr Optionen: Kennung-Feld nur aufgeklappt; Hinweis-Klick darauf klappt auf
-                f.Bind(lauf); bool slim = !f.more && !f.gExtra.Visible && !f.nCount.Visible;
+                f.Bind(lauf); bool slim = !f.more && !f.gExtra.Visible && !f.nStartNo.Visible && f.cbRepeat.Visible;
                 f.GoToHint(new Hint("x", lauf, f.tIdent)); Application.DoEvents();
                 bool opens = f.more && f.gExtra.Visible && f.tIdent.Visible;
                 f.SetMore(false);
