@@ -49,6 +49,8 @@ namespace Arbeitsplan.Win
             Invalidate();
         }
 
+        public int CountOf(PackageStep s) { return items.FindAll(delegate(Item i) { return i.Step == s; }).Count; }
+
         // x-Position des ersten Eintrags eines Schritts (zum Hinscrollen), -1 = nicht vorhanden
         public int XOf(PackageStep s)
         {
