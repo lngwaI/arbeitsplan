@@ -20,6 +20,7 @@ namespace Arbeitsplan.Win
         public string Variant = "";                         // angezeigte/bearbeitete Variante
         public List<string> Marks = new List<string>();     // angezeigte/bearbeitete Pflichtpunkte
         public bool Editing, Dirty = true;
+        public bool Changed;                                // von anderem PC geaendert, kurz hervorgehoben (nur Ansicht)
 
         // Angezeigten Stand aus e uebernehmen (ohne Cur zu aendern)
         public void Show(Entry e)
@@ -249,6 +250,12 @@ namespace Arbeitsplan.Win
         void Overlay(Graphics g, CellData c)
         {
             Theme th = Theme.Current;
+            if (c.Changed && !c.Editing && c != Selected)   // dezent: 1-px-Rahmen + Ecke oben rechts
+            {
+                g.DrawRectangle(th.Pen(th.Changed, 1), c.R.X + 1, c.R.Y + 1, c.R.Width - 3, c.R.Height - 3);
+                int x = c.R.Right - 1, y = c.R.Y + 1;
+                g.FillPolygon(th.Brush(th.Changed), new Point[] { new Point(x - 8, y), new Point(x, y), new Point(x, y + 8) });
+            }
             if (!th.Stripe) return;
             bool today = c.Day.Date == DateTime.Today;
             Color a = c.Editing ? th.BorderEdit : (c == Selected ? th.BorderSel : (today ? th.Dot : Color.Empty));

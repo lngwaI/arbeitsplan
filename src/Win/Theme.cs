@@ -31,7 +31,7 @@ namespace Arbeitsplan.Win
         public readonly Color CheckBorder = C(140, 148, 162), CheckMark = C(30, 120, 60);   // eigene Checkbox (Modern)
         // Tagesaufgabe, Pruefleiste (erledigt = LkzOn, automatisch, fehlt), gedaempfter Text, Rundgaenge vollstaendig
         public readonly Color TaskBack = C(247, 248, 251), CheckAuto = C(234, 246, 236), CheckMissing = C(253, 222, 222), CheckMissingText = C(185, 30, 30),
-            Muted = C(150, 156, 168), DoneText = C(30, 130, 60);
+            Muted = C(150, 156, 168), DoneText = C(30, 130, 60), Changed = C(90, 150, 220);   // Changed: von anderem PC geaendert
         public int RoundH = 21;      // Zeilenhoehe der Rundgangsleiste
 
         static Color C(int r, int g, int b) { return Color.FromArgb(r, g, b); }

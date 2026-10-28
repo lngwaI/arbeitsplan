@@ -188,8 +188,10 @@ namespace Arbeitsplan.Win
                             string now = DateTime.Now.ToString("HH:mm");
                             if (fresh || fstore.Generation != viewGen)   // auch still beim Speichern/Bearbeiten nachgeladene Daten
                             {
+                                List<ChangedBlock> shown = ShownVersions();
                                 Rebuild(false);
-                                Status("Daten von anderem PC übernommen " + now, true);
+                                string ch = NoteChanges(shown);   // geaenderte Bloecke kurz hervorheben (MainForm.Changes.cs)
+                                Status("Daten von anderem PC übernommen " + now + (ch.Length > 0 ? "  ·  " + ch : ""), true);
                             }
                             else
                             {

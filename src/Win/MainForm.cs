@@ -304,6 +304,7 @@ namespace Arbeitsplan.Win
             rowInfo.Clear(); rowInfo.AddRange(store.GetRows());
             duties = store.GetDuties();
             view.LoadCells(store, start);
+            MarkChanged();   // Hervorhebung von Aenderungen anderer PCs bleibt ueber Neuaufbau erhalten (MainForm.Changes.cs)
             foreach (CellData d in view.Cells) if (rowInfo[d.RowIndex].Id == selRow && d.Day == selDay) view.Selected = d;
             ComputeChecks();
             view.MarkAllDirty();   // Equipment-Status neu abfragen

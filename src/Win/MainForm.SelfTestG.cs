@@ -20,6 +20,52 @@ namespace Arbeitsplan.Win
             SelfTestG0(sb);
             SelfTestG1(sb);
             SelfTestG2(sb);
+            SelfTestG3(sb);
+        }
+
+        // Hervorhebung von Aenderungen anderer PCs: welche Bloecke, eigene ausgenommen, Ablauf nach der Dauer, Statustext, Markierung im Plan
+        void SelfTestG3(StringBuilder sb)
+        {
+            MemoryStore s = new MemoryStore();
+            List<RowInfo> rows = s.GetRows();
+            DateTime mo = D(2026, 11, 2), t0 = new DateTime(2026, 11, 2, 8, 0, 0);
+            User mine = new User(); mine.Login = "mmuster"; mine.Kuerzel = "MUMA";
+            User other = new User(); other.Login = "pwerk"; other.Kuerzel = "WEPA";
+            Audit.Save(s, mo, rows[0], other, E("alt", false, ""));
+            List<ChangedBlock> shown = new List<ChangedBlock>();
+            for (int d = 0; d < 3; d++)
+                for (int r = 0; r < 2; r++)
+                {
+                    Entry e = s.Get(mo.AddDays(d), rows[r].Id);
+                    ChangedBlock b = new ChangedBlock(); b.Day = mo.AddDays(d); b.RowId = rows[r].Id; b.Version = e == null ? 0 : e.Version;
+                    shown.Add(b);
+                }
+            Entry a = s.Get(mo, rows[0].Id); a.Content = "neu"; Audit.Save(s, mo, rows[0], other, a);   // anderer PC aendert
+            Audit.Save(s, mo.AddDays(1), rows[0], mine, E("eigen", false, ""));                           // eigene Speicherung
+            Audit.Save(s, mo.AddDays(2), rows[1], other, E("neu", false, ""));                            // neuer Block von anderem PC
+            List<ChangedBlock> f = ChangeHighlight.Find(shown, s, "MMUSTER", t0);
+            bool okFind = f.Count == 2 && f[0].Day == mo && f[0].RowId == rows[0].Id && f[0].Kuerzel == "WEPA" && f[1].Day == mo.AddDays(2) && f[1].RowId == rows[1].Id
+                && !f.Exists(delegate(ChangedBlock x) { return x.Day == mo.AddDays(1); });
+            List<ChangedBlock> list = new List<ChangedBlock>();
+            ChangeHighlight.Update(list, f, t0);
+            bool keep = !ChangeHighlight.Update(list, new List<ChangedBlock>(), t0.AddSeconds(ChangeHighlight.Seconds - 1)) && list.Count == 2;
+            ChangedBlock again = new ChangedBlock(); again.Day = mo; again.RowId = rows[0].Id; again.Since = t0.AddSeconds(15);
+            ChangeHighlight.Update(list, new List<ChangedBlock>(new[] { again }), t0.AddSeconds(15));                // erneut geaendert: Dauer beginnt neu
+            bool restart = ChangeHighlight.Update(list, new List<ChangedBlock>(), t0.AddSeconds(ChangeHighlight.Seconds)) && list.Count == 1 && list[0].Day == mo;
+            bool gone = ChangeHighlight.Update(list, new List<ChangedBlock>(), t0.AddSeconds(15 + ChangeHighlight.Seconds)) && list.Count == 0;
+            List<ChangedBlock> four = new List<ChangedBlock>(f); four.AddRange(f);
+            bool okSt = ChangeHighlight.Status(f, rows) == "Geändert: Mo " + rows[0].Name + " von WEPA, Mi " + rows[1].Name + " von WEPA"
+                && ChangeHighlight.Status(four, rows) == "Geändert: 4 Blöcke" && ChangeHighlight.Status(new List<ChangedBlock>(), rows) == "";
+            // Markierung im Plan: bleibt ueber Neuaufbau, nur der betroffene Block
+            CellData c0 = view.Cells[0];
+            ChangedBlock m = new ChangedBlock(); m.Day = c0.Day; m.RowId = rowInfo[c0.RowIndex].Id; m.Since = DateTime.Now;
+            changed.Add(m);
+            Rebuild(false);
+            bool okMark = view.Cells[0].Changed && !view.Cells[1].Changed;
+            changed.Clear(); MarkChanged();
+            okMark &= !view.Cells[0].Changed;
+            sb.AppendLine("Hervorhebung: geänderte Blöcke ohne eigene=" + Ok(okFind) + " bleibt " + ChangeHighlight.Seconds + " s=" + Ok(keep) + " erneut=Neustart=" + Ok(restart)
+                + " abgelaufen=" + Ok(gone) + " Statustext=" + Ok(okSt) + " Markierung im Plan=" + Ok(okMark));
         }
 
         // 2-Wochen-Ansicht: Pruefleisten-Zustaende und Rundgangsleiste je KW auch in der zweiten Woche (auch nach Neuaufbau)
