@@ -36,7 +36,7 @@ FÜR DEN ADMIN
   Admins= den eigenen Windows-Anmeldenamen eintragen, Arbeitsplan.exe starten, "Neuen Arbeitsplan einrichten" mit Ja
   bestätigen. Das legt die verschlüsselte Datendatei und den Schlüssel an, versteckt den Ordner daten und bindet die
   Daten an die Windows-Domäne der Firma (Liste in der Nutzerverwaltung, unten).
-- Nutzer anlegen: Einstellungen > Nutzerverwaltung > "+" (Windows-Anmeldename, Kürzel, Rechtepaket).
+- Nutzer anlegen: Einstellungen > Nutzerverwaltung > "+" (Windows-Anmeldename, Kürzel, Rolle).
 - Systemrechner (Anzeige, nie speichern): ihren Windows-Anmeldenamen bzw. Rechnernamen in Arbeitsplan.ini unter
   NurLesenFuer= eintragen (z. B. View-Only*) oder sie als Nutzer mit Paket "Leser" anlegen.
 - Schlüsseldatei daten\arbeitsplan.key: ohne sie sind Daten und Sicherungen unlesbar. Eine Kopie getrennt und sicher

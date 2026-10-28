@@ -44,7 +44,7 @@ SCHRITT 2 - EINRICHTEN (nur du, einmal)
 
 
 SCHRITT 3 - KOLLEGEN ANLEGEN
-  Einstellungen -> Nutzerverwaltung -> "+": Windows-Anmeldename, Kürzel, Rechtepaket
+  Einstellungen -> Nutzerverwaltung -> "+": Windows-Anmeldename, Kürzel, Rolle
   (Leser = nur ansehen, Produktion = eintragen, Admin = alles).
 
 
@@ -87,6 +87,42 @@ SCHRITT 5 - TESTEN (abhaken, Auffälligkeiten notieren)
     Konto/Rechnername der Systemrechner: ___________________________________
     Blockiermeldungen (Wortlaut/Foto): _____________________________________
     Was war anders als erwartet: ___________________________________________
+
+
+KURZ ERKLÄRT (zum Mittesten)
+  Prüfleiste / LKZ-Regel
+    Unter dem Blockkopf stehen die Pflichtpunkte als Haken (LKZ, Tagesprobe, WFI ...).
+    LKZ gilt je Kalenderwoche: Block belegt + Haken = grün, belegt ohne Haken = rot (ab heute
+    rückwärts), leere Tage "nicht nötig", sobald die KW einen Haken hat; sonst "LKZ KWnn offen".
+  Puffer
+    Herstellung je Tag wählbar: mobil, stationär oder beides (Haken je Variante, auch Sa/So).
+    Tagesprobe: Mo-Fr Pflicht, mobil allein = automatisch erledigt; an Wochenende/Feiertag nur,
+    wenn dort stationär hergestellt wird. Wochen-WFI entfällt in einer KW mit stationär.
+    Alter Datenbestand: der Admin wird beim Start einmal gefragt "Standard-Pflichtpunkte für
+    Puffer einrichten?"; später unter Einstellungen -> Pflichtpunkte & Feiertage ->
+    "Standard Puffer einrichten" (vorhandene Einstellungen bleiben).
+  Rundgänge
+    Leiste über den Zeilen je KW (1./2. GMP, Kühlraum, EHS, WFI-Probenahme). Abhaken braucht
+    das Recht "Rundgänge abhaken"; Rechtsklick zeigt den Verlauf.
+  Schichtmodus
+    Je Zeile F/S/N, nur F/S oder Tagesaufgabe (ein Feld "Erledigt von"); einstellbar unter
+    Einstellungen -> Blockstruktur. Daten ausgeblendeter Schichten bleiben erhalten.
+  Rollen
+    Nutzerverwaltung: Leser, Produktion, Admin oder eigene Rolle; je Nutzer einzelne Rechte
+    dazu oder weg. Rollen werden nie gelöscht, nur beendet.
+  Plan-Datei
+    Woche -> "Als Plan-Datei speichern" (.applan, nur ansehen, ohne Nutzer/Protokoll);
+    Woche -> "Plan-Datei ansehen" öffnet sie in einem Nur-Lesen-Fenster.
+  Offene Pflichten (Idee von Claude)
+    Woche -> "Offene Pflichten dieser Woche": Liste offener LKZ, Tagesproben/WFI und Rundgänge
+    der angezeigten KW (optional mit der nächsten); "Springe dorthin" zeigt den Block.
+    Ist nichts offen, steht dort "Alles erledigt".
+  Änderungs-Hervorhebung (Idee von Claude)
+    Übernimmt das Programm Änderungen eines anderen PCs, sind die geänderten Blöcke ca. 20 s
+    blau umrandet (Ecke oben rechts), unten steht "Geändert: Di Suite 1 von XXXX". Eigene
+    Änderungen und der gerade bearbeitete Block werden nicht markiert.
+  [ ] Offene Pflichten: Liste passt zum Plan, "Springe dorthin" landet am richtigen Block.
+  [ ] Hervorhebung: an PC 2 etwas ändern, PC 1 zeigt Rahmen + Statuszeile, nach ca. 20 s weg.
 
 
 NEUE VERSION EINSPIELEN

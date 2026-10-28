@@ -23,7 +23,7 @@ namespace Arbeitsplan.Win
         void BuildCard()
         {
             Panel p = pDev;
-            p.Controls.Add(Ui.Hint("Was ist das? Ein einzelnes Gerät mit eigener ID; die Eigenschaftsfelder kommen aus der Vorlage seiner Geräteart.", 0, 0, 650));
+            p.Controls.Add(Ui.Hint("Was ist das? Ein einzelnes Gerät mit eigener ID; die Eigenschaftsfelder gibt seine Geräteart vor.", 0, 0, 650));
             p.Controls.Add(L("Geräte-ID:", 0, 24)); dId.SetBounds(0, 42, 200, 22); Ui.SimpleMenu(dId); p.Controls.Add(dId);
             p.Controls.Add(L("Geräteart:", 215, 24)); DropList(dCls, 215, 42, 160); p.Controls.Add(dCls);
             dActive.Text = "verfügbar (nicht in Wartung)"; dActive.AutoSize = true; dActive.Location = new Point(395, 44); p.Controls.Add(dActive);
@@ -46,18 +46,19 @@ namespace Arbeitsplan.Win
             p.Controls.Add(Btn("Entfernen", 240, 447, 70, delegate { Item it = lbLinks.SelectedItem as Item; if (Dev != null && it != null) RemoveLink(Dev, it.Id); }));
 
             p.Controls.Add(L("Ersatz (diese Geräte können es vertreten, z. B. bei Wartung):", 330, 274));
-            lbSubs.SetBounds(330, 292, 320, 120); lbSubs.HorizontalScrollbar = true; p.Controls.Add(lbSubs);
+            lbSubs.SetBounds(330, 292, 320, 96); lbSubs.HorizontalScrollbar = true; p.Controls.Add(lbSubs);
             lbSubs.SelectedIndexChanged += delegate
             {
                 Item it = lbSubs.SelectedItem as Item; if (it == null) return;
                 EquipSubst s = (EquipSubst)it.Tag; subPick.Text = it.Id; subBoth.Checked = s.Both; subNote.Text = s.Note;
             };
-            IdCombo(subPick, 330, 418, 150); p.Controls.Add(subPick);
-            subBoth.Text = "gleichwertig (auch umgekehrt)"; subBoth.AutoSize = true; subBoth.Location = new Point(488, 420); p.Controls.Add(subBoth);
+            IdCombo(subPick, 330, 394, 150); p.Controls.Add(subPick);
+            subBoth.Text = "gleichwertig (auch umgekehrt)"; subBoth.AutoSize = true; subBoth.Location = new Point(330, 422);   // eigene Zeile, sonst rechts abgeschnitten p.Controls.Add(subBoth);
             p.Controls.Add(L("Unterschied:", 330, 450)); subNote.SetBounds(410, 447, 240, 22); Ui.SimpleMenu(subNote); p.Controls.Add(subNote);
             p.Controls.Add(Btn("Hinzufügen / Ändern", 330, 476, 140, delegate { if (Dev != null) UpsertSub(Dev, subPick.Text.Trim(), subNote.Text.Trim(), subBoth.Checked); }));
             p.Controls.Add(Btn("Entfernen", 476, 476, 80, delegate { Item it = lbSubs.SelectedItem as Item; if (it != null) { m.Substs.Remove((EquipSubst)it.Tag); LoadRelations(Dev); } }));
-            p.Controls.Add(Ui.Hint("Im Paket-Editor erscheinen „Passt zu“ als Hinweis und Ersatzgeräte als Ausweich-Vorschlag (mit Unterschied).", 0, 520, 650));
+            Label hb = Ui.Hint("Im Paket-Editor erscheinen „Passt zu“ als Hinweis und Ersatzgeräte als Ausweich-Vorschlag (mit Unterschied).", 0, 516, 650);
+            hb.AutoEllipsis = false; hb.Height = 36; p.Controls.Add(hb);   // darf umbrechen statt abgeschnitten zu werden
 
             dId.TextChanged += delegate
             {

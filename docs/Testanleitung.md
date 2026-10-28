@@ -54,7 +54,7 @@ Ergebnis: `dist\Arbeitsplan\`, das Release so wie fürs Laufwerk.
 ### B) Mehrplatz: zwei Fenster wie zwei PCs
 Zwei Fenster mit verschiedenen Nutzern auf derselben verschlüsselten Datendatei.
 1. Fenster 1 starten: `.\bin\Arbeitsplan.exe --data C:\APTest --user mmuster`. Die Frage „Neuen Arbeitsplan einrichten?“ mit Ja beantworten.
-2. Einstellungen → Nutzerverwaltung → „+“: Login `pwerk`, Kürzel `WEPA`, Paket Produktion. Schließen.
+2. Einstellungen → Nutzerverwaltung → „+“: Login `pwerk`, Kürzel `WEPA`, Rolle Produktion. Schließen.
 3. Testpaket anlegen: `.\bin\Arbeitsplan.exe --makepkg C:\APTest\Pakete\Testprodukt.apkg`.
 4. Fenster 2 starten: `.\bin\Arbeitsplan.exe --data C:\APTest --user pwerk`.
 

@@ -14,7 +14,7 @@ BioPharma, Vollkonti-Betrieb. Altes "Arbeitsplan"-exe läuft aus. Dient zum Eint
 2. Läuft auf normalen PCs und "System"-PCs (Produktion, Kartenleser-Anmeldung, dort kein lokales Speichern).
 3. Entfällt: Ordner pro Nutzer lokal kopieren/einrichten; lokale Daten werden gelöscht.
 4. Mehrbenutzer: Überschreiben ("letzter gewinnt") abfangen (Version pro Eintrag + Konfliktmeldung); Nachladen im Hintergrund.
-5. Benutzerverwaltung: Mitarbeiter einfach anlegen (+); Rechte einzeln oder als Rechtepaket, danach fein einstellbar. Alle Produktionsarbeiter: Text ändern/löschen/hinzufügen, Farben und Textformat (Schrift, Farbe, fett/kursiv o. ä.).
+5. Benutzerverwaltung: Mitarbeiter einfach anlegen (+); Rechte einzeln oder als Rolle, danach fein einstellbar. Alle Produktionsarbeiter: Text ändern/löschen/hinzufügen, Farben und Textformat (Schrift, Farbe, fett/kursiv o. ä.).
 6. Audit Trail (wer/wann/was): optional, ggf. im Hintergrund.
 7. Später: Equipment-Status (z. B. "G2-F-1234-30") abfragen, Equipment farblich nach Status. Schnittstelle vorsehen, zunächst leer (`IEquipmentStatus`).
 8. Nur intern nutzbar; exe nach Hause kopiert → darf nichts Nutzbares passieren.
@@ -22,7 +22,7 @@ BioPharma, Vollkonti-Betrieb. Altes "Arbeitsplan"-exe läuft aus. Dient zum Eint
 ## Ergänzung 2026-10-23 (Auszug; Umsetzung/Annahmen siehe CLAUDE.md)
 - Layout: oben `KWXX (XX.XX.XXXX - XX.XX.XXXX)`, je Spalte Datum als eigener Text, dann Blöcke. Einteilungsfeld (F/S/N) nur so hoch wie nötig, mind. 1 Zeile je Schicht, wächst bei vielen Kürzeln, nie abschneiden (Altsystem-Fehler).
 - Bearbeitungsmodus per Doppelklick mit Notizblock-/Stift-Symbol neben der Raumbezeichnung. Soft-Lock: Popup "Das Fenster <Überschrift> wird gerade von <Nutzer> bearbeitet." (OK), danach trotzdem speichern erlaubt. Anzeige WER (Vor-/Nachname aus Nutzer-DB via Windows-Login, sonst Windows-Name), Raum optional. Speichert ein PC nicht (System-PC): klare Meldung, nichts geht verloren, Änderung bleibt im Editor.
-- Nutzerverwaltung (DB): Vorname, Nachname, Windows-Login; Rechte als Checkboxen + Rechtepakete (Leser, Produktion, Admin), Paket-Klick vergibt Rechte, danach feinjustierbar, Paket wird automatisch markiert. Anlegen/Bearbeiten/Löschen nur mit Recht.
+- Nutzerverwaltung (DB): Vorname, Nachname, Windows-Login; Rechte als Checkboxen + Rollen (Leser, Produktion, Admin), Rollen-Klick vergibt Rechte, danach feinjustierbar, Rolle wird automatisch markiert. Anlegen/Bearbeiten/Löschen nur mit Recht.
 - Equipment-Tabelle (Nummer, Status, Zeitstempel). Nummernschema: H<1/2>-<T/F/X/P>-<xxxx> oder H<1/2>-<T/F/X/P>-<xxxx>-<xx> (x = Ziffer). Nummer im Blocktext + in Tabelle vorhanden → nur dieser Text-Teil in Statusfarbe. Farben konfigurierbar (nicht gereinigt/ohne Timer schwarz, gereinigt violett, regeneriert dunkelblau, sterilisiert rot, in Prozess grün, Freigabe hellblau, Quarantäne dunkelrot). Quelle später ein MES-System, Schnittstelle unbekannt → hinter Interface, jetzt Mock.
 
 ## Architektur (nicht entschieden, mit IT klären)
