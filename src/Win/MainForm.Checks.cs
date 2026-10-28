@@ -124,8 +124,8 @@ namespace Arbeitsplan.Win
             Change(c, delegate(CellData x) { x.Variant = v; }, delegate(Entry e) { return e.Variant == v; }, delegate(Entry e) { e.Variant = v; });
         }
 
-        // Chip in der Pruefleiste: Variante sofort an/aus (an einem Tag z. B. mobil UND stationaer)
-        void ToggleVariant(CellData c, string v) { SetVariant(c, VariantSet.Toggle(c.Variant, v)); }
+        // Chip in der Pruefleiste: Variante sofort an/aus bzw. Anzahl +1/-1 (an einem Tag z. B. 2x mobil UND 1x stationaer)
+        void ToggleVariant(CellData c, string v, int delta) { SetVariant(c, VariantSet.Step(c.Variant, v, delta)); }
 
         // Haken/Variante: im Bearbeitungsmodus nur im Editor (wird mit dem Block gespeichert), sonst sofort speichern.
         // Hat ein anderer PC den Block geaendert, bleibt dessen Inhalt; nur diese Aenderung wird (einmal still erneut) gesetzt.

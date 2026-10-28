@@ -152,32 +152,7 @@ namespace Arbeitsplan.Core
         }
     }
 
-    // Herstellungsvarianten eines Blocks (Entry.Variant): eine oder mehrere, mit "|" getrennt (z. B. "mobil|stationaer"),
-    // kanonisch sortiert; ein einzelner Wert (alte Daten) bleibt gueltig.
-    public static class VariantSet
-    {
-        public static List<string> Of(string v)
-        {
-            List<string> l = new List<string>();
-            foreach (string t in (v ?? "").Split('|')) { string x = t.Trim(); if (x.Length > 0 && !l.Contains(x)) l.Add(x); }
-            l.Sort(StringComparer.Ordinal);
-            return l;
-        }
-        static string Join(List<string> l) { l.Sort(StringComparer.Ordinal); return string.Join("|", l.ToArray()); }
-        public static bool Contains(string v, string x) { return Of(v).Contains(x); }
-        public static string Toggle(string v, string x) { List<string> l = Of(v); if (!l.Remove(x)) l.Add(x); return Join(l); }
-        public static string Display(string v) { return string.Join(" + ", Of(v).ToArray()); }
-
-        // Dreiwege je Variante: wer sie geaendert hat, gewinnt; beide Seiten geaendert = Vereinigung (nie ein Konflikt)
-        public static string Merge(string b, string mine, string theirs)
-        {
-            List<string> lb = Of(b), lm = Of(mine), lt = Of(theirs), all = new List<string>(lm), r = new List<string>();
-            foreach (string x in lt) if (!all.Contains(x)) all.Add(x);
-            foreach (string x in lb) if (!all.Contains(x)) all.Add(x);
-            foreach (string x in all) if (lm.Contains(x) == lb.Contains(x) ? lt.Contains(x) : lm.Contains(x)) r.Add(x);
-            return Join(r);
-        }
-    }
+    // VariantSet (Herstellungsvarianten mit Anzahl): Variants.cs
 
     public enum DayState { NA, Done, Auto, Missing, Due, NotNeeded, WeekOpen }
 

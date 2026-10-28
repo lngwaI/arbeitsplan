@@ -148,6 +148,7 @@ namespace Arbeitsplan.Win
         void Recalc()
         {
             bool valid = pkg.FirstRunNo < 0 || pkg.SetFirstRun(tFirst.Text);   // 8 Ziffern: Praefix + Lauf; Folgelaeufe zaehlen hoch
+            pkg.Day1 = Start.DayOfWeek;   // Wiederholung an Wochentagen haengt vom Starttag ab
             string over = pkg.Overflow();
             sched = pkg.Schedule(chkRhythm.Checked ? gaps : null);
             sched.Sort(delegate(RunDate a, RunDate b) { return a.Day != b.Day ? a.Day.CompareTo(b.Day) : (a.Step != b.Step ? a.Step.CompareTo(b.Step) : a.Run.CompareTo(b.Run)); });

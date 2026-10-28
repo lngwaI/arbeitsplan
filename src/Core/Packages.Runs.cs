@@ -10,6 +10,7 @@ namespace Arbeitsplan.Core
     {
         public string RunPrefix = "";       // XXYY = erste 4 Stellen der Laufnummer; "" = alte Pakete (dann Produktcode, falls 4 Ziffern)
         public const string CodeChars = "-_./+";   // erlaubte Sonderzeichen im Produktcode
+        public DayOfWeek Day1 = DayOfWeek.Monday;  // Wochentag von Tag 1 fuer Schedule/Overflow (Kampagnenstart setzt ihn), nicht gespeichert
 
         // Wirksames Praefix der Laufnummern ("" = Laeufe ohne 8-stellige Nummer)
         public string Prefix { get { return IsCode4(RunPrefix) ? RunPrefix : (IsCode4(ProductCode) ? ProductCode : ""); } }
@@ -69,8 +70,8 @@ namespace Arbeitsplan.Core
         public string Overflow()
         {
             foreach (PackageStep s in Steps)
-                if (s.Numbered && !s.IsEmpty && s.StartNo + Math.Max(1, s.Count) - 1 > 9999)
-                    return (s.Title.Length > 0 ? s.Title : "Schritt") + ": " + Math.Max(1, s.Count) + " Läufe ab " + FormatRun(Prefix, s.StartNo)
+                if (s.Numbered && !s.IsEmpty && s.StartNo + s.RunCountFor(Day1) - 1 > 9999)
+                    return (s.Title.Length > 0 ? s.Title : "Schritt") + ": " + s.RunCountFor(Day1) + " Läufe ab " + FormatRun(Prefix, s.StartNo)
                         + " – die letzten 4 Stellen laufen über 9999. Bitte eine kleinere erste Laufnummer wählen.";
             return null;
         }
@@ -105,15 +106,15 @@ namespace Arbeitsplan.Core
         {
             int main = -1;   // Lauf-Schritt: erster Hauptlauf-Schritt mit den meisten Wiederholungen
             for (int i = 0; i < Steps.Count; i++)
-                if (Steps[i].Kind == StepKind.Run && !Steps[i].IsEmpty && (main < 0 || Steps[i].Count > Steps[main].Count)) main = i;
+                if (Steps[i].Kind == StepKind.Run && !Steps[i].IsEmpty && (main < 0 || Steps[i].RunCountFor(Day1) > Steps[main].RunCountFor(Day1))) main = i;
             List<int> mainDay = new List<int>(), shift = new List<int>();
             if (main >= 0)
             {
-                PackageStep m = Steps[main]; int iv = Math.Max(1, m.Interval);
-                for (int r = 0; r < Math.Max(1, m.Count); r++)
+                mainDay = Steps[main].Days(Day1);
+                for (int r = 0; r < mainDay.Count; r++)
                 {
-                    mainDay.Add(m.DayOf(r));
-                    shift.Add(r == 0 ? 0 : shift[r - 1] + (gaps != null && r - 1 < gaps.Count ? gaps[r - 1] : iv) - iv);
+                    int plan = r == 0 ? 0 : mainDay[r] - mainDay[r - 1];   // geplanter Abstand (alle x Tage, Wochentage, Tagesliste)
+                    shift.Add(r == 0 ? 0 : shift[r - 1] + (gaps != null && r - 1 < gaps.Count ? gaps[r - 1] : plan) - plan);
                 }
             }
             List<RunDate> res = new List<RunDate>();
@@ -121,9 +122,10 @@ namespace Arbeitsplan.Core
             {
                 PackageStep s = Steps[i];
                 if (s.IsEmpty) continue;
-                for (int r = 0; r < Math.Max(1, s.Count); r++)
+                List<int> days = s.Days(Day1);
+                for (int r = 0; r < days.Count; r++)
                 {
-                    RunDate d = new RunDate(); d.Step = i; d.Run = r; d.Day = s.DayOf(r);
+                    RunDate d = new RunDate(); d.Step = i; d.Run = r; d.Day = days[r];
                     d.Label = s.Label(Prefix, r); d.Row = s.Row;
                     for (int k = 0; k < mainDay.Count; k++) if (mainDay[k] <= d.Day) d.Group = k;
                     if (i == main) d.Group = r;
