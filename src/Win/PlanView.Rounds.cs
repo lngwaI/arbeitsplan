@@ -56,10 +56,10 @@ namespace Arbeitsplan.Win
                 gr.RTitle = new Rectangle(x, y + 3, Math.Min(tw, w - 10), rh);
                 x += tw + 8;
                 gr.RItems = new Rectangle[gr.Collapsed ? 0 : gr.Defs.Count];
+                int stw = 6 + Math.Max(TextW("Mo 28.10. WWWW", Font), TextW("Mo 28.10. MMMMM", Font));   // Platz fuer "Tag Datum Kuerzel" immer reservieren: Hoehe aendert sich beim Anklicken nicht
                 for (int i = 0; i < gr.RItems.Length; i++)
                 {
-                    string st = gr.Stamp(gr.Defs[i].Key);
-                    int iw = bs + 6 + TextW(gr.Defs[i].Name, RoundFont) + (st.Length > 0 ? 6 + TextW(st, Font) : 0) + 10;
+                    int iw = bs + 6 + TextW(gr.Defs[i].Name, RoundFont) + stw + 10;
                     if (x + iw > max && x > x0 + 8) { line++; x = x0 + 8; }
                     gr.RItems[i] = new Rectangle(x, y + 3 + line * rh, Math.Min(iw, max - x), rh);
                     x += iw + 8;
