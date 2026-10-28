@@ -63,8 +63,8 @@ namespace Arbeitsplan.Core
         // WFI-Probe einmal je KW (entfaellt bei stationaerer Herstellung).
         public void AddPufferDefaults(int rowId)
         {
-            CheckDef p = new CheckDef(); p.Key = "PROBE"; p.Name = "Tagesprobe"; p.Short = "Probe"; p.RowId = rowId; p.Rule = CheckRule.Workdays; p.Cond = "+mobil";
-            CheckDef w = new CheckDef(); w.Key = "WFIW"; w.Name = "WFI-Probe der Woche"; w.Short = "WFI"; w.RowId = rowId; w.Rule = CheckRule.WeeklyOnce; w.Cond = "!stationaer";
+            CheckDef p = new CheckDef(); p.Key = "PROBE"; p.Name = "Tagesprobe"; p.Short = "Tagesprobe"; p.RowId = rowId; p.Rule = CheckRule.Workdays; p.Cond = "+mobil";
+            CheckDef w = new CheckDef(); w.Key = "WFIW"; w.Name = "WFI-Probe der Woche"; w.Short = "WFI-Woche"; w.RowId = rowId; w.Rule = CheckRule.WeeklyOnce; w.Cond = "!stationaer";
             Defs.Add(p); Defs.Add(w);
         }
     }
@@ -116,6 +116,8 @@ namespace Arbeitsplan.Core
         public string Key = "";
         public bool Done;
         public int Version;
+        public DateTime At;              // wann abgehakt (MinValue = unbekannt, alte Daten)
+        public string By = "";           // Kuerzel (sonst Login) dessen, der abgehakt hat
         public WeekMark Clone() { return (WeekMark)MemberwiseClone(); }
     }
 
@@ -186,7 +188,7 @@ namespace Arbeitsplan.Core
         public static bool IsSet(Entry e, CheckDef d) { return d.Key == CheckDef.LkzKey ? e.Lkz : e.Marks.Contains(d.Key); }
 
         // Variante v mit Praefix p ("!" oder "+") in Cond?
-        static bool Cond(CheckDef d, char p, string v)
+        public static bool Cond(CheckDef d, char p, string v)
         {
             foreach (string t in d.Cond.Split(','))
             {
@@ -254,6 +256,15 @@ namespace Arbeitsplan.Core
                     if (!d.Weekly) return DayState.NotNeeded;
                     return AnySet(w, d) ? DayState.NotNeeded : DayState.WeekOpen;
             }
+        }
+
+        // Wochenpflicht (Weekly, z. B. LKZ) ohne Haken in der KW, deren Sonntag erreicht ist (<= heute): dringend
+        public static bool Overdue(IDataStore s, CheckDef d, DateTime anyDay, DateTime today)
+        {
+            DateTime mon = IsoWeek.Monday(anyDay);
+            if (!d.Weekly || mon.AddDays(6) > today.Date) return false;
+            Entry[] w = LoadWeek(s, d, mon);
+            return !AnySet(w, d) && !AnyNA(w, d);
         }
 
         // Zusammenfassung der KW: Missing > WeekOpen > Due > Done > NotNeeded > NA.

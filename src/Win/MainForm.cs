@@ -107,7 +107,7 @@ namespace Arbeitsplan.Win
             view.Rows = rowInfo;
             view.CellActivated = BeginEdit;
             view.MarkClicked = ClickMark;
-            view.VariantClicked = ChooseVariant;
+            view.VariantClicked = ToggleVariant;
             view.RoundClicked = ToggleRound;
             view.RoundToggled = ToggleRoundFold;
             view.RowToggled = ToggleRow;

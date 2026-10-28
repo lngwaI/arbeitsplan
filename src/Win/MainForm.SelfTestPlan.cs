@@ -76,7 +76,7 @@ namespace Arbeitsplan.Win
             CellData sa = CellOf(lr, 0), so = CellOf(lr, 1), mo = CellOf(lr, 2), di = CellOf(lr, 3), mi = CellOf(lr, 4);
             bool okLkz = li >= 0 && sa.States[li] == DayState.Missing && so.States[li] == DayState.WeekOpen && mo.States[li] == DayState.Done
                 && di.States[li] == DayState.NotNeeded && mi.States[li] == DayState.Missing
-                && so.Note == "LKZ KW36 offen" && sa.Note == so.Note && mo.Note.Length == 0;
+                && so.Note == "LKZ KW36 NICHT GEMESSEN – dringend messen" && so.Urgent && sa.Note == so.Note && mo.Note.Length == 0 && !mo.Urgent;   // KW36 liegt zurueck: dringend
             bool okGroups = view.Rounds.Count == 2 && view.Rounds[0].First == 0 && view.Rounds[0].Last == 1 && view.Rounds[0].Monday == w
                 && view.Rounds[1].First == 2 && view.Rounds[1].Last == 6 && view.Rounds[1].Monday == w.AddDays(7) && !view.Rounds[0].Collapsed;
 
@@ -84,7 +84,7 @@ namespace Arbeitsplan.Win
             int pi = pd.FindIndex(delegate(CheckDef d) { return d.Key == "PROBE"; }), wi = pd.FindIndex(delegate(CheckDef d) { return d.Key == "WFIW"; });
             bool okP = pi >= 0 && wi >= 0 && CellOf(pr, 2).States[pi] == DayState.Auto && CellOf(pr, 3).States[pi] == DayState.Missing
                 && CellOf(pr, 0).States[pi] == DayState.NA && CellOf(pr, 2).States[wi] == DayState.NA && CellOf(pr, 0).States[wi] == DayState.WeekOpen
-                && CellOf(pr, 0).Note == "WFI KW36 offen";
+                && CellOf(pr, 0).Note == "WFI-Woche KW36 offen";
             if (pi < 0) { sb.AppendLine("Pruefleiste: FEHLER Puffer-Pflichtpunkte fehlen"); return; }
 
             // Abhaken ohne Bearbeitungsmodus; danach Konflikt: anderer PC hat den Block inzwischen geaendert

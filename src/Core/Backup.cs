@@ -255,7 +255,10 @@ namespace Arbeitsplan.Core
                     foreach (WeekMark m in d.WeekMarks)
                     {
                         w.WriteStartElement("Woche"); w.WriteAttributeString("montag", m.Monday.ToString("yyyy-MM-dd", Inv)); w.WriteAttributeString("k", m.Key);
-                        w.WriteAttributeString("erledigt", B(m.Done)); w.WriteAttributeString("ver", I(m.Version)); w.WriteEndElement();
+                        w.WriteAttributeString("erledigt", B(m.Done)); w.WriteAttributeString("ver", I(m.Version));
+                        if (m.At != DateTime.MinValue) w.WriteAttributeString("am", m.At.ToString("yyyy-MM-ddTHH:mm:ss", Inv));   // optional, aeltere Programme ignorieren es
+                        if (m.By.Length > 0) w.WriteAttributeString("von", m.By);
+                        w.WriteEndElement();
                     }
                     w.WriteEndElement();
                     w.WriteStartElement("Protokoll");
@@ -502,7 +505,10 @@ namespace Arbeitsplan.Core
                 foreach (XmlElement e in Kids(wo, "Woche"))
                 {
                     WeekMark m = new WeekMark(); m.Monday = DateTime.ParseExact(e.GetAttribute("montag"), "yyyy-MM-dd", Inv); m.Key = e.GetAttribute("k");
-                    m.Done = Bool(e, "erledigt"); m.Version = Int(e, "ver"); d.WeekMarks.Add(m);
+                    m.Done = Bool(e, "erledigt"); m.Version = Int(e, "ver"); m.By = e.GetAttribute("von");
+                    DateTime at;
+                    if (DateTime.TryParseExact(e.GetAttribute("am"), "yyyy-MM-ddTHH:mm:ss", Inv, DateTimeStyles.None, out at)) m.At = at;
+                    d.WeekMarks.Add(m);
                 }
             XmlElement pr = Kid(root, "Protokoll");
             if (pr != null)

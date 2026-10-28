@@ -291,6 +291,7 @@ namespace Arbeitsplan.Win
         void OnKey(object sender, KeyEventArgs e)
         {
             if (e.Control && e.KeyCode == Keys.F) { search.Focus(); search.SelectAll(); e.SuppressKeyPress = true; return; }
+            if (editCell == null && e.KeyCode == Keys.Escape && view.Selected != null) { view.Selected = null; view.Invalidate(); return; }   // Esc hebt die Auswahl auf
             if (editCell == null) return;
             if (e.Control && e.KeyCode == Keys.S) { EndEdit(true); e.SuppressKeyPress = true; }
             else if (e.KeyCode == Keys.Escape)

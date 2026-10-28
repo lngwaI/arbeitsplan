@@ -11,7 +11,6 @@ namespace Arbeitsplan.Win
     {
         DutyConfig duties = new DutyConfig();
         readonly Dictionary<DateTime, bool> roundFold = new Dictionary<DateTime, bool>();   // Rundgangsleiste je KW, nur lokal
-        readonly ContextMenuStrip variantMenu = new ContextMenuStrip();
 
         // Pflichtpunkte je Zeile (LKZ aus der Blockstruktur automatisch), Zustand je Block, Kopf-Hinweis "LKZ KW44 offen"
         // fuer begonnene KWs ohne Haken, Rundgaenge je KW. Nachbarwochen (Fenster Sa-Fr) liest CheckEval selbst aus dem Store.
@@ -35,19 +34,23 @@ namespace Arbeitsplan.Win
         {
             DateTime today = DateTime.Today;
             v.Defs = DefsByRow();
-            Dictionary<string, bool> open = new Dictionary<string, bool>();   // Zeile|Pflichtpunkt|Montag -> KW offen
+            Dictionary<string, bool> open = new Dictionary<string, bool>(), late = new Dictionary<string, bool>();   // Zeile|Pflichtpunkt|Montag -> KW offen / dringend
             foreach (CellData c in v.Cells)
             {
+                c.Urgent = false; c.Note = "";
                 if (c.RowIndex >= v.Defs.Length) continue;
                 List<CheckDef> l = v.Defs[c.RowIndex];
                 c.States = new DayState[l.Count];
                 DateTime mon = IsoWeek.Monday(c.Day);
                 List<string> o = new List<string>();
+                string urgent = null;
                 for (int i = 0; i < l.Count; i++)
                 {
                     c.States[i] = CheckEval.Day(store, l[i], c.Day, today, duties);
                     string k = c.RowIndex + "|" + i + "|" + mon.Ticks;
-                    bool wo;
+                    bool wo, od;
+                    if (!late.TryGetValue(k, out od)) late[k] = od = CheckEval.Overdue(store, l[i], c.Day, today);   // Sonntag erreicht, KW ohne Haken
+                    if (od) { urgent = urgent ?? l[i].Short + " KW" + IsoWeek.Number(c.Day) + " NICHT GEMESSEN – dringend messen"; continue; }
                     if (!open.TryGetValue(k, out wo))
                     {
                         wo = false;
@@ -56,7 +59,8 @@ namespace Arbeitsplan.Win
                     }
                     if (wo) o.Add(l[i].Short);
                 }
-                c.Note = o.Count == 0 ? "" : string.Join(", ", o.ToArray()) + " KW" + IsoWeek.Number(c.Day) + " offen";
+                c.Urgent = urgent != null;
+                c.Note = urgent ?? (o.Count == 0 ? "" : string.Join(", ", o.ToArray()) + " KW" + IsoWeek.Number(c.Day) + " offen");
             }
             ComputeRounds(v, from);
         }
@@ -75,10 +79,25 @@ namespace Arbeitsplan.Win
                 RoundGroup g = v.Rounds.Count > 0 ? v.Rounds[v.Rounds.Count - 1] : null;
                 if (g != null && g.Monday == mon) { g.Last = c; continue; }
                 g = new RoundGroup(); g.Monday = mon; g.First = g.Last = c; g.Defs = act;
-                foreach (WeekMark m in store.GetWeekMarks(mon)) if (m.Done) g.Done.Add(m.Key);
+                bool old = false;
+                foreach (WeekMark m in store.GetWeekMarks(mon)) if (m.Done) { g.Done.Add(m.Key); g.Marks[m.Key] = m; old |= m.At == DateTime.MinValue; }
+                if (old) StampsFromAudit(g);
                 bool f;
-                g.Collapsed = roundFold.TryGetValue(mon, out f) ? f : g.Complete;   // Standard: offen, solange etwas fehlt
+                g.Collapsed = roundFold.TryGetValue(mon, out f) && f;   // Standard: immer offen (auch vollstaendig), nur lokal zuklappbar
                 v.Rounds.Add(g);
+            }
+        }
+
+        // Aeltere Haken ohne "am/von": Zeitpunkt und Kuerzel aus dem letzten Protokolleintrag "abgehakt"
+        void StampsFromAudit(RoundGroup g)
+        {
+            Dictionary<string, AuditEntry> last = new Dictionary<string, AuditEntry>();
+            foreach (AuditEntry a in store.GetAudit(g.Monday, -1)) if (a.Value == "1" && a.Mark.Length > 0) last[a.Mark] = a;   // Protokoll ist zeitlich geordnet
+            foreach (WeekMark m in g.Marks.Values)
+            {
+                AuditEntry a;
+                if (m.At != DateTime.MinValue || !last.TryGetValue(m.Key, out a)) continue;
+                m.At = a.Time; m.By = a.Kuerzel.Length > 0 ? a.Kuerzel : a.Login;
             }
         }
 
@@ -105,21 +124,8 @@ namespace Arbeitsplan.Win
             Change(c, delegate(CellData x) { x.Variant = v; }, delegate(Entry e) { return e.Variant == v; }, delegate(Entry e) { e.Variant = v; });
         }
 
-        // Mehrfachauswahl: Haken je Variante (an einem Tag z. B. mobil UND stationaer), "keine Angabe" leert
-        void ChooseVariant(CellData c, Point screen)
-        {
-            variantMenu.Items.Clear();
-            List<string> all = new List<string>(rowInfo[c.RowIndex].VariantList()); all.Add("");
-            foreach (string v in all)
-            {
-                string x = v;
-                ToolStripMenuItem it = new ToolStripMenuItem(v.Length > 0 ? v : "keine Angabe");
-                it.Checked = v.Length > 0 ? VariantSet.Contains(c.Variant, v) : c.Variant.Length == 0;
-                it.Click += delegate { SetVariant(c, x.Length > 0 ? VariantSet.Toggle(c.Variant, x) : ""); };
-                variantMenu.Items.Add(it);
-            }
-            variantMenu.Show(screen);
-        }
+        // Chip in der Pruefleiste: Variante sofort an/aus (an einem Tag z. B. mobil UND stationaer)
+        void ToggleVariant(CellData c, string v) { SetVariant(c, VariantSet.Toggle(c.Variant, v)); }
 
         // Haken/Variante: im Bearbeitungsmodus nur im Editor (wird mit dem Block gespeichert), sonst sofort speichern.
         // Hat ein anderer PC den Block geaendert, bleibt dessen Inhalt; nur diese Aenderung wird (einmal still erneut) gesetzt.
@@ -180,6 +186,7 @@ namespace Arbeitsplan.Win
                     if (cur != null && cur.Done == want) { ok = true; break; }   // anderer PC hat schon so gehakt
                     WeekMark w = cur ?? new WeekMark();
                     w.Monday = g.Monday; w.Key = key; w.Done = want;
+                    w.At = want ? DateTime.Now : DateTime.MinValue; w.By = want ? (me.Kuerzel.Length > 0 ? me.Kuerzel : me.Login) : "";
                     AuditEntry a = new AuditEntry(); a.Time = DateTime.Now; a.Login = me.Login; a.Kuerzel = me.Kuerzel; a.RowName = def != null ? def.Name : key;
                     ok = store.SaveWeekMark(w, a);
                 }

@@ -369,7 +369,7 @@ namespace Arbeitsplan.Core
                 if (pf[d][2].Length > 0) e.Marks.Add(pf[d][2]);
                 s.Save(monday.AddDays(d), s.IdOf("Puffer"), e);
             }
-            WeekMark gmp = new WeekMark(); gmp.Monday = monday; gmp.Key = "GMP1"; gmp.Done = true;
+            WeekMark gmp = new WeekMark(); gmp.Monday = monday; gmp.Key = "GMP1"; gmp.Done = true; gmp.At = monday.AddHours(9.2); gmp.By = "MUMA";
             s.SaveWeekMark(gmp, null);
             return s;
         }

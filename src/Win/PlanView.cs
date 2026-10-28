@@ -34,6 +34,7 @@ namespace Arbeitsplan.Win
         public string RunsFor;
         public DayState[] States;                           // je Pflichtpunkt der Zeile (PlanView.Defs), von MainForm berechnet
         public string Note = "";                            // Kopf-Hinweis, z. B. "LKZ KW44 offen"
+        public bool Urgent;                                 // Wochenpflicht (LKZ) nach Sonntag nicht erfuellt: Kopf rot, Hinweis fett
         public Rectangle R, RHead, RChecks, RContent;
         public Rectangle[] RLbl = new Rectangle[3], RPpl = new Rectangle[3];
     }
@@ -114,7 +115,7 @@ namespace Arbeitsplan.Win
 
         protected override void Dispose(bool disposing)
         {
-            if (disposing) { bold.Dispose(); tip.Dispose(); }
+            if (disposing) { bold.Dispose(); tip.Dispose(); if (headFont != null) headFont.Dispose(); if (roundFont != null) roundFont.Dispose(); }
             base.Dispose(disposing);
         }
 
@@ -212,7 +213,7 @@ namespace Arbeitsplan.Win
         readonly Dictionary<string, int> textW = new Dictionary<string, int>();
         int TextW(string s, Font f)
         {
-            string k = (f == bold ? "b|" : "n|") + s;
+            string k = f.SizeInPoints.ToString(System.Globalization.CultureInfo.InvariantCulture) + (int)f.Style + "|" + s;
             int w;
             if (!textW.TryGetValue(k, out w)) { w = TextRenderer.MeasureText(s, f, new Size(1000, 100), TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix).Width; textW[k] = w; }
             return w;
@@ -241,6 +242,7 @@ namespace Arbeitsplan.Win
         {
             Graphics g = e.Graphics;
             g.Clear(BackColor);
+            PaintBands(g, e.ClipRectangle);
             PaintRounds(g, e.ClipRectangle);
             foreach (CellData c in Cells)
                 if (c.R.IntersectsWith(e.ClipRectangle)) { PaintCell(g, c); Overlay(g, c); }
@@ -257,58 +259,26 @@ namespace Arbeitsplan.Win
                 g.FillPolygon(th.Brush(th.Changed), new Point[] { new Point(x - 8, y), new Point(x, y), new Point(x, y + 8) });
             }
             if (!th.Stripe) return;
-            bool today = c.Day.Date == DateTime.Today;
-            Color a = c.Editing ? th.BorderEdit : (c == Selected ? th.BorderSel : (today ? th.Dot : Color.Empty));
+            bool today = c.Day.Date == DateTime.Today, sel = c == Selected && !Collapsed[c.RowIndex];   // zugeklappt: nie ein Auswahlrahmen
+            Color a = c.Editing ? th.BorderEdit : (sel ? th.BorderSel : (today ? th.Dot : Color.Empty));
             if (a.IsEmpty) return;
             Fill(g, a, new Rectangle(c.R.X, c.R.Y, c.R.Width, 3));                       // Streifen oben
-            if (c.Editing || c == Selected)
+            if (c.Editing || sel)
                 g.DrawRectangle(th.Pen(a, 2), c.R.X + 1, c.R.Y + 1, c.R.Width - 3, c.R.Height - 3);
         }
 
         void PaintCell(Graphics g, CellData c)
         {
-            bool today = c.Day.Date == DateTime.Today;
             Theme th = Theme.Current;
             Color back = th.CellBackFor(c.Day);
-            Color border = c.Editing ? th.BorderEdit : (c == Selected ? th.BorderSel : th.CellBorder);
             RowInfo ri = Rows[c.RowIndex];
-
             bool collapsed = Collapsed[c.RowIndex];
+            Color border = c.Editing ? th.BorderEdit : (c == Selected && !collapsed ? th.BorderSel : th.CellBorder);
             Fill(g, border, c.R);
-            th.FillHead(g, c.RHead, today ? th.RowHeadToday : th.RowHead);
-            if (!collapsed) Fill(g, back, c.RContent);
+            PaintHead(g, c, collapsed);   // PlanView.Head.cs
+            if (collapsed) return;
+            Fill(g, back, c.RContent);
             const TextFormatFlags tf = TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix;
-
-            // Pfeil (zu = nach rechts, offen = nach unten); Klick auf den Kopf klappt die Zeile um
-            // Der Pfeil sitzt am rechten Rand, die Ueberschrift steht in jeder Spalte (auch zugeklappt).
-            int ax = c.RHead.Right - 15, ay = c.RHead.Y + (c.RHead.Height - 7) / 2;
-            Point[] tri = collapsed ? new Point[] { new Point(ax + 1, ay - 1), new Point(ax + 1, ay + 8), new Point(ax + 6, ay + 4) }
-                                    : new Point[] { new Point(ax - 1, ay + 1), new Point(ax + 7, ay + 1), new Point(ax + 3, ay + 6) };
-            if (th.Modern)   // heller Look: kleinerer Pfeil, mittig in der Kopfleiste
-            {
-                ay = c.RHead.Y + (c.RHead.Height - 5) / 2;
-                tri = collapsed ? new Point[] { new Point(ax + 2, ay - 1), new Point(ax + 2, ay + 6), new Point(ax + 6, ay + 3) }
-                                : new Point[] { new Point(ax, ay + 1), new Point(ax + 7, ay + 1), new Point(ax + 3, ay + 5) };
-            }
-            g.FillPolygon(th.Brush(th.Arrow), tri);
-
-            int right = 18 + (c.Editing ? 20 : 0);                                   // Platz fuer Pfeil (+ Stift im Bearbeitungsmodus)
-            int mk = ProductBars(g, c);
-            Rectangle nr = new Rectangle(c.RHead.X + th.HeadTextX + mk, c.RHead.Y, c.RHead.Width - 2 * th.HeadTextX - right - mk, c.RHead.Height);
-            if (collapsed)
-            {
-                bool filled = !c.Cur.IsBlank;
-                if (filled)   // zugeklappt, aber Inhalt vorhanden: Hinweispunkt vor dem Pfeil
-                    g.FillEllipse(th.Brush(th.Dot),c.RHead.Right - 29, c.RHead.Y + (c.RHead.Height - 7) / 2, 8, 8);
-                nr.Width -= filled ? 12 : 0;
-                nr.Width -= PaintNote(g, c, nr);   // Hinweis "KW offen" auch zugeklappt
-                TextRenderer.DrawText(g, ri.Name, bold, nr, th.HeadTextCollapsed,tf | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
-                return;
-            }
-            nr.Width -= PaintNote(g, c, nr);
-            TextRenderer.DrawText(g, ri.Name, bold, nr, th.HeadText,tf | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
-            if (c.Editing && Pencil != null) g.DrawImage(Pencil, c.RHead.Right - 38, c.RHead.Y + (c.RHead.Height - 17) / 2, 18, 18);
-
             if (c.RChecks.Height > 0) PaintChecks(g, c, back);
 
             if (!c.Editing) c.CB.Draw(g, c.RContent.X + TP, c.RContent.Y + TV);
@@ -327,29 +297,6 @@ namespace Arbeitsplan.Win
                     TextRenderer.DrawText(g, "Erledigt von", Font, new Rectangle(c.RPpl[s].X + TP, c.RPpl[s].Y + TV, c.RPpl[s].Width - TP, Font.Height), th.Muted, tf);
                 if (th.ShiftSep) g.DrawLine(th.Pen(th.ShiftLine, 1), c.RLbl[s].X, c.RLbl[s].Y, c.RPpl[s].Right - 1, c.RLbl[s].Y);
             }
-        }
-
-        // Dezente Produktfarben (stabil aus dem Produktcode); im hellen Look etwas blasser.
-        static readonly int[][] Tones = {
-            new[] { 70, 130, 180 }, new[] { 90, 160, 110 }, new[] { 190, 120, 60 }, new[] { 150, 100, 170 },
-            new[] { 60, 150, 160 }, new[] { 180, 90, 100 }, new[] { 140, 140, 60 }, new[] { 110, 120, 150 } };
-
-        public static Color ProductColor(string product)
-        {
-            int[] t = Tones[RunNumbers.ProductIndex(product, Tones.Length)];
-            return Color.FromArgb(t[0], t[1], t[2]);
-        }
-
-        // Farbbalken je Produkt am linken Rand der Kopfleiste (max. 3); Rueckgabe = belegte Breite.
-        int ProductBars(Graphics g, CellData c)
-        {
-            if (c.RunsFor != c.Content) { c.Runs = RunNumbers.Find(c.Content); c.RunsFor = c.Content; }
-            if (c.Runs.Count == 0) return 0;
-            List<string> prods = new List<string>();
-            foreach (RunRef r in c.Runs) if (!prods.Contains(r.Product) && prods.Count < 3) prods.Add(r.Product);
-            int x = c.RHead.X + 1, h = c.RHead.Height - 4;
-            foreach (string p in prods) { Fill(g, ProductColor(p), new Rectangle(x, c.RHead.Y + 2, 4, h)); x += 5; }
-            return prods.Count * 5 + 1;
         }
 
         // ---------- Maus ----------
@@ -378,13 +325,16 @@ namespace Arbeitsplan.Win
             base.OnMouseDown(e);
             if (RoundsMouse(e.Location, e.Clicks == 1 ? e.Button : MouseButtons.None)) return;
             CellData c = CellAt(e.Location);
-            if (c == null) return;
-            if (c != Selected) { Selected = c; Invalidate(); }
-            if (e.Clicks != 1 || e.Button != MouseButtons.Left) return;
-            if (c.RHead.Contains(e.Location)) { if (RowToggled != null) RowToggled(c.RowIndex); return; }
+            bool head = c != null && c.RHead.Contains(e.Location);
+            // Auswahl nur durch Klick in einen Block; freie Flaeche und Linksklick auf den Zeilenkopf (Zuklappen) heben sie auf.
+            // Rechtsklick auf den Kopf waehlt den Block (Verlauf…).
+            CellData sel = c == null || (head && e.Button == MouseButtons.Left) ? null : c;
+            if (sel != Selected) { Selected = sel; Invalidate(); }
+            if (c == null || e.Clicks != 1 || e.Button != MouseButtons.Left) return;
+            if (head) { if (RowToggled != null) RowToggled(c.RowIndex); return; }
             CheckSlot s = SlotAt(c, e.Location);
             if (s == null) return;
-            if (s.Def < 0) { if (VariantClicked != null) VariantClicked(c, PointToScreen(new Point(c.RChecks.X + s.R.X, c.RChecks.Y + s.R.Bottom))); }
+            if (s.Var != null) { if (VariantClicked != null) VariantClicked(c, s.Var); }
             else if (MarkClicked != null && StateOf(c, s.Def) != DayState.NA && StateOf(c, s.Def) != DayState.Auto) MarkClicked(c, DefsOf(c.RowIndex)[s.Def].Key);
         }
 

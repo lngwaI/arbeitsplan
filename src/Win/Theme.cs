@@ -32,7 +32,12 @@ namespace Arbeitsplan.Win
         // Tagesaufgabe, Pruefleiste (erledigt = LkzOn, automatisch, fehlt), gedaempfter Text, Rundgaenge vollstaendig
         public readonly Color TaskBack = C(247, 248, 251), CheckAuto = C(234, 246, 236), CheckMissing = C(253, 222, 222), CheckMissingText = C(185, 30, 30),
             Muted = C(150, 156, 168), DoneText = C(30, 130, 60), Changed = C(90, 150, 220);   // Changed: von anderem PC geaendert
-        public int RoundH = 21;      // Zeilenhoehe der Rundgangsleiste
+        public int RoundH = 28;      // Zeilenhoehe der Rundgangsleiste
+        public int CheckBox = 16;    // groessere Checkbox (LKZ-Feld, Rundgaenge)
+        public float HeadFontSize = 10.5f, RoundFontSize = 10f;   // Raumname im Zeilenkopf (fett), Rundgangsleiste
+        // Zeilenkopf-Kante, Tagesspalten (Trennlinie, Wochenende, heute), dringender Hinweis, Varianten-Chips, Rundgaenge vollstaendig
+        public readonly Color HeadEdge = C(178, 188, 204), ColLine = C(214, 219, 228), ColWeekend = C(234, 237, 243), ColToday = C(253, 243, 222),
+            PlanWeekend = C(246, 248, 251), PlanHead = C(231, 235, 242), PlanHeadWeekend = C(224, 228, 237), Urgent = C(200, 20, 20), UrgentBack = C(255, 214, 214), ChipOn = C(0, 105, 180), ChipOff = C(160, 168, 182);
 
         static Color C(int r, int g, int b) { return Color.FromArgb(r, g, b); }
 
@@ -44,7 +49,7 @@ namespace Arbeitsplan.Win
             t.CellBack = Color.White;
             {   // heller, flacher Look + Akzentstreifen, flache Menues
                 t.FontName = "Segoe UI"; t.FontSize = 9f; t.Modern = true; t.Stripe = true; t.FlatButtons = true; t.ShiftSep = true;
-                t.HeadH = 27; t.LW = 14; t.Pad = 10; t.Gap = 10; t.HeadTextX = 9; t.ButtonH = 30; t.BarH = 36;
+                t.HeadH = 30; t.LkzH = 26; t.LW = 14; t.Pad = 10; t.Gap = 12; t.HeadTextX = 9; t.ButtonH = 30; t.BarH = 36;
                 t.Window = C(245, 246, 248); t.Bar = t.Window; t.BorderSel = C(0, 120, 215); t.Dot = C(232, 110, 0);
                 t.CellBorder = C(214, 218, 225); t.DayHead = C(228, 233, 241); t.DayHeadToday = C(255, 232, 160);
                 t.RowHead = C(238, 241, 246); t.RowHeadToday = C(255, 240, 200);
@@ -103,7 +108,7 @@ namespace Arbeitsplan.Win
         public Color CellBackFor(DateTime day)
         {
             if (day.Date == DateTime.Today) return CellBackToday;
-            return day.DayOfWeek == DayOfWeek.Saturday || day.DayOfWeek == DayOfWeek.Sunday ? CellBackWeekend : CellBack;
+            return day.DayOfWeek == DayOfWeek.Saturday || day.DayOfWeek == DayOfWeek.Sunday ? PlanWeekend : CellBack;
         }
 
         public SolidBrush Brush(Color c)
@@ -132,15 +137,19 @@ namespace Arbeitsplan.Win
         public void FillHead(Graphics g, Rectangle r, Color c) { g.FillRectangle(Brush(c), r); }
 
         // Eigene Checkbox (13x13, GDI+), nur im Modern-Look.
-        public void DrawCheck(Graphics g, Point p, bool on)
+        public void DrawCheck(Graphics g, Point p, bool on) { DrawCheck(g, p, on, 13); }
+
+        // Checkbox der Groesse s x s (Haken skaliert mit)
+        public void DrawCheck(Graphics g, Point p, bool on, int s)
         {
-            Rectangle r = new Rectangle(p.X, p.Y, 12, 12);
-            g.FillRectangle(Brush(Color.White), r);
+            Rectangle r = new Rectangle(p.X, p.Y, s - 1, s - 1);
+            g.FillRectangle(Brush(on ? C(232, 245, 235) : Color.White), r);
             g.DrawRectangle(Pen(on ? CheckMark : CheckBorder, 1), r);
             if (!on) return;
             SmoothingMode sm = g.SmoothingMode;
             g.SmoothingMode = SmoothingMode.AntiAlias;
-            g.DrawLines(Pen(CheckMark, 2), new Point[] { new Point(p.X + 3, p.Y + 6), new Point(p.X + 5, p.Y + 8), new Point(p.X + 9, p.Y + 3) });
+            float k = s / 13f;
+            g.DrawLines(Pen(CheckMark, s > 14 ? 3 : 2), new PointF[] { new PointF(p.X + 3 * k, p.Y + 6 * k), new PointF(p.X + 5 * k, p.Y + 8.5f * k), new PointF(p.X + 9.5f * k, p.Y + 3 * k) });
             g.SmoothingMode = sm;
         }
 
