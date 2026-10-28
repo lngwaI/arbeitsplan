@@ -14,6 +14,7 @@ namespace Arbeitsplan.Core
         public List<string> ReadOnlyPatterns = new List<string>();   // NurLesenFuer=: Windows-Logins oder Rechnernamen (Platzhalter *), die nur ansehen
         public int PollSeconds = 30;
         public int CacheDays = 7;                   // Offline-Cache auf diesem PC; 0 = kein Cache
+        public bool CheckTransitions;               // Uebergangspruefung=1: Statusuebergaenge im Hintergrund pruefen (Standard aus, keine Oberflaeche)
         public int BackupHours = 24;                // SicherungAlleStunden=: automatische Sicherung im laufenden Programm und beim Beenden
 
         // Admins= wirkt nur bei Ersteinrichtung: solange die Nutzerliste der Datendatei noch keinen Admin hat.
@@ -54,6 +55,7 @@ namespace Arbeitsplan.Core
             string s;
             c.ReadOnly = v.TryGetValue("NurLesen", out s) && s == "1";
             c.Pilot = v.TryGetValue("Pilot", out s) && s == "1";
+            c.CheckTransitions = v.TryGetValue("Uebergangspruefung", out s) && s == "1";
             int n;
             if (v.TryGetValue("Abfrage", out s) && int.TryParse(s, out n)) c.PollSeconds = Math.Max(5, Math.Min(3600, n));
             if (v.TryGetValue("CacheTage", out s) && int.TryParse(s, out n)) c.CacheDays = Math.Max(0, Math.Min(365, n));

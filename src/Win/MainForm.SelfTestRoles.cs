@@ -38,7 +38,7 @@ namespace Arbeitsplan.Win
             User a = o.FindByLogin("a"), b = o.FindByLogin("b"), c = o.FindByLogin("c"), d = o.FindByLogin("d");
             bool okOld = o.Packages[0].Id == "leser" && o.Packages[1].Id == "produktion" && o.Packages[2].Id == "admin" && o.Packages[3].Id == "r1"
                 && a.RoleId == "admin" && a.Plus.Count == 0 && a.Minus.Count == 0 && UserDb.IsAdmin(a.Rights)
-                && b.RoleId == "leser" && Same(b.Plus, Perm.EditText, Perm.Rounds) && b.Minus.Count == 0                 // Rundgaenge wie bisher dazu
+                && b.RoleId == "leser" && Same(b.Plus, Perm.EditText, Perm.Rounds, Perm.SetStatus) && b.Minus.Count == 0                 // Rundgaenge wie bisher dazu
                 && c.RoleId == "produktion" && c.Plus.Count == 0 && Same(c.Minus, Perm.Format)
                 && d.RoleId == "leser" && Same(d.Plus, Perm.SortRows);                                                   // Gleichstand: weniger Rechte
             // Rundreise: neue Attribute bleiben, wirksame Rechte gleich

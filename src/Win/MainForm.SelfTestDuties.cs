@@ -121,7 +121,7 @@ namespace Arbeitsplan.Win
                 && x2.Entries[0].Data.Lkz && x2.Duties.Land == "BW" && x2.Duties.Rounds.Count == 5 && x2.Duties.Rounds[0].Name == "1. GMP-Rundgang"
                 && x2.WeekMarks.Count == 0 && x2.Audit[0].Mark == "";
             bool okV4 = false;
-            try { Backup.FromXml(Encoding.UTF8.GetBytes("<Arbeitsplan version=\"4\"><Zeilen><Zeile id=\"1\" name=\"A\" min=\"3\"/></Zeilen><Katalog/></Arbeitsplan>")); }
+            try { Backup.FromXml(Encoding.UTF8.GetBytes("<Arbeitsplan version=\"" + (Backup.FormatVersion + 1) + "\"><Zeilen><Zeile id=\"1\" name=\"A\" min=\"3\"/></Zeilen><Katalog/></Arbeitsplan>")); }
             catch (NewerFormatException) { okV4 = true; }
             XmlDocument ud = new XmlDocument();
             ud.LoadXml("<Nutzer><Paket name=\"Produktion\"><R v=\"Lesen\"/><R v=\"TextAendern\"/></Paket><Paket name=\"Leser\"><R v=\"Lesen\"/></Paket></Nutzer>");

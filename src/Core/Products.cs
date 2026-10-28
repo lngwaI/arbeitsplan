@@ -133,6 +133,7 @@ namespace Arbeitsplan.Core
                     if (!ok.Contains(id) && !warnings.Contains(w)) warnings.Add(w);
                 }
             }
+            foreach (string w in Master.CheckCompat(ids)) if (!warnings.Contains(w)) warnings.Add(w);   // "Passt zu"-Regeln: nur Hinweis
             return Master.CheckBelongs(ids);
         }
     }

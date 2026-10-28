@@ -228,9 +228,19 @@ namespace Arbeitsplan.Win
                 if (p.ShowDialog(this) != DialogResult.OK) return;
                 if (p.Result != null && UniqueBlocked(p.Result.Name)) return;
                 PackageStep s;
-                if (p.Result == null) { s = new PackageStep(); s.Title = p.TitleText; s.Day = steps.Count == 0 ? 1 : NextDay(); }
+                if (p.Result != null && p.Result.Name == Package.BackupName)
+                {
+                    PackageStep m = steps.Find(delegate(PackageStep x) { return x.BackupOf.Length == 0 && x.Source == Package.PackenName; });
+                    if (m == null || Package.HasBackup(steps, m))
+                    {
+                        MessageBox.Show(this, m == null ? "Der Back-Up gehört zu \"Packen\" – zuerst den Schritt \"Packen\" einfügen." : "Zu \"Packen\" gibt es schon einen Back-Up.", "Paket-Editor", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        return;
+                    }
+                    s = Package.MakeBackup(m, p.Result);
+                }
+                else if (p.Result == null) { s = new PackageStep(); s.Title = p.TitleText; s.Day = steps.Count == 0 ? 1 : NextDay(); }
                 else s = FromBaustein(p.Result);
-                s.Row = p.Room;
+                if (!s.IsBackup) s.Row = p.Room;   // Back-Up bleibt im Raum des Packens
                 AddStep(s);
             }
         }
@@ -239,7 +249,7 @@ namespace Arbeitsplan.Win
 
         void Duplicate()
         {
-            if (cur == null || UniqueBlocked(cur.Source)) return;
+            if (cur == null || cur.IsBackup || UniqueBlocked(cur.Source)) return;   // Back-Up gibt es nur einmal je Packen
             PackageStep c = cur.Clone();
             c.MoveAll(NextDay() - c.FirstDay);   // auch Tagesliste/Wochentage wandern mit
             AddStep(c);
@@ -252,6 +262,11 @@ namespace Arbeitsplan.Win
         void RemoveStep(bool ask)
         {
             if (cur == null) return;
+            if (Package.HasBackup(steps, cur))   // gilt fuer alle, auch PackageAdmin: erst den Back-Up entfernen
+            {
+                if (ask) MessageBox.Show(this, "\"" + TitleOf(cur) + "\" hat einen Back-Up. Zuerst den Back-Up-Schritt entfernen.", "Paket-Editor", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
             Baustein b = cat.Baustein_(cur.Source);
             if (b != null && b.Unique && !canAdmin)
             {
@@ -319,7 +334,13 @@ namespace Arbeitsplan.Win
             prefix = p != null ? p.Prefix : "";   // alte Pakete: Produktcode (4 Ziffern) = Praefix
             string fr = p != null ? p.FirstRun : "";
             tFirst.Text = fr.Length > 0 ? fr : (prefix.Length > 0 ? Package.FormatRun(prefix, 1) : "");
-            if (p == null) { foreach (Baustein b in cat.Bausteine) if (b.DefaultInCampaign) steps.Add(FromBaustein(b)); }   // z. B. "Packen" ist standardmaessig dabei
+            bool fresh = p == null || (p.Steps.Count == 0 && p.Blocks.Count == 0 && p.Name.Length == 0 && p.ProductCode.Length > 0);   // neues Paket mit vorbelegtem Produkt (Assistent)
+            if (fresh)
+            {
+                foreach (Baustein b in cat.Bausteine) if (b.DefaultInCampaign) steps.Add(FromBaustein(b));   // z. B. "Packen" ist standardmaessig dabei
+                PackageStep pk = steps.Find(delegate(PackageStep x) { return x.Source == Package.PackenName; });
+                if (pk != null && cat.Baustein_(Package.BackupName) != null) steps.Add(Package.MakeBackup(pk, cat.Baustein_(Package.BackupName)));   // mit Back-Up
+            }
             else steps.AddRange(p.Steps);
             lBlocks.Text = blocks.Count > 0 ? "Enthält zusätzlich " + blocks.Count + " fertige Blöcke aus einem Wochen-Export (werden mit übernommen)." : "";
             lBlocks.Visible = blocks.Count > 0;
@@ -332,7 +353,8 @@ namespace Arbeitsplan.Win
         // null = Kopfzeile ungueltig (Produktcode, erste Laufnummer, Ueberlauf; Meldung wurde gezeigt). Schritte als Kopie: der Kampagnenstart nummeriert um.
         Package Collect()
         {
-            string err = ProductError() ?? FirstRunError() ?? StepsView().Overflow();
+            Package.SyncBackups(steps);
+            string err = ProductError() ?? FirstRunError() ?? Package.BackupProblem(steps) ?? StepsView().Overflow();
             if (err != null)
             {
                 MessageBox.Show(this, err, "Paket-Editor", MessageBoxButtons.OK, MessageBoxIcon.Warning);

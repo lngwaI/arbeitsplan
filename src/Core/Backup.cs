@@ -20,6 +20,8 @@ namespace Arbeitsplan.Core
         public List<AuditEntry> Audit = new List<AuditEntry>();
         public DutyConfig Duties = DutyConfig.Default();
         public List<WeekMark> WeekMarks = new List<WeekMark>();
+        public List<DeviceStatus> Statuses = new List<DeviceStatus>();   // manuelle Equipment-Status
+        public bool StatusesKnown;          // gelesene Datei enthielt <Status> (Format >= 4); sonst bleibt beim Wiederherstellen der Stand
         public UserDb Users;                // nur in der Datendatei (FileStore), nie in Sicherungen
     }
 
@@ -36,7 +38,7 @@ namespace Arbeitsplan.Core
     public static class Backup
     {
         // Datenformat; bei inkompatibler Aenderung erhoehen (aeltere exe lesen die Datei dann nicht mehr und schreiben nie zurueck)
-        public const int FormatVersion = 3;   // 2: Equipment-Stammdaten im Katalog; 3: Pflichtpunkte, Varianten, Wochenhaken, Produktprofile, "gehoertzu"
+        public const int FormatVersion = 4;   // 2: Equipment-Stammdaten im Katalog; 3: Pflichtpunkte, Varianten, Wochenhaken, Produktprofile, "gehoertzu"; 4: manueller Equipment-Status, Statusuebergaenge, Regeln auf Art-/Gruppenebene ("@Art", "#Gruppe")
         public const string Ext = ".apbak", Prefix = "Arbeitsplan_";
         public const int Keep = 14;
         static readonly UTF8Encoding Utf8 = new UTF8Encoding(false);
@@ -261,6 +263,13 @@ namespace Arbeitsplan.Core
                         w.WriteEndElement();
                     }
                     w.WriteEndElement();
+                    w.WriteStartElement("Status");
+                    foreach (DeviceStatus ds in d.Statuses)
+                    {
+                        w.WriteStartElement("Geraet"); w.WriteAttributeString("id", ds.Id); w.WriteAttributeString("status", ds.Status.ToString());
+                        w.WriteAttributeString("am", ds.At.ToString("yyyy-MM-ddTHH:mm:ss", Inv)); w.WriteAttributeString("von", ds.By); w.WriteEndElement();
+                    }
+                    w.WriteEndElement();
                     w.WriteStartElement("Protokoll");
                     foreach (AuditEntry a in d.Audit)
                     {
@@ -368,6 +377,7 @@ namespace Arbeitsplan.Core
             {
                 w.WriteStartElement("Klasse"); w.WriteAttributeString("name", c.Name);
                 foreach (string f in c.Fields) { w.WriteStartElement("F"); w.WriteAttributeString("v", f); w.WriteEndElement(); }
+                WriteRules(w, c.Rules);
                 w.WriteEndElement();
             }
             foreach (EquipSeries s in m.Series)
@@ -383,6 +393,7 @@ namespace Arbeitsplan.Core
                 w.WriteAttributeString("notiz", d.Note); w.WriteAttributeString("aktiv", B(d.Active));
                 if (d.Parent.Length > 0) w.WriteAttributeString("gehoertzu", d.Parent);
                 foreach (EquipProp p in d.Props) { w.WriteStartElement("E"); w.WriteAttributeString("name", p.Name); w.WriteAttributeString("v", p.Value); w.WriteEndElement(); }
+                WriteRules(w, d.Rules);
                 w.WriteEndElement();
             }
             foreach (EquipLink l in m.Links)
@@ -399,12 +410,23 @@ namespace Arbeitsplan.Core
             w.WriteEndElement();
         }
 
+        static void WriteRules(XmlWriter w, List<StatusRule> rules)
+        {
+            foreach (StatusRule r in rules) { w.WriteStartElement("Uebergang"); w.WriteAttributeString("von", r.From.ToString()); w.WriteAttributeString("nach", r.To.ToString()); w.WriteAttributeString("erlaubt", B(r.Legal)); w.WriteEndElement(); }
+        }
+
+        static void ReadRules(XmlElement e, List<StatusRule> rules)
+        {
+            foreach (XmlElement x in Kids(e, "Uebergang")) rules.Add(new StatusRule(En(x, "von", EquipStatus.NichtGereinigt), En(x, "nach", EquipStatus.NichtGereinigt), Bool(x, "erlaubt")));
+        }
+
         static void ReadMaster(XmlElement sd, EquipMaster m)
         {
             foreach (XmlElement e in Kids(sd, "Klasse"))
             {
                 EquipClass c = new EquipClass(); c.Name = e.GetAttribute("name");
                 foreach (XmlElement x in Kids(e, "F")) c.Fields.Add(x.GetAttribute("v"));
+                ReadRules(e, c.Rules);
                 m.Classes.Add(c);
             }
             foreach (XmlElement e in Kids(sd, "Reihe"))
@@ -419,6 +441,7 @@ namespace Arbeitsplan.Core
                 EquipDevice d = new EquipDevice(); d.Id = e.GetAttribute("id"); d.Class = e.GetAttribute("klasse");
                 d.Note = e.GetAttribute("notiz"); d.Active = Bool(e, "aktiv"); d.Parent = e.GetAttribute("gehoertzu");
                 foreach (XmlElement x in Kids(e, "E")) d.Props.Add(new EquipProp(x.GetAttribute("name"), x.GetAttribute("v")));
+                ReadRules(e, d.Rules);
                 m.Devices.Add(d);
             }
             foreach (XmlElement e in Kids(sd, "Verwendbar"))
@@ -510,6 +533,17 @@ namespace Arbeitsplan.Core
                     if (DateTime.TryParseExact(e.GetAttribute("am"), "yyyy-MM-ddTHH:mm:ss", Inv, DateTimeStyles.None, out at)) m.At = at;
                     d.WeekMarks.Add(m);
                 }
+            XmlElement stt = Kid(root, "Status");
+            if (stt != null)
+            {
+                d.StatusesKnown = true;
+                foreach (XmlElement e in Kids(stt, "Geraet"))
+                {
+                    DeviceStatus st = new DeviceStatus(); st.Id = e.GetAttribute("id"); st.Status = En(e, "status", EquipStatus.NichtGereinigt); st.By = e.GetAttribute("von");
+                    DateTime at; if (DateTime.TryParseExact(e.GetAttribute("am"), "yyyy-MM-ddTHH:mm:ss", Inv, DateTimeStyles.None, out at)) st.At = at;
+                    d.Statuses.Add(st);
+                }
+            }
             XmlElement pr = Kid(root, "Protokoll");
             if (pr != null)
                 foreach (XmlElement e in Kids(pr, "Eintrag"))

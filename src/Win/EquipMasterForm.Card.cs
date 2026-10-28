@@ -30,7 +30,8 @@ namespace Arbeitsplan.Win
             p.Controls.Add(L("Gehört zu (Hauptgerät, z. B. Skid oder Tank):", 0, 74)); DropList(dParent, 0, 92, 300); p.Controls.Add(dParent);
             dInfo.SetBounds(330, 74, 320, 44); dInfo.ForeColor = SystemColors.GrayText; p.Controls.Add(dInfo);
 
-            p.Controls.Add(L("Eigenschaften (Felder der Geräteart):", 0, 124));
+            p.Controls.Add(L("Eigenschaften:", 0, 124));
+            p.Controls.Add(Btn("Link öffnen", 232, 119, 78, delegate { OpenSelectedLink(); }));
             dProps.SetBounds(0, 142, 310, 120); dProps.RowHeadersVisible = false; dProps.AllowUserToResizeRows = false;
             dProps.BackgroundColor = SystemColors.Window; dProps.Columns.Add("n", "Eigenschaft"); dProps.Columns.Add("v", "Wert");
             dProps.Columns[0].Width = 130; dProps.Columns[1].AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
@@ -122,6 +123,8 @@ namespace Arbeitsplan.Win
             StringBuilder sb = new StringBuilder();
             List<string> grp = new List<string>(); foreach (EquipSeries x in m.SeriesOf(d.Id)) grp.Add(x.Name);
             sb.Append(grp.Count > 0 ? "Gruppe: " + string.Join(", ", grp.ToArray()) : "In keiner Gerätegruppe.");
+            List<string> prods = cat.ProductsAllowing(d.Id);
+            if (prods.Count > 0) sb.Append("\nZugelassen für Produkte: ").Append(string.Join(", ", prods.ToArray()));
             List<string> acc = new List<string>(); foreach (EquipDevice a in m.Devices) if (Same(a.Parent, d.Id)) acc.Add(a.Id);
             if (acc.Count > 0) sb.Append("\nZubehör: ").Append(string.Join(", ", acc.ToArray()));
             if (own.Count > 0) sb.Append("\nKann selbst ersetzen: ").Append(string.Join(", ", own.ToArray()));

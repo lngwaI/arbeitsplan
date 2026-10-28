@@ -8,9 +8,9 @@ namespace Arbeitsplan.Core
     public static class Perm
     {
         public const string Read = "Lesen", EditText = "TextAendern", DeleteText = "TextLoeschen", AddText = "TextHinzufuegen",
-            Format = "Format", SortRows = "ZeilenSortieren", PackageAdmin = "PaketeEinrichten", Export = "Exportieren", ImportPackage = "PaketeImportieren", EditNames = "BlockNamenAendern", EditHeight = "BlockhoeheAendern", UserCreate = "NutzerAnlegen", UserEdit = "NutzerBearbeiten", UserDelete = "NutzerLoeschen", Rounds = "RundgangAbhaken";
+            Format = "Format", SortRows = "ZeilenSortieren", PackageAdmin = "PaketeEinrichten", Export = "Exportieren", ImportPackage = "PaketeImportieren", EditNames = "BlockNamenAendern", EditHeight = "BlockhoeheAendern", UserCreate = "NutzerAnlegen", UserEdit = "NutzerBearbeiten", UserDelete = "NutzerLoeschen", Rounds = "RundgangAbhaken", SetStatus = "StatusSetzen";
 
-        public static readonly string[] All = { Read, EditText, DeleteText, AddText, Format, EditNames, EditHeight, SortRows, Export, ImportPackage, Rounds, PackageAdmin, UserCreate, UserEdit, UserDelete };
+        public static readonly string[] All = { Read, EditText, DeleteText, AddText, Format, EditNames, EditHeight, SortRows, Export, ImportPackage, Rounds, SetStatus, PackageAdmin, UserCreate, UserEdit, UserDelete };
 
         public static string Label(string r)
         {
@@ -31,6 +31,7 @@ namespace Arbeitsplan.Core
                 case UserEdit: return "Nutzer bearbeiten";
                 case UserDelete: return "Nutzer löschen";
                 case Rounds: return "Rundgänge abhaken";
+                case SetStatus: return "Equipment-Status setzen";
             }
             return r;
         }
@@ -54,6 +55,7 @@ namespace Arbeitsplan.Core
                 case UserEdit: return "Nutzer bearbeiten";
                 case UserDelete: return "Nutzer löschen";
                 case Rounds: return "Rundgänge";
+                case SetStatus: return "Status";
             }
             return r;
         }
@@ -157,7 +159,7 @@ namespace Arbeitsplan.Core
         {
             UserDb db = new UserDb();
             db.Packages.Add(new RightsPackage("leser", "Leser", Perm.Read, Perm.Export));
-            db.Packages.Add(new RightsPackage("produktion", "Produktion", Perm.Read, Perm.EditText, Perm.DeleteText, Perm.AddText, Perm.Format, Perm.Export, Perm.ImportPackage, Perm.Rounds));
+            db.Packages.Add(new RightsPackage("produktion", "Produktion", Perm.Read, Perm.EditText, Perm.DeleteText, Perm.AddText, Perm.Format, Perm.Export, Perm.ImportPackage, Perm.Rounds, Perm.SetStatus));
             db.Packages.Add(new RightsPackage(AdminId, "Admin", (string[])Perm.All.Clone()));
             return db;
         }
@@ -166,7 +168,7 @@ namespace Arbeitsplan.Core
         public void WriteXml(XmlWriter w)
         {
             w.WriteStartElement("Nutzer");
-            w.WriteAttributeString("rechte", "2");   // 2: mit Perm.Rounds
+            w.WriteAttributeString("rechte", "3");   // 2: mit Perm.Rounds; 3: mit Perm.SetStatus
             if (Domains.Count > 0) w.WriteAttributeString("domaenen", string.Join(",", Domains.ToArray()));
             foreach (RightsPackage p in Packages)
             {
@@ -198,7 +200,9 @@ namespace Arbeitsplan.Core
                 if (x == null) continue;
                 List<string> rights = new List<string>();
                 foreach (XmlNode r in x.ChildNodes) { XmlElement re = r as XmlElement; if (re != null && re.Name == "R") rights.Add(re.GetAttribute("v")); }
-                if (e.GetAttribute("rechte").Length == 0 && rights.Contains(Perm.EditText)) rights.Add(Perm.Rounds);   // alte Datei: Produktion/Admin bekommen das neue Recht
+                int rv; int.TryParse(e.GetAttribute("rechte"), out rv);
+                if (rv == 0 && rights.Contains(Perm.EditText)) rights.Add(Perm.Rounds);   // alte Datei: Produktion/Admin bekommen das neue Recht
+                if (rv < 3 && rights.Contains(Perm.EditText)) rights.Add(Perm.SetStatus);
                 if (x.Name == "Paket")
                 {
                     string name = x.GetAttribute("name"), id = x.GetAttribute("id");

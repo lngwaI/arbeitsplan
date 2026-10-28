@@ -172,7 +172,9 @@ namespace Arbeitsplan.Core
                 Bau("Puffer", "Puffer", false, false, false, "WFI"),
                 Bau("Freeze / Thaw", "Freeze / Thaw", false, false, false, "FZ1", "FZ2", "FA"),
                 Bau("CIP / SIP", "CIP / SIP", false, false, false, "RT", "VS"),
-                Bau("Einwaage", "Einwaage", false, false, false) };
+                Bau("Einwaage", "Einwaage", false, false, false),
+                Bau(Package.BackupName, "Suite 1", false, false, false, "TFF", "Pumpe", "VS") };   // Reservetag nach Packen, Equipment = Ausweich des Packens
+            std[4].Text = "Reservetag, falls Packen nicht abgeschlossen";
             int n = 0;
             foreach (Baustein b in std)
                 if (!Bausteine.Exists(delegate(Baustein x) { return string.Equals(x.Name, b.Name, StringComparison.OrdinalIgnoreCase); })) { Bausteine.Add(b); n++; }

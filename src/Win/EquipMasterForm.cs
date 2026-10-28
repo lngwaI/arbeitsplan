@@ -31,7 +31,7 @@ namespace Arbeitsplan.Win
             Controls.Add(L("Suchen (ID, Notiz, Eigenschaft):", 8, 11));
             search.SetBounds(200, 8, 200, 22); Ui.SimpleMenu(search); Controls.Add(search);
             search.TextChanged += delegate { RebuildTree(cur); };
-            Controls.Add(Ui.Hint("Baum: Geräteart → Gerätegruppe → Gerät. Zubehör (mit „Gehört zu“) steht zusätzlich grau unter seinem Hauptgerät.", 412, 11, 560));
+            Controls.Add(Ui.Hint("Baum: Geräteart → Gerätegruppe → Gerät. Zubehör steht zusätzlich grau unter seinem Hauptgerät.", 412, 11, 560));
 
             tree.SetBounds(8, 40, 300, 560); tree.HideSelection = false; tree.ShowNodeToolTips = true;
             tree.AfterSelect += delegate(object s, TreeViewEventArgs e) { ShowFor(e.Node); };
@@ -40,6 +40,10 @@ namespace Arbeitsplan.Win
             Controls.Add(Btn("+ Gruppe", 90, 606, 66, delegate { NewSeries(); }));
             Controls.Add(Btn("+ Gerät", 160, 606, 62, delegate { NewDevice(); }));
             Controls.Add(Btn("Entfernen", 226, 606, 82, delegate { RemoveSelected(); }));
+            Controls.Add(Btn("+ Serie…", 320, 606, 70, delegate { NewSerial(); }));
+            Controls.Add(Btn("Duplizieren", 394, 606, 84, delegate { DuplicateDevice(); }));
+            Controls.Add(Btn("Tabelle…", 500, 606, 76, delegate { OpenTable(); }));
+            Controls.Add(Btn("Matrix…", 580, 606, 70, delegate { OpenMatrix(); }));
 
             foreach (Panel pn in new[] { pCls, pSer, pDev }) { pn.SetBounds(320, 40, 652, 560); pn.Visible = false; Controls.Add(pn); }
             BuildClass(); BuildGroup(); BuildCard();
@@ -106,7 +110,11 @@ namespace Arbeitsplan.Win
 
         void NewDevice()
         {
-            EquipDevice d = new EquipDevice(); d.Class = SelClass(); d.Id = "Neues Gerät"; m.Devices.Add(d);
+            EquipDevice d = new EquipDevice(); d.Class = SelClass(); m.Devices.Add(d);
+            d.Id = m.SuggestId(d.Class); if (d.Id.Length == 0) d.Id = "Neues Gerät";   // Vorschlag: naechste Nummer nach dem letzten Geraet der Art
+            EquipDevice tpl = cur as EquipDevice;
+            if (tpl != null && tpl.Class == d.Class) d.Parent = tpl.Parent;               // neben einem markierten Geraet: gleiches Hauptgeraet
+            else if (cur is EquipSeries) { List<EquipDevice> mem = m.Members((EquipSeries)cur); if (mem.Count > 0) d.Parent = mem[mem.Count - 1].Parent; }
             EquipSeries s = cur as EquipSeries;
             if (s != null) s.Ids.Add(d.Id);   // in der markierten Gruppe anlegen (ID-Aenderung wird mitgezogen)
             search.Text = ""; RebuildTree(d); dId.Focus(); dId.SelectAll();
@@ -119,8 +127,8 @@ namespace Arbeitsplan.Win
             string extra = t is EquipClass ? "\nGeräte und Gruppen dieser Art bleiben erhalten (ohne Geräteart)."
                 : t is EquipDevice ? "\n„Passt zu“, Ersatz und „Gehört zu“ mit diesem Gerät werden ebenfalls entfernt." : "\nDie Geräte selbst bleiben erhalten.";
             if (MessageBox.Show(this, what + " wirklich entfernen?" + extra, "Stammdaten", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
-            if (t is EquipClass) m.Classes.Remove((EquipClass)t);
-            else if (t is EquipSeries) m.Series.Remove((EquipSeries)t);
+            if (t is EquipClass) { m.RemoveToken("@" + ((EquipClass)t).Name); m.Classes.Remove((EquipClass)t); }
+            else if (t is EquipSeries) { m.RemoveToken("#" + ((EquipSeries)t).Name); m.Series.Remove((EquipSeries)t); }
             else if (t is EquipDevice)
             {
                 EquipDevice d = (EquipDevice)t; m.Devices.Remove(d);
@@ -171,6 +179,18 @@ namespace Arbeitsplan.Win
         }
         public void TestSearch(string q) { search.Text = q; }
         public void TestParent(string parent) { SetParent((EquipDevice)cur, parent); }
+        public void TestRule(string token) { RuleBox b = cur is EquipClass ? clsRules : serRules; b.Pick.Text = token; AddRule(b); }
+        public void TestSerial(string cls, string from, string to, string group, string props)
+        {
+            using (EquipSerialForm sf = new EquipSerialForm(m, cls, ""))
+            {
+                if (!sf.TestRun(cls, from, to, group, props)) return;
+                m.AddSerial(sf.Cls, sf.Ids, sf.MainDevice, sf.Props, sf.GroupName); RebuildTree(null);
+            }
+        }
+        public void TestDuplicate() { DuplicateDevice(); }
+        public void TestNewDevice() { NewDevice(); }
+        public string TestCurrentId() { return Dev != null ? Dev.Id : null; }
         public void TestLink(string id) { AddLink((EquipDevice)cur, id); }
         public void TestSubst(string id, string note, bool both) { UpsertSub((EquipDevice)cur, id, note, both); }
         public void TestGroupParent(string parent) { for (int i = 0; i < sMembers.Items.Count; i++) sMembers.SetItemChecked(i, true); SetParentMarked(parent); }

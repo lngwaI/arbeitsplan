@@ -17,7 +17,10 @@ namespace Arbeitsplan.Core
     {
         public string Name = "";
         public List<string> Fields = new List<string>();     // Eigenschaftsfelder dieser Klasse (Vorlage fuer Geraete), z. B. Volumen, Hoehe
-        public EquipClass Clone() { EquipClass c = (EquipClass)MemberwiseClone(); c.Fields = new List<string>(Fields); return c; }
+        public List<StatusRule> Rules = new List<StatusRule>();   // erlaubte/verbotene Statusuebergaenge der Art (Hintergrundlogik, EquipMaster.IsLegal)
+        public EquipClass Clone() { EquipClass c = (EquipClass)MemberwiseClone(); c.Fields = new List<string>(Fields); c.Rules = new List<StatusRule>(Rules); return c; }
+        // Feld mit Namensende " (Link)": Wert ist eine Adresse (http/https, Laufwerk, UNC) und in der Tabelle/Karte anklickbar
+        public static bool IsLink(string field) { return field != null && field.EndsWith("(Link)", StringComparison.OrdinalIgnoreCase); }
         public override string ToString() { return Name; }
     }
 
@@ -27,10 +30,11 @@ namespace Arbeitsplan.Core
         public string Parent = "";                           // Hauptgeraet (Skid/Tank), zu dem dieses Zubehoerteil gehoert; leer = eigenstaendig
         public bool Active = true;                          // false = in Wartung / nicht verfuegbar
         public List<EquipProp> Props = new List<EquipProp>();
+        public List<StatusRule> Rules = new List<StatusRule>();   // gerätespezifische Statusuebergaenge (vor denen der Art)
 
         public EquipDevice Clone()
         {
-            EquipDevice d = (EquipDevice)MemberwiseClone(); d.Props = new List<EquipProp>();
+            EquipDevice d = (EquipDevice)MemberwiseClone(); d.Props = new List<EquipProp>(); d.Rules = new List<StatusRule>(Rules);
             foreach (EquipProp p in Props) d.Props.Add(new EquipProp(p.Name, p.Value));
             return d;
         }
@@ -85,7 +89,7 @@ namespace Arbeitsplan.Core
         public override string ToString() { return Id + (Both ? " ↔ " : " ersetzt ") + Replaces; }
     }
 
-    public class EquipMaster
+    public partial class EquipMaster
     {
         public List<EquipClass> Classes = new List<EquipClass>();
         public List<EquipSeries> Series = new List<EquipSeries>();
@@ -131,14 +135,14 @@ namespace Arbeitsplan.Core
             return r;
         }
 
-        // Alle Geraete, die mit id verwendbar sind (beide Richtungen der Regeln)
+        // Alle Geraete, die mit id verwendbar sind (beide Richtungen der Regeln; Regelseiten duerfen "@Geraeteart" oder "#Gruppe" sein, siehe EquipExtra.cs)
         public List<string> CompatibleWith(string id)
         {
             List<string> r = new List<string>();
             foreach (EquipLink l in Links)
             {
-                if (string.Equals(l.From, id, StringComparison.OrdinalIgnoreCase)) { foreach (string t in l.To) if (!r.Contains(t)) r.Add(t); }
-                else if (l.To.Exists(delegate(string t) { return string.Equals(t, id, StringComparison.OrdinalIgnoreCase); })) { if (!r.Contains(l.From)) r.Add(l.From); }
+                if (TokenHas(l.From, id)) { foreach (string t in l.To) AddIds(r, t, id); }
+                else if (l.To.Exists(delegate(string t) { return TokenHas(t, id); })) AddIds(r, l.From, id);
             }
             return r;
         }

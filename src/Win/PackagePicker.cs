@@ -1,8 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Text.RegularExpressions;
 using System.Windows.Forms;
+using Arbeitsplan.Core;
 
 namespace Arbeitsplan.Win
 {
@@ -28,10 +28,13 @@ namespace Arbeitsplan.Win
         public static string Pick(IWin32Window owner, string folder, bool allowOther) { return Pick(owner, folder, allowOther, "Paket auswählen", "Öffnen"); }
 
         // title/okText: z. B. "Kampagne starten – Produkt wählen" / "Weiter"
-        public static string Pick(IWin32Window owner, string folder, bool allowOther, string title, string okText)
+        public static string Pick(IWin32Window owner, string folder, bool allowOther, string title, string okText) { return Pick(owner, folder, allowOther, title, okText, null); }
+
+        // product != null: nur Pakete dieses Produktcodes (Filter)
+        public static string Pick(IWin32Window owner, string folder, bool allowOther, string title, string okText, string product)
         {
             if (!EnsureFolder(folder)) return Browse(owner, folder);
-            using (PackagePicker p = new PackagePicker(folder, allowOther))
+            using (PackagePicker p = new PackagePicker(folder, allowOther, product))
             {
                 p.Text = title; p.okButton.Text = okText;
                 if (p.ShowDialog(owner) != DialogResult.OK) return null;
@@ -54,9 +57,11 @@ namespace Arbeitsplan.Win
 
         readonly Button okButton = new Button();
 
-        PackagePicker(string folder, bool allowOther)
+        readonly string productFilter;   // null = alle Pakete
+
+        PackagePicker(string folder, bool allowOther, string productFilter)
         {
-            this.folder = folder;
+            this.folder = folder; this.productFilter = productFilter;
             Text = "Paket auswählen";
             Ui.Dialog(this, 560, 380);
             list.View = View.Details; list.FullRowSelect = true; list.MultiSelect = false; list.HideSelection = false;
@@ -78,14 +83,12 @@ namespace Arbeitsplan.Win
 
         void Fill()
         {
-            string[] files;
-            try { files = Directory.GetFiles(folder, "*.apkg"); }
-            catch (Exception) { files = new string[0]; }
-            Array.Sort(files, StringComparer.OrdinalIgnoreCase);
-            foreach (string f in files)
+            foreach (KeyValuePair<string, string> kv in Files(folder))
             {
+                string f = kv.Key;
+                if (productFilter != null && kv.Value != productFilter) continue;
                 ListViewItem it = new ListViewItem(Path.GetFileNameWithoutExtension(f));
-                it.SubItems.Add(Product(f));
+                it.SubItems.Add(kv.Value);
                 it.SubItems.Add(File.GetLastWriteTime(f).ToString("dd.MM.yyyy HH:mm"));
                 it.Tag = f;
                 list.Items.Add(it);
@@ -94,19 +97,23 @@ namespace Arbeitsplan.Win
             else list.Items.Add(new ListViewItem("(noch keine Pakete – zuerst „Neues Paket anlegen…“ und speichern)"));   // Tag null: nicht waehlbar
         }
 
-        // Produktcode (XML-Attribut produkt) ohne das Paket vollstaendig zu laden; leer, wenn nicht lesbar
-        static string Product(string file)
+        // Produktcode (frei, Package.IsProductCode) des Pakets; leer, wenn nicht lesbar oder ohne Produkt
+        public static string Product(string file)
         {
-            try
-            {
-                using (StreamReader r = new StreamReader(file, System.Text.Encoding.UTF8))
-                {
-                    char[] buf = new char[2048]; int n = r.Read(buf, 0, buf.Length);
-                    Match m = Regex.Match(new string(buf, 0, n), "produkt=\"(\\d{4})\"");
-                    return m.Success ? m.Groups[1].Value : "";
-                }
-            }
+            try { return Package.Load(file).ProductCode; }
             catch (Exception) { return ""; }
+        }
+
+        // Alle .apkg im Ordner mit Produktcode (nicht lesbare mit ""), nach Dateiname sortiert
+        public static List<KeyValuePair<string, string>> Files(string folder)
+        {
+            List<KeyValuePair<string, string>> res = new List<KeyValuePair<string, string>>();
+            string[] files;
+            try { files = Directory.GetFiles(folder ?? "", "*.apkg"); }
+            catch (Exception) { return res; }
+            Array.Sort(files, StringComparer.OrdinalIgnoreCase);
+            foreach (string f in files) res.Add(new KeyValuePair<string, string>(f, Product(f)));
+            return res;
         }
 
         void Choose()

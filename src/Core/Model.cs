@@ -86,6 +86,9 @@ namespace Arbeitsplan.Core
         List<WeekMark> GetWeekMarks(DateTime monday);        // Kopien
         // Wochenhaken + Protokoll atomar; false = Konflikt (m.Version veraltet); setzt sonst m.Version neu. a darf null sein.
         bool SaveWeekMark(WeekMark m, AuditEntry a);
+        List<DeviceStatus> GetStatuses();                    // manuell gesetzte Equipment-Status (Kopien)
+        // Status + Protokoll atomar; Cleared = Eintrag entfernen. Letzter Schreiber gewinnt je Nummer. a darf null sein.
+        bool SetStatus(DeviceStatus s, AuditEntry a);
         // Historie ohne Obergrenze: alte Wochen und Protokolleintraege werden nie geloescht ("ein Jahr zurueck" und mehr).
         void AppendAudit(AuditEntry a);                      // append-only, kein Aendern/Loeschen
         // Save + Protokolleintrag atomar (beides oder nichts); setzt a.Before/After/Version auf den Stand beim Speichern
@@ -149,6 +152,17 @@ namespace Arbeitsplan.Core
             marks[k] = c;
             m.Version = c.Version;
             if (a != null) { a.Day = c.Monday; a.RowId = -1; a.Mark = c.Key; a.Value = c.Done ? "1" : "0"; a.Version = c.Version; AppendAudit(a); }
+            return true;
+        }
+
+        readonly Dictionary<string, DeviceStatus> statuses = new Dictionary<string, DeviceStatus>();
+        public List<DeviceStatus> GetStatuses() { List<DeviceStatus> l = new List<DeviceStatus>(); foreach (DeviceStatus s in statuses.Values) l.Add(s.Clone()); return l; }
+        public bool SetStatus(DeviceStatus s, AuditEntry a)
+        {
+            CheckWrite();
+            string k = s.Id.Trim().ToUpperInvariant();
+            if (s.Cleared) statuses.Remove(k); else statuses[k] = s.Clone();
+            if (a != null) AppendAudit(a);
             return true;
         }
 
@@ -227,6 +241,7 @@ namespace Arbeitsplan.Core
             d.Rows = copy ? GetRows() : new List<RowInfo>(rows); d.Catalog = copy ? GetCatalog() : catalog;
             d.Duties = copy ? GetDuties() : duties;
             foreach (WeekMark m in marks.Values) d.WeekMarks.Add(copy ? m.Clone() : m);
+            foreach (DeviceStatus st in statuses.Values) d.Statuses.Add(copy ? st.Clone() : st);
             foreach (KeyValuePair<string, Entry> kv in items)
             {
                 StoredEntry s = new StoredEntry(); string[] p = kv.Key.Split('|');
@@ -248,6 +263,7 @@ namespace Arbeitsplan.Core
             catalog = d.Catalog; duties = d.Duties;
             marks.Clear();
             foreach (WeekMark m in d.WeekMarks) marks[MarkKey(m.Monday, m.Key)] = m;
+            statuses.Clear(); foreach (DeviceStatus st in d.Statuses) statuses[st.Id.Trim().ToUpperInvariant()] = st;
             audit.Clear(); audit.AddRange(d.Audit);
         }
 
@@ -279,6 +295,7 @@ namespace Arbeitsplan.Core
             }
             foreach (KeyValuePair<string, WeekMark> kv in oldMarks)
                 if (!marks.ContainsKey(kv.Key)) { WeekMark c = kv.Value.Clone(); c.Done = false; c.Version++; marks[kv.Key] = c; }
+            if (d.StatusesKnown) { statuses.Clear(); foreach (DeviceStatus st in d.Statuses) statuses[st.Id.Trim().ToUpperInvariant()] = st.Clone(); }   // Sicherung ohne Status (aelter): Stand bleibt
             // Protokoll bleibt append-only: Eintraege nach der Sicherung gehen nicht verloren
             Dictionary<string, AuditEntry> all = new Dictionary<string, AuditEntry>();
             foreach (AuditEntry a in d.Audit) all[a.Key()] = a.Clone();

@@ -11,6 +11,7 @@ namespace Arbeitsplan.Core
     // alte Pakete (produkt = 4 Ziffern, ohne praefix) bleiben lesbar: Praefix = Produktcode. Version 5: Schritt "wiederholung"
     // (wochentage|tage, fehlt = alle x Tage), "wochentage" (Mo,Mi,Fr), "tage" (1, 4, 9), "bis", "versatz" (Lauf:Tage;…),
     // "ansatz" (gebinde|ohne) mit "gebinde"/"menge"/"einheit"; "variante" mit Anzahl (mobil:2|stationaer).
+    // Version 6: Schritt "backup" (= Source des Packen-Schritts; Back-Up folgt ihm, Packages.Backup.cs).
     public partial class Package
     {
         // ---------- Datei (XML, UTF-8: Umlaute und Sonderzeichen bleiben erhalten) ----------
@@ -20,7 +21,7 @@ namespace Arbeitsplan.Core
             XmlWriterSettings st = new XmlWriterSettings(); st.Indent = true; st.Encoding = new UTF8Encoding(false);
             using (XmlWriter w = XmlWriter.Create(path, st))
             {
-                w.WriteStartElement("Paket"); w.WriteAttributeString("name", Name); w.WriteAttributeString("version", "5");
+                w.WriteStartElement("Paket"); w.WriteAttributeString("name", Name); w.WriteAttributeString("version", "6");
                 if (ProductCode.Length > 0) w.WriteAttributeString("produkt", ProductCode);
                 if (Prefix.Length > 0) w.WriteAttributeString("praefix", Prefix);
                 foreach (PackageStep s in Steps)
@@ -33,6 +34,7 @@ namespace Arbeitsplan.Core
                     w.WriteAttributeString("text", s.Text); w.WriteAttributeString("notiz", s.Note);
                     if (s.Ident.Length > 0) w.WriteAttributeString("kennung", s.Ident);   // fehlt bei aelteren Paketen
                     if (s.Variant.Length > 0) w.WriteAttributeString("variante", s.Variant);
+                    if (s.BackupOf.Length > 0) w.WriteAttributeString("backup", s.BackupOf);
                     if (s.Repeat != RepeatMode.Interval) w.WriteAttributeString("wiederholung", s.Repeat == RepeatMode.Weekdays ? "wochentage" : "tage");
                     if (s.WeekDays != 0) w.WriteAttributeString("wochentage", PackageStep.WeekDayText(s.WeekDays));
                     if (s.DayList.Length > 0) w.WriteAttributeString("tage", s.DayList);
@@ -119,7 +121,7 @@ namespace Arbeitsplan.Core
                     s.Kind = art == "lauf" ? StepKind.Run : (art == "unterlauf" ? StepKind.SubRun : StepKind.Normal);
                     s.SubNos = e.GetAttribute("unterlaeufe");
                     s.Text = e.GetAttribute("text"); s.Note = e.GetAttribute("notiz"); s.Ident = e.GetAttribute("kennung");
-                    s.Variant = e.GetAttribute("variante");
+                    s.Variant = e.GetAttribute("variante"); s.BackupOf = e.GetAttribute("backup");   // fehlt bis Version 5
                     string wh = e.GetAttribute("wiederholung");   // fehlt bis Version 4: alle x Tage
                     s.Repeat = wh == "wochentage" ? RepeatMode.Weekdays : (wh == "tage" ? RepeatMode.DayList : RepeatMode.Interval);
                     s.WeekDays = PackageStep.ParseWeekDays(e.GetAttribute("wochentage")); s.DayList = e.GetAttribute("tage");
@@ -174,6 +176,8 @@ namespace Arbeitsplan.Core
                     p.Blocks.Add(b);
                 }
             }
+            string bp = BackupProblem(p.Steps);
+            if (bp != null) throw new InvalidDataException(bp);
             return p;
         }
     }

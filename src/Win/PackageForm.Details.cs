@@ -169,6 +169,7 @@ namespace Arbeitsplan.Win
         // Alles nachziehen: Liste, Felder ein-/ausblenden, Kopfzeile, Vorschau, Pruefhinweise; scrollTo = Kalender zum Schritt scrollen.
         void UpdateView(bool scrollTo)
         {
+            if (Package.SyncBackups(steps) && cur != null && cur.IsBackup) { bool was = loading; loading = true; BindWhen(cur); loading = was; }   // Back-Up folgt dem Packen
             FillList();
             LayoutDetails();
             UpdateHeader();

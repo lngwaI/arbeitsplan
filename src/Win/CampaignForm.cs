@@ -184,7 +184,19 @@ namespace Arbeitsplan.Win
         public void Shift(int i, int delta)
         {
             if (delta == 0 || i < 0 || i >= sched.Count) return;
-            for (int j = i; j < sched.Count && (j == i || chkShift.Checked); j++) { offs[sched[j].Key()] = Off(j) + delta; UpdateRow(j); }
+            List<int> idx = new List<int>();
+            for (int j = i; j < sched.Count && (j == i || chkShift.Checked); j++) idx.Add(j);
+            foreach (int j in idx.ToArray()) foreach (int k in BackupRows(j)) if (!idx.Contains(k)) idx.Add(k);   // Back-Up folgt dem Packen
+            foreach (int j in idx) { offs[sched[j].Key()] = Off(j) + delta; UpdateRow(j); }
+        }
+
+        // Zeilen der Back-Ups (gleicher Lauf), wenn Zeile j ein Packen-Schritt mit Back-Up ist
+        List<int> BackupRows(int j)
+        {
+            List<int> r = new List<int>();
+            for (int k = 0; k < sched.Count; k++)
+                if (sched[k].Run == sched[j].Run && pkg.Steps[sched[k].Step].BacksUp(pkg.Steps[sched[j].Step])) r.Add(k);
+            return r;
         }
 
         // Block der Zeile i aendern: gilt fuer alle Zeilen desselben Laufs im selben Raum (z. B. Lauf, Mischen, Backfill),
@@ -199,9 +211,11 @@ namespace Arbeitsplan.Win
                 if (room == sched[j].Row) rooms.Remove(sched[j].Key()); else rooms[sched[j].Key()] = room;
                 UpdateRow(j);
             }
+            foreach (int k in BackupRows(i)) { if (room == sched[k].Row) rooms.Remove(sched[k].Key()); else rooms[sched[k].Key()] = room; UpdateRow(k); }   // Back-Up im selben Raum
         }
 
 #if TESTHOOKS
+        public bool TestShiftFollowing { set { chkShift.Checked = value; } }
         public string TestTyped(int i, string s) { grid.Rows[i].Cells[3].Value = s; Typed(i); return Convert.ToString(grid.Rows[i].Cells[3].Value); }
         public string TestCell(int i) { return Convert.ToString(grid.Rows[i].Cells[3].Value); }
         public bool TestStartField() { return Controls.Contains(dtStart) && dtStart.Format == DateTimePickerFormat.Custom && dtStart.CustomFormat == "dd.MM.yyyy"; }
