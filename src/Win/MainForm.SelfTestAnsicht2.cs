@@ -53,8 +53,10 @@ namespace Arbeitsplan.Win
             view.TestClick(pm);
             Entry v1 = store.Get(wk.AddDays(1), pid);
             bool auto = pi >= 0 && CellOf(pr, 1).States[pi] == DayState.Auto;
+            pc = CellOf(pr, 1); ps = view.SlotPoint(pc, "stationaer", -1);   // aktiver Chip ist breiter (+/-): Lage neu bestimmen
             view.TestClick(ps);
             Entry v2 = store.Get(wk.AddDays(1), pid);
+            pc = CellOf(pr, 1); pm = view.SlotPoint(pc, "mobil", -1);
             view.TestClick(pm);
             Entry v3 = store.Get(wk.AddDays(1), pid);
             bool okChips = !pm.IsEmpty && !ps.IsEmpty && v1 != null && v1.Variant == "mobil" && auto && v2.Variant == "mobil|stationaer" && v3.Variant == "stationaer";
