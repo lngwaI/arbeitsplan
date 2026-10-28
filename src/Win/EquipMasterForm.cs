@@ -31,7 +31,7 @@ namespace Arbeitsplan.Win
             Controls.Add(L("Suchen (ID, Notiz, Eigenschaft):", 8, 11));
             search.SetBounds(200, 8, 200, 22); Ui.SimpleMenu(search); Controls.Add(search);
             search.TextChanged += delegate { RebuildTree(cur); };
-            Controls.Add(Ui.Hint("Baum: Geräteart → Gerätegruppe → Gerät. Zubehör (mit „Gehört zu“) steht zusätzlich grau unter seinem Hauptgerät.", 412, 11, 560));
+            Controls.Add(Ui.Hint("Baum: Geräteart → Gerätegruppe → Gerät. Zubehör steht zusätzlich grau unter seinem Hauptgerät.", 412, 11, 560));
 
             tree.SetBounds(8, 40, 300, 560); tree.HideSelection = false; tree.ShowNodeToolTips = true;
             tree.AfterSelect += delegate(object s, TreeViewEventArgs e) { ShowFor(e.Node); };

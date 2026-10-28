@@ -44,7 +44,8 @@ namespace Arbeitsplan.Win
                 return mf;
             }
             EquipMasterForm f = new EquipMasterForm(cat);
-            f.TestSelect(which == "stammdaten2" ? "Tanks 0103 bis 0104" : "H1-F-0101-01");
+            f.TestSelect(which == "stammdaten2" ? "Tanks 0103 bis 0104" : which == "stammdaten3" ? "Tank" : "H1-F-0101-01");
+            if (which == "stammdaten3") { f.TestRule("@Skid"); f.TestRule("H1-X-0102"); }   // Geräteart-Seite mit Regeln
             return f;
         }
 
