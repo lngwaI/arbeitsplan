@@ -11,7 +11,6 @@ namespace Arbeitsplan.Win
     partial class EquipMasterForm
     {
         readonly TextBox cName = new TextBox();
-        TextBox cFields;
         readonly Label cInfo = new Label();
 
         readonly TextBox sName = new TextBox(), sFrom = new TextBox(), sTo = new TextBox();
@@ -25,8 +24,8 @@ namespace Arbeitsplan.Win
             Panel p = pCls;
             p.Controls.Add(Ui.Hint("Was ist das? Eine Geräteart (z. B. Tank, Skid, Filtergehäuse) gibt die Eigenschaftsfelder für alle ihre Geräte vor.", 0, 0, 650));
             p.Controls.Add(L("Name der Geräteart:", 0, 24)); cName.SetBounds(0, 42, 300, 22); Ui.SimpleMenu(cName); p.Controls.Add(cName);
-            p.Controls.Add(L("Eigenschaftsfelder (eines je Zeile, z. B. Volumen, Höhe, Größe; Namensende „(Link)“ = anklickbarer Link):", 0, 74)); cFields = Multi(0, 92, 300, 200); p.Controls.Add(cFields);
-            cInfo.SetBounds(320, 92, 330, 60); cInfo.ForeColor = SystemColors.GrayText; p.Controls.Add(cInfo);
+            BuildFields(p);
+            cInfo.SetBounds(320, 92, 330, 190); cInfo.ForeColor = SystemColors.GrayText; p.Controls.Add(cInfo);
             BuildRules(p, clsRules, 0, 300, 300, 120, delegate { return cur is EquipClass ? "@" + ((EquipClass)cur).Name : null; });
             cName.TextChanged += delegate
             {
@@ -36,14 +35,13 @@ namespace Arbeitsplan.Win
                 foreach (EquipSeries s in m.Series) if (s.Class == old) s.Class = c.Name;
                 SetNodeText(c.Name);
             };
-            cFields.TextChanged += delegate { EquipClass c = cur as EquipClass; if (loading || c == null) return; c.Fields = Lines(cFields.Text); };
         }
 
         void LoadClass(EquipClass c)
         {
-            cName.Text = c.Name; cFields.Text = string.Join("\r\n", c.Fields.ToArray());
+            cName.Text = c.Name; LoadFields(c, -1);
             int nd = m.Devices.FindAll(delegate(EquipDevice d) { return d.Class == c.Name; }).Count, ns = m.Series.FindAll(delegate(EquipSeries s) { return s.Class == c.Name; }).Count;
-            cInfo.Text = nd + " Geräte, " + ns + " Gerätegruppen.\nNeue Felder erscheinen an jedem Gerät dieser Art als leere Zeile.";
+            cInfo.Text = nd + " Geräte, " + ns + " Gerätegruppen.\n\n" + FieldHelp;
             LoadRules(clsRules);
         }
 

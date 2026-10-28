@@ -94,3 +94,4 @@ Reihenfolge = Priorität. Entscheidungen stehen jeweils dabei, nicht erneut nach
 - [x] D Rollen umbenennen/anlegen/beenden, Rechte je Rolle, Einzelrechte + "Rolle +/-"-Kennzeichnung
 - [x] E Equipment je Produkt, Stammdaten-UI verständlicher (Klasse/Reihe/Gerät, Zugehörigkeit Filter→Skid/Tank)
 - [x] F Paket-Editor-Ruckeln/Ablauf, Plan als eigene Datei teilen, automatische Sicherung nach Zeitplan
+- [x] G Equipment einpflegen: Schnellerfassung (Text/Excel, Schema-Vorschlag), Nicht zugeordnet (Mehrfachzuordnung), Passt zu per Mehrfachauswahl + Vorschlag nach Gruppe, Eigenschaftsfelder je Art verwalten (Sonnet / Agent, erledigt, 2026-10-28 19:45)

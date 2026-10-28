@@ -39,6 +39,7 @@ namespace Arbeitsplan.Win
             if (pick == null && tree.Nodes.Count > 0) pick = tree.Nodes[0];
             if (pick != null) { tree.SelectedNode = pick; pick.EnsureVisible(); }
             if (curNode != pick || pick == null) ShowFor(pick);   // ohne Fensterhandle kommt kein AfterSelect
+            RefreshUnassigned();
         }
 
         void AddArt(EquipClass c)

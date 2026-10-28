@@ -12,7 +12,7 @@ namespace Arbeitsplan.Win
     {
         readonly TextBox dId = new TextBox(), subNote = new TextBox();
         TextBox dNote;
-        readonly ComboBox dCls = new ComboBox(), dParent = new ComboBox(), linkPick = new ComboBox(), subPick = new ComboBox();
+        readonly ComboBox dCls = new ComboBox(), dParent = new ComboBox(), subPick = new ComboBox();
         readonly CheckBox dActive = new CheckBox(), subBoth = new CheckBox();
         readonly DataGridView dProps = new DataGridView();
         readonly ListBox lbLinks = new ListBox(), lbSubs = new ListBox();
@@ -42,9 +42,8 @@ namespace Arbeitsplan.Win
 
             p.Controls.Add(L("Passt zu (gilt in beide Richtungen):", 0, 274));
             lbLinks.SetBounds(0, 292, 310, 150); lbLinks.HorizontalScrollbar = true; p.Controls.Add(lbLinks);
-            IdCombo(linkPick, 0, 448, 150); p.Controls.Add(linkPick);
-            p.Controls.Add(Btn("Hinzufügen", 156, 447, 80, delegate { if (Dev != null) AddLink(Dev, linkPick.Text.Trim()); }));
-            p.Controls.Add(Btn("Entfernen", 240, 447, 70, delegate { Item it = lbLinks.SelectedItem as Item; if (Dev != null && it != null) RemoveLink(Dev, it.Id); }));
+            p.Controls.Add(Btn("Mehrere auswählen…", 0, 447, 150, delegate { if (Dev != null) OpenFits(Dev); }));
+            p.Controls.Add(Btn("Markierte entfernen", 156, 447, 154, delegate { Item it = lbLinks.SelectedItem as Item; if (Dev != null && it != null) RemoveLink(Dev, it.Id); }));
 
             p.Controls.Add(L("Ersatz (diese Geräte können es vertreten, z. B. bei Wartung):", 330, 274));
             lbSubs.SetBounds(330, 292, 320, 96); lbSubs.HorizontalScrollbar = true; p.Controls.Add(lbSubs);
@@ -85,8 +84,8 @@ namespace Arbeitsplan.Win
             foreach (EquipProp pr in d.Props) dProps.Rows.Add(pr.Name, pr.Value);
             EquipClass dc = m.Class(d.Class);
             if (dc != null) foreach (string f in dc.Fields) if (!d.Props.Exists(delegate(EquipProp x) { return x.Name == f; })) dProps.Rows.Add(f, "");
-            FillIds(linkPick, d, null); FillIds(subPick, d, null);
-            linkPick.Text = subPick.Text = subNote.Text = ""; subBoth.Checked = false;
+            FillIds(subPick, d, null);
+            subPick.Text = subNote.Text = ""; subBoth.Checked = false;
             LoadRelations(d);
         }
 
@@ -153,7 +152,6 @@ namespace Arbeitsplan.Win
             EquipLink l = m.Links.Find(delegate(EquipLink x) { return Same(x.From, d.Id); });
             if (l == null) { l = new EquipLink(); l.From = d.Id; m.Links.Add(l); }
             l.To.Add(id);
-            linkPick.Text = "";
             LoadRelations(d);
         }
 

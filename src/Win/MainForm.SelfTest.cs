@@ -103,6 +103,7 @@ namespace Arbeitsplan.Win
             else if (which == "steppicker") { List<string> nm = new List<string>(); foreach (RowInfo r in store.GetRows()) nm.Add(r.Name); StepPicker sp = new StepPicker(store.GetCatalog(), new List<PackageStep>(), nm); sp.TestSelect("Puffer"); f = sp; }
             else if (which == "catalog") { List<string> nm = new List<string>(); foreach (RowInfo r in store.GetRows()) nm.Add(r.Name); f = new CatalogForm(store.GetCatalog(), nm); }
             else if (which == "history" || which == "backup") f = TestDataForm(which);
+            else if (which == "quickadd" || which == "unassigned" || which == "equipfits") f = TestQuickForm(which);
             else if (which.StartsWith("stammdaten") || which == "products" || which.StartsWith("equiptable") || which.StartsWith("equipmatrix")) f = TestStammForm(which);
             else if (which == "conflict")   // Rueckfrage bei gleicher Stelle (Testbild)
             {
@@ -295,6 +296,7 @@ namespace Arbeitsplan.Win
             SelfTestPaket2(sb);   // Produktcode frei, Laufnummer 8-stellig, Hinweis-Klick, Puffer-Variante, Bausteine (MainForm.SelfTestPaket2.cs)
             SelfTestBackup(sb);   // Packen (Back-Up), Kampagnen-Assistent (MainForm.SelfTestBackup.cs)
             SelfTestEquip(sb);    // Equipment-Uebersicht (Tabelle, Matrix, Serie) und manueller Status (MainForm.SelfTestEquip.cs)
+            SelfTestEquipQuick(sb);   // Schnellerfassung, Nicht zugeordnet, Passt zu, Felder (MainForm.SelfTestEquipQuick.cs)
             SelfTestPaket3(sb);   // Wiederholmodi, Verschieben, Varianten mit Anzahl, Ansatz, alte Pakete (MainForm.SelfTestPaket3.cs)
             quiet = false;
             return sb.ToString();
