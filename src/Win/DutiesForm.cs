@@ -66,10 +66,32 @@ namespace Arbeitsplan.Win
             extra.SetBounds(400, 318, 180, 136); removed.SetBounds(590, 318, 180, 136);
             extra.Text = Dates(cfg.ExtraHolidays); removed.Text = Dates(cfg.RemovedHolidays);
 
-            Button bOk = B("Speichern", 570, 498, 95), bCancel = B("Abbrechen", 675, 498, 95);
+            Button bOk = B("Speichern", 570, 498, 95), bCancel = B("Abbrechen", 675, 498, 95), bPuffer = B("Standard Puffer einrichten", 10, 498, 200);
             bOk.Click += delegate { Commit(); };
+            bPuffer.Click += delegate { AddPuffer(PufferSetup.Row(rows)); };
             bCancel.DialogResult = DialogResult.Cancel; CancelButton = bCancel;
-            Controls.AddRange(new Control[] { l1, defs, bAdd, bDel, hint, l2, rounds, l3, ll, land, le, lr, extra, removed, bOk, bCancel });
+            Controls.AddRange(new Control[] { l1, defs, bAdd, bDel, hint, l2, rounds, l3, ll, land, le, lr, extra, removed, bPuffer, bOk, bCancel });
+        }
+
+        public bool PufferVariants;   // beim Speichern: Varianten mobil/stationaer an der Zeile Puffer setzen, falls noch keine
+
+        // Fehlende Standard-Pflichtpunkte der Zeile "Puffer" in die Tabelle (vorhandene Schluessel bleiben unveraendert)
+        void AddPuffer(RowInfo pr)
+        {
+            if (pr == null) { MessageBox.Show("Es gibt keine Zeile \"Puffer\" (Einstellungen → Blockstruktur).", Text, MessageBoxButtons.OK, MessageBoxIcon.Information); return; }
+            DutyConfig t = new DutyConfig(); t.AddPufferDefaults(pr.Id);
+            int n = 0;
+            foreach (CheckDef d in t.Defs)
+            {
+                bool have = false;
+                foreach (DataGridViewRow r in defs.Rows) have |= ((CheckDef)r.Tag).Key == d.Key;
+                if (have) continue;
+                int i = defs.Rows.Add(d.Name, d.Short, rowNames[rowIds.IndexOf(pr.Id)], RuleNames[(int)d.Rule], d.Cond, d.Weekly);
+                defs.Rows[i].Tag = d.Clone(); n++;
+            }
+            PufferVariants = pr.Variants.Length == 0;
+            MessageBox.Show((n > 0 ? n + " Pflichtpunkt(e) ergänzt" : "Pflichtpunkte für Puffer sind schon vorhanden")
+                + (PufferVariants ? "; Herstellung mobil/stationär wird an der Zeile Puffer eingerichtet" : "") + ". Wirksam nach \"Speichern\".", Text, MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
         static Label L(string text, int x, int y, int w) { Label l = new Label(); l.Text = text; l.SetBounds(x, y, w, 18); return l; }

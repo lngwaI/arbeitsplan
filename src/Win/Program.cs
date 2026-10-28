@@ -232,6 +232,7 @@ namespace Arbeitsplan.Win
                 Splash sp = StartSplash();
                 MainForm m = new MainForm(login, nosave, cfg, fs);
                 if (sz != null) m.ClientSize = cs; else m.FitToCursorScreen();
+                m.Shown += delegate { m.BeginInvoke((MethodInvoker)delegate { m.OfferPufferDefaults(); }); };
                 RunMain(m, sp, t0);
                 return;
             }
@@ -273,7 +274,7 @@ namespace Arbeitsplan.Win
             Arbeitsplan.Core.FileStore rs = OpenData(rc, Environment.UserName, sp, true);   // nur im Firmennetz, nur angelegte Nutzer
             if (rs == null) { sp.Close(); return; }
             MainForm rm = new MainForm(Environment.UserName, false, rc, rs); rm.FitToCursorScreen();
-            rm.Shown += delegate { rm.BeginInvoke((MethodInvoker)delegate { Shortcut.Offer(rm); }); };   // Start vom Laufwerk: Desktop-Verknuepfung anbieten
+            rm.Shown += delegate { rm.BeginInvoke((MethodInvoker)delegate { Shortcut.Offer(rm); rm.OfferPufferDefaults(); }); };   // Desktop-Verknuepfung anbieten; alter Bestand: Puffer-Standards (nur Admin, Rueckfrage)
             RunMain(rm, sp, t0);
 #endif
         }

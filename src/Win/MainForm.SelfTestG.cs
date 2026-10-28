@@ -18,6 +18,35 @@ namespace Arbeitsplan.Win
         void SelfTestG(StringBuilder sb)
         {
             SelfTestG0(sb);
+            SelfTestG1(sb);
+        }
+
+        // Migration alter Bestaende: ohne Recht nichts, mit PackageAdmin genau einmal, Vorhandenes bleibt
+        static void SelfTestG1(StringBuilder sb)
+        {
+            MemoryStore s = new MemoryStore();
+            List<RowInfo> rows = s.GetRows(); PufferSetup.Row(rows).Variants = ""; s.SaveStructure(rows);
+            s.SaveDuties(DutyConfig.Default());                                   // alter Bestand: keine Puffer-Pflichtpunkte
+            User leser = new User(); leser.Rights.Add(Perm.Read);
+            User admin = new User(); admin.Rights.Add(Perm.Read); admin.Rights.Add(Perm.PackageAdmin);
+            bool needed = PufferSetup.Needed(s.GetRows(), s.GetDuties());
+            bool noRight = !PufferSetup.Apply(s, leser) && !PufferSetup.Apply(s, null) && s.GetDuties().Defs.Count == 0 && PufferSetup.Row(s.GetRows()).Variants == "";
+            bool first = PufferSetup.Apply(s, admin);
+            DutyConfig d1 = s.GetDuties();
+            int pid = PufferSetup.Row(s.GetRows()).Id;
+            bool okSet = first && d1.Defs.Count == 2 && d1.Defs.TrueForAll(delegate(CheckDef d) { return d.RowId == pid; })
+                && PufferSetup.Row(s.GetRows()).Variants == "mobil|stationaer" && !PufferSetup.Needed(s.GetRows(), d1);
+            bool again = !PufferSetup.Apply(s, admin) && s.GetDuties().Defs.Count == 2;
+            // teilweise vorhanden: eigene Tagesprobe und eigene Varianten bleiben, nur die Wochen-WFI kommt dazu
+            MemoryStore p = new MemoryStore();
+            List<RowInfo> pr = p.GetRows(); PufferSetup.Row(pr).Variants = "mobil"; p.SaveStructure(pr);
+            DutyConfig pc = DutyConfig.Default(); CheckDef own = new CheckDef(); own.Key = "PROBE"; own.Name = "Eigene Probe"; own.RowId = PufferSetup.Row(pr).Id; pc.Defs.Add(own); p.SaveDuties(pc);
+            bool part = PufferSetup.Apply(p, admin);
+            DutyConfig pd = p.GetDuties();
+            bool okKeep = part && pd.Defs.Count == 2 && pd.Defs[0].Name == "Eigene Probe" && pd.Defs[0].Cond == "" && pd.Defs[1].Key == "WFIW" && PufferSetup.Row(p.GetRows()).Variants == "mobil";
+            bool okNew = !PufferSetup.Needed(new MemoryStore().GetRows(), new MemoryStore().GetDuties());   // neue Bestaende haben die Standards schon
+            sb.AppendLine("Puffer-Migration: nötig erkannt=" + Ok(needed) + " ohne Recht nichts=" + Ok(noRight) + " eingerichtet=" + Ok(okSet) + " idempotent=" + Ok(again)
+                + " Vorhandenes bleibt=" + Ok(okKeep) + " neuer Bestand ohne Rückfrage=" + Ok(okNew));
         }
 
         static void SelfTestG0(StringBuilder sb)

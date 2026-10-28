@@ -194,8 +194,36 @@ namespace Arbeitsplan.Win
             using (DutiesForm f = new DutiesForm(store.GetDuties(), store.GetRows()))
             {
                 if (f.ShowDialog(this) != DialogResult.OK) return;
-                try { store.SaveDuties(f.Result); } catch (Exception ex) { ShowSaveError(ex); return; }
+                try
+                {
+                    store.SaveDuties(f.Result);
+                    List<RowInfo> rows = store.GetRows();
+                    RowInfo pr = f.PufferVariants ? PufferSetup.Row(rows) : null;   // Knopf "Standard Puffer einrichten": Varianten nur, wenn noch keine
+                    if (pr != null && pr.Variants.Length == 0) { pr.Variants = PufferSetup.Variants; store.SaveStructure(rows); }
+                }
+                catch (Exception ex) { ShowSaveError(ex); return; }
             }
+            Rebuild(false);
+        }
+
+        static string NoPufferFile { get { return System.IO.Path.Combine(System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Arbeitsplan"), "keine-puffer-standards"); } }
+
+        // Alter Bestand ohne Puffer-Standards (Pflichtpunkte/Varianten): nach dem Start nur Admins (PackageAdmin) fragen, nie ungefragt,
+        // vorhandene Einstellungen bleiben. "Nein" wird auf diesem PC gemerkt (Knopf in "Pflichtpunkte & Feiertage" bleibt).
+        public void OfferPufferDefaults()
+        {
+            if (shownPlan != null || systemPc || !me.Has(Perm.PackageAdmin) || (fstore != null && (fstore.Offline || fstore.ReadOnly))) return;
+            if (System.IO.File.Exists(NoPufferFile) || !PufferSetup.Needed(store.GetRows(), store.GetDuties())) return;
+            DialogResult r = MessageBox.Show(this, "Standard-Pflichtpunkte für Puffer einrichten?\n\nTagesprobe werktags (mobil = automatisch), WFI-Probe je KW (entfällt bei stationär) "
+                + "und Herstellung mobil/stationär an der Zeile \"Puffer\". Vorhandene Einstellungen bleiben unverändert.\n\n"
+                + "Später jederzeit: Einstellungen → Pflichtpunkte & Feiertage → \"Standard Puffer einrichten\".", "Arbeitsplan", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+            if (r != DialogResult.Yes)
+            {
+                try { System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(NoPufferFile)); System.IO.File.WriteAllText(NoPufferFile, DateTime.Now.ToString("s")); } catch (Exception) { }
+                return;
+            }
+            if (!EndEdit(true)) return;
+            try { PufferSetup.Apply(store, me); } catch (Exception ex) { ShowSaveError(ex); return; }
             Rebuild(false);
         }
     }
