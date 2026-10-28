@@ -367,6 +367,8 @@ namespace Arbeitsplan.Core
             w.Version = c.Version;
             return true;
         }
+        public List<DeviceStatus> GetStatuses() { return mem.GetStatuses(); }
+        public bool SetStatus(DeviceStatus s, AuditEntry a) { DeviceStatus c = s.Clone(); return Write(delegate(MemoryStore m) { return m.SetStatus(c, a); }); }
         public void AppendAudit(AuditEntry a) { Write(delegate(MemoryStore m) { m.AppendAudit(a); return true; }); }
         public List<AuditEntry> GetAudit(DateTime day, int rowId) { return mem.GetAudit(day, rowId); }
         // Fuer die Sicherung erst den aktuellen Dateistand holen (unter der Sperre); Fehler -> keine veraltete Sicherung

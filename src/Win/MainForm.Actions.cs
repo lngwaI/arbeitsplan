@@ -232,6 +232,30 @@ namespace Arbeitsplan.Win
             if (PackageForm.StartCampaign(this, p, store, start, me, out st)) ShowWeekOf(st);
         }
 
+        // Pakete > Neue Kampagne…: Assistent (Produkt, Kampagne/Sonderlauf, Paket), dann der uebliche Kampagnenstart bzw. der Editor fuer ein neues Paket.
+        void NewCampaign()
+        {
+            if (!EndEdit(true)) return;
+            string file; Package neu = null;
+            using (CampaignWizard w = new CampaignWizard(PackageFolder, store.GetCatalog(), null))
+            {
+                if (w.ShowDialog(this) != DialogResult.OK) return;
+                file = w.PackageFile;
+                if (w.NewPackage)
+                {   // Sonderlauf: Name gesetzt = ohne Standardschritte (Packen); Kampagne: leer = mit Packen + Back-Up
+                    neu = new Package(); neu.ProductCode = w.Product;
+                    if (w.Special) neu.Name = "Sonderlauf " + w.Product;
+                }
+            }
+            if (neu != null) { OpenPackageEditor(neu); return; }
+            Package p;
+            try { p = Package.Load(file); }
+            catch (Exception ex) { MessageBox.Show("Paket konnte nicht gelesen werden.\n" + ex.Message, "Paket", MessageBoxButtons.OK, MessageBoxIcon.Error); return; }
+            if (!PackageForm.Ready(p, store)) { OpenPackageEditor(p); return; }
+            DateTime st;
+            if (PackageForm.StartCampaign(this, p, store, start, me, out st)) ShowWeekOf(st);
+        }
+
         // Nach dem Uebernehmen: Woche des Kampagnenstarts zeigen (Ergebnis sofort sichtbar)
         void ShowWeekOf(DateTime day)
         {

@@ -25,12 +25,13 @@ namespace Arbeitsplan.Win
             Panel p = pCls;
             p.Controls.Add(Ui.Hint("Was ist das? Eine Geräteart (z. B. Tank, Skid, Filtergehäuse) gibt die Eigenschaftsfelder für alle ihre Geräte vor.", 0, 0, 650));
             p.Controls.Add(L("Name der Geräteart:", 0, 24)); cName.SetBounds(0, 42, 300, 22); Ui.SimpleMenu(cName); p.Controls.Add(cName);
-            p.Controls.Add(L("Eigenschaftsfelder (eines je Zeile, z. B. Volumen, Höhe, Größe):", 0, 74)); cFields = Multi(0, 92, 300, 200); p.Controls.Add(cFields);
+            p.Controls.Add(L("Eigenschaftsfelder (eines je Zeile, z. B. Volumen, Höhe, Größe; Namensende „(Link)“ = anklickbarer Link):", 0, 74)); cFields = Multi(0, 92, 300, 200); p.Controls.Add(cFields);
             cInfo.SetBounds(320, 92, 330, 60); cInfo.ForeColor = SystemColors.GrayText; p.Controls.Add(cInfo);
+            BuildRules(p, clsRules, 0, 300, 300, 120, delegate { return cur is EquipClass ? "@" + ((EquipClass)cur).Name : null; });
             cName.TextChanged += delegate
             {
                 EquipClass c = cur as EquipClass; if (loading || c == null) return;
-                string old = c.Name; c.Name = cName.Text.Trim();
+                string old = c.Name; c.Name = cName.Text.Trim(); m.RenameToken("@" + old, "@" + c.Name);
                 foreach (EquipDevice d in m.Devices) if (d.Class == old) d.Class = c.Name;
                 foreach (EquipSeries s in m.Series) if (s.Class == old) s.Class = c.Name;
                 SetNodeText(c.Name);
@@ -43,6 +44,7 @@ namespace Arbeitsplan.Win
             cName.Text = c.Name; cFields.Text = string.Join("\r\n", c.Fields.ToArray());
             int nd = m.Devices.FindAll(delegate(EquipDevice d) { return d.Class == c.Name; }).Count, ns = m.Series.FindAll(delegate(EquipSeries s) { return s.Class == c.Name; }).Count;
             cInfo.Text = nd + " Geräte, " + ns + " Gerätegruppen.\nNeue Felder erscheinen an jedem Gerät dieser Art als leere Zeile.";
+            LoadRules(clsRules);
         }
 
         void BuildGroup()
@@ -65,8 +67,9 @@ namespace Arbeitsplan.Win
             p.Controls.Add(L("Gehört zu (Hauptgerät):", 320, 284)); DropList(sParent, 320, 302, 200); p.Controls.Add(sParent);
             p.Controls.Add(Btn("Gehört zu für Markierte setzen", 320, 330, 220, delegate { SetParentMarked(sParent.Text); }));
             sInfo.SetBounds(320, 372, 330, 60); sInfo.ForeColor = SystemColors.GrayText; p.Controls.Add(sInfo);
+            BuildRules(p, serRules, 320, 436, 330, 56, delegate { return cur is EquipSeries ? "#" + ((EquipSeries)cur).Name : null; });
 
-            sName.TextChanged += delegate { EquipSeries s = cur as EquipSeries; if (loading || s == null) return; s.Name = sName.Text.Trim(); SetNodeText(s.Name); };
+            sName.TextChanged += delegate { EquipSeries s = cur as EquipSeries; if (loading || s == null) return; string old = s.Name; s.Name = sName.Text.Trim(); m.RenameToken("#" + old, "#" + s.Name); SetNodeText(s.Name); };
             sCls.SelectedIndexChanged += delegate { EquipSeries s = cur as EquipSeries; if (loading || s == null) return; s.Class = sCls.Text; RebuildTree(s); };
             sFrom.TextChanged += delegate { EquipSeries s = cur as EquipSeries; if (loading || s == null) return; s.From = sFrom.Text.Trim(); FillMembers(s); };
             sTo.TextChanged += delegate { EquipSeries s = cur as EquipSeries; if (loading || s == null) return; s.To = sTo.Text.Trim(); FillMembers(s); };
@@ -84,6 +87,7 @@ namespace Arbeitsplan.Win
             FillIds(sAdd, null, s.Class.Length > 0 ? s.Class : null); sAdd.Text = "";
             FillParents(sParent, null); sParent.SelectedIndex = 0;
             sInfo.Text = "";
+            LoadRules(serRules);
         }
 
         void FillMembers(EquipSeries s)

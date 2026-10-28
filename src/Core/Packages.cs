@@ -308,6 +308,9 @@ namespace Arbeitsplan.Core
         {
             List<string> belongs = store.GetCatalog().CheckPackage(this);   // harter Fehler: Zubehoer eines anderen Hauptgeraets
             if (belongs.Count > 0) throw new InvalidOperationException("Equipment passt nicht zusammen:\n" + string.Join("\n", belongs.ToArray()));
+            string bp = BackupProblem(Steps);   // Back-Up ohne Packen
+            if (bp != null) throw new InvalidOperationException(bp);
+            if (schedule == null) SyncBackups(Steps);   // Back-Up immer einen Tag nach dem Packen
             List<RowInfo> rows = store.GetRows();
             int written = 0, skipped = 0, unknownRow, conflicts = 0;
             // Alle Bloecke in EINEM Schreibvorgang (Versionspruefung je Block)

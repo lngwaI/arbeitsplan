@@ -75,6 +75,41 @@ namespace Arbeitsplan.Win
             return Group(text, fore, fnt, mode);
         }
 
+        // Erkannte Equipment-Nummer unter dem Mauszeiger (Anzeigemodus, Inhaltsfeld); "" wenn keine
+        public string EquipAt(Point p)
+        {
+            CellData c = CellAt(p);
+            if (c == null || c.Editing || Collapsed[c.RowIndex] || c.CB == null || !c.RContent.Contains(p)) return "";
+            string word = c.CB.WordAt(p.X - (c.RContent.X + TP), p.Y - (c.RContent.Y + TV));
+            Match m = word.Length > 0 ? EquipmentMatcher.Pattern.Match(word) : null;
+            return m != null && m.Success ? m.Value : "";
+        }
+
+#if TESTHOOKS
+        // Test: Mitte des ersten erkannten Equipment-Textes im Anzeigemodus; liefert EquipAt an dieser Stelle (oder null, wenn keine Nummer sichtbar)
+        public string TestEquipAtFirst(out string expected)
+        {
+            expected = null;
+            foreach (CellData c in Cells)
+            {
+                if (c.Editing || Collapsed[c.RowIndex] || c.CB == null) continue;
+                int y = 0;
+                for (int l = 0; l < c.CB.Lines.Count; l++)
+                {
+                    foreach (Item it in c.CB.Lines[l])
+                    {
+                        Match m = EquipmentMatcher.Pattern.Match(it.Text);
+                        if (!m.Success) { continue; }
+                        expected = m.Value;
+                        return EquipAt(new Point(c.RContent.X + TP + it.X + 2, c.RContent.Y + TV + y + 2));
+                    }
+                    y += c.CB.LineH[l];
+                }
+            }
+            return null;
+        }
+#endif
+
         // Kuerzel: eigenes gruen, Suchtreffer gelb.
         List<Piece> PeoplePieces(string text, out int hits)
         {

@@ -88,13 +88,22 @@ namespace Arbeitsplan.Win
                 Package.SampleCampaign("alt").Apply(store, start.AddDays(-42), ApplyMode.Overwrite, Package.SampleCampaign("alt").Schedule(new List<int>(new[] { 5, 5, 7 })));
             Form f;
             if (which == "campaign2") { CampaignForm cf = new CampaignForm(demo, store, start, ApplyMode.Overwrite); cf.SetRoom(7, "Suite 2", false); f = cf; }
+            else if (which == "wizard" || which == "wizard3")   // Kampagnen-Assistent: Seite 1 bzw. Seite 3 mit Paketen eines Produkts
+            {
+                string wd = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "wizard_shot"); System.IO.Directory.CreateDirectory(wd);
+                Package.SampleCampaign("Musterkampagne").Save(System.IO.Path.Combine(wd, "Musterkampagne.apkg"));
+                Package other = Package.SampleCampaign("Zweites Paket"); other.ProductCode = "AB-1"; other.Save(System.IO.Path.Combine(wd, "Zweites Paket.apkg"));
+                CampaignWizard cw = new CampaignWizard(wd, store.GetCatalog(), which == "wizard" ? null : "1234");
+                if (which == "wizard3") cw.TestPage(2, "1234", false);
+                f = cw;
+            }
             else if (which == "structure") f = new StructureForm(store.GetRows(), true, true, true);
             else if (which == "duties") f = new DutiesForm(store.GetDuties(), store.GetRows());
             else if (which == "openduties") { DateTime mon = ShownWeek; f = new OpenDutiesForm("Offen in " + PlanView.WeekTitle(mon), delegate(int w) { return OpenDuties.List(store, store.GetDuties(), store.GetRows(), mon, w, DateTime.Today); }); }
             else if (which == "steppicker") { List<string> nm = new List<string>(); foreach (RowInfo r in store.GetRows()) nm.Add(r.Name); StepPicker sp = new StepPicker(store.GetCatalog(), new List<PackageStep>(), nm); sp.TestSelect("Puffer"); f = sp; }
             else if (which == "catalog") { List<string> nm = new List<string>(); foreach (RowInfo r in store.GetRows()) nm.Add(r.Name); f = new CatalogForm(store.GetCatalog(), nm); }
             else if (which == "history" || which == "backup") f = TestDataForm(which);
-            else if (which.StartsWith("stammdaten") || which == "products") f = TestStammForm(which);
+            else if (which.StartsWith("stammdaten") || which == "products" || which.StartsWith("equiptable") || which.StartsWith("equipmatrix")) f = TestStammForm(which);
             else if (which == "conflict")   // Rueckfrage bei gleicher Stelle (Testbild)
             {
                 Entry b = new Entry(), m = new Entry(), t = new Entry();
@@ -284,6 +293,8 @@ namespace Arbeitsplan.Win
             SelfTestAnsicht2(sb);   // Chips, LKZ dringend, Rundgang-Datum, Auswahlrahmen (MainForm.SelfTestAnsicht2.cs)
             sb.AppendLine(PackageForm.TestFlow(store, equip, start));
             SelfTestPaket2(sb);   // Produktcode frei, Laufnummer 8-stellig, Hinweis-Klick, Puffer-Variante, Bausteine (MainForm.SelfTestPaket2.cs)
+            SelfTestBackup(sb);   // Packen (Back-Up), Kampagnen-Assistent (MainForm.SelfTestBackup.cs)
+            SelfTestEquip(sb);    // Equipment-Uebersicht (Tabelle, Matrix, Serie) und manueller Status (MainForm.SelfTestEquip.cs)
             SelfTestPaket3(sb);   // Wiederholmodi, Verschieben, Varianten mit Anzahl, Ansatz, alte Pakete (MainForm.SelfTestPaket3.cs)
             quiet = false;
             return sb.ToString();

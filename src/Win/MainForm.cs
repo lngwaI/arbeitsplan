@@ -29,7 +29,7 @@ namespace Arbeitsplan.Win
         readonly FileStore fstore;   // null = Testdaten im Speicher
         readonly AppConfig cfg;
         readonly PlanSnapshot shownPlan;   // != null: Fenster zeigt eine Plan-Datei (nur ansehen)
-        readonly IEquipmentStatusProvider equip = new MockEquipmentProvider();
+        readonly ManualStatusProvider equip;      // manuell gesetzter Status (Store) vor der Mock-/spaeteren MES-Quelle
         readonly User me;
         readonly List<RowInfo> rowInfo = new List<RowInfo>();
         readonly Dictionary<int, bool> fold = new Dictionary<int, bool>();   // nur lokal in dieser Instanz, wird nicht gespeichert/synchronisiert
@@ -98,6 +98,8 @@ namespace Arbeitsplan.Win
                 systemPc = fstore.ReadOnly;
             }
             me = ResolveUser(login);
+            equip = new ManualStatusProvider(store, new MockEquipmentProvider());
+            ManualStatusProvider.CheckTransitions = cfg != null && cfg.CheckTransitions;
 
             view = new PlanView(Font);
             view.Equip = equip;
@@ -178,6 +180,7 @@ namespace Arbeitsplan.Win
             file.DropDownItems.Add("Plan-Datei ansehen…", null, delegate { OpenPlanFile(); });
 
             ToolStripMenuItem pk = new ToolStripMenuItem("Pakete");
+            pk.DropDownItems.Add("Neue Kampagne…", null, delegate { NewCampaign(); }).Enabled = me.Has(Perm.ImportPackage);
             pk.DropDownItems.Add("Kampagne starten…", null, delegate { StartCampaignFromFile(); }).Enabled = me.Has(Perm.ImportPackage);
             pk.DropDownItems.Add(new ToolStripSeparator());
             pk.DropDownItems.Add("Neues Paket anlegen…", null, delegate { OpenPackageEditor(null); });
@@ -308,6 +311,7 @@ namespace Arbeitsplan.Win
             MarkChanged();   // Hervorhebung von Aenderungen anderer PCs bleibt ueber Neuaufbau erhalten (MainForm.Changes.cs)
             foreach (CellData d in view.Cells) if (rowInfo[d.RowIndex].Id == selRow && d.Day == selDay) view.Selected = d;
             ComputeChecks();
+            equip.Reload();        // manuell gesetzte Status (auch von anderen PCs)
             view.MarkAllDirty();   // Equipment-Status neu abfragen
             ApplyFold();
 #if TESTHOOKS

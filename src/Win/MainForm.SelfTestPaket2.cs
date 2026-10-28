@@ -68,7 +68,7 @@ namespace Arbeitsplan.Win
             bool okDef = cd.Baustein_("Puffer") != null && cd.Baustein_("Puffer").Row == "Puffer" && cd.Baustein_("Freeze / Thaw") != null && cd.Baustein_("CIP / SIP") != null && cd.Baustein_("Einwaage") != null;
             Catalog oc = new Catalog(); Baustein own = new Baustein(); own.Name = "Puffer"; own.Row = "Eigen"; oc.Bausteine.Add(own);
             int added = oc.AddStandardBausteine(), again = oc.AddStandardBausteine();
-            bool okMig = added == 3 && again == 0 && oc.Baustein_("Puffer").Row == "Eigen" && oc.Bausteine.Count == 4;
+            bool okMig = added == 4 && again == 0 && oc.Baustein_("Puffer").Row == "Eigen" && oc.Bausteine.Count == 5 && oc.Baustein_(Package.BackupName) != null;
             sb.AppendLine("Paket2 Bausteine: Standard " + Ok(okDef) + " Ergaenzung alter Bestand " + Ok(okMig) + " (" + added + " ergaenzt)");
 
             // Kampagnenstart: komplette Laufnummer eintippen, Ueberlauf sperrt

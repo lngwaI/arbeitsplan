@@ -28,6 +28,21 @@ namespace Arbeitsplan.Win
                 if (cat.Product("1234") == null) cat.Products.Add(SampleProduct());
                 ProductForm pf = new ProductForm(cat); pf.TestSelect("1234", "TFF"); return pf;
             }
+            if (which.StartsWith("equiptable") || which.StartsWith("equipmatrix"))
+            {
+                EquipMaster em = cat.Master; string serr;
+                EquipClass lf = new EquipClass(); lf.Name = "Luftfilter"; lf.Fields.AddRange(new[] { "Größe", "Datenblatt (Link)" }); em.Classes.Add(lf);
+                List<EquipProp> pr = new List<EquipProp>(); pr.Add(new EquipProp("Größe", "10 Zoll")); pr.Add(new EquipProp("Datenblatt (Link)", "https://example.org/luftfilter-10.pdf"));
+                em.AddSerial("Luftfilter", EquipMaster.SerialIds("H1-L-0201", "0206", out serr), "", pr, "Luftfilter 0201 bis 0206");
+                em.Device("H1-L-0204").Active = false; em.Device("H1-L-0205").Note = "Gehäuse getauscht";
+                em.Device("H1-L-0206").Props[0].Value = "5 Zoll";
+                if (cat.Product("1234") == null) cat.Products.Add(SampleProduct());
+                if (which.StartsWith("equiptable")) return new EquipTableForm(em, which == "equiptable" ? null : "Luftfilter");
+                em.SetPair("H1-F-0101-04", "H1-X-0102", true); em.SetPairNote("H1-F-0101-04", "H1-X-0102", "nur mit Adapter");
+                EquipMatrixForm mf = new EquipMatrixForm(cat, true, "Filtergehäuse", "Skid");
+                if (which == "equipmatrix2") { mf.TestTab(1); }
+                return mf;
+            }
             EquipMasterForm f = new EquipMasterForm(cat);
             f.TestSelect(which == "stammdaten2" ? "Tanks 0103 bis 0104" : "H1-F-0101-01");
             return f;

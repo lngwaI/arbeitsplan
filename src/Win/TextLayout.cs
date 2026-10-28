@@ -159,6 +159,29 @@ namespace Arbeitsplan.Win
             line.Add(it);
         }
 
+        // Wort (zusammenhaengende Textstuecke ohne Leerraum) an der Stelle (Koordinaten relativ zum Textursprung); "" bei Leerraum/ausserhalb
+        public string WordAt(int px, int py)
+        {
+            int y = 0;
+            for (int l = 0; l < Lines.Count; l++)
+            {
+                if (py >= y && py < y + LineH[l])
+                {
+                    List<Item> line = Lines[l];
+                    int k = line.FindIndex(delegate(Item it) { return px >= it.X && px < it.X + it.W; });
+                    if (k < 0 || line[k].Text.Trim().Length == 0) return "";
+                    int a = k, b = k;
+                    while (a > 0 && line[a - 1].Text.Trim().Length > 0) a--;
+                    while (b < line.Count - 1 && line[b + 1].Text.Trim().Length > 0) b++;
+                    System.Text.StringBuilder sb = new System.Text.StringBuilder();
+                    for (int i = a; i <= b; i++) sb.Append(line[i].Text);
+                    return sb.ToString();
+                }
+                y += LineH[l];
+            }
+            return "";
+        }
+
         public void Draw(Graphics g, int x, int y)
         {
             for (int l = 0; l < Lines.Count; l++)
