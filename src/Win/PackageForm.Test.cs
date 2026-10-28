@@ -29,12 +29,77 @@ namespace Arbeitsplan.Win
                 {
                     Rectangle r = lbHints.GetItemRectangle(i);
                     IntPtr lp = (IntPtr)(((r.Y + 3) << 16) | ((r.X + 5) & 0xFFFF));
-                    try { SendMessage(lbHints.Handle, 0x201, (IntPtr)1, lp); SendMessage(lbHints.Handle, 0x202, IntPtr.Zero, lp); Application.DoEvents(); n++; }
+                    try { LButton(true); SendMessage(lbHints.Handle, 0x201, (IntPtr)1, lp); SendMessage(lbHints.Handle, 0x202, IntPtr.Zero, lp); LButton(false); Application.DoEvents(); n++; }
                     catch (Exception ex) { errors.Add(ex.GetType().Name + ": " + ex.Message); }
                 }
             }
             finally { Application.ThreadException -= h; }
             return n;
+        }
+
+        [DllImport("user32.dll")] static extern bool GetKeyboardState(byte[] k);
+        [DllImport("user32.dll")] static extern bool SetKeyboardState(byte[] k);
+        // Linke Maustaste fuer diesen Thread als gedrueckt melden (GetKeyState): sonst gibt die ListBox das Capture sofort frei und meldet keinen Click
+        static void LButton(bool down) { byte[] k = new byte[256]; GetKeyboardState(k); k[1] = (byte)(down ? 0x80 : 0); SetKeyboardState(k); }
+
+        // Nach dem Anzeigen jeden Pruefhinweis einzeln anklicken (Maus ab/auf wie bei echter Bedienung, die Liste wird nach jedem Klick neu
+        // aufgebaut), dann schliessen. log: Ausnahmen; n[0] Klicks, n[1] davon mit Click-Ereignis, n[2] Hinweise; jumped: Namens-Hinweis setzt den Fokus.
+        internal void AutoClickHints(List<string> log, int[] n, bool[] jumped)
+        {
+            int i = 0, phase = 0, seen = 0, clicked = 0;
+            lbHints.Click += delegate { clicked++; };
+            System.Windows.Forms.Timer t = new System.Windows.Forms.Timer(); t.Interval = 150;
+            t.Tick += delegate
+            {
+                try
+                {
+                    if (phase == 0 && i == 0) n[2] += lbHints.Items.Count;
+                    if (IsDisposed || i >= lbHints.Items.Count || i >= 12) { t.Stop(); t.Dispose(); if (!IsDisposed) { dirty = false; Close(); } return; }
+                    if (phase == 0)
+                    {
+                        Rectangle r = lbHints.GetItemRectangle(i);
+                        IntPtr lp = (IntPtr)(((r.Y + 3) << 16) | ((r.X + 5) & 0xFFFF));
+                        seen = clicked;
+                        LButton(true); SendMessage(lbHints.Handle, 0x201, (IntPtr)1, lp); SendMessage(lbHints.Handle, 0x202, IntPtr.Zero, lp); LButton(false);
+                        n[0]++; if (clicked > seen) n[1]++;
+                        else HintClicked();   // Punkt verdeckt (WindowFromPoint): Klick wie die ListBox ausloesen
+                        phase = 1;
+                    }
+                    else
+                    {
+                        Hint h = i < hintList.Count ? hintList[i] : null;
+                        if (h != null && h.Field == tName && !tName.Focused) jumped[0] = false;
+                        phase = 0; i++;
+                    }
+                }
+                catch (Exception ex) { log.Add(ex.ToString()); t.Stop(); dirty = false; Close(); }
+            };
+            if (Visible) t.Start(); else Shown += delegate { t.Start(); };
+        }
+
+        // Wie Menue "Neues Paket anlegen…" (modal, mit Besitzer): Faelle neues Paket (ohne PackageAdmin wie Nutzer "Produktion"),
+        // ganz leer, leerer Schritt, Schritt ohne Raum; jeden Pruefhinweis anklicken. Ausnahmen aus der Nachrichtenschleife werden mitgezaehlt.
+        public static string TestHintClickNew(Form owner, IDataStore store, IEquipmentStatusProvider equip, DateTime start)
+        {
+            List<string> err = new List<string>(); int[] n = new int[3]; bool[] jumped = { true };
+            ThreadExceptionEventHandler h = delegate(object o, ThreadExceptionEventArgs e) { err.Add(e.Exception.ToString()); };
+            Application.ThreadException += h;
+            try
+            {
+                for (int fall = 0; fall < 4; fall++)
+                    using (PackageForm f = new PackageForm(store, equip, start, null, true, fall != 0))
+                    {
+                        f.StartPosition = FormStartPosition.Manual; f.Location = new Point(0, 0);
+                        if (fall == 1) f.LoadPackage(new Package());
+                        if (fall >= 2) { PackageStep s = new PackageStep(); s.Day = f.NextDay(); if (fall == 3) s.Title = "Ohne Raum"; f.AddStep(s); }
+                        f.AutoClickHints(err, n, jumped);
+                        f.ShowDialog(owner);
+                    }
+            }
+            catch (Exception ex) { err.Add(ex.ToString()); }
+            finally { Application.ThreadException -= h; }
+            return "Hinweis-Klick leeres Paket: " + n[0] + " Klicks (" + n[1] + " per Maus, " + n[2] + " Hinweise in 4 Fällen), Sprung zum Namen " + T(jumped[0])
+                + ", Ausnahmen " + err.Count + " " + T(err.Count == 0 && n[0] >= 4) + (err.Count > 0 ? " [" + err[0].Replace("\r", " ").Replace("\n", " | ") + "]" : "");
         }
 
         public static string TestPaket2(IDataStore store, IEquipmentStatusProvider equip, DateTime start)

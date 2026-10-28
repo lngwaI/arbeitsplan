@@ -180,6 +180,14 @@ namespace Arbeitsplan.Win
             Application.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException);
             Application.ThreadException += delegate { Fatal(); };
             AppDomain.CurrentDomain.UnhandledException += delegate { Fatal(); };
+#else
+            // Test-Build: unbehandelte Ausnahme mit vollem Stacktrace nach %TEMP%\arbeitsplan_ausnahme.txt und anzeigen
+            Application.ThreadException += delegate(object o, System.Threading.ThreadExceptionEventArgs e)
+            {
+                string p = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "arbeitsplan_ausnahme.txt");
+                try { System.IO.File.AppendAllText(p, DateTime.Now.ToString("s") + "\r\n" + e.Exception + "\r\n\r\n"); } catch (Exception) { }
+                MessageBox.Show(e.Exception.ToString(), "Arbeitsplan (Test-Build): Ausnahme, gespeichert in " + p, MessageBoxButtons.OK, MessageBoxIcon.Error);
+            };
 #endif
 
             Theme.Select(null);
@@ -255,6 +263,7 @@ namespace Arbeitsplan.Win
                 try { res = f.SelfTest(); } catch (Exception ex) { res = "FEHLER: Selbsttest abgebrochen: " + ex; }
                 System.IO.File.WriteAllText(Arg(args, "--selftest"), res);
             }
+            if (Arg(args, "--hintclick") != null) System.IO.File.WriteAllText(Arg(args, "--hintclick"), f.TestHintClick());
             if (Arg(args, "--weeks") == "late") f.TestWeeksLate();   // wie Menue "2 Wochen" nach dem Start
             if (Arg(args, "--scroll") != null) f.TestScroll(int.Parse(Arg(args, "--scroll")));
             Form target = Array.IndexOf(args, "--users") >= 0 ? f.TestUsers() : (Arg(args, "--form") != null ? f.TestForm(Arg(args, "--form")) : f);

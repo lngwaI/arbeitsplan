@@ -85,6 +85,28 @@ namespace Arbeitsplan.Win
             }
             CampaignForm.Quiet = false;
             sb.AppendLine(PackageForm.TestPaket2(store, equip, start));
+            sb.AppendLine(TestHintClick());
+        }
+
+        // Jeden Pruefhinweis im neuen Paket anklicken: modale Faelle (PackageForm.TestHintClickNew) und der echte Menueweg
+        // (OpenPackageEditor wie "Neues Paket anlegen…", Editor per Timer finden). Auch einzeln: --hintclick <txt>.
+        public string TestHintClick()
+        {
+            string r = PackageForm.TestHintClickNew(this, store, equip, start);
+            List<string> err = new List<string>(); int[] n = new int[3]; bool[] jumped = { true };
+            System.Windows.Forms.Timer t = new System.Windows.Forms.Timer(); t.Interval = 100;
+            t.Tick += delegate
+            {
+                foreach (System.Windows.Forms.Form f in System.Windows.Forms.Application.OpenForms)
+                    if (f is PackageForm && f.Visible) { t.Stop(); ((PackageForm)f).AutoClickHints(err, n, jumped); return; }
+            };
+            System.Threading.ThreadExceptionEventHandler h = delegate(object o, System.Threading.ThreadExceptionEventArgs e) { err.Add(e.Exception.ToString()); };
+            System.Windows.Forms.Application.ThreadException += h;
+            try { t.Start(); OpenPackageEditor(null); }
+            catch (Exception ex) { err.Add(ex.ToString()); }
+            finally { t.Dispose(); System.Windows.Forms.Application.ThreadException -= h; }
+            return r + "\r\nHinweis-Klick Menue Neues Paket: " + n[0] + " Klicks (" + n[1] + " per Maus), Sprung zum Namen " + (jumped[0] ? "OK" : "FEHLER")
+                + ", Ausnahmen " + err.Count + " " + (err.Count == 0 && n[0] >= 1 ? "OK" : "FEHLER") + (err.Count > 0 ? " [" + err[0].Replace("\r", " ").Replace("\n", " | ") + "]" : "");
         }
     }
 }
