@@ -330,11 +330,16 @@ namespace Arbeitsplan.Win
             // Rechtsklick auf den Kopf waehlt den Block (Verlauf…).
             CellData sel = c == null || (head && e.Button == MouseButtons.Left) ? null : c;
             if (sel != Selected) { Selected = sel; Invalidate(); }
-            if (c == null || e.Clicks != 1 || e.Button != MouseButtons.Left) return;
+            if (c == null || e.Button != MouseButtons.Left) return;
+            CheckSlot s = head ? null : SlotAt(c, e.Location);
+            if (e.Clicks != 1)   // schnell wiederholt auf "+"/"−": jeder Klick zaehlt
+            {
+                if (s != null && s.Var != null) ClickVariant(c, s, e.X, true);
+                return;
+            }
             if (head) { if (RowToggled != null) RowToggled(c.RowIndex); return; }
-            CheckSlot s = SlotAt(c, e.Location);
             if (s == null) return;
-            if (s.Var != null) { if (VariantClicked != null) VariantClicked(c, s.Var); }
+            if (s.Var != null) ClickVariant(c, s, e.X, false);
             else if (MarkClicked != null && StateOf(c, s.Def) != DayState.NA && StateOf(c, s.Def) != DayState.Auto) MarkClicked(c, DefsOf(c.RowIndex)[s.Def].Key);
         }
 

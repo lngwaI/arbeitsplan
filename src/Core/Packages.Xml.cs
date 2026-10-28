@@ -8,7 +8,9 @@ using System.Xml;
 namespace Arbeitsplan.Core
 {
     // Paketdatei .apkg. Version 4: Produktcode frei ("produkt"), Laufnummern-Praefix eigenes Attribut "praefix", Schritt-"variante";
-    // alte Pakete (produkt = 4 Ziffern, ohne praefix) bleiben lesbar: Praefix = Produktcode.
+    // alte Pakete (produkt = 4 Ziffern, ohne praefix) bleiben lesbar: Praefix = Produktcode. Version 5: Schritt "wiederholung"
+    // (wochentage|tage, fehlt = alle x Tage), "wochentage" (Mo,Mi,Fr), "tage" (1, 4, 9), "bis", "versatz" (Lauf:Tage;…),
+    // "ansatz" (gebinde|ohne) mit "gebinde"/"menge"/"einheit"; "variante" mit Anzahl (mobil:2|stationaer).
     public partial class Package
     {
         // ---------- Datei (XML, UTF-8: Umlaute und Sonderzeichen bleiben erhalten) ----------
@@ -18,7 +20,7 @@ namespace Arbeitsplan.Core
             XmlWriterSettings st = new XmlWriterSettings(); st.Indent = true; st.Encoding = new UTF8Encoding(false);
             using (XmlWriter w = XmlWriter.Create(path, st))
             {
-                w.WriteStartElement("Paket"); w.WriteAttributeString("name", Name); w.WriteAttributeString("version", "4");
+                w.WriteStartElement("Paket"); w.WriteAttributeString("name", Name); w.WriteAttributeString("version", "5");
                 if (ProductCode.Length > 0) w.WriteAttributeString("produkt", ProductCode);
                 if (Prefix.Length > 0) w.WriteAttributeString("praefix", Prefix);
                 foreach (PackageStep s in Steps)
@@ -31,6 +33,16 @@ namespace Arbeitsplan.Core
                     w.WriteAttributeString("text", s.Text); w.WriteAttributeString("notiz", s.Note);
                     if (s.Ident.Length > 0) w.WriteAttributeString("kennung", s.Ident);   // fehlt bei aelteren Paketen
                     if (s.Variant.Length > 0) w.WriteAttributeString("variante", s.Variant);
+                    if (s.Repeat != RepeatMode.Interval) w.WriteAttributeString("wiederholung", s.Repeat == RepeatMode.Weekdays ? "wochentage" : "tage");
+                    if (s.WeekDays != 0) w.WriteAttributeString("wochentage", PackageStep.WeekDayText(s.WeekDays));
+                    if (s.DayList.Length > 0) w.WriteAttributeString("tage", s.DayList);
+                    if (s.Until > 0) w.WriteAttributeString("bis", I(s.Until));
+                    if (s.Shift.Count > 0) w.WriteAttributeString("versatz", s.ShiftText());
+                    if (s.Ansatz.Length > 0)
+                    {
+                        w.WriteAttributeString("ansatz", s.Ansatz); w.WriteAttributeString("gebinde", s.Gebinde);
+                        w.WriteAttributeString("menge", s.Menge); w.WriteAttributeString("einheit", s.Einheit);
+                    }
                     foreach (EquipAssign a in s.Equipment)
                     {
                         w.WriteStartElement("Equipment");
@@ -108,6 +120,13 @@ namespace Arbeitsplan.Core
                     s.SubNos = e.GetAttribute("unterlaeufe");
                     s.Text = e.GetAttribute("text"); s.Note = e.GetAttribute("notiz"); s.Ident = e.GetAttribute("kennung");
                     s.Variant = e.GetAttribute("variante");
+                    string wh = e.GetAttribute("wiederholung");   // fehlt bis Version 4: alle x Tage
+                    s.Repeat = wh == "wochentage" ? RepeatMode.Weekdays : (wh == "tage" ? RepeatMode.DayList : RepeatMode.Interval);
+                    s.WeekDays = PackageStep.ParseWeekDays(e.GetAttribute("wochentage")); s.DayList = e.GetAttribute("tage");
+                    s.Until = Clamp(ToInt(e.GetAttribute("bis"), 0), 0, 999); s.ParseShift(e.GetAttribute("versatz"));
+                    string an = e.GetAttribute("ansatz");
+                    s.Ansatz = Array.IndexOf(PackageStep.AnsatzKeys, an) > 0 ? an : "";
+                    s.Gebinde = e.GetAttribute("gebinde"); s.Menge = e.GetAttribute("menge"); s.Einheit = e.GetAttribute("einheit");
                     foreach (XmlElement q in Elements(e))
                         if (q.Name == "Equipment")
                         {

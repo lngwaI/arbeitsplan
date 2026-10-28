@@ -49,10 +49,11 @@ namespace Arbeitsplan.Win
         string CampaignText()
         {
             PackageStep m = null;
-            foreach (PackageStep s in Ordered()) if (s.Kind == StepKind.Run && (m == null || s.Count > m.Count)) m = s;
+            foreach (PackageStep s in Ordered()) if (s.Kind == StepKind.Run && (m == null || s.RunCount > m.RunCount)) m = s;
             if (m == null) return null;
-            int iv = Math.Max(1, m.Interval);
-            return "Lauf " + m.RunNo(prefix, 0) + (m.Count > 1 ? " bis " + m.RunNo(prefix, m.Count - 1) + " · alle " + iv + (iv == 1 ? " Tag" : " Tage") : "");
+            int iv = Math.Max(1, m.Interval), n = m.RunCount;
+            string rhythm = m.Repeat == RepeatMode.Interval ? "alle " + iv + (iv == 1 ? " Tag" : " Tage") : m.RepeatText();
+            return "Lauf " + m.RunNo(prefix, 0) + (n > 1 ? " bis " + m.RunNo(prefix, n - 1) + " · " + rhythm : "");
         }
 
 #if TESTHOOKS

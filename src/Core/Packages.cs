@@ -49,8 +49,9 @@ namespace Arbeitsplan.Core
     // Normal: Schritt (bei Wiederholung "Titel 1, 2, 3"); Run: Hauptlauf mit voller Laufnummer; SubRun: Unterlaeufe (Splitten/Einfrieren) eines Hauptlaufs.
     public enum StepKind { Normal, Run, SubRun }
 
-    // Ablaufschritt einer Kampagne: wann (Tag relativ zum Start), in welchem Block, was, mit welchem Equipment; optional wiederholt.
-    public class PackageStep
+    // Ablaufschritt einer Kampagne: wann (Tag relativ zum Start), in welchem Block, was, mit welchem Equipment; optional wiederholt
+    // (Wiederholmodi, Versatz je Lauf, Ansatz: Packages.Repeat.cs).
+    public partial class PackageStep
     {
         public string Title = "";           // z. B. "Lauf", "Packen"
         public string Source = "";          // Name des Bausteins, aus dem der Schritt stammt
@@ -83,6 +84,7 @@ namespace Arbeitsplan.Core
         public PackageStep Clone()
         {
             PackageStep s = (PackageStep)MemberwiseClone();
+            s.Shift = new Dictionary<int, int>(Shift);
             s.Equipment = new List<EquipAssign>();
             foreach (EquipAssign a in Equipment) s.Equipment.Add(a.Clone());
             return s;
@@ -98,7 +100,7 @@ namespace Arbeitsplan.Core
             }
         }
 
-        public bool Numbered { get { return Kind != StepKind.Normal || Count > 1; } }
+        public bool Numbered { get { return Kind != StepKind.Normal || RunCount > 1; } }
 
         // Laufnummer: mit Laufnummern-Praefix (XXYY, Package.Prefix) 8-stellig XXYYZZZZ (z. B. 13570030), sonst wie bisher "3".
         public string RunNo(string prefix, int run)
@@ -134,6 +136,7 @@ namespace Arbeitsplan.Core
             }
             else if (Title.Length > 0) lines.Add(Numbered ? Title + " " + RunNo(product, run) : Title);
             if (Text.Length > 0) lines.Add(Text);
+            if (AnsatzLine().Length > 0) lines.Add(AnsatzLine());   // z. B. "Gebinde: Flasche 5 L"
             foreach (EquipAssign a in Equipment) { string l = a.Line(run); if (l.Length > 0) lines.Add(l); }
             if (Note.Length > 0) lines.Add("Notiz: " + Note);
             if (IdentFor(run).Length > 0) lines.Add(IdentFor(run));   // immer die letzte Zeile (Format in BuildTargets)
@@ -149,14 +152,15 @@ namespace Arbeitsplan.Core
             return e;
         }
 
-        // Tag (1-basiert, Paket-Rhythmus) der Wiederholung run (0-basiert).
-        public int DayOf(int run) { return Day + run * Math.Max(1, Interval); }
+        // Tag (1-basiert, Paket-Rhythmus) der Wiederholung run (0-basiert); Tag 1 = Montag (Editor), sonst Days(day1).
+        public int DayOf(int run) { List<int> d = Days(); return run < d.Count ? d[run] : Day + run * Math.Max(1, Interval); }
 
-        // Alle Laeufe: Tag (1-basiert, Paket-Rhythmus) und Text.
-        public List<KeyValuePair<int, string>> Runs(string prefix)
+        // Alle Laeufe: Tag (1-basiert, Paket-Rhythmus) und Text; day1 = Wochentag des Starttags (Wiederholung an Wochentagen).
+        public List<KeyValuePair<int, string>> Runs(string prefix, DayOfWeek day1 = DayOfWeek.Monday)
         {
             List<KeyValuePair<int, string>> res = new List<KeyValuePair<int, string>>();
-            for (int i = 0; i < Math.Max(1, Count); i++) res.Add(new KeyValuePair<int, string>(DayOf(i), Compose(i, prefix)));
+            List<int> days = Days(day1);
+            for (int i = 0; i < days.Count; i++) res.Add(new KeyValuePair<int, string>(days[i], Compose(i, prefix)));
             return res;
         }
     }
@@ -231,7 +235,7 @@ namespace Arbeitsplan.Core
             {
                 PackageStep s = Steps[si];
                 if (s.IsEmpty) continue;
-                List<KeyValuePair<int, string>> runs = s.Runs(Prefix);
+                List<KeyValuePair<int, string>> runs = s.Runs(Prefix, start.DayOfWeek);
                 for (int ri = 0; ri < runs.Count; ri++)
                 {
                     KeyValuePair<int, string> run = runs[ri];
@@ -246,7 +250,7 @@ namespace Arbeitsplan.Core
                     t.Data.Content = t.Data.Content.Length > 0 ? t.Data.Content + "\n\n" + run.Value : run.Value;
                     string idt = s.IdentFor(ri);
                     if (idt.Length > 0) t.Data.Spans.Add(PackageStep.IdentSpan(t.Data.Content.Length - idt.Length, idt.Length));
-                    if (s.Variant.Length > 0) t.Data.Variant = VariantSet.Merge("", t.Data.Variant, s.Variant);   // Vereinigung (z. B. Puffer mobil + stationaer)
+                    if (s.Variant.Length > 0) t.Data.Variant = VariantSet.Sum(t.Data.Variant, s.Variant);   // mehrere Puffer am Tag: Anzahlen addieren
                 }
             }
             return order;
@@ -294,8 +298,8 @@ namespace Arbeitsplan.Core
                 for (int i = 0; i < 3; i++) if (n.People[i].Length > 0) result.People[i] = result.People[i].Length > 0 ? result.People[i] + ", " + n.People[i] : n.People[i];
             }
             result.Lkz = cur.Lkz || n.Lkz;
-            // Herstellungsvariante: ohne Angabe im Paket bleibt die vorhandene; anhaengen = Vereinigung, sonst die des Pakets
-            result.Variant = n.Variant.Length == 0 ? cur.Variant : (mode == ApplyMode.Append && !cur.IsEmpty ? VariantSet.Merge("", cur.Variant, n.Variant) : n.Variant);
+            // Herstellungsvariante: ohne Angabe im Paket bleibt die vorhandene; anhaengen = Anzahlen addieren, sonst die des Pakets
+            result.Variant = n.Variant.Length == 0 ? cur.Variant : (mode == ApplyMode.Append && !cur.IsEmpty ? VariantSet.Sum(cur.Variant, n.Variant) : n.Variant);
             return result;
         }
 
