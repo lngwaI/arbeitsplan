@@ -56,6 +56,7 @@ namespace Arbeitsplan.Win
                 {
                     w = TextW("Herstellung?", Font);
                     foreach (string v in Rows[r].VariantList()) w = Math.Max(w, TextW(v, Font));
+                    w = Math.Max(w, TextW(VariantSet.Display(Rows[r].Variants), Font));   // mehrere an einem Tag ("mobil + stationaer")
                     w += 16;
                 }
                 else w = TextW(Single(r) ? d[i].Name + "?" : d[i].Short, Font) + 22;
@@ -85,7 +86,7 @@ namespace Arbeitsplan.Win
                 if (s.Def < 0)
                 {
                     bool none = c.Variant.Length == 0;
-                    TextRenderer.DrawText(g, none ? "Herstellung?" : c.Variant, Font, new Rectangle(sr.X, sr.Y, sr.Width - 12, sr.Height), none ? th.Muted : th.HeadText, tf);
+                    TextRenderer.DrawText(g, none ? "Herstellung?" : VariantSet.Display(c.Variant), Font, new Rectangle(sr.X, sr.Y, sr.Width - 12, sr.Height), none ? th.Muted : th.HeadText, tf);
                     int ax = sr.Right - 10, ay = sr.Y + sr.Height / 2 - 1;
                     g.FillPolygon(th.Brush(th.Arrow), new Point[] { new Point(ax, ay), new Point(ax + 7, ay), new Point(ax + 3, ay + 4) });
                     continue;
@@ -134,7 +135,7 @@ namespace Arbeitsplan.Win
 
         string CheckTip(CellData c, CheckSlot s)
         {
-            if (s.Def < 0) return "Herstellung: " + (c.Variant.Length > 0 ? c.Variant : "nicht gewählt") + " (Klick = wählen)";
+            if (s.Def < 0) return "Herstellung: " + (c.Variant.Length > 0 ? VariantSet.Display(c.Variant) : "nicht gewählt") + " (Klick = wählen, mehrere möglich)";
             CheckDef d = DefsOf(c.RowIndex)[s.Def];
             return d.Name + ": " + (On(c, d) ? "erledigt" : StateText(StateOf(c, s.Def)));
         }

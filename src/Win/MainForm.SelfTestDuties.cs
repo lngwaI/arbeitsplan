@@ -95,8 +95,8 @@ namespace Arbeitsplan.Win
             List<string> cl2 = new List<string>();
             Entry r2 = Conflict.Merge(E("x", false, ""), E("x", false, "mobil"), E("x", false, "stationaer"), cl2);
             Entry r3 = Conflict.Merge(E("x", false, ""), E("x", false, "mobil"), E("x", false, "stationaer"), new List<string>(), true);
-            bool okV = cl2.Contains("Herstellung") && r2.Variant == "stationaer" && r3.Variant == "mobil";
-            sb.AppendLine("Merge: Pflichtpunkte je Schlüssel=" + Ok(okM) + " Variante Konflikt 'Herstellung'=" + Ok(okV));
+            bool okV = !cl2.Contains("Herstellung") && r2.Variant == "mobil|stationaer" && r3.Variant == "mobil|stationaer";   // beide geaendert = Vereinigung
+            sb.AppendLine("Merge: Pflichtpunkte je Schlüssel=" + Ok(okM) + " Variante beidseitig = Vereinigung=" + Ok(okV));
 
             // ---------- Datenformat v3 / v2 / v4 ----------
             List<RowInfo> rows = s.GetRows(); rows[0].Mode = ShiftMode.FS; rows[1].Mode = ShiftMode.Task; rows[1].Variants = "mobil|stationaer";

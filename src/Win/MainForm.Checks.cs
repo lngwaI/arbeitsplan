@@ -93,6 +93,7 @@ namespace Arbeitsplan.Win
             Change(c, delegate(CellData x) { x.Variant = v; }, delegate(Entry e) { return e.Variant == v; }, delegate(Entry e) { e.Variant = v; });
         }
 
+        // Mehrfachauswahl: Haken je Variante (an einem Tag z. B. mobil UND stationaer), "keine Angabe" leert
         void ChooseVariant(CellData c, Point screen)
         {
             variantMenu.Items.Clear();
@@ -101,8 +102,8 @@ namespace Arbeitsplan.Win
             {
                 string x = v;
                 ToolStripMenuItem it = new ToolStripMenuItem(v.Length > 0 ? v : "keine Angabe");
-                it.Checked = c.Variant == v;
-                it.Click += delegate { SetVariant(c, x); };
+                it.Checked = v.Length > 0 ? VariantSet.Contains(c.Variant, v) : c.Variant.Length == 0;
+                it.Click += delegate { SetVariant(c, x.Length > 0 ? VariantSet.Toggle(c.Variant, x) : ""); };
                 variantMenu.Items.Add(it);
             }
             variantMenu.Show(screen);

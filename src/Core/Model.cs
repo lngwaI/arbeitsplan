@@ -360,8 +360,9 @@ namespace Arbeitsplan.Core
             s.SaveStructure(rs);
             Entry v = new Entry(); v.Content = "Versand Kühlware"; v.People = new[] { "WEPA", "BEER", "" };
             s.Save(monday.AddDays(1), s.IdOf("Versand"), v);
-            // Puffer: Herstellung mobil (Tagesprobe automatisch), stationaer mit Tagesprobe, ohne Angabe
-            string[][] pf = { new[] { "Herstellung Puffer A", "mobil", "" }, new[] { "Herstellung Puffer B", "stationaer", "PROBE" }, new[] { "Puffer B abfüllen", "", "" } };
+            // Puffer: Herstellung mobil (Tagesprobe automatisch), stationaer mit Tagesprobe, ohne Angabe, beides an einem Tag
+            string[][] pf = { new[] { "Herstellung Puffer A", "mobil", "" }, new[] { "Herstellung Puffer B", "stationaer", "PROBE" }, new[] { "Puffer B abfüllen", "", "" },
+                              new[] { "Herstellung Puffer C und D", "mobil|stationaer", "PROBE" } };
             for (int d = 0; d < pf.Length; d++)
             {
                 Entry e = new Entry(); e.Content = pf[d][0]; e.Variant = pf[d][1]; e.People = new[] { "WEPA", "", "" };

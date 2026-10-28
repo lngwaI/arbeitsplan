@@ -69,6 +69,46 @@ namespace Arbeitsplan.Core
         }
     }
 
+    // Nachruesten fuer alte Bestaende (Zeile "Puffer" ohne Pflichtpunkte/Varianten): nur nach Rueckfrage, nur mit PackageAdmin,
+    // ergaenzt nur Fehlendes (vorhandene Pflichtpunkte und Varianten bleiben unveraendert).
+    public static class PufferSetup
+    {
+        public const string RowName = "Puffer", Variants = "mobil|stationaer";
+
+        public static RowInfo Row(List<RowInfo> rows)
+        {
+            foreach (RowInfo r in rows) if (string.Equals(r.Name.Trim(), RowName, StringComparison.OrdinalIgnoreCase)) return r;
+            return null;
+        }
+
+        // Standard-Pflichtpunkte, deren Schluessel es noch nicht gibt
+        static List<CheckDef> MissingDefs(DutyConfig cfg, int rowId)
+        {
+            DutyConfig t = new DutyConfig(); t.AddPufferDefaults(rowId);
+            return t.Defs.FindAll(delegate(CheckDef d) { return !cfg.Defs.Exists(delegate(CheckDef x) { return x.Key == d.Key; }); });
+        }
+
+        public static bool Needed(List<RowInfo> rows, DutyConfig cfg)
+        {
+            RowInfo r = Row(rows);
+            return r != null && (r.Variants.Length == 0 || MissingDefs(cfg, r.Id).Count > 0);
+        }
+
+        // Richtet im Bestand ein, was fehlt; false = nichts zu tun oder kein Recht. Exception = nicht speicherbar.
+        public static bool Apply(IDataStore s, User u)
+        {
+            if (u == null || !u.Has(Perm.PackageAdmin)) return false;
+            List<RowInfo> rows = s.GetRows();
+            DutyConfig cfg = s.GetDuties();
+            if (!Needed(rows, cfg)) return false;
+            RowInfo r = Row(rows);
+            List<CheckDef> add = MissingDefs(cfg, r.Id);
+            if (r.Variants.Length == 0) { r.Variants = Variants; s.SaveStructure(rows); }
+            if (add.Count > 0) { cfg.Defs.AddRange(add); s.SaveDuties(cfg); }
+            return true;
+        }
+    }
+
     // Wochenhaken (Rundgang) je ISO-KW; Version wie bei Entry (Konflikterkennung).
     public class WeekMark
     {
@@ -110,6 +150,33 @@ namespace Arbeitsplan.Core
         }
     }
 
+    // Herstellungsvarianten eines Blocks (Entry.Variant): eine oder mehrere, mit "|" getrennt (z. B. "mobil|stationaer"),
+    // kanonisch sortiert; ein einzelner Wert (alte Daten) bleibt gueltig.
+    public static class VariantSet
+    {
+        public static List<string> Of(string v)
+        {
+            List<string> l = new List<string>();
+            foreach (string t in (v ?? "").Split('|')) { string x = t.Trim(); if (x.Length > 0 && !l.Contains(x)) l.Add(x); }
+            l.Sort(StringComparer.Ordinal);
+            return l;
+        }
+        static string Join(List<string> l) { l.Sort(StringComparer.Ordinal); return string.Join("|", l.ToArray()); }
+        public static bool Contains(string v, string x) { return Of(v).Contains(x); }
+        public static string Toggle(string v, string x) { List<string> l = Of(v); if (!l.Remove(x)) l.Add(x); return Join(l); }
+        public static string Display(string v) { return string.Join(" + ", Of(v).ToArray()); }
+
+        // Dreiwege je Variante: wer sie geaendert hat, gewinnt; beide Seiten geaendert = Vereinigung (nie ein Konflikt)
+        public static string Merge(string b, string mine, string theirs)
+        {
+            List<string> lb = Of(b), lm = Of(mine), lt = Of(theirs), all = new List<string>(lm), r = new List<string>();
+            foreach (string x in lt) if (!all.Contains(x)) all.Add(x);
+            foreach (string x in lb) if (!all.Contains(x)) all.Add(x);
+            foreach (string x in all) if (lm.Contains(x) == lb.Contains(x) ? lt.Contains(x) : lm.Contains(x)) r.Add(x);
+            return Join(r);
+        }
+    }
+
     public enum DayState { NA, Done, Auto, Missing, Due, NotNeeded, WeekOpen }
 
     public static class CheckEval
@@ -119,15 +186,30 @@ namespace Arbeitsplan.Core
         public static bool IsSet(Entry e, CheckDef d) { return d.Key == CheckDef.LkzKey ? e.Lkz : e.Marks.Contains(d.Key); }
 
         // Variante v mit Praefix p ("!" oder "+") in Cond?
-        static bool Has(CheckDef d, char p, string variant)
+        static bool Cond(CheckDef d, char p, string v)
         {
-            if (string.IsNullOrEmpty(variant)) return false;
             foreach (string t in d.Cond.Split(','))
             {
                 string x = t.Trim();
-                if (x.Length > 1 && x[0] == p && string.Equals(x.Substring(1), variant, StringComparison.OrdinalIgnoreCase)) return true;
+                if (x.Length > 1 && x[0] == p && string.Equals(x.Substring(1), v, StringComparison.OrdinalIgnoreCase)) return true;
             }
             return false;
+        }
+
+        // Entfaellt ("!"): irgendeine Variante des Tages traegt die Bedingung (z. B. stationaer, auch zusammen mit mobil)
+        static bool Has(CheckDef d, char p, string variant)
+        {
+            foreach (string v in VariantSet.Of(variant)) if (Cond(d, p, v)) return true;
+            return false;
+        }
+
+        // Automatisch ("+"): ALLE Varianten des Tages sind automatisch (mobil allein ja, mobil + stationaer nein)
+        static bool Auto(CheckDef d, string variant)
+        {
+            List<string> l = VariantSet.Of(variant);
+            if (l.Count == 0) return false;
+            foreach (string v in l) if (!Cond(d, '+', v)) return false;
+            return true;
         }
 
         static Entry[] LoadWeek(IDataStore s, CheckDef d, DateTime monday)
@@ -155,13 +237,19 @@ namespace Arbeitsplan.Core
                     if (set) return DayState.Done;
                     return AnySet(w, d) ? DayState.NotNeeded : DayState.WeekOpen;
                 case CheckRule.Workdays:
-                    if (day.DayOfWeek == DayOfWeek.Saturday || day.DayOfWeek == DayOfWeek.Sunday || Holidays.Is(day, cfg) || Has(d, '!', e.Variant)) return DayState.NA;
-                    if (Has(d, '+', e.Variant)) return DayState.Auto;
+                    if (Has(d, '!', e.Variant)) return DayState.NA;
+                    if (day.DayOfWeek == DayOfWeek.Saturday || day.DayOfWeek == DayOfWeek.Sunday || Holidays.Is(day, cfg))
+                    {   // Wochenende/Feiertag: nur faellig, wenn dort hergestellt wird und nicht alles automatisch ist (z. B. stationaer)
+                        if (set) return DayState.Done;
+                        if (e.Variant.Length == 0) return DayState.NA;
+                        return Auto(d, e.Variant) ? DayState.Auto : open;
+                    }
+                    if (Auto(d, e.Variant)) return DayState.Auto;
                     return set ? DayState.Done : open;
                 default:   // IfOccupied
                     if (Has(d, '!', e.Variant)) return DayState.NA;
                     if (set) return DayState.Done;
-                    if (Has(d, '+', e.Variant)) return DayState.Auto;
+                    if (Auto(d, e.Variant)) return DayState.Auto;
                     if (e.Content.Trim().Length > 0) return open;
                     if (!d.Weekly) return DayState.NotNeeded;
                     return AnySet(w, d) ? DayState.NotNeeded : DayState.WeekOpen;

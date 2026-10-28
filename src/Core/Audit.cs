@@ -56,7 +56,7 @@ namespace Arbeitsplan.Core
             string s = e.Content;
             for (int i = 0; i < 3; i++) s += "\n" + labels[i] + ": " + e.People[i];
             s += "\nLKZ gemessen: " + (e.Lkz ? "ja" : "nein");
-            if (e.Variant.Length > 0) s += "\nHerstellung: " + e.Variant;
+            if (e.Variant.Length > 0) s += "\nHerstellung: " + VariantSet.Display(e.Variant);
             if (e.Marks.Count > 0) s += "\nAbgehakt: " + string.Join(", ", e.Marks.ToArray());
             return s;
         }

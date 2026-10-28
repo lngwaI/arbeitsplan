@@ -40,7 +40,7 @@ namespace Arbeitsplan.Core
                 if (mine.Marks.Contains(k) == b.Marks.Contains(k) ? theirs.Marks.Contains(k) : mine.Marks.Contains(k)) r.Marks.Add(k);
             if (mine.Variant == b.Variant || mine.Variant == theirs.Variant) r.Variant = theirs.Variant;
             else if (theirs.Variant == b.Variant) r.Variant = mine.Variant;
-            else { r.Variant = preferMine ? mine.Variant : theirs.Variant; clashes.Add("Herstellung"); }
+            else r.Variant = VariantSet.Merge(b.Variant, mine.Variant, theirs.Variant);   // mehrere Varianten je Tag: Vereinigung statt Konflikt
             return r;
         }
 
