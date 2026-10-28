@@ -16,13 +16,13 @@ namespace Arbeitsplan.Win
         readonly CheckBox[] chkDays = new CheckBox[7];
         readonly TextBox tDays = new TextBox(), tGebinde = new TextBox(), tMenge = new TextBox();
         readonly Panel pVar = new Panel();
-        Label lDay, lRepeat, lInterval, lIntervalUnit, lEnd, lEndUnit, lDaysList, lDaysHelp, lDates, lStartNo, lNoEx, lAnsatz, lGebinde, lMenge;
-        static readonly string[] RepeatNames = { "nicht (einmalig)", "alle x Tage", "an bestimmten Wochentagen", "an bestimmten Tagen der Kampagne" };
+        Label lDay, lRepeat, lInterval, lIntervalUnit, lEndUnit, lDaysList, lDaysHelp, lDates, lStartNo, lNoEx, lAnsatz, lGebinde, lMenge;
+        static readonly string[] RepeatNames = { "einmalig", "alle x Tage", "an Wochentagen", "an Tagen der Kampagne" };
 
         void BuildWhen()
         {
             gWhen = Group("Wann?", "Tag 1 = Startdatum der Kampagne", 270);
-            int lw = LabelW("Tag der Kampagne:", "Wiederholt sich:", "Abstand:", "Laufnummer ab:", "Ende:", "Tage:"), x = 8 + lw, w = 270 - 8 - x;
+            int lw = LabelW("Tag der Kampagne:", "Wiederholt sich:", "Abstand:", "Laufnummer ab:", "Tage:"), x = 8 + lw, w = 270 - 8 - x;
             lDay = Lbl(gWhen, "Tag der Kampagne:", 8, lw); Num(nDay, 1, 366, x, 60, gWhen);
             lRepeat = Lbl(gWhen, "Wiederholt sich:", 8, lw); cbRepeat.SetBounds(x, 0, w, IH); cbRepeat.DropDownStyle = ComboBoxStyle.DropDownList;
             cbRepeat.Items.AddRange(RepeatNames); gWhen.Controls.Add(cbRepeat);
@@ -36,8 +36,8 @@ namespace Arbeitsplan.Win
             }
             lDaysList = Lbl(gWhen, "Tage:", 8, lw); tDays.SetBounds(x, 0, w, IH); gWhen.Controls.Add(tDays); Ui.SimpleMenu(tDays);
             lDaysHelp = Lbl(gWhen, "Komma-getrennt, z. B. 1, 4, 9", x, w);
-            lEnd = Lbl(gWhen, "Ende:", 8, lw); cbEnd.SetBounds(x, 0, 92, IH); cbEnd.DropDownStyle = ComboBoxStyle.DropDownList; cbEnd.Items.AddRange(new object[] { "nach Anzahl", "bis Tag" });
-            Num(nCount, 1, PackageStep.MaxRuns, x + 98, 56, gWhen); Num(nUntil, 1, 999, x + 98, 56, gWhen); lEndUnit = Lbl(gWhen, "mal", x + 160, Math.Max(10, w - 160));
+            cbEnd.SetBounds(8, 0, lw - 4, IH); cbEnd.DropDownStyle = ComboBoxStyle.DropDownList; cbEnd.Items.AddRange(new object[] { "nach Anzahl", "bis Tag" });
+            Num(nCount, 1, PackageStep.MaxRuns, x, 60, gWhen); Num(nUntil, 1, 999, x, 60, gWhen); lEndUnit = Lbl(gWhen, "mal", x + 66, w - 66);
             gWhen.Controls.Add(cbEnd);
             lDates = Lbl(gWhen, "", 8, 254); lDates.Height = 2 * Font.Height + 2; lDates.TextAlign = ContentAlignment.TopLeft; lDates.AutoEllipsis = true;
             lStartNo = Lbl(gWhen, "Laufnummer ab:", 8, lw); Num(nStartNo, 0, 99999, x, 66, gWhen); lNoEx = Lbl(gWhen, "", x + 72, w - 72);
@@ -45,7 +45,8 @@ namespace Arbeitsplan.Win
             Grow(cbRepeat, tDays, lDaysHelp, lIntervalUnit, lEndUnit, lDates, lNoEx); Gray(lDaysHelp, lDates, lNoEx);
             tip.SetToolTip(nStartNo, "Hintere 4 Stellen (ZZZZ) des ersten Laufs dieses Schritts; normalerweise wie „Erste Laufnummer“ oben.");
             tip.SetToolTip(cbRepeat, "Wann sich der Schritt wiederholt; die Termine stehen darunter und im Kalender unten.");
-            tip.SetToolTip(tDays, "Tage der Kampagne, an denen der Schritt stattfindet (Tag 1 = Startdatum)");
+            tip.SetToolTip(cbEnd, "Ende der Wiederholung: nach einer Anzahl Läufe oder bis zu einem Tag der Kampagne");
+            tip.SetToolTip(tDays,"Tage der Kampagne, an denen der Schritt stattfindet (Tag 1 = Startdatum)");
 
             nDay.ValueChanged += delegate { if (Edit()) { cur.Day = (int)nDay.Value; Changed(); } };
             nCount.ValueChanged += delegate { if (Edit()) { cur.Count = (int)nCount.Value; Changed(); } };
@@ -129,7 +130,7 @@ namespace Arbeitsplan.Win
             y = Row(y, ri == 1, lInterval, nInterval, lIntervalUnit);
             y = Row(y, ri == 2, chkDays);
             y = Row(y, ri == 3, lDaysList, tDays); y = Row(y, ri == 3, lDaysHelp) - (ri == 3 ? 4 : 0);
-            y = Row(y, end, lEnd, cbEnd, nCount, nUntil, lEndUnit);
+            y = Row(y, end, cbEnd, nCount, nUntil, lEndUnit);
             nCount.Visible = end && s.Until == 0; nUntil.Visible = end && s.Until > 0;
             lEndUnit.Text = s.Until > 0 ? "" : "mal";
             lDates.Text = DatesText(s); tip.SetToolTip(lDates, lDates.Text);

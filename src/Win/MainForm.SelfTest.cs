@@ -75,6 +75,14 @@ namespace Arbeitsplan.Win
                 PackageStep pu = new PackageStep(); pu.Title = "Puffer"; pu.Source = "Puffer"; pu.Row = "Puffer"; pu.Day = 2; pu.Variant = "mobil|stationaer"; pu.Note = "Puffer A";
                 demo.Steps.Add(pu);
             }
+            if (which == "package5" || which == "package6")   // Paket 3: Lauf Mo/Mi/Fr mit verschobenem 2. Lauf; Puffer 2x mobil + 1x stationaer aus Flasche
+            {
+                demo = Package.SampleCampaign("Testpaket");
+                PackageStep lf = demo.Steps[2]; lf.Repeat = RepeatMode.Weekdays; lf.WeekDays = 1 | 4 | 16; lf.Count = 6; lf.Shift[1] = 1;
+                PackageStep pu = new PackageStep(); pu.Title = "Puffer"; pu.Source = "Puffer"; pu.Row = "Puffer"; pu.Day = 2; pu.Variant = "mobil:2|stationaer";
+                pu.Ansatz = "gebinde"; pu.Gebinde = "Flasche"; pu.Menge = "5"; pu.Einheit = "L"; pu.Repeat = RepeatMode.DayList; pu.DayList = "2, 5, 9";
+                demo.Steps.Add(pu);
+            }
             if (which.StartsWith("rt:")) demo = Package.Load(which.Substring(3));   // Roundtrip: Datei laden, im Editor unveraendert wieder speichern (.rt.apkg)
             if (which == "campaign2")   // fruehere Kampagne (Laeufe 1-4, Abstaende 5, 5, 7) sechs Wochen vorher
                 Package.SampleCampaign("alt").Apply(store, start.AddDays(-42), ApplyMode.Overwrite, Package.SampleCampaign("alt").Schedule(new List<int>(new[] { 5, 5, 7 })));
@@ -107,6 +115,8 @@ namespace Arbeitsplan.Win
             if (pf != null && which == "package2sub") pf.SelectStep(2);   // Unterlauf-Schritt (Splitten)
             if (pf != null && which == "package3") pf.SelectStep(2);
             if (pf != null && which == "package4") { pf.SelectStep(2); pf.TestMore(); }
+            if (pf != null && which == "package5") pf.SelectStep(3);
+            if (pf != null && which == "package6") pf.SelectStep(2);
             return f;
         }
 

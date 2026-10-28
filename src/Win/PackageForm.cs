@@ -93,7 +93,7 @@ namespace Arbeitsplan.Win
         {
             left.Dock = DockStyle.Left; left.Width = 400; left.Padding = new Padding(8, 8, 0, 8); left.Tag = "keep";
             int w = 360;
-            Section flow = new Section("1   Ablauf", "Nach Tag sortiert, am selben Tag deine Reihenfolge (▲▼, Alt+↑↓, Ziehen).", true, w);
+            Section flow = new Section("1   Ablauf", "Nach Tag sortiert; gleicher Tag: deine Reihenfolge (▲▼).", true, w);
             lv.View = View.Details; lv.FullRowSelect = true; lv.HideSelection = false; lv.MultiSelect = false; lv.ShowItemToolTips = true;
             lv.HeaderStyle = ColumnHeaderStyle.Nonclickable; lv.Dock = DockStyle.Fill;
             lv.Columns.Add("Nr", 30); lv.Columns.Add("Tag", 46); lv.Columns.Add("Raum", 76); lv.Columns.Add("Schritt", 110); lv.Columns.Add("Wiederholung", 96);
@@ -112,7 +112,7 @@ namespace Arbeitsplan.Win
             Btn(bDel, "Entfernen…", 184, bh + 10, 100, delegate { RemoveStep(); });
             btns.Controls.AddRange(new Control[] { bAdd, bUp, bDown, bDup, bDel });
             tip.SetToolTip(bAdd, "Baustein (Packen, Lauf, Splitten …) oder leeren Schritt hinzufügen");
-            tip.SetToolTip(lv, "Anklicken = rechts bearbeiten. Ziehen = Reihenfolge ändern.");
+            tip.SetToolTip(lv, "Anklicken = rechts bearbeiten. Ziehen oder Alt+↑/↓ = Reihenfolge ändern (über die Tagesgrenze: übernimmt den Tag des Nachbarn).");
             tip.SetToolTip(bUp, "Schritt nach oben (Alt+Hoch); übernimmt dabei ggf. den Tag des Vorgängers");
             tip.SetToolTip(bDown, "Schritt nach unten (Alt+Runter); übernimmt dabei ggf. den Tag des Nachfolgers");
             tip.SetToolTip(bDup, "Gewählten Schritt kopieren (Strg+D)");
