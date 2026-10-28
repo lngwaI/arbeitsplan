@@ -31,7 +31,7 @@ jobs:
           if (-not $sc.WaitForExit(120000)) { $sc.Kill() }
           foreach ($f in 'stressA.txt','stressB.txt','stress.txt') { if (Test-Path $f) { Get-Content $f -Encoding utf8 | Add-Content selftest.txt -Encoding utf8 } else { Add-Content selftest.txt "Lasttest: FEHLER $f fehlt" -Encoding utf8 } }
           Get-Content selftest.txt
-          $miss = @(foreach ($k in 'Schl','Datendatei','APBAK2','Umgebung','Mehrplatz:','Mehrplatz-Prozesse','Kampagnenstart','Equipment:','Schichtmodus:','Pruefleiste:','Rundgaenge-UI:','Stammdaten-Formular','Produkte-Formular','Plan-Datei:','Sicherung-Zeitplan:','Paket-Editor Resize:','Puffer-Varianten:','Puffer-Migration:','2-Wochen:','Hervorhebung:','Offene Pflichten:') { if (-not (Select-String -Path selftest.txt -Pattern $k -Encoding utf8 -Quiet)) { $k } })
+          $miss = @(foreach ($k in 'Schl','Datendatei','APBAK2','Umgebung','Mehrplatz:','Mehrplatz-Prozesse','Kampagnenstart','Equipment:','Schichtmodus:','Pruefleiste:','Rundgaenge-UI:','Stammdaten-Formular','Produkte-Formular','Plan-Datei:','Sicherung-Zeitplan:','Paket-Editor Resize:','Puffer-Varianten:','Puffer-Migration:','2-Wochen:','Hervorhebung:','Offene Pflichten:','Paket2 Produktcode:','Paket2 Laufnummer:','Paket2 alte Pakete:','Paket2 Puffer-Variante:','Paket2 Bausteine:','Paket2 Kampagnenstart:','Paket2 Hinweis-Klick:','Paket2 Kopfzeile:','Paket2 Schrittauswahl:') { if (-not (Select-String -Path selftest.txt -Pattern $k -Encoding utf8 -Quiet)) { $k } })
           $bad = @(Select-String -Path selftest.txt -Pattern 'FEHLER' -Encoding utf8)
           # Ergebnis als Annotation: ohne Login ueber die GitHub-API lesbar (Logs/Artefakte brauchen ein Konto)
           foreach ($m in ($bad | Select-Object -First 10)) { Write-Host ("::error title=Selbsttest::" + $m.Line) }
@@ -49,6 +49,8 @@ jobs:
             @('paket', '--form','package2'),
             @('paket-4x3', '--size','1024x768','--form','package2'),
             @('paket-neu', '--form','package'),
+            @('paket-puffer', '--form','package4'),
+            @('schritt-auswahl', '--form','steppicker'),
             @('kampagne', '--form','campaign'),
             @('kampagne-bildschirm', '--form','campaign','--screen'),
             @('nutzer', '--users'),

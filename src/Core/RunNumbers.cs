@@ -5,7 +5,7 @@ using System.Text.RegularExpressions;
 
 namespace Arbeitsplan.Core
 {
-    // Laufnummer XXYYZZZZ (8 Ziffern) im Blockinhalt: Produktcode = erste 4 Ziffern, Lauf = letzte 4.
+    // Laufnummer XXYYZZZZ (8 Ziffern) im Blockinhalt: Product = Praefix XXYY (erste 4 Ziffern, Package.RunPrefix; vom freien Produktcode unabhaengig), Lauf = letzte 4.
     public class RunRef
     {
         public string Product, Run;
@@ -24,7 +24,7 @@ namespace Arbeitsplan.Core
         // Alle Laufnummern des Textes (ohne Doppelte, Reihenfolge des Auftretens).
         public static List<RunRef> Find(string content) { return Find(content, null); }
 
-        // product: nur Laeufe mit diesem Produktcode (XXYY), null = alle.
+        // product: nur Laeufe mit diesem Praefix (XXYY), null = alle.
         public static List<RunRef> Find(string content, string product)
         {
             List<RunRef> res = new List<RunRef>();
@@ -64,7 +64,7 @@ namespace Arbeitsplan.Core
             return (h & 0x7fffffff) % count;
         }
 
-        // "Produkt 1357 · Lauf 0030, 0031" je Produkt eine Zeile.
+        // "Läufe 1357xxxx: 0030, 0031" je Praefix eine Zeile.
         public static string Describe(List<RunRef> runs)
         {
             List<string> prods = new List<string>();
@@ -74,7 +74,7 @@ namespace Arbeitsplan.Core
             {
                 List<string> nos = new List<string>();
                 foreach (RunRef r in runs) if (r.Product == p) nos.Add(r.Run);
-                lines.Add("Produkt " + p + " · Lauf " + string.Join(", ", nos.ToArray()));
+                lines.Add("Läufe " + p + "xxxx: " + string.Join(", ", nos.ToArray()));
             }
             return string.Join("\n", lines.ToArray());
         }

@@ -16,8 +16,9 @@ namespace Arbeitsplan.Win
         static readonly Color Orange = Color.FromArgb(255, 228, 190);   // abweichend vom Vorschlag
         readonly Package pkg;
         readonly DateTimePicker dtStart = new DateTimePicker();
-        readonly NumericUpDown nFirst = new NumericUpDown();
+        readonly TextBox tFirst = new TextBox();   // komplette 8-stellige erste Laufnummer (z. B. 13570030)
         readonly Label lFirst = new Label(), info = new Label();
+        readonly Button ok = new Button();
         readonly CheckBox chkShift = new CheckBox(), chkRooms = new CheckBox(), chkRhythm = new CheckBox();
         readonly DataGridView grid = new DataGridView();
         readonly List<int> gaps;
@@ -29,6 +30,10 @@ namespace Arbeitsplan.Win
         readonly ComboBox cbMode = new ComboBox();
 
         public DateTime Start { get { return dtStart.Value.Date; } }
+        public string Warning { get; private set; }   // ungueltige erste Laufnummer oder Ueberlauf > 9999 (sperrt "In Plan übernehmen"); null = ok
+
+        // Erste Laufnummer eintippen (wie der Nutzer), z. B. "13570030"
+        public string FirstRunText { get { return tFirst.Text; } set { tFirst.Text = value; } }
         public ApplyMode Mode { get { return (ApplyMode)cbMode.SelectedIndex; } }
 
         // Rhythmus der frueheren Kampagne verwenden (nur sichtbar, wenn eine gefunden wurde).
@@ -62,21 +67,23 @@ namespace Arbeitsplan.Win
             Controls.Add(L("Startdatum (Tag 1):", 10, 14));
             dtStart.Format = DateTimePickerFormat.Custom; dtStart.CustomFormat = "dd.MM.yyyy";   // immer TT.MM.JJJJ (GMP), unabhaengig von der Windows-Einstellung
             dtStart.Value = start; dtStart.SetBounds(130, 10, 110, 22); Controls.Add(dtStart);
-            Controls.Add(L("Erster Lauf:" + (Package.IsCode4(p.ProductCode) ? "  " + p.ProductCode : ""), 265, 14));
-            nFirst.SetBounds(375, 10, 65, 22); nFirst.Minimum = 0; nFirst.Maximum = 9999; Controls.Add(nFirst);
-            lFirst.SetBounds(448, 14, 262, 18); Controls.Add(lFirst);
+            Font big = new Font(Font.FontFamily, Font.SizeInPoints + 2f, FontStyle.Bold);
+            Label lf = L("Erste Laufnummer:", 255, 12); lf.Font = big; Controls.Add(lf);
+            tFirst.Font = big; tFirst.MaxLength = 8; tFirst.SetBounds(lf.Left + lf.PreferredWidth + 4, 8, 112, tFirst.PreferredHeight); Ui.SimpleMenu(tFirst); Controls.Add(tFirst);
+            lFirst.SetBounds(tFirst.Right + 8, 14, 710 - tFirst.Right - 8, 18); lFirst.AutoEllipsis = true; Controls.Add(lFirst);
 
             int first = p.FirstRunNo;
-            nFirst.Enabled = first >= 0;
-            if (first >= 0) nFirst.Value = first;
-            Package.RunHistory h = Package.History(store, p.ProductCode, start);   // nur Laeufe vor dem Kampagnenstart
+            tFirst.Enabled = first >= 0;
+            tFirst.Text = p.FirstRun;
+            string pre = p.Prefix;   // Laufnummern-Praefix XXYY (alte Pakete: Produktcode)
+            Package.RunHistory h = Package.History(store, pre, start);   // nur Laeufe vor dem Kampagnenstart
             if (h.Found)
             {
-                info.Text = "Im Plan gefunden: letzter Lauf " + p.ProductCode + h.No.ToString("0000") + " am " + Ui.DayText(h.Day)
+                info.Text = "Im Plan gefunden: letzter Lauf " + Package.FormatRun(pre, h.No) + " am " + Ui.DayText(h.Day)
                     + (h.Interval > 0 ? ", Abstand meist " + h.Interval + " Tag(e)" : "") + ". Vorschlag: nächste Nummer.";
-                if (first >= 0 && h.No < 9999) nFirst.Value = h.No + 1;
+                if (first >= 0) tFirst.Text = Package.FormatRun(pre, h.No + 1);
             }
-            else info.Text = Package.IsCode4(p.ProductCode) ? "Keine früheren Läufe dieses Produkts im Plan gefunden." : "Paket ohne Produktcode: Läufe werden einfach durchnummeriert.";
+            else info.Text = pre.Length > 0 ? "Keine früheren Läufe " + pre + "xxxx im Plan gefunden." : "Paket ohne 8-stellige Laufnummer: Läufe werden einfach durchnummeriert.";
             info.SetBounds(10, 40, 700, 18); Controls.Add(info);
 
             gaps = h.Gaps;
@@ -114,13 +121,13 @@ namespace Arbeitsplan.Win
             cbMode.DropDownStyle = ComboBoxStyle.DropDownList; cbMode.SetBounds(135, 504, 250, 22);
             cbMode.Items.AddRange(new object[] { "Nur leere Blöcke füllen", "Vorhandenes überschreiben", "An vorhandenen Text anhängen" });
             cbMode.SelectedIndex = (int)mode; Controls.Add(cbMode);
-            Button ok = new Button(); ok.Text = "In Plan übernehmen"; ok.SetBounds(480, 502, 135, 28);
+            ok.Text = "In Plan übernehmen"; ok.SetBounds(480, 502, 135, 28);
             ok.Click += delegate { grid.EndEdit(); DialogResult = DialogResult.OK; };
             Button cancel = new Button(); cancel.Text = "Abbrechen"; cancel.SetBounds(620, 502, 90, 28); cancel.DialogResult = DialogResult.Cancel;
             Controls.Add(ok); Controls.Add(cancel); CancelButton = cancel;
 
             dtStart.ValueChanged += delegate { Recalc(); };
-            nFirst.ValueChanged += delegate { Recalc(); };
+            tFirst.TextChanged += delegate { Recalc(); };
             chkRhythm.CheckedChanged += delegate { Recalc(); };
             Recalc();
         }
@@ -140,12 +147,16 @@ namespace Arbeitsplan.Win
         // Vorschlaege neu berechnen (Start/erste Nummer/Rhythmus geaendert); eigene Verschiebungen und Raeume bleiben je Lauf erhalten.
         void Recalc()
         {
-            if (pkg.FirstRunNo >= 0) pkg.Renumber((int)nFirst.Value);
+            bool valid = pkg.FirstRunNo < 0 || pkg.SetFirstRun(tFirst.Text);   // 8 Ziffern: Praefix + Lauf; Folgelaeufe zaehlen hoch
+            string over = pkg.Overflow();
             sched = pkg.Schedule(chkRhythm.Checked ? gaps : null);
             sched.Sort(delegate(RunDate a, RunDate b) { return a.Day != b.Day ? a.Day.CompareTo(b.Day) : (a.Step != b.Step ? a.Step.CompareTo(b.Step) : a.Run.CompareTo(b.Run)); });
             string firstLabel = "";
             foreach (RunDate d in sched) if (pkg.Steps[d.Step].Kind != StepKind.Normal) { firstLabel = d.Label; break; }
-            lFirst.Text = firstLabel.Length > 0 ? "→ " + firstLabel : "(keine Läufe im Paket)";
+            lFirst.Text = !valid ? "bitte 8 Ziffern eingeben (z. B. 13570030)" : over ?? (firstLabel.Length > 0 ? "→ " + firstLabel : "(keine Läufe im Paket)");
+            lFirst.ForeColor = valid && over == null ? SystemColors.ControlText : Color.Firebrick;
+            Warning = valid ? over : lFirst.Text;
+            ok.Enabled = Warning == null;
             filling = true;
             grid.Rows.Clear();
             for (int i = 0; i < sched.Count; i++)

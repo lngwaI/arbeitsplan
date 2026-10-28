@@ -23,12 +23,14 @@ namespace Arbeitsplan.Win
         bool loading;
 
         // x-Positionen der Spalten (Position, Geraet, abwechselnd, Ausweich, Notiz, Entfernen, Ende) fuer die Breite w; auch fuer die Spaltenkoepfe.
-        public static int[] Cols(int w)
+        // wide = false ("Mehr Optionen" zu): abwechselnd und Ausweich ohne Breite.
+        public static int[] Cols(int w, bool wide)
         {
-            int rest = Math.Max(420, w - AltW - DelW - 5 * Gap);
-            int p = rest * 27 / 100, id = rest * 25 / 100, fb = rest * 23 / 100, nt = rest - p - id - fb;
+            int alt = wide ? AltW : 0, gaps = wide ? 5 * Gap : 3 * Gap;
+            int rest = Math.Max(wide ? 420 : 300, w - alt - DelW - gaps);
+            int p = rest * (wide ? 27 : 34) / 100, id = rest * (wide ? 25 : 33) / 100, fb = wide ? rest * 23 / 100 : 0, nt = rest - p - id - fb;
             int[] x = new int[7];
-            x[1] = p + Gap; x[2] = x[1] + id + Gap; x[3] = x[2] + AltW + Gap; x[4] = x[3] + fb + Gap; x[5] = x[4] + nt + Gap; x[6] = x[5] + DelW;
+            x[1] = p + Gap; x[2] = x[1] + id + Gap; x[3] = x[2] + alt + (wide ? Gap : 0); x[4] = x[3] + fb + (wide ? Gap : 0); x[5] = x[4] + nt + Gap; x[6] = x[5] + DelW;
             return x;
         }
 
@@ -46,7 +48,7 @@ namespace Arbeitsplan.Win
             foreach (EquipChoice c in cat.Interchangeable(a.Short)) { string t = c.Short == a.Short ? c.Id : c.Short + " " + c.Id; if (!cbFb.Items.Contains(t)) cbFb.Items.Add(t); }
             chkAlt.Text = "abwechselnd";
             bool rot = pos != null && pos.AllowRotation;      // nur wo der Admin Rotation hinterlegt hat (z. B. Abfüllskid)
-            chkAlt.Visible = btnAlt.Visible = rot || a.Alternate;   // bereits gesetzte Rotation (Import) bleibt sicht- und aenderbar, nichts wird still veraendert
+            chkAlt.Visible = btnAlt.Visible = rot || a.Alternate;   // bereits gesetzte Rotation (Import) bleibt sicht- und aenderbar, nichts wird still veraendert (Arrange: nur bei "Mehr Optionen")
             bool fix = cat.IsFixed(product, a.Short);          // festes Geraet je Kampagne: nur Abschalten einer vorhandenen Rotation erlaubt
             chkAlt.Enabled = !fix || a.Alternate;
             btnAlt.Text = "…";
@@ -119,17 +121,19 @@ namespace Arbeitsplan.Win
             return r;
         }
 
-        public void Arrange(int w)
+        public void Arrange(int w, bool wide)
         {
-            int[] x = Cols(w);
+            int[] x = Cols(w, wide);
             int h = cbId.Height;
             Size = new Size(x[6], h + 6);
             name.SetBounds(2, 3, x[1] - Gap - 2, h);
             name.TextAlign = ContentAlignment.MiddleLeft;
             cbId.SetBounds(x[1], 3, x[2] - x[1] - Gap, h);
+            bool rot = (pos != null && pos.AllowRotation) || a.Alternate;
+            chkAlt.Visible = btnAlt.Visible = wide && rot; cbFb.Visible = wide;
             chkAlt.SetBounds(x[2], 3, AltW - 30, h);
             btnAlt.SetBounds(x[2] + AltW - 28, 3, 28, h);
-            cbFb.SetBounds(x[3], 3, x[4] - x[3] - Gap, h);
+            cbFb.SetBounds(x[3], 3, Math.Max(0, x[4] - x[3] - Gap), h);
             note.SetBounds(x[4], 3, x[5] - x[4] - Gap, h);
             del.SetBounds(x[5], 3, DelW, h);
             foreach (ComboBox c in new[] { cbId, cbFb }) if (!c.Focused) c.SelectionLength = 0;   // Groessenaenderung markiert sonst den ganzen Text

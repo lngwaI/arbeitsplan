@@ -158,8 +158,25 @@ namespace Arbeitsplan.Core
             c.Bausteine.Add(Bau("Backfill", "Suite 1", false, false, false));
             c.Bausteine.Add(Bau("Freeze","Freeze / Thaw", false, false, false, "FZ1", "FZ2", "FA", "Cycle"));
             c.Bausteine.Add(Bau("TFF Flush", "Suite 1", false, false, true, "TFF", "MH", "Pumpe", "VS", "Schlauch"));
+            c.AddStandardBausteine();
             c.Groups.Add(Grp("Freezetanks", "FZ1", "FZ2"));
             return c;
+        }
+
+        // Standard-Bausteine je Raum (Puffer, Freeze / Thaw, CIP / SIP, Einwaage). Alte Bestaende: der Paket-Editor ergaenzt fehlende
+        // beim Oeffnen in seiner Kopie (gespeichert erst mit "Katalog einrichten"); vorhandene gleichen Namens bleiben unveraendert.
+        // Liefert die Anzahl ergaenzter Bausteine.
+        public int AddStandardBausteine()
+        {
+            Baustein[] std = {
+                Bau("Puffer", "Puffer", false, false, false, "WFI"),
+                Bau("Freeze / Thaw", "Freeze / Thaw", false, false, false, "FZ1", "FZ2", "FA"),
+                Bau("CIP / SIP", "CIP / SIP", false, false, false, "RT", "VS"),
+                Bau("Einwaage", "Einwaage", false, false, false) };
+            int n = 0;
+            foreach (Baustein b in std)
+                if (!Bausteine.Exists(delegate(Baustein x) { return string.Equals(x.Name, b.Name, StringComparison.OrdinalIgnoreCase); })) { Bausteine.Add(b); n++; }
+            return n;
         }
 
         static EquipPosition Pos(string name, string sh, params string[] ids)

@@ -15,6 +15,7 @@ namespace Arbeitsplan.Win
         readonly bool canApply, canAdmin;
         readonly DateTime weekStart;
         readonly List<string> rowNames = new List<string>();
+        readonly Dictionary<string, string[]> rowVars = new Dictionary<string, string[]>();   // Block -> Herstellungsvarianten (z. B. Puffer: mobil, stationaer)
         Catalog cat;
         readonly List<PackageStep> steps = new List<PackageStep>();
         List<PackageBlock> blocks = new List<PackageBlock>();
@@ -28,12 +29,10 @@ namespace Arbeitsplan.Win
 
         readonly Crumbs crumbs = new Crumbs();
         readonly Panel left = new Panel();
-        readonly TextBox tName = new TextBox(), tProduct = new TextBox();
-        readonly Label lRuns = new Label(), lBlocks = new Label();
+        readonly Label lBlocks = new Label();
         readonly ListView lv = new ListView();
         readonly Button bAdd = new Button(), bUp = new Button(), bDown = new Button(), bDup = new Button(), bDel = new Button();
         readonly ToolTip tip = new ToolTip();
-        Section secProduct;
 
         int IH { get { return Font.Height + 8; } }     // Hoehe der Eingabefelder
         int RowH { get { return IH + 6; } }
@@ -48,15 +47,17 @@ namespace Arbeitsplan.Win
             ClientSize = new Size(1190, 700);
             MinimumSize = new Size(900, 600);
             cat = store.GetCatalog();
-            foreach (RowInfo r in store.GetRows()) if (r.Name.Length > 0) rowNames.Add(r.Name);
+            cat.AddStandardBausteine();   // alte Bestaende: Puffer, Freeze / Thaw, CIP / SIP, Einwaage anbieten (gespeichert erst mit "Katalog einrichten")
+            foreach (RowInfo r in store.GetRows()) if (r.Name.Length > 0) { rowNames.Add(r.Name); rowVars[r.Name] = r.VariantList(); }
 
+            Panel head = BuildHead();
             Control details = BuildDetails();
             BuildLeft();
             Control preview = BuildPreview();
             Panel bar = BuildBar();
             crumbs.Height = Font.Height * 2 + 8; crumbs.TabStop = false; crumbs.PartClicked += CrumbClicked;
-            Controls.Add(details); Controls.Add(left); Controls.Add(preview); Controls.Add(bar); Controls.Add(crumbs);   // zuletzt hinzugefuegt = zuerst angedockt
-            left.TabIndex = 0; details.TabIndex = 1; preview.TabIndex = 2; bar.TabIndex = 3;
+            Controls.Add(details); Controls.Add(left); Controls.Add(preview); Controls.Add(bar); Controls.Add(head); Controls.Add(crumbs);   // zuletzt hinzugefuegt = zuerst angedockt
+            head.TabIndex = 0; left.TabIndex = 1; details.TabIndex = 2; preview.TabIndex = 3; bar.TabIndex = 4;
             InitSizing();   // Doppelpuffer, Layoutsperre beim Ziehen (PackageForm.Sizing.cs)
             Theme.Current.Style(this);
             LoadPackage(initial);
@@ -86,31 +87,13 @@ namespace Arbeitsplan.Win
 
         Button Btn(Button b, string text, int x, int y, int w, EventHandler click) { b.Text = text; b.SetBounds(x, y, w, Theme.Current.ButtonH - 2); b.Click += click; return b; }
 
-        // ---------- 1 Produkt, 2 Ablauf ----------
+        // ---------- Ablauf (Produkt/Laufnummer: Kopfzeile, PackageForm.Head.cs) ----------
 
         void BuildLeft()
         {
             left.Dock = DockStyle.Left; left.Width = 400; left.Padding = new Padding(8, 8, 0, 8); left.Tag = "keep";
-            int w = 360, lw = 96;
-            secProduct = new Section("1   Produkt", "XXYY = Produkt, ZZZZ = Laufnummer (z. B. 13570030)", true, w);
-            int y = secProduct.ContentTop;
-            Lbl(secProduct, "Name:", 8, lw).Top = y;
-            tName.SetBounds(8 + lw, y, w - 16 - lw, IH); tName.Anchor = TLR;
-            y += RowH;
-            Lbl(secProduct, "Produktcode:", 8, lw).Top = y;
-            tProduct.SetBounds(8 + lw, y, 52, IH); tProduct.MaxLength = 4;
-            lRuns.SetBounds(8 + lw + 60, y, w - 16 - lw - 60, IH); lRuns.Anchor = TLR; lRuns.TextAlign = ContentAlignment.MiddleLeft; lRuns.AutoEllipsis = true;
-            secProduct.Controls.AddRange(new Control[] { tName, tProduct, lRuns });
-            secProduct.Height = y + RowH + 4; secProduct.Dock = DockStyle.Top;
-            Ui.SimpleMenu(tName); Ui.SimpleMenu(tProduct);
-            tip.SetToolTip(tProduct, "4 Ziffern XXYY. Die Läufe heißen dann XXYYZZZZ (ZZZZ = Laufnummer). Leer = Läufe ohne Produktnummer.");
-            tName.TextChanged += delegate { Changed(); };
-            tProduct.TextChanged += delegate   // anderes Produkt: Geraetelisten der Zeilen neu fuellen (Produktprofil)
-            {
-                if (!loading && cur != null && (Product.Length == 0 || Package.IsCode4(Product))) { dirty = true; Bind(cur); } else Changed();
-            };
-
-            Section flow = new Section("2   Ablauf", "Schritte nach Tag sortiert. Anklicken = rechts bearbeiten.", true, w);
+            int w = 360;
+            Section flow = new Section("1   Ablauf", "Schritte nach Tag sortiert. Anklicken = rechts bearbeiten.", true, w);
             lv.View = View.Details; lv.FullRowSelect = true; lv.HideSelection = false; lv.MultiSelect = false; lv.ShowItemToolTips = true;
             lv.HeaderStyle = ColumnHeaderStyle.Nonclickable; lv.Dock = DockStyle.Fill;
             lv.Columns.Add("Nr", 30); lv.Columns.Add("Tag", 46); lv.Columns.Add("Raum", 76); lv.Columns.Add("Schritt", 110); lv.Columns.Add("Wiederholung", 96);
@@ -151,9 +134,7 @@ namespace Arbeitsplan.Win
             flow.Controls.Add(lv); flow.Controls.Add(lBlocks); flow.Controls.Add(btns);
             flow.Dock = DockStyle.Fill;
 
-            Panel gap = new Panel(); gap.Tag = "keep"; gap.Dock = DockStyle.Top; gap.Height = 8;
-            left.Controls.Add(flow); left.Controls.Add(gap); left.Controls.Add(secProduct);
-            secProduct.TabIndex = 0; flow.TabIndex = 1;
+            left.Controls.Add(flow);
         }
 
         void FitColumns()
@@ -196,7 +177,6 @@ namespace Arbeitsplan.Win
         }
 
         int No(PackageStep s) { return Ordered().IndexOf(s) + 1; }
-        string Product { get { return tProduct.Text.Trim(); } }
         static string TitleOf(PackageStep s) { return s.Title.Length > 0 ? s.Title : "(ohne Titel)"; }
         static string DaysOf(PackageStep s) { return s.Count > 1 ? s.Day + "–" + s.DayOf(s.Count - 1) : s.Day.ToString(); }
         static string RepeatOf(PackageStep s) { return s.Count > 1 ? s.Count + "× alle " + s.Interval + (s.Interval == 1 ? " Tag" : " Tage") : "einmal"; }
@@ -248,17 +228,23 @@ namespace Arbeitsplan.Win
             PackageStep s = new PackageStep();
             s.Title = b.Name; s.Source = b.Name; s.Row = b.Row; s.Text = b.Text; s.Day = steps.Count == 0 ? 1 : NextDay();
             if (b.Name == "Lauf") s.Kind = StepKind.Run; else if (b.Name == "Splitten") s.Kind = StepKind.SubRun;   // Vorbelegung, im Schritt aenderbar
+            if (s.Kind != StepKind.Normal) s.StartNo = NewRunNo();
             foreach (string sh in b.Positions) { EquipAssign a = new EquipAssign(); a.Short = sh; s.Equipment.Add(a); }
             return s;
         }
 
+        // Erst die Art (Baustein oder "Sonstiges"), dann der Raum (vorbelegt, Pflicht)
         void AddStepDialog()
         {
-            using (BausteinPicker p = new BausteinPicker(cat, steps))
+            using (StepPicker p = new StepPicker(cat, steps, rowNames))
             {
                 if (p.ShowDialog(this) != DialogResult.OK) return;
-                if (p.EmptyStep) { PackageStep s = new PackageStep(); s.Day = steps.Count == 0 ? 1 : NextDay(); AddStep(s); }
-                else if (!UniqueBlocked(p.Result.Name)) AddStep(FromBaustein(p.Result));
+                if (p.Result != null && UniqueBlocked(p.Result.Name)) return;
+                PackageStep s;
+                if (p.Result == null) { s = new PackageStep(); s.Title = p.TitleText; s.Day = steps.Count == 0 ? 1 : NextDay(); }
+                else s = FromBaustein(p.Result);
+                s.Row = p.Room;
+                AddStep(s);
             }
         }
 
@@ -325,7 +311,7 @@ namespace Arbeitsplan.Win
             string nm = tName.Text.Trim().Length > 0 ? tName.Text.Trim() : "(ohne Namen)";
             Text = "Paket-Editor – " + nm + (dirty ? " *" : "");
             List<string> parts = new List<string>();
-            parts.Add((tName.Text.Trim().Length > 0 ? "Produkt „" + nm + "“" : "Produkt (noch ohne Namen)") + (Package.IsCode4(Product) ? " (" + Product + ")" : ""));
+            parts.Add((tName.Text.Trim().Length > 0 ? "Produkt „" + nm + "“" : "Produkt (noch ohne Namen)") + (Package.IsProductCode(Product) ? " (" + Product + ")" : ""));
             string camp = CampaignText();
             parts.Add("Ablauf: " + steps.Count + (steps.Count == 1 ? " Schritt" : " Schritte") + (camp != null ? " (" + camp + ")" : ""));
             if (cur != null) parts.Add("Schritt " + No(cur) + ": " + TitleOf(cur));
@@ -366,6 +352,9 @@ namespace Arbeitsplan.Win
             steps.Clear(); cur = null;
             blocks = p != null ? p.Blocks : new List<PackageBlock>();
             tName.Text = p != null ? p.Name : ""; tProduct.Text = p != null ? p.ProductCode : "";
+            prefix = p != null ? p.Prefix : "";   // alte Pakete: Produktcode (4 Ziffern) = Praefix
+            string fr = p != null ? p.FirstRun : "";
+            tFirst.Text = fr.Length > 0 ? fr : (prefix.Length > 0 ? Package.FormatRun(prefix, 1) : "");
             if (p == null) { foreach (Baustein b in cat.Bausteine) if (b.DefaultInCampaign) steps.Add(FromBaustein(b)); }   // z. B. "Packen" ist standardmaessig dabei
             else steps.AddRange(p.Steps);
             lBlocks.Text = blocks.Count > 0 ? "Enthält zusätzlich " + blocks.Count + " fertige Blöcke aus einem Wochen-Export (werden mit übernommen)." : "";
@@ -376,15 +365,16 @@ namespace Arbeitsplan.Win
             Bind(o.Count > 0 ? o[0] : null);
         }
 
-        // null = Produktcode ungueltig (Meldung wurde gezeigt). Schritte als Kopie: der Kampagnenstart nummeriert um.
+        // null = Kopfzeile ungueltig (Produktcode, erste Laufnummer, Ueberlauf; Meldung wurde gezeigt). Schritte als Kopie: der Kampagnenstart nummeriert um.
         Package Collect()
         {
-            if (Product.Length > 0 && !Package.IsCode4(Product))
+            string err = ProductError() ?? FirstRunError() ?? StepsView().Overflow();
+            if (err != null)
             {
-                MessageBox.Show(this, "Der Produktcode muss aus genau 4 Ziffern bestehen (z. B. 1357) oder leer sein.", "Paket-Editor", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                tProduct.Focus(); return null;
+                MessageBox.Show(this, err, "Paket-Editor", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                (ProductError() != null ? tProduct : tFirst).Focus(); return null;
             }
-            Package p = new Package(); p.Name = tName.Text.Trim(); p.ProductCode = Product;
+            Package p = new Package(); p.Name = tName.Text.Trim(); p.ProductCode = Product; p.RunPrefix = prefix;
             foreach (PackageStep s in steps) if (!s.IsEmpty) p.Steps.Add(s.Clone());
             p.Blocks = blocks;
             return p;
@@ -442,7 +432,7 @@ namespace Arbeitsplan.Win
                 {
                     Bind(s);
                     MessageBox.Show(this, "Schritt " + No(s) + " \"" + TitleOf(s) + "\" " + (s.Row.Length == 0 ? "hat keinen Raum." : "steht im Raum \"" + s.Row + "\", den es im Plan nicht gibt.")
-                        + " Bitte unter \"Raum (Block)\" einen Block wählen.", "Paket-Editor", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        + " Bitte unter \"Wo im Plan?\" einen Raum (Block) wählen.", "Paket-Editor", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     return;
                 }
             DateTime st;
@@ -479,47 +469,5 @@ namespace Arbeitsplan.Win
             foreach (PackageStep s in p.Steps) if (!s.IsEmpty && !names.Contains(s.Row)) return false;
             return true;
         }
-
-#if TESTHOOKS
-        // Roundtrip-Test: geladenes Muster unveraendert wieder speichern.
-        public string TestSave(string path) { Package p = Collect(); p.Save(path); return "dirty=" + dirty; }
-
-        // Selbsttest der Bedienablaeufe am sichtbaren Editor: Schritte waehlen, hinzufuegen, duplizieren, verschieben,
-        // Art/Wiederholung aendern, entfernen, leeres und neues Paket. Ausnahmen (z. B. Owner-Draw-Index) landen im Ergebnis.
-        public static string TestFlow(IDataStore store, IEquipmentStatusProvider equip, DateTime start)
-        {
-            PackageForm f = new PackageForm(store, equip, start, Package.SampleCampaign("Ablauftest"), true, true);
-            f.StartPosition = FormStartPosition.Manual; f.Location = new Point(0, 0);
-            try
-            {
-                f.Show(); Application.DoEvents();
-                int n0 = f.steps.Count;
-                foreach (PackageStep s in f.Ordered()) { f.Bind(s); Application.DoEvents(); }
-                PackageStep e = new PackageStep(); e.Day = f.NextDay(); f.AddStep(e); Application.DoEvents();
-                f.tTitle.Text = "Test äöü"; f.cbKind.SelectedIndex = 2; f.nCount.Value = 3; f.tSubNos.Text = "1/2, 3"; f.tIdent.Text = "PA 1"; Application.DoEvents();
-                bool hints = f.hintList.Exists(delegate(Hint h) { return h.Text.Contains("Unterlauf-Nummern für 2") && h.Field == f.tSubNos; })
-                    && f.hintList.Exists(delegate(Hint h) { return h.Text.Contains("1 Kennung(en), aber 3"); });
-                f.nStartNo.Value = 9998; Application.DoEvents();
-                hints &= f.hintList.Exists(delegate(Hint h) { return h.Text.Contains("über 9999"); });
-                f.nStartNo.Value = 1; f.tIdent.Text = ""; Application.DoEvents();
-                f.Duplicate(); Application.DoEvents();
-                f.Bind(f.Ordered()[0]); f.MoveStep(1); f.MoveStep(-1); f.MoveStep(-1); Application.DoEvents();
-                PackageStep dragged = f.Ordered()[0]; f.Bind(dragged); f.DropAt(3); Application.DoEvents();
-                bool drag = f.Ordered().IndexOf(dragged) == 3;
-                f.DropAt(0); drag &= f.Ordered().IndexOf(dragged) == 0;
-                int n1 = f.steps.Count;
-                f.RemoveStep(false); f.RemoveStep(false); Application.DoEvents();
-                int n2 = f.steps.Count;
-                f.LoadPackage(new Package()); Application.DoEvents();
-                bool empty = f.cur == null && f.lbHints.Items.Count > 0 && !f.body.Visible;
-                f.LoadPackage(null); Application.DoEvents();
-                bool fresh = f.steps.Count > 0 && f.cur != null && !f.dirty;
-                return "Paket-Editor Ablauf: Schritte " + n0 + " -> +2 = " + n1 + " -> -2 = " + n2 + (n1 == n0 + 2 && n2 == n0 ? " ok" : " FEHLER")
-                    + ", leeres Paket " + (empty ? "ok" : "FEHLER") + ", neues Paket " + (fresh ? "ok" : "FEHLER") + ", Prüfhinweise " + (hints ? "ok" : "FEHLER") + ", Ziehen " + (drag ? "ok" : "FEHLER");
-            }
-            catch (Exception ex) { return "Paket-Editor Ablauf: FEHLER " + ex.GetType().Name + ": " + ex.Message; }
-            finally { f.dirty = false; f.Close(); f.Dispose(); }
-        }
-#endif
     }
 }
