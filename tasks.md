@@ -27,6 +27,16 @@
 - [x] **Laufwerk-Start und Mehrplatz** (Nutzerauftrag 2026-10-26 nachts): exe zentral vom Laufwerk, Desktop-Verknüpfung (UNC, OneDrive), Start nur im Firmennetz (Datenordner/Ersteinrichtung/Domäne), unbekannte Nutzer → Meldung, `NurLesenFuer=` für Systemrechner, Dreiwege-Zusammenführung bei gleichzeitiger Änderung, Formatversion, Update-Hinweis, IT-Unterlage. Branch `gmail/laufwerk-mehrplatz`. (G-Mail / 2. Account, erledigt, 2026-10-26 22:10)
 - [x] Testanleitung für Laptop und Test vor Ort: `docs/Testanleitung.md` (holen/klonen, bauen, Mehrplatz mit zwei Fenstern, Release-Checks, Checkliste Firma) (G-Mail / 2. Account, erledigt, 2026-10-27 05:20)
 
+## Nächste Schritte (Stand 2026-10-28, nach Nachtschicht; alles bis hier ist in main)
+- [ ] **Überschreiben bei Folgeläufen**: Liegen Läufe derselben Kampagne an Tag x und x+2 und wird beim Übernehmen 'überschreiben' gewählt, soll auch das vorherige (Lauf an x bzw. x+2) mit entfernt/ersetzt werden. Nutzer: 'muss man gucken' → erst Verhalten von `Package.Apply` (Modi, `PastGaps`, `LastRun`) prüfen, dann mit dem Nutzer klären (G-Mail / 2. Account, offen, 2026-10-28)
+- [ ] **Textbausteine** zum Vorschreiben (Nutzerwunsch; Umfang noch unklar: wiederkehrende Textblöcke je Zeile/Raum) (offen, 2026-10-28)
+- [ ] Rückmeldung des Nutzers zum Absturz 'Klick ins weiße Feld der Prüfhinweise' (Fix in main, Nutzer testet; Ausnahmeprotokoll im Test-Build: %TEMP%rbeitsplan_ausnahme.txt)
+- [ ] Entscheiden: `Backup.FormatVersion` erhöhen wegen Puffer-Anzahl `mobil:2` (alte exe liest unbekannte Variante) – erst vor Verteilung an mehrere PCs nötig
+- [ ] Paket-Editor v3-Entwurf `docs/paket-editor-v3.md` (Pakettypen, Phasen, Hold-Zeiten): vor dem Bauen gegen den jetzigen Stand abgleichen; offene Fragen stehen im Vault (Projekte/Arbeitsplan.md)
+- [ ] Wochenansicht: Tooltip/Hervorhebung fremder Änderungen (20 s) im Betrieb bewerten; Hervorhebung erscheint auch im Export, wenn dieser binnen 20 s gemacht wird
+- [ ] Puffer-Standards für bestehende Datenbestände: Admin wird einmal gefragt (`PufferSetup`); alte Kurznamen 'Probe'/'WFI' bleiben
+- [ ] Test vor Ort nach `docs/Testanleitung.md` Teil 6 (weiter offen)
+
 ## Als Nächstes
 - [ ] **Test vor Ort** nach `docs/Testanleitung.md` Teil 6; Ergebnisse (UNC-Pfad, Domäne, Konto der Systemrechner, Wortlaut von Blockiermeldungen, Umbenennen der laufenden exe) hier eintragen (Nutzer, offen, 2026-10-27 05:20)
 - [ ] Review-Befunde niedriger Priorität: FormatSpans nach dem Zusammenführen normalisieren; Domänenliste bei gleichzeitiger Admin-Änderung; nach "Vorschlag übernehmen" kann ohne Recht "Text löschen" gekürzt werden (G-Mail / 2. Account, offen, 2026-10-27 05:20)
