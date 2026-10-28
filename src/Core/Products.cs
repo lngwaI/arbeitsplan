@@ -22,7 +22,7 @@ namespace Arbeitsplan.Core
         public SwapGroup Clone() { SwapGroup g = (SwapGroup)MemberwiseClone(); g.Ids = new List<string>(Ids); return g; }
     }
 
-    // Equipment je Produkt (Produktcode XXYY): ueberschreibt je Position den globalen Standard; ohne Profil gilt global.
+    // Equipment je Produkt (Produktcode frei, Package.IsProductCode; Schluessel exakt, Gross/klein zaehlt): ueberschreibt je Position den globalen Standard; ohne Profil gilt global.
     public class ProductProfile
     {
         public string Code = "", Name = "";
@@ -108,14 +108,14 @@ namespace Arbeitsplan.Core
                 {
                     List<string> ids = new List<string>();
                     foreach (EquipAssign a in s.Equipment) { EquipChoice c = a.ChoiceFor(run); if (c != null) ids.Add(c.Id); }
-                    foreach (string e in Master.CheckBelongs(ids)) { string m = s.Label(p.ProductCode, run) + ": " + e; if (!err.Contains(m)) err.Add(m); }
+                    foreach (string e in Master.CheckBelongs(ids)) { string m = s.Label(p.Prefix, run) + ": " + e; if (!err.Contains(m)) err.Add(m); }
                 }
             }
             return err;
         }
 
         // Blocktext: Fehler = Zugehoerigkeit der erkannten Equipment-Nummern; warnings = Geraete, die fuer das Produkt
-        // der Laufnummer(n) im Text nicht erlaubt sind (nur Hinweis).
+        // der Laufnummer(n) im Text nicht erlaubt sind (nur Hinweis; greift nur, wenn der Produktcode dem Laufnummern-Praefix XXYY entspricht).
         public List<string> CheckText(string content, List<string> warnings)
         {
             List<string> ids = new List<string>();

@@ -52,7 +52,7 @@ namespace Arbeitsplan.Win
             foreach (PackageStep s in Ordered()) if (s.Kind == StepKind.Run && (m == null || s.Count > m.Count)) m = s;
             if (m == null) return null;
             int iv = Math.Max(1, m.Interval);
-            return "Lauf " + m.RunNo(Product, 0) + (m.Count > 1 ? " bis " + m.RunNo(Product, m.Count - 1) + " · alle " + iv + (iv == 1 ? " Tag" : " Tage") : "");
+            return "Lauf " + m.RunNo(prefix, 0) + (m.Count > 1 ? " bis " + m.RunNo(prefix, m.Count - 1) + " · alle " + iv + (iv == 1 ? " Tag" : " Tage") : "");
         }
 
 #if TESTHOOKS

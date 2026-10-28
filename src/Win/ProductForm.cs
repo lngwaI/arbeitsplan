@@ -6,7 +6,7 @@ using Arbeitsplan.Core;
 
 namespace Arbeitsplan.Win
 {
-    // Einstellungen -> Produkte & Equipment (Recht PackageAdmin): je Produkt (Code XXYY) und Equipment-Position die erlaubten Geraete
+    // Einstellungen -> Produkte & Equipment (Recht PackageAdmin): je Produkt (Code frei, z. B. AB1) und Equipment-Position die erlaubten Geraete
     // (Standard oder eigene Liste), fest/frei und Austauschgruppen. Bearbeitet eine Katalog-Kopie; gespeichert wird der ganze Katalog.
     partial class ProductForm : Form
     {
@@ -26,11 +26,11 @@ namespace Arbeitsplan.Win
             Ui.Dialog(this, 980, 650);
             Controls.Add(Ui.Hint("Was ist das? Je Produkt legt man fest, welche Geräte an jeder Position erlaubt sind. Ohne eigene Liste gilt der Standard aus „Equipment & Bausteine“.", 8, 6, 964));
 
-            Controls.Add(L("Produkte (Code XXYY):", 8, 30));
+            Controls.Add(L("Produkte (Code):", 8, 30));
             lbProd.SetBounds(8, 48, 230, 440); lbProd.IntegralHeight = false; Controls.Add(lbProd);
             lbProd.SelectedIndexChanged += delegate { if (!loading) SelectProduct(lbProd.SelectedItem as ProductProfile); };
-            Controls.Add(L("Code:", 8, 496)); pCode.SetBounds(8, 514, 60, 22); Ui.SimpleMenu(pCode); Controls.Add(pCode);
-            Controls.Add(L("Name:", 74, 496)); pName.SetBounds(74, 514, 164, 22); Ui.SimpleMenu(pName); Controls.Add(pName);
+            Controls.Add(L("Code:", 8, 496)); pCode.SetBounds(8, 514, 100, 22); pCode.MaxLength = 12; Ui.SimpleMenu(pCode); Controls.Add(pCode);
+            Controls.Add(L("Name:", 114, 496)); pName.SetBounds(114, 514, 124, 22); Ui.SimpleMenu(pName); Controls.Add(pName);
             pCode.TextChanged += delegate { if (!loading && prod != null) { prod.Code = pCode.Text.Trim(); RefreshItem(lbProd); } };
             pName.TextChanged += delegate { if (!loading && prod != null) { prod.Name = pName.Text.Trim(); RefreshItem(lbProd); } };
             Controls.Add(Btn("Neu…", 8, 544, 60, delegate { NewProduct(); }));
@@ -54,7 +54,8 @@ namespace Arbeitsplan.Win
         static void RefreshItem(ListBox lb) { int i = lb.SelectedIndex; if (i >= 0) lb.Items[i] = lb.Items[i]; }
         void Warn(string text) { MessageBox.Show(this, text, "Produkte & Equipment", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
 
-        static bool ValidCode(string c) { return c.Length == 4 && char.IsDigit(c[0]) && char.IsDigit(c[1]) && char.IsDigit(c[2]) && char.IsDigit(c[3]); }
+        static bool ValidCode(string c) { return Package.IsProductCode(c); }   // frei: 2-12 Zeichen, z. B. AB1 (alt 1357)
+        const string CodeRule = "2–12 Zeichen aus Buchstaben, Ziffern und - _ . / + (ohne Leerzeichen), z. B. AB1 oder AB12345678-";
 
         // Position in der Liste, mit Kennzeichen, wenn das Produkt dort eine eigene Liste oder "fest" hat
         class PosItem
@@ -101,7 +102,7 @@ namespace Arbeitsplan.Win
             {
                 f.Text = title; Ui.Dialog(f, 330, 130, false);
                 TextBox c = new TextBox(), n = new TextBox(); c.Text = code; n.Text = name;
-                f.Controls.Add(L("Produktcode (4 Ziffern, XXYY):", 8, 10)); c.SetBounds(200, 7, 60, 22); f.Controls.Add(c);
+                f.Controls.Add(L("Produktcode:", 8, 10)); c.SetBounds(100, 7, 120, 22); c.MaxLength = 12; f.Controls.Add(c);
                 f.Controls.Add(L("Name:", 8, 42)); n.SetBounds(60, 39, 262, 22); f.Controls.Add(n);
                 Button ok = Btn("OK", 152, 90, 80, null); ok.DialogResult = DialogResult.OK;
                 Button ca = Btn("Abbrechen", 238, 90, 84, null); ca.DialogResult = DialogResult.Cancel;
@@ -109,7 +110,7 @@ namespace Arbeitsplan.Win
                 while (f.ShowDialog(this) == DialogResult.OK)
                 {
                     string cc = c.Text.Trim();
-                    if (!ValidCode(cc)) { Warn("Der Produktcode besteht aus genau 4 Ziffern (XXYY)."); continue; }
+                    if (!ValidCode(cc)) { Warn("Produktcode ungültig: " + CodeRule + "."); continue; }
                     if (cat.Product(cc) != null) { Warn("Produkt " + cc + " gibt es schon."); continue; }
                     code = cc; name = n.Text.Trim();
                     return true;
@@ -151,7 +152,7 @@ namespace Arbeitsplan.Win
             HashSet<string> seen = new HashSet<string>();
             foreach (ProductProfile p in cat.Products)
             {
-                if (!ValidCode(p.Code)) { Warn("Produktcode \"" + p.Code + "\" ist ungültig (genau 4 Ziffern, XXYY)."); return; }
+                if (!ValidCode(p.Code)) { Warn("Produktcode \"" + p.Code + "\" ist ungültig: " + CodeRule + "."); return; }
                 if (!seen.Add(p.Code)) { Warn("Produkt " + p.Code + " ist doppelt vorhanden."); return; }
                 p.Swaps.RemoveAll(delegate(SwapGroup g) { return g.Ids.Count == 0; });
             }

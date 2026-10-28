@@ -69,7 +69,12 @@ namespace Arbeitsplan.Win
                     demo.Steps.Add(s);
                 }
             }
-            if (which == "package3" || which == "campaign2") demo = Package.SampleCampaign("Testpaket");
+            if (which == "package3" || which == "package4" || which == "campaign2") demo = Package.SampleCampaign("Testpaket");
+            if (which == "package4")   // Puffer-Schritt (Herstellung beides), "Mehr Optionen" offen
+            {
+                PackageStep pu = new PackageStep(); pu.Title = "Puffer"; pu.Source = "Puffer"; pu.Row = "Puffer"; pu.Day = 2; pu.Variant = "mobil|stationaer"; pu.Note = "Puffer A";
+                demo.Steps.Add(pu);
+            }
             if (which.StartsWith("rt:")) demo = Package.Load(which.Substring(3));   // Roundtrip: Datei laden, im Editor unveraendert wieder speichern (.rt.apkg)
             if (which == "campaign2")   // fruehere Kampagne (Laeufe 1-4, Abstaende 5, 5, 7) sechs Wochen vorher
                 Package.SampleCampaign("alt").Apply(store, start.AddDays(-42), ApplyMode.Overwrite, Package.SampleCampaign("alt").Schedule(new List<int>(new[] { 5, 5, 7 })));
@@ -78,6 +83,7 @@ namespace Arbeitsplan.Win
             else if (which == "structure") f = new StructureForm(store.GetRows(), true, true, true);
             else if (which == "duties") f = new DutiesForm(store.GetDuties(), store.GetRows());
             else if (which == "openduties") { DateTime mon = ShownWeek; f = new OpenDutiesForm("Offen in " + PlanView.WeekTitle(mon), delegate(int w) { return OpenDuties.List(store, store.GetDuties(), store.GetRows(), mon, w, DateTime.Today); }); }
+            else if (which == "steppicker") { List<string> nm = new List<string>(); foreach (RowInfo r in store.GetRows()) nm.Add(r.Name); StepPicker sp = new StepPicker(store.GetCatalog(), new List<PackageStep>(), nm); sp.TestSelect("Puffer"); f = sp; }
             else if (which == "catalog") { List<string> nm = new List<string>(); foreach (RowInfo r in store.GetRows()) nm.Add(r.Name); f = new CatalogForm(store.GetCatalog(), nm); }
             else if (which == "history" || which == "backup") f = TestDataForm(which);
             else if (which.StartsWith("stammdaten") || which == "products") f = TestStammForm(which);
@@ -100,6 +106,7 @@ namespace Arbeitsplan.Win
             if (pf != null && which == "package2") pf.SelectStep(1);
             if (pf != null && which == "package2sub") pf.SelectStep(2);   // Unterlauf-Schritt (Splitten)
             if (pf != null && which == "package3") pf.SelectStep(2);
+            if (pf != null && which == "package4") { pf.SelectStep(2); pf.TestMore(); }
             return f;
         }
 
@@ -266,6 +273,7 @@ namespace Arbeitsplan.Win
             SelfTestG(sb);   // Puffer-Varianten, Migration, 2 Wochen, Hervorhebung, Offene Pflichten (MainForm.SelfTestG.cs)
             SelfTestAnsicht2(sb);   // Chips, LKZ dringend, Rundgang-Datum, Auswahlrahmen (MainForm.SelfTestAnsicht2.cs)
             sb.AppendLine(PackageForm.TestFlow(store, equip, start));
+            SelfTestPaket2(sb);   // Produktcode frei, Laufnummer 8-stellig, Hinweis-Klick, Puffer-Variante, Bausteine (MainForm.SelfTestPaket2.cs)
             quiet = false;
             return sb.ToString();
         }
