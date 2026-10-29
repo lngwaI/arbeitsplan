@@ -106,6 +106,12 @@ namespace Arbeitsplan.Win
             }
             else if (which == "openduties") { DateTime mon = ShownWeek; f = new OpenDutiesForm("Offen in " + PlanView.WeekTitle(mon), delegate(int w) { return OpenDuties.List(store, store.GetDuties(), store.GetRows(), mon, w, DateTime.Today); }); }
             else if (which == "steppicker") { List<string> nm = new List<string>(); foreach (RowInfo r in store.GetRows()) nm.Add(r.Name); StepPicker sp = new StepPicker(store.GetCatalog(), new List<PackageStep>(), nm); sp.TestSelect("Puffer"); f = sp; }
+            else if (which == "buffer")   // Puffer-Dialog (vorhandener Puffer mit Entfernen/Hoch/Runter)
+            {
+                BufferChoice bc = new BufferChoice(); bc.Types = new[] { "mobil", "stationaer" }; bc.Number = 2; bc.CanUp = bc.CanDown = true;
+                bc.Names.AddRange(new[] { "Puffer A", "Lösung B", "Packen" }); bc.Name = "Lösung B"; bc.Typ = "stationaer"; bc.Text = "Tank 2\nWFI: H1-X-0101";
+                f = new BufferForm(bc);
+            }
             else if (which == "catalog") { List<string> nm = new List<string>(); foreach (RowInfo r in store.GetRows()) nm.Add(r.Name); f = new CatalogForm(store.GetCatalog(), nm); }
             else if (which == "locked" || which == "takeover" || which == "notices") f = TestNoticeForm(which);
             else if (which == "history" || which == "backup") f = TestDataForm(which);

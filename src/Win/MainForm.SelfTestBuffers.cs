@@ -151,6 +151,81 @@ namespace Arbeitsplan.Win
             sb.AppendLine("Puffer-Liste Paket: Schritt wird Puffer=" + Ok(okPk) + " anhängen=" + Ok(okApp) + " nur leere füllen=" + Ok(okFill && okBusy) + " überschreiben=" + Ok(okOver)
                 + " ohne Puffer im Paket bleibt=" + Ok(okKeepBuf) + " Blöcke in Datei=" + Ok(okFile));
         }
+
+        // Puffer-Dialog in der Wochenansicht (Dialog per Testhaken): anlegen mit Vorgabe/Vorschlaegen, bearbeiten, Hoch/Runter, Entfernen,
+        // Abbrechen, fehlendes Recht, Bearbeitungsmodus (wird mit dem Block gespeichert), Nummern und Suchtreffer in der Ansicht.
+        void SelfTestBufferUi(StringBuilder sb)
+        {
+            if (systemPc) { sb.AppendLine("Puffer-Dialog: übersprungen (Systemrechner)"); return; }
+            DateTime keep = start;
+            try
+            {
+                int pr = RowOf("Puffer");
+                if (pr < 0) { sb.AppendLine("Puffer-Dialog: Zeile Puffer fehlt"); return; }
+                int pid = rowInfo[pr].Id;
+                DateTime wk = D(2024, 9, 16), day = wk.AddDays(1);   // Montag ohne Testdaten anderer Selbsttests
+                start = wk; Rebuild(true); Expand(pr);
+                string bn = "", bt = "mobil", bx = ""; BufferChoice.Act ba = BufferChoice.Act.Ok; bool ret = true;
+                List<string> seenTyp = new List<string>(); List<bool> ups = new List<bool>(); List<bool> downs = new List<bool>(); List<string> sugg = null;
+                bufferTest = delegate(BufferChoice ch)
+                {
+                    seenTyp.Add(ch.Typ); ups.Add(ch.CanUp); downs.Add(ch.CanDown); sugg = ch.Names;
+                    if (!ret) return false;
+                    ch.Name = bn; ch.Typ = bt; ch.Text = bx; ch.Action = ba; return true;
+                };
+                // anlegen: Vorgabe-Typ = zuletzt gewaehlt, Vorschlaege aus bisherigen Namen
+                lastBufferTyp = "";
+                bn = "Lösung A"; bt = "mobil"; bx = "Tank 1\nWFI"; view.TestClick(view.SlotPoint(CellOf(pr, 1), -1));
+                bn = "Lösung B"; bt = "stationaer"; bx = ""; view.TestClick(view.SlotPoint(CellOf(pr, 1), -1));
+                bn = "Lösung C"; bt = "mobil"; view.TestClick(view.SlotPoint(CellOf(pr, 1), -1));
+                Entry e = store.Get(day, pid);
+                bool okAdd = e != null && Names(e) == "Lösung A:mobil:Tank 1/WFI | Lösung B:stationaer: | Lösung C:mobil:" && e.Types == "mobil:2|stationaer" && UniqueIds(e)
+                    && seenTyp[0] == "mobil" && seenTyp[1] == "mobil" && seenTyp[2] == "stationaer" && sugg != null && sugg.Contains("Lösung A") && sugg.Contains("Lösung B");
+                // Anzeige: Nummer = Position, Hoehe waechst, Suchtreffer im Namen zaehlen
+                CellData pc = CellOf(pr, 1);
+                bool okShow = pc.BufParts.Count == 3 && pc.RBuf.Height > 3 * Font.Height && pc.RContent.Top == pc.RBuf.Bottom && pc.RBuf.Top == pc.RChecks.Bottom && CellOf(pr, 2).RBuf.Height == 0
+                    && pc.BufParts[1].Y > pc.BufParts[0].Y && pc.BufParts[0].Head.Lines[0][0].Text == "Puffer";
+                // bearbeiten
+                bn = "Lösung B2"; bt = "mobil"; bx = "neu"; view.TestClick(view.BufPoint(CellOf(pr, 1), 1));
+                e = store.Get(day, pid);
+                bool okEdit = Names(e) == "Lösung A:mobil:Tank 1/WFI | Lösung B2:mobil:neu | Lösung C:mobil:" && e.Types == "mobil:3";
+                // Hoch (letzter: Runter nicht moeglich) und Runter
+                bn = "Lösung C"; bt = "mobil"; bx = ""; ba = BufferChoice.Act.Up; view.TestClick(view.BufPoint(CellOf(pr, 1), 2));
+                bool upOk = ups[ups.Count - 1] && !downs[downs.Count - 1];
+                string afterUp = Names(store.Get(day, pid));
+                bn = "Lösung A"; bx = "Tank 1\nWFI"; ba = BufferChoice.Act.Down; view.TestClick(view.BufPoint(CellOf(pr, 1), 0));
+                string afterDown = Names(store.Get(day, pid));
+                bool okMove = upOk && afterUp == "Lösung A:mobil:Tank 1/WFI | Lösung C:mobil: | Lösung B2:mobil:neu" && afterDown == "Lösung C:mobil: | Lösung A:mobil:Tank 1/WFI | Lösung B2:mobil:neu";
+                // Abbrechen aendert nichts; fehlendes Recht (Entfernen) auch nicht
+                ret = false; ba = BufferChoice.Act.Remove; view.TestClick(view.BufPoint(CellOf(pr, 1), 0)); ret = true;
+                bool okCancel = Names(store.Get(day, pid)) == afterDown;
+                bool had = me.Rights.Remove(Perm.DeleteText);
+                try { view.TestClick(view.BufPoint(CellOf(pr, 1), 0)); }
+                finally { if (had) me.Rights.Add(Perm.DeleteText); }
+                bool okRight = Names(store.Get(day, pid)) == afterDown;
+                // Entfernen
+                view.TestClick(view.BufPoint(CellOf(pr, 1), 0));
+                e = store.Get(day, pid);
+                bool okRem = Names(e) == "Lösung A:mobil:Tank 1/WFI | Lösung B2:mobil:neu" && CellOf(pr, 1).Buffers.Count == 2 && e.Types == "mobil:2";
+                // Bearbeitungsmodus: nur im Block, gespeichert erst mit dem Block; Hinweis erhoeht den Bereich
+                CellData ec = CellOf(pr, 1); int h0 = ec.RBuf.Height;
+                BeginEdit(ec);
+                bn = "Nur im Editor"; bt = "stationaer"; bx = ""; ba = BufferChoice.Act.Ok; view.TestClick(view.SlotPoint(CellOf(pr, 1), -1));
+                bool notYet = Names(store.Get(day, pid)) == Names(e) && HasUnsavedChanges && CellOf(pr, 1).Buffers.Count == 3 && CellOf(pr, 1).RBuf.Height > h0;
+                bool posOk = edContent.Top >= CellOf(pr, 1).RBuf.Bottom;   // Editor liegt nur ueber dem freien Inhalt
+                EndEdit(true);
+                bool okEditMode = notYet && posOk && store.Get(day, pid).Buffers.Count == 3 && store.Get(day, pid).Types == "mobil:2|stationaer";
+                view.Query = "Editor"; MarkAllDirtyForTest();
+                bool okSearch = CellOf(pr, 1).Hits == 1;
+                view.Query = "";
+                sb.AppendLine("Puffer-Dialog: anlegen/Vorgabe/Vorschläge=" + Ok(okAdd) + " Anzeige/Bereich=" + Ok(okShow) + " bearbeiten=" + Ok(okEdit) + " hoch/runter=" + Ok(okMove)
+                    + " abbrechen=" + Ok(okCancel) + " ohne Recht=" + Ok(okRight) + " entfernen=" + Ok(okRem) + " Bearbeitungsmodus=" + Ok(okEditMode) + " Suchtreffer=" + Ok(okSearch));
+            }
+            catch (Exception ex) { sb.AppendLine("Puffer-Dialog: Ausnahme " + ex.GetType().Name + ": " + ex.Message); }
+            finally { bufferTest = null; if (editCell != null) EndEdit(false); start = keep; Rebuild(true); }
+        }
+
+        void MarkAllDirtyForTest() { view.MarkAllDirty(); view.Relayout(); }
     }
 }
 #endif

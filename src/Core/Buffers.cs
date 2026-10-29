@@ -16,7 +16,7 @@ namespace Arbeitsplan.Core
         public string Key() { return Id + "|" + Typ + "|" + Name + "|" + Text + ";"; }
     }
 
-    // Hilfsfunktionen fuer Entry.Buffers: Typen (VariantSet), Migration alter Daten, Chips, Rechte, Anzeige, Dreiwege-Merge.
+    // Hilfsfunktionen fuer Entry.Buffers: Typen (VariantSet), Migration alter Daten, Rechte, Anzeige, Dreiwege-Merge.
     public static class BufferSet
     {
         // Typen der Puffer als VariantSet-String ("mobil:2|stationaer"); Eingabe fuer CheckEval (Anzahl spielt dort keine Rolle)
@@ -85,13 +85,6 @@ namespace Arbeitsplan.Core
             int have = Count(l, typ);
             for (int i = l.Count - 1; i >= 0 && have > n; i--) if (l[i].Typ == typ) { l.RemoveAt(i); have--; }
             for (; have < n; have++) Add(l, "", typ, "");
-        }
-
-        // Chip-Klick: Zielanzahl (delta 0 = an/aus, +1/-1 = Anzahl)
-        public static int Target(List<BufferItem> l, string typ, int delta)
-        {
-            int n = Count(l, typ);
-            return Math.Max(0, Math.Min(VariantSet.Max, delta == 0 ? (n > 0 ? 0 : 1) : n + delta));
         }
 
         // Ids eindeutig und nicht leer machen (nach dem Laden)

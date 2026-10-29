@@ -38,6 +38,7 @@ namespace Arbeitsplan.Win
         // Zeilenkopf-Kante, Tagesspalten (Trennlinie, Wochenende, heute), dringender Hinweis, Varianten-Chips, Rundgaenge vollstaendig
         public readonly Color HeadEdge = C(178, 188, 204), ColLine = C(214, 219, 228), ColWeekend = C(234, 237, 243), ColToday = C(253, 243, 222),
             PlanWeekend = C(246, 248, 251), PlanHead = C(231, 235, 242), PlanHeadWeekend = C(224, 228, 237), Urgent = C(200, 20, 20), UrgentBack = C(255, 214, 214), ChipOn = C(0, 105, 180), ChipOff = C(160, 168, 182);
+        public readonly Color[] BufColors = { C(0, 120, 180), C(115, 80, 175), C(0, 135, 110) };   // Seitenstrich der Puffer je Typ (Reihenfolge RowInfo.Variants: mobil blau, stationaer violett)
 
         static Color C(int r, int g, int b) { return Color.FromArgb(r, g, b); }
 

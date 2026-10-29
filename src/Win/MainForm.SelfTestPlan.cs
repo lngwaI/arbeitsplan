@@ -100,7 +100,7 @@ namespace Arbeitsplan.Win
             Expand(pr);
             CellData pv = CellOf(pr, 2);
             BeginEdit(pv);
-            SetVariant(pv, "stationaer");
+            ChangeBuffers(pv, delegate(List<BufferItem> l) { BufferSet.SetTypes(l, "stationaer"); });
             bool dirty = HasUnsavedChanges;
             EndEdit(true);
             bool okVar = dirty && store.Get(w.AddDays(7), pid).Types == "stationaer" && CellOf(pr, 2).States[pi] == DayState.Missing;

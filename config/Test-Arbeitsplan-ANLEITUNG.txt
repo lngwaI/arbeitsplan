@@ -97,8 +97,10 @@ KURZ ERKLÄRT (zum Mittesten)
     Ist der Sonntag erreicht und die KW hat keinen Haken: Kopf rot "LKZ KWnn NICHT GEMESSEN".
     Ein Haken an irgendeinem Tag der KW (auch leer oder nachträglich) beendet die Warnung.
   Puffer
-    Herstellung je Tag: Schalter [mobil] [stationär], ein Klick schaltet sofort um (gefüllt = an,
-    beide gleichzeitig möglich, auch Sa/So). Daneben Tagesprobe/WFI-Woche mit Zustand (auto/fehlt/entfällt).
+    Puffer je Tag: Knopf "+ Puffer" (Name, Typ mobil/stationär, Text); im Block steht je Puffer eine Zeile
+    "Puffer 1: Name" mit dem Text darunter, der Typ nur als Seitenstrich (blau mobil, violett stationär;
+    Tooltip erklärt ihn). Klick auf die Puffer-Zeile: bearbeiten, entfernen, hoch/runter; speichert sofort.
+    Daneben Tagesprobe/WFI-Woche mit Zustand (auto/fehlt/entfällt).
     Tagesprobe: Mo-Fr Pflicht, mobil allein = automatisch erledigt; an Wochenende/Feiertag nur,
     wenn dort stationär hergestellt wird. Wochen-WFI entfällt in einer KW mit stationär.
     Alter Datenbestand: der Admin wird beim Start einmal gefragt "Standard-Pflichtpunkte für

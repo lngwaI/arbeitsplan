@@ -7,7 +7,7 @@ using Arbeitsplan.Core;
 namespace Arbeitsplan.Win
 {
     // Paket-Editor, Teil 3 (Vorschau & Pruefung): Kalenderleiste der Kampagne, der gewaehlte Schritt als Block wie im Plan
-    // (Raumname als Kopf, Tag/Datum, Plantext mit Format, Herstellung) und die Pruefhinweise (Klick = hinspringen).
+    // (Raumname als Kopf, Tag/Datum, Plantext mit Format, Puffer) und die Pruefhinweise (Klick = hinspringen).
     partial class PackageForm
     {
         readonly PlanStrip strip = new PlanStrip();
@@ -114,7 +114,7 @@ namespace Arbeitsplan.Win
                 c.Room = cur.Row.Length > 0 ? cur.Row : "Raum fehlt"; c.Missing = cur.Row.Length == 0;
                 c.Day = "Tag " + cd[r] + " · " + weekStart.AddDays(cd[r] - 1).ToString("ddd dd.MM.", Ui.De) + (cur.Shifted(r) ? " (verschoben)" : "");
                 c.Data = cur.EntryFor(r, prefix);
-                if (c.Data.Types.Length > 0) c.Extra = "Herstellung: " + VarText(c.Data.Types);
+                if (c.Data.Buffers.Count > 0) c.Extra = string.Join("\n", BufferSet.DisplayLines(c.Data.Buffers, true).ToArray()).Replace("(stationaer)", "(stationär)");   // Puffer-Zeilen wie im Plan (Typ in Klammern)
                 cards.Add(c);
             }
             if (cd.Count > 6) { BlockPreview.Card m = new BlockPreview.Card(); m.Room = "… " + (cd.Count - 6) + " weitere Wiederholungen"; m.More = true; cards.Add(m); }
@@ -181,6 +181,8 @@ namespace Arbeitsplan.Win
 
         int HeadH { get { return Font.Height + 8; } }
 
+        int ExtraH(Card c) { return c.Extra.Length == 0 ? 0 : c.Extra.Split('\n').Length * Font.Height + 2; }
+
         public void Set(List<Card> list, int width) { cards = list; Relayout(width); }
 
         public void Relayout(int width)
@@ -192,7 +194,7 @@ namespace Arbeitsplan.Win
             {
                 TextBlock b = c.Data != null ? TextBlock.Build(Pieces(c.Data, plain), plain, cw) : null;
                 blocks.Add(b);
-                h += c.More ? Font.Height + Gap : HeadH + (c.Extra.Length > 0 ? Font.Height + 2 : 0) + (b != null ? b.Height : 0) + 2 * Pad + Gap;
+                h += c.More ? Font.Height + Gap : HeadH + ExtraH(c) + (b != null ? b.Height : 0) + 2 * Pad + Gap;
             }
             Size = new Size(Math.Max(40, width), Math.Max(h, 20));
             Invalidate();
@@ -226,14 +228,14 @@ namespace Arbeitsplan.Win
                     Card c = cards[i];
                     if (c.More) { TextRenderer.DrawText(g, c.Room, Font, new Rectangle(Gap, y, w, Font.Height), Section.HelpColor, ff); y += Font.Height + Gap; continue; }
                     TextBlock b = blocks[i];
-                    int h = HeadH + (c.Extra.Length > 0 ? Font.Height + 2 : 0) + (b != null ? b.Height : 0) + 2 * Pad;
+                    int h = HeadH + ExtraH(c) + (b != null ? b.Height : 0) + 2 * Pad;
                     Rectangle head = new Rectangle(Gap, y, w, HeadH);
                     t.FillHead(g, head, t.RowHead);
                     int dw = TextRenderer.MeasureText(c.Day, Font).Width + 8;
                     TextRenderer.DrawText(g, c.Room, bold, new Rectangle(head.X + 6, y, w - dw - 10, HeadH), c.Missing ? Color.Firebrick : t.HeadText, ff);
                     TextRenderer.DrawText(g, c.Day, Font, new Rectangle(head.Right - dw, y, dw - 4, HeadH), t.HeadText, ff | TextFormatFlags.Right);
                     int ty = y + HeadH + Pad;
-                    if (c.Extra.Length > 0) { TextRenderer.DrawText(g, c.Extra, Font, new Rectangle(Gap + Pad, ty, w - 2 * Pad, Font.Height), t.DoneText, ff); ty += Font.Height + 2; }
+                    if (c.Extra.Length > 0) { foreach (string line in c.Extra.Split('\n')) { TextRenderer.DrawText(g, line, Font, new Rectangle(Gap + Pad, ty, w - 2 * Pad, Font.Height), t.DoneText, ff); ty += Font.Height; } ty += 2; }
                     if (b != null) b.Draw(g, Gap + Pad, ty);
                     g.DrawRectangle(t.Pen(t.CellBorder, 1), Gap, y, w - 1, h - 1);
                     y += h + Gap;

@@ -9,7 +9,7 @@ using Arbeitsplan.Core;
 namespace Arbeitsplan.Win
 {
     // Selbsttests Paket-Editor 3: Wiederholmodi (alle x Tage / Wochentage / Tagesliste, bis Tag n), Verschieben (Zieltag aus x,
-    // ganzer Schritt, einzelner Lauf, Reihenfolge), Puffer-Varianten mit Anzahl (Format, Merge, Pflichtpunkte, Chips +/-),
+    // ganzer Schritt, einzelner Lauf, Reihenfolge), Puffer-Varianten mit Anzahl (Format, Merge, Pflichtpunkte, Puffer-Dialog),
     // Ansatz Flasche/ohne Gebinde, alte Pakete; Editor-Ablauf in PackageForm.Test3.cs.
     partial class MainForm
     {
@@ -83,9 +83,7 @@ namespace Arbeitsplan.Win
             bool okFmt = VariantSet.Count("mobil:2|stationaer", "mobil") == 2 && VariantSet.Count("mobil|stationaer", "stationaer") == 1
                 && VariantSet.With("mobil|stationaer", "mobil", 1) == "mobil|stationaer" && VariantSet.With("stationaer", "mobil", 2) == "mobil:2|stationaer"
                 && VariantSet.Display("stationaer|mobil:2") == "2× mobil + stationaer" && VariantSet.Count("mobil:x", "mobil") == 1 && VariantSet.With("", "mobil", 12) == "mobil:9";
-            bool okStep = TargetOf("", 0) == 1 && TargetOf("mobil", 1) == 2 && TargetOf("mobil:2", -1) == 1
-                && TargetOf("mobil", -1) == 0 && TargetOf("mobil:9", 1) == 9 && TargetOf("mobil:3", 0) == 0
-                && PlanView.ChipZone(3, 100, true) == -1 && PlanView.ChipZone(95, 100, true) == 1 && PlanView.ChipZone(50, 100, true) == 0 && PlanView.ChipZone(3, 100, false) == 0;
+            bool okStep = BufferSet.Types(BufferSet.FromVariant("mobil:3|stationaer")) == "mobil:3|stationaer" && BufferSet.Count(BufferSet.FromVariant("mobil:2"), "mobil") == 2;   // Anzahl-Hilfen
             bool okMerge = MergeTypes("mobil", "mobil:2", "mobil|stationaer") == "mobil:2|stationaer" && MergeTypes("mobil", "mobil:2", "mobil:3") == "mobil:3"
                 && MergeTypes("mobil:2", "", "mobil:2|stationaer") == "stationaer" && MergeTypes("", "mobil", "stationaer") == "mobil|stationaer";
             int puf = PufferSetup.Row(ms.GetRows()).Id;
@@ -100,8 +98,8 @@ namespace Arbeitsplan.Win
             bool okPkg = Package.Load(path).Steps[0].Variant == "mobil:2|stationaer";
             pv.Apply(ms, d0.AddDays(14), ApplyMode.Overwrite, null);
             okPkg &= ms.Get(d0.AddDays(14), puf).Types == "mobil:4|stationaer:2";   // zwei Puffer-Schritte am selben Tag: Summe
-            sb.AppendLine("Paket3 Varianten: Format " + Ok(okFmt) + " Chips-Logik " + Ok(okStep) + " Merge/Summe " + Ok(okMerge) + " Pflichtpunkte " + Ok(okRule) + " Paket " + Ok(okPkg));
-            SelfTestChips(sb);
+            sb.AppendLine("Paket3 Varianten: Format " + Ok(okFmt) + " Anzahl-Hilfen " + Ok(okStep) + " Merge/Summe " + Ok(okMerge) + " Pflichtpunkte " + Ok(okRule) + " Paket " + Ok(okPkg));
+            SelfTestBufferUi(sb);
 
             // 4 Ansatz: Tank fehlt = Hinweis; Flasche/ohne Gebinde: kein Tank-Hinweis, Plantext mit Menge
             Catalog cat = Catalog.Default();
@@ -128,38 +126,6 @@ namespace Arbeitsplan.Win
         }
 
         static string Names(List<PackageStep> l) { string s = ""; foreach (PackageStep x in StepOrder.Sorted(l)) s += x.Title; return s; }
-
-        // Chips in der Wochenansicht: Klick = an, "+" = 2x, 3x, "−" = 2x, anderer Chip dazu, Klick auf den Namen = weg (speichert sofort)
-        void SelfTestChips(StringBuilder sb)
-        {
-            if (systemPc) { sb.AppendLine("Paket3 Chips: übersprungen (Systemrechner)"); return; }
-            DateTime keep = start;
-            try
-            {
-                int pr = RowOf("Puffer");
-                if (pr < 0) { sb.AppendLine("Paket3 Chips: FEHLER Zeile Puffer fehlt"); return; }
-                int pid = rowInfo[pr].Id;
-                DateTime wk = D(2024, 9, 16);   // Montag ohne Testdaten anderer Selbsttests
-                start = wk; Rebuild(true); Expand(pr);
-                CellData pc = CellOf(pr, 1);
-                List<string> seen = new List<string>();
-                ChipClick(pc, "mobil", 0); seen.Add(V(wk, pid));
-                ChipClick(pc, "mobil", 1); seen.Add(V(wk, pid));
-                ChipClick(pc, "mobil", 1); seen.Add(V(wk, pid));
-                ChipClick(pc, "mobil", -1); seen.Add(V(wk, pid));
-                ChipClick(pc, "stationaer", 0); seen.Add(V(wk, pid));
-                ChipClick(pc, "mobil", 0); seen.Add(V(wk, pid));
-                string got = string.Join(" ", seen.ToArray());
-                bool ok = got == "mobil mobil:2 mobil:3 mobil:2 mobil:2|stationaer stationaer";
-                sb.AppendLine("Paket3 Chips: Anzahl per +/- " + Ok(ok) + " (" + got + ")");
-            }
-            catch (Exception ex) { sb.AppendLine("Paket3 Chips: FEHLER Ausnahme " + ex.GetType().Name + ": " + ex.Message); }
-            finally { start = keep; Rebuild(true); }
-        }
-
-        void ChipClick(CellData c, string v, int zone) { Point p = view.SlotPoint(c, v, -1, zone); if (!p.IsEmpty) view.TestClick(p); }
-
-        static int TargetOf(string types, int delta) { return BufferSet.Target(BufferSet.FromVariant(types), "mobil", delta); }
 
         // Dreiwege-Merge der Puffer-Typen (nur Anzahl je Typ; Ids/Namen siehe SelfTestBuffers)
         static string MergeTypes(string b, string mine, string theirs)

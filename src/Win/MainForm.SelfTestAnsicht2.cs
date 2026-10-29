@@ -8,7 +8,7 @@ using Arbeitsplan.Core;
 
 namespace Arbeitsplan.Win
 {
-    // Selbsttests Wochenansicht 2: Varianten-Chips (Klick speichert sofort), LKZ dringend ab Sonntag, Haken an leerem Tag
+    // Selbsttests Wochenansicht 2: Puffer ("+ Puffer"/Klick speichert sofort), LKZ dringend ab Sonntag, Haken an leerem Tag
     // in vergangener KW, Rundgang-Datum (am/von, Protokoll fuer alte Haken, XML), Leiste offen bei 5/5, Auswahlrahmen.
     partial class MainForm
     {
@@ -40,26 +40,31 @@ namespace Arbeitsplan.Win
             start = wk; Rebuild(true); Expand(lr);
             CellData mi = CellOf(lr, 2);
             bool urgentBefore = mi.Urgent && CellOf(lr, 0).Note.StartsWith("LKZ KW23 NICHT GEMESSEN") && CellOf(lr, 6).Urgent;
-            view.TestClick(view.SlotPoint(mi, null, 0));
+            view.TestClick(view.SlotPoint(mi, 0));
             bool all = true; for (int c = 0; c < 7; c++) all &= !CellOf(lr, c).Urgent;
             Entry le = store.Get(wk.AddDays(2), lid);
             bool okClick = le != null && le.Lkz && all;
 
-            // Chips: Klick toggelt sofort und speichert (ohne Menue), beide gleichzeitig moeglich
+            // Puffer: "+ Puffer" speichert sofort (ohne Menue), Klick auf die Puffer-Zeile bearbeitet bzw. entfernt (Dialog per Testhaken)
             Expand(pr);
             CellData pc = CellOf(pr, 1);
-            Point pm = view.SlotPoint(pc, "mobil", -1), ps = view.SlotPoint(pc, "stationaer", -1);
             int pi = view.Defs[pr].FindIndex(delegate(CheckDef d) { return d.Key == "PROBE"; });
-            view.TestClick(pm);
+            string bn = "Puffer A", bt = "mobil", bx = "Ansatz 500 L"; BufferChoice.Act ba = BufferChoice.Act.Ok; List<string> seen = null;
+            bufferTest = delegate(BufferChoice ch) { seen = ch.Names; ch.Name = bn; ch.Typ = bt; ch.Text = bx; ch.Action = ba; return true; };
+            Point addP = view.SlotPoint(pc, -1);
+            view.TestClick(addP);
             Entry v1 = store.Get(wk.AddDays(1), pid);
             bool auto = pi >= 0 && CellOf(pr, 1).States[pi] == DayState.Auto;
-            pc = CellOf(pr, 1); ps = view.SlotPoint(pc, "stationaer", -1);   // aktiver Chip ist breiter (+/-): Lage neu bestimmen
-            view.TestClick(ps);
+            bn = "Puffer B"; bt = "stationaer"; bx = "";
+            view.TestClick(view.SlotPoint(CellOf(pr, 1), -1));
             Entry v2 = store.Get(wk.AddDays(1), pid);
-            pc = CellOf(pr, 1); pm = view.SlotPoint(pc, "mobil", -1);
-            view.TestClick(pm);
+            bool bnames = seen != null && seen.Contains("Puffer A");
+            ba = BufferChoice.Act.Remove;
+            view.TestClick(view.BufPoint(CellOf(pr, 1), 0));
             Entry v3 = store.Get(wk.AddDays(1), pid);
-            bool okChips = !pm.IsEmpty && !ps.IsEmpty && v1 != null && v1.Types == "mobil" && auto && v2.Types == "mobil|stationaer" && v3.Types == "stationaer";
+            bufferTest = null;
+            bool okChips = !addP.IsEmpty && v1 != null && v1.Buffers.Count == 1 && v1.Types == "mobil" && v1.Buffers[0].Text == "Ansatz 500 L" && auto && v2.Types == "mobil|stationaer"
+                && bnames && v3.Types == "stationaer" && v3.Buffers.Count == 1 && v3.Buffers[0].Name == "Puffer B";
 
             // Rundgaenge: Datum/Kuerzel aus dem Haken, alte Haken aus dem Protokoll, Leiste bleibt bei 5/5 offen
             List<RoundDef> act = duties.Rounds.FindAll(delegate(RoundDef d) { return d.Active; });
@@ -104,7 +109,7 @@ namespace Arbeitsplan.Win
             bool esc = view.Selected == null;
             bool okSel = sel1 && gone && free && esc;
 
-            sb.AppendLine("Ansicht2: Chips toggeln speichert=" + Ok(okChips) + " LKZ dringend ab Sonntag=" + Ok(okRule && urgentBefore) + " Haken an leerem Tag (vergangene KW)=" + Ok(okClick)
+            sb.AppendLine("Ansicht2: Puffer hinzufügen/entfernen speichert=" + Ok(okChips) + " LKZ dringend ab Sonntag=" + Ok(okRule && urgentBefore) + " Haken an leerem Tag (vergangene KW)=" + Ok(okClick)
                 + " Rundgang-Datum=" + Ok(okStamp) + " Leiste offen bei " + (g != null ? g.DoneCount + "/" + g.Defs.Count : "-") + "=" + Ok(okOpen) + " am/von im XML=" + Ok(okXml)
                 + " Auswahl weg (Zuklappen/Fläche/Esc)=" + Ok(okSel));
         }

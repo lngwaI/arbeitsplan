@@ -6,18 +6,16 @@ using Arbeitsplan.Core;
 
 namespace Arbeitsplan.Win
 {
-    // Platz eines Eintrags der Pruefleiste, relativ zur Leiste: Variante als Umschalt-Chip (Var) oder Pflichtpunkt (Def).
-    class CheckSlot { public int Def = -1; public string Var; public int W; public Rectangle R; }
+    // Platz eines Eintrags der Pruefleiste, relativ zur Leiste: Knopf "+ Puffer" (Add) oder Pflichtpunkt (Def).
+    class CheckSlot { public int Def = -1; public bool Add; public int W; public Rectangle R; }
 
-    // Pruefleiste je Block: Varianten-Chips [mobil] [stationaer] (Klick toggelt sofort), Pflichtpunkte mit Zustand
+    // Pruefleiste je Block: Knopf "+ Puffer" (Zeilen mit Puffer-Typen), Pflichtpunkte mit Zustand
     // (Tagesprobe auto/fehlt/entfaellt …); nur LKZ: ein grosses, zentriertes Feld "LKZ gemessen?".
     partial class PlanView
     {
         public List<CheckDef>[] Defs = new List<CheckDef>[0];   // je Zeile (MainForm: aus DutyConfig + LKZ aus der Blockstruktur)
         public Action<CellData, string> MarkClicked;            // Schluessel (CheckDef.LkzKey = LKZ-Haken)
-        public Action<CellData, string, int> VariantClicked;    // Variante: 0 = an/aus, +1/-1 = Anzahl (BufferSet.Target)
         CheckSlot[][] slots = new CheckSlot[0][];
-        static readonly Color[] ChipColors = { Color.FromArgb(0, 120, 180), Color.FromArgb(115, 80, 175), Color.FromArgb(0, 135, 110) };
 
         List<CheckDef> DefsOf(int r) { return r < Defs.Length && Defs[r] != null ? Defs[r] : new List<CheckDef>(); }
         bool HasChecks(int r) { return DefsOf(r).Count > 0 || Rows[r].Variants.Length > 0; }
@@ -49,16 +47,7 @@ namespace Arbeitsplan.Win
             if (!HasChecks(r)) { slots[r] = l.ToArray(); return 0; }
             List<CheckDef> d = DefsOf(r);
             int x = TP, line = 0, max = iw - 2, box = Theme.Current.CheckBox;
-            foreach (string v in Rows[r].VariantList())
-            {   // Breite = breitester Zustand der 7 Tage (aktiv: Anzahl + "−"/"+"), damit die Leiste schmal bleibt, solange nichts aktiv ist
-                CheckSlot s = new CheckSlot(); s.Var = v; s.W = TextW(VarLabel(v), bold) + 12;
-                foreach (CellData c in Cells)
-                {
-                    int n = c.RowIndex == r ? VariantSet.Count(c.Variant, v) : 0;
-                    if (n > 0) s.W = Math.Max(s.W, TextW((n > 1 ? n + "× " : "") + VarLabel(v), bold) + 8 + 2 * ZoneW);
-                }
-                l.Add(s);
-            }
+            if (Rows[r].Variants.Length > 0) { CheckSlot s = new CheckSlot(); s.Add = true; s.W = TextW("+ Puffer", bold) + 16; l.Add(s); }
             for (int i = 0; i < d.Count; i++)
             {
                 CheckSlot s = new CheckSlot(); s.Def = i;
@@ -85,7 +74,7 @@ namespace Arbeitsplan.Win
         {
             Theme th = Theme.Current;
             const TextFormatFlags tf = TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis;
-            int r = c.RowIndex, bs = th.CheckBox, vi = 0;
+            int r = c.RowIndex, bs = th.CheckBox;
             List<CheckDef> d = DefsOf(r);
             bool single = Single(r);
             Fill(g, back, c.RChecks);
@@ -93,21 +82,10 @@ namespace Arbeitsplan.Win
             {
                 Rectangle sr = new Rectangle(c.RChecks.X + s.R.X, c.RChecks.Y + s.R.Y, s.R.Width, s.R.Height);
                 Rectangle chip = new Rectangle(sr.X, sr.Y + 3, sr.Width - 1, sr.Height - 7);
-                if (s.Var != null)   // Umschalt-Chip: aktiv = gefuellt mit Anzahl und "−"/"+" an den Raendern, inaktiv = Umriss
+                if (s.Add)   // Knopf "+ Puffer": Umriss in Akzentfarbe
                 {
-                    Color col = ChipColors[vi++ % ChipColors.Length];
-                    int n = VariantSet.Count(c.Variant, s.Var);
-                    if (n == 0) { Fill(g, Color.White, chip); g.DrawRectangle(th.Pen(th.ChipOff, 1), chip); }
-                    else
-                    {
-                        Fill(g, col, chip);
-                        Rectangle lz = new Rectangle(chip.X, chip.Y, ZoneW, chip.Height), rz = new Rectangle(chip.Right - ZoneW, chip.Y, ZoneW, chip.Height);
-                        Fill(g, Color.FromArgb(70, 0, 0, 0), lz); Fill(g, Color.FromArgb(70, 0, 0, 0), rz);
-                        TextRenderer.DrawText(g, "−", bold, lz, Color.White, tf | TextFormatFlags.HorizontalCenter);
-                        TextRenderer.DrawText(g, "+", bold, rz, Color.White, tf | TextFormatFlags.HorizontalCenter);
-                    }
-                    Rectangle mid = n == 0 ? chip : new Rectangle(chip.X + ZoneW, chip.Y, chip.Width - 2 * ZoneW, chip.Height);
-                    TextRenderer.DrawText(g, (n > 1 ? n + "× " : "") + VarLabel(s.Var), bold, mid, n > 0 ? Color.White : th.Muted, tf | TextFormatFlags.HorizontalCenter);
+                    Fill(g, Color.White, chip); g.DrawRectangle(th.Pen(th.ChipOn, 1), chip);
+                    TextRenderer.DrawText(g, "+ Puffer", bold, chip, th.ChipOn, tf | TextFormatFlags.HorizontalCenter);
                     continue;
                 }
                 CheckDef def = d[s.Def];
@@ -146,32 +124,12 @@ namespace Arbeitsplan.Win
             return null;
         }
 
-        const int ZoneW = 14;   // Breite der "−"/"+"-Felder am aktiven Varianten-Chip
-
-        // Klick auf einen Varianten-Chip (x relativ zum Chip, Breite w): aktiv links = -1, rechts = +1, sonst 0 (an/aus)
-        public static int ChipZone(int x, int w, bool active)
-        {
-            if (!active) return 0;
-            return x < ZoneW ? -1 : (x >= w - ZoneW ? 1 : 0);
-        }
-
-        // Variante unter dem Mauspunkt: Anzahl -1/+1 an den Raendern, sonst an/aus; onlyCount (Doppelklick) = nur "+"/"−"
-        void ClickVariant(CellData c, CheckSlot s, int x, bool onlyCount)
-        {
-            int z = ChipZone(x - c.RChecks.X - s.R.X, s.R.Width - 1, VariantSet.Contains(c.Variant, s.Var));
-            if (VariantClicked != null && (z != 0 || !onlyCount)) VariantClicked(c, s.Var, z);
-        }
-
 #if TESTHOOKS
-        // Selbsttest: Mitte eines Chips (var) bzw. Pflichtpunkts (def), Klick wie mit der Maus; zone -1/+1 = "−"/"+" am Chip
-        public Point SlotPoint(CellData c, string var, int def, int zone = 0)
+        // Selbsttest: Mitte des Pflichtpunkts (def) bzw. des Knopfs "+ Puffer" (def = -1), Klick wie mit der Maus
+        public Point SlotPoint(CellData c, int def)
         {
             foreach (CheckSlot s in slots[c.RowIndex])
-                if (var != null ? s.Var == var : s.Var == null && s.Def == def)
-                {
-                    int x = zone < 0 ? ZoneW / 2 : zone > 0 ? s.R.Width - ZoneW / 2 - 1 : s.R.Width / 2;
-                    return new Point(c.RChecks.X + s.R.X + x, c.RChecks.Y + s.R.Y + s.R.Height / 2);
-                }
+                if (s.Add ? def < 0 : s.Def == def) return new Point(c.RChecks.X + s.R.X + s.R.Width / 2, c.RChecks.Y + s.R.Y + s.R.Height / 2);
             return Point.Empty;
         }
         public void TestClick(Point p) { OnMouseDown(new MouseEventArgs(MouseButtons.Left, 1, p.X, p.Y, 0)); }
@@ -191,19 +149,6 @@ namespace Arbeitsplan.Win
             return "entfällt";
         }
 
-        // Wirkung einer Variante auf die Pflichtpunkte der Zeile ("mobil: Tagesprobe automatisch")
-        string VarEffect(int r, string v)
-        {
-            List<string> l = new List<string>();
-            foreach (CheckDef d in DefsOf(r))
-            {
-                if (CheckEval.Cond(d, '+', v)) l.Add(d.Name + " automatisch");
-                else if (CheckEval.Cond(d, '!', v)) l.Add(d.Rule == CheckRule.WeeklyOnce ? d.Name + " erledigt für die ganze KW" : d.Name + " entfällt");
-                else if (d.Rule == CheckRule.Workdays) l.Add(d.Name + " manuell ziehen");
-            }
-            return VarLabel(v) + (l.Count > 0 ? ": " + string.Join(", ", l.ToArray()) : "");
-        }
-
         // " (Di)" = Wochentag des ersten Tags der KW mit auslösender Variante (soweit angezeigt)
         string FirstDayText(CellData c, CheckDef d)
         {
@@ -216,12 +161,7 @@ namespace Arbeitsplan.Win
 
         string CheckTip(CellData c, CheckSlot s)
         {
-            if (s.Var != null)
-            {
-                int n = VariantSet.Count(c.Variant, s.Var);
-                return VarEffect(c.RowIndex, s.Var) + "\n" + (n > 0 ? "Aktiv: " + n + "× – „+“/„−“ ändert die Anzahl, Klick auf den Namen schaltet ab" : "Nicht aktiv – Klick schaltet ein")
-                    + " (mehrere Varianten gleichzeitig möglich)";
-            }
+            if (s.Add) return "Puffer hinzufügen (Name, Typ, Text)";
             CheckDef d = DefsOf(c.RowIndex)[s.Def];
             DayState st = StateOf(c, s.Def);
             if (d.Rule == CheckRule.WeeklyOnce && st == DayState.Auto) return d.Name + ": erledigt durch stationäre Herstellung" + FirstDayText(c, d) + " – kein offener Punkt";

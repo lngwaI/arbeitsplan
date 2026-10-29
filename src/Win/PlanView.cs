@@ -18,7 +18,7 @@ namespace Arbeitsplan.Win
         public string[] People = { "", "", "" };
         public bool Lkz;                                    // angezeigter/bearbeiteter LKZ-Haken
         public List<BufferItem> Buffers = new List<BufferItem>();   // angezeigte/bearbeitete Puffer
-        public string Variant { get { return BufferSet.Types(Buffers); } }   // Typen als VariantSet (Chips)
+        public string Variant { get { return BufferSet.Types(Buffers); } }   // Typen als VariantSet
         public List<string> Marks = new List<string>();     // angezeigte/bearbeitete Pflichtpunkte
         public bool Editing, Dirty = true;
         public bool Changed;                                // von anderem PC geaendert, kurz hervorgehoben (nur Ansicht)
@@ -36,7 +36,9 @@ namespace Arbeitsplan.Win
         public DayState[] States;                           // je Pflichtpunkt der Zeile (PlanView.Defs), von MainForm berechnet
         public string Note = "";                            // Kopf-Hinweis, z. B. "LKZ KW44 offen"
         public bool Urgent;                                 // Wochenpflicht (LKZ) nach Sonntag nicht erfuellt: Kopf rot, Hinweis fett
-        public Rectangle R, RHead, RChecks, RContent;
+        public Rectangle R, RHead, RChecks, RBuf, RContent;
+        public List<BufPart> BufParts = new List<BufPart>(); // Puffer-Zeilen (PlanView.Buffers.cs)
+        public int BufH;                                    // Hoehe des Puffer-Bereichs (0 = keine Puffer)
         public Rectangle[] RLbl = new Rectangle[3], RPpl = new Rectangle[3];
     }
 
@@ -161,14 +163,15 @@ namespace Arbeitsplan.Win
                 c.RHead = new Rectangle(x + 1, rowY[r] + 1, iw, HeadH - 1);
                 if (Collapsed[r])
                 {
-                    c.RChecks = c.RContent = Rectangle.Empty;
+                    c.RChecks = c.RBuf = c.RContent = Rectangle.Empty;
                     for (int s = 0; s < 3; s++) c.RLbl[s] = c.RPpl[s] = Rectangle.Empty;
                     continue;
                 }
                 int cy = rowY[r] + 1 + HeadH;
                 c.RChecks = new Rectangle(x + 1, cy, iw, lk[r]);
                 cy += lk[r];
-                c.RContent = new Rectangle(x + 1, cy, iw, ch[r]);
+                c.RBuf = new Rectangle(x + 1, cy, iw, c.BufH);                       // Puffer ueber dem freien Inhalt; ch[r] umfasst beides
+                c.RContent = new Rectangle(x + 1, cy + c.BufH, iw, ch[r] - c.BufH);
                 int sy = cy + ch[r] + 1, lw = lblW[r];
                 for (int s = 0; s < 3; s++)   // ausgeblendete Schicht: Hoehe 0 (nicht gezeichnet, nicht anklickbar, kein Editor)
                 {
@@ -186,7 +189,7 @@ namespace Arbeitsplan.Win
         int RowNeeds(int r, int lh, out int[] sh)
         {
             RowInfo ri = Rows[r];
-            int ch = ri.MinLines * lh + 2 * TV, min = (ri.Mode == ShiftMode.Task ? TaskLines : ShiftLines) * lh + 2 * TV;
+            int minC = ri.MinLines * lh + 2 * TV, ch = minC, min = (ri.Mode == ShiftMode.Task ? TaskLines : ShiftLines) * lh + 2 * TV;
             sh = new int[3];
             for (int s = 0; s < 3; s++) sh[s] = ri.HasShift(s) ? min : 0;
             if (Collapsed[r]) return ch;
@@ -194,7 +197,7 @@ namespace Arbeitsplan.Win
             {
                 if (c.RowIndex != r) continue;
                 int extra = 0;      // Editor: gleiche Zeilenhoehe/Breite wie die Ansicht (ExactLineSpacing), keine Reserve mehr noetig
-                ch = Math.Max(ch, c.CB.Height + 2 * TV + extra);
+                ch = Math.Max(ch, c.BufH + Math.Max(minC, c.CB.Height + 2 * TV + extra));
                 for (int s = 0; s < 3; s++) if (sh[s] > 0) sh[s] = Math.Max(sh[s], c.PB[s].Height + 2 * TV + extra);
             }
             return ch;
@@ -231,7 +234,7 @@ namespace Arbeitsplan.Win
             if (c.Dirty) Build(c, ColW - 2 - 2 * TP, ColW - 2 - lblW[c.RowIndex] - 2 * TP);
             int[] sh;
             int ch = RowNeeds(c.RowIndex, Font.Height, out sh);
-            if (c.Hits != hits || ch != c.RContent.Height || sh[0] != c.RPpl[0].Height || sh[1] != c.RPpl[1].Height || sh[2] != c.RPpl[2].Height) { Relayout(); return; }
+            if (c.Hits != hits || ch != c.RContent.Height + c.RBuf.Height || c.BufH != c.RBuf.Height || sh[0] != c.RPpl[0].Height || sh[1] != c.RPpl[1].Height || sh[2] != c.RPpl[2].Height) { Relayout(); return; }
             Invalidate(c.R);
         }
 
@@ -281,6 +284,7 @@ namespace Arbeitsplan.Win
             Fill(g, back, c.RContent);
             const TextFormatFlags tf = TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix;
             if (c.RChecks.Height > 0) PaintChecks(g, c, back);
+            if (c.RBuf.Height > 0) PaintBuffers(g, c, back);
 
             if (!c.Editing) c.CB.Draw(g, c.RContent.X + TP, c.RContent.Y + TV);
             bool task = ri.Mode == ShiftMode.Task;
@@ -316,7 +320,9 @@ namespace Arbeitsplan.Win
             base.OnMouseMove(e);
             CellData c = CellAt(e.Location);
             CheckSlot s = c != null ? SlotAt(c, e.Location) : null;
-            string t = c == null ? RoundTip(e.Location) : s != null ? CheckTip(c, s)
+            int bi = c != null && s == null ? BufAt(c, e.Location) : -1;
+            Cursor = bi >= 0 ? Cursors.Hand : Cursors.Default;
+            string t = c == null ? RoundTip(e.Location) : s != null ? CheckTip(c, s) : bi >= 0 ? c.BufParts[bi].Tip
                 : c.RHead.Contains(e.Location) ? (c.Runs.Count > 0 ? RunNumbers.Describe(c.Runs) : c.Note) : "";
             if (t != tipText) { tipText = t; tip.SetToolTip(this, t.Length > 0 ? t : null); }
         }
@@ -333,14 +339,15 @@ namespace Arbeitsplan.Win
             if (sel != Selected) { Selected = sel; Invalidate(); }
             if (c == null || e.Button != MouseButtons.Left) return;
             CheckSlot s = head ? null : SlotAt(c, e.Location);
-            if (e.Clicks != 1)   // schnell wiederholt auf "+"/"−": jeder Klick zaehlt
+            if (e.Clicks != 1) return;
+            if (head) { if (RowToggled != null) RowToggled(c.RowIndex); return; }
+            if (s == null)
             {
-                if (s != null && s.Var != null) ClickVariant(c, s, e.X, true);
+                int bi = BufAt(c, e.Location);
+                if (bi >= 0 && BufferClicked != null) BufferClicked(c, bi);
                 return;
             }
-            if (head) { if (RowToggled != null) RowToggled(c.RowIndex); return; }
-            if (s == null) return;
-            if (s.Var != null) ClickVariant(c, s, e.X, false);
+            if (s.Add) { if (BufferClicked != null) BufferClicked(c, -1); }
             else if (MarkClicked != null && StateOf(c, s.Def) != DayState.NA && StateOf(c, s.Def) != DayState.Auto) MarkClicked(c, DefsOf(c.RowIndex)[s.Def].Key);
         }
 
@@ -349,7 +356,7 @@ namespace Arbeitsplan.Win
             base.OnMouseDoubleClick(e);
             CellData c = CellAt(e.Location);
             if (c == null || Collapsed[c.RowIndex] || c.RHead.Contains(e.Location)) return;
-            if (!c.RChecks.Contains(e.Location) && CellActivated != null) CellActivated(c);
+            if (!c.RChecks.Contains(e.Location) && !c.RBuf.Contains(e.Location) && CellActivated != null) CellActivated(c);
         }
     }
 }

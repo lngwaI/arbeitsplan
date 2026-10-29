@@ -386,12 +386,13 @@ namespace Arbeitsplan.Core
             s.Save(monday.AddDays(1), s.IdOf("Versand"), v);
             // Puffer: Herstellung mobil (Tagesprobe automatisch), stationaer mit Tagesprobe, ohne Angabe, beides an einem Tag
             string[][] pf = { new[] { "Herstellung Puffer A", "Puffer A|mobil", "" }, new[] { "Herstellung Puffer B", "Puffer B|stationaer", "PROBE" }, new[] { "Puffer B abfüllen", "", "" },
-                              new[] { "Herstellung Puffer C und D", "Puffer C|mobil|Puffer D|stationaer", "PROBE" } };
+                              new[] { "Herstellung Puffer C, D und E", "Puffer C|mobil|Puffer D|stationaer|Puffer E|mobil", "PROBE" } };
             for (int d = 0; d < pf.Length; d++)
             {
                 Entry e = new Entry(); e.Content = pf[d][0]; e.People = new[] { "WEPA", "", "" };
                 string[] bp = pf[d][1].Split('|');
                 for (int k = 0; k + 1 < bp.Length; k += 2) BufferSet.Add(e.Buffers, bp[k], bp[k + 1], "");
+                if (d == 3) { e.Buffers[0].Text = "Ansatz 500 L\nWFI: H1-T-0102"; e.Buffers[1].Text = "Flasche 5 L"; }
                 if (pf[d][2].Length > 0) e.Marks.Add(pf[d][2]);
                 s.Save(monday.AddDays(d), s.IdOf("Puffer"), e);
             }

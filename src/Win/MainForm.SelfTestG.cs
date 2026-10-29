@@ -220,7 +220,6 @@ namespace Arbeitsplan.Win
             Entry m1 = Conflict.Merge(E("x", false, ""), E("x", false, "mobil"), E("x", false, "stationaer"), cl);
             Entry m2 = Conflict.Merge(E("x", false, "mobil"), E("x", false, ""), E("x", false, "mobil|stationaer"), cl);
             bool okMerge = m1.Types == "mobil|stationaer" && m2.Types == "stationaer" && cl.Count == 0
-                && BufferSet.Target(BufferSet.FromVariant("mobil"), "stationaer", 0) == 1 && BufferSet.Target(BufferSet.FromVariant("mobil|stationaer"), "mobil", 0) == 0
                 && VariantSet.Display("stationaer|mobil") == "mobil + stationaer";
             sb.AppendLine("Puffer-Varianten: Tagesprobe kombiniert/Wochenende/Feiertag=" + Ok(okDays) + " Wochen-WFI entfällt bei Kombination, So hakbar=" + Ok(okWfi)
                 + " XML-Rundreise=" + Ok(okXml) + " Merge-Vereinigung=" + Ok(okMerge));
