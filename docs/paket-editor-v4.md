@@ -111,7 +111,14 @@ Zum Schluss: `SampleCampaign` auf v7, `config/Testprodukt.apkg` neu, Anleitung (
 - Dateigröße: `PackageForm.cs` 459, `Packages.cs` 383 Zeilen → Neues in eigene partial-Dateien.
 - FormatVersion: läuft in der Firma schon eine v4-Test-exe ohne Notizen, geht beim Speichern die Notizmarkierung verloren → dann v5.
 
-## Offene Fragen an den Nutzer (mit Empfehlung)
+## Entscheidungen des Nutzers (2026-10-29, Antworten auf die Fragen unten)
+- Fragen 1, 3–10 und 11 (Grundsatz): Empfehlung gilt. Frage 7 ergänzt: Puffer von Produkt A und Produkt B nie am selben Tag, i. d. R. mindestens 1 Tag Abstand (Regel in E4: Hinweis/Sperre bei Puffer verschiedener Produkte am selben Tag; bei Kampagnenstart gegen den Plan prüfen).
+- Frage 2 **anders**: Fällt ein Lauf aus oder wird er ausgesetzt, fällt auch die PA/Kennung dieses Laufs aus (Folgeläufe rücken nicht nach). Aber nicht vollautomatisch: Die Kennungstabelle extrapoliert (Startwert +1 je geplantem Lauf, ausgefallener Lauf = Lücke auch bei PA) und jede Zelle bleibt von Hand änderbar.
+- Frage 11 ergänzt: Mehrere Notizen je Schritt möglich, getrennt per Enter, übersichtlich gestaltet (je Notiz eigene Zeile, kursiv, klar abgesetzt; Notizfeld im Editor mehrzeilig, Enter = nächste Notiz).
+- Frage 12: Nichts verteilt, nur lokale Tests (Desktop/Laptop) → Notizen und Baustein-Felder kommen in `Backup.FormatVersion` 4, kein v5.
+- Frage 13: Keine Notiz je Lauf im Paket-Editor; gilt eine Notiz nur für einen Lauf, trägt der Nutzer sie manuell im Plan ein. ("Kennungstabelle" = die Tabelle Lauf | Datum | Laufnummer | Kennung in E2.)
+
+## Offene Fragen an den Nutzer (mit Empfehlung) – beantwortet, siehe oben
 1. **Ausgefallener Lauf:** zählt er in der Laufanzahl, bleibt sein Termin frei? *Empfehlung:* Anzahl = geplante Läufe inkl. ausgefallener; Termin leer, Folgeläufe bleiben; Nachziehen per Verschieben.
 2. **Kennung bei „aussetzen“/Ausfall:** verbraucht der Lauf eine PA-Nummer? *Empfehlung:* nein; nächster stattfindender Lauf bekommt die nächste Nummer; Lücke nur bei der Laufnummer.
 3. **Zwei Hauptläufe am selben Tag:** global oder je Raum? Zählen Lauf-Schritte mit Laufnummer als Hauptlauf? *Empfehlung:* je Raum, nur der Hauptlauf-Schritt.
