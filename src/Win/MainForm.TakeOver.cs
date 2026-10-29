@@ -40,7 +40,23 @@ namespace Arbeitsplan.Win
 #if TESTHOOKS
             if (Array.IndexOf(Environment.GetCommandLineArgs(), "--shot") >= 0) return;   // Testbild/Selbsttest: keine Rueckfrage beim Start
 #endif
-            Shown += delegate { BeginInvoke((MethodInvoker)delegate { StartupNotices(); }); };
+            Shown += delegate { QueueStartup(StartupNotices); };
+        }
+
+        // Dialoge beim Programmstart nacheinander (ein Dialog nach dem anderen, Reihenfolge = Eintragen)
+        readonly Queue<MethodInvoker> startQ = new Queue<MethodInvoker>();
+        bool startRunning;
+
+        public void QueueStartup(MethodInvoker a)
+        {
+            startQ.Enqueue(a);
+            if (startRunning) return;
+            startRunning = true;
+            BeginInvoke((MethodInvoker)delegate
+            {
+                while (startQ.Count > 0 && !IsDisposed) { MethodInvoker n = startQ.Dequeue(); try { n(); } catch (Exception) { } }
+                startRunning = false;
+            });
         }
 
         // Nach dem Programmstart: ungelesene Meldungen (z. B. Programm war geschlossen oder abgestuerzt)

@@ -17,13 +17,20 @@ namespace Arbeitsplan.Win
         {
             Text = "Arbeitsplan";
             Ui.Dialog(this, 520, 150, false);
-            Label l = new Label(); l.SetBounds(16, 16, 488, 56);
-            l.Text = "Das Fenster " + title + " am " + Ui.DayText(day) + " wird gerade von " + holder + " bearbeitet.";
-            Label h = Ui.Hint(mayTakeOver ? "Trotzdem bearbeiten: beide bearbeiten, Speichern fragt bei Überschneidung nach." : "Das Recht \"Bearbeitung übernehmen\" fehlt.", 16, 78, 488);
-            bGo.Text = "Trotzdem bearbeiten"; bGo.SetBounds(16, 108, 150, 28); bGo.Click += delegate { Result = Choice.Continue; DialogResult = DialogResult.OK; };
-            bTake.Text = "Bearbeitung übernehmen…"; bTake.SetBounds(174, 108, 170, 28); bTake.Enabled = mayTakeOver;
+            // Layout nach Texthöhe: Meldung, Hinweis, darunter die Knöpfe
+            string msg = "Das Fenster " + title + " am " + Ui.DayText(day) + " wird gerade von " + holder + " bearbeitet.";
+            string hint = mayTakeOver ? "Trotzdem bearbeiten: beide bearbeiten, Speichern fragt bei Überschneidung nach." : "Das Recht \"Bearbeitung übernehmen\" fehlt.";
+            const TextFormatFlags wb = TextFormatFlags.WordBreak | TextFormatFlags.NoPrefix;
+            int mh = Math.Max(20, TextRenderer.MeasureText(msg, Font, new Size(488, 0), wb).Height + 4);
+            int hh = Math.Max(18, TextRenderer.MeasureText(hint, Font, new Size(488, 0), wb).Height + 4);
+            Label l = new Label(); l.SetBounds(16, 16, 488, mh); l.Text = msg;
+            Label h = new Label(); h.Text = hint; h.ForeColor = SystemColors.GrayText; h.SetBounds(16, 16 + mh + 6, 488, hh);
+            int by = 16 + mh + 6 + hh + 14;
+            ClientSize = new Size(520, by + 28 + 14);
+            bGo.Text = "Trotzdem bearbeiten"; bGo.SetBounds(16, by, 150, 28); bGo.Click += delegate { Result = Choice.Continue; DialogResult = DialogResult.OK; };
+            bTake.Text = "Bearbeitung übernehmen…"; bTake.SetBounds(174, by, 170, 28); bTake.Enabled = mayTakeOver;
             bTake.Click += delegate { Result = Choice.TakeOver; DialogResult = DialogResult.OK; };
-            bCancel.Text = "Abbrechen"; bCancel.SetBounds(404, 108, 100, 28); bCancel.DialogResult = DialogResult.Cancel;
+            bCancel.Text = "Abbrechen"; bCancel.SetBounds(404, by, 100, 28); bCancel.DialogResult = DialogResult.Cancel;
             Controls.AddRange(new Control[] { l, h, bGo, bTake, bCancel });
             AcceptButton = bGo; CancelButton = bCancel; ActiveControl = bGo;
             Theme.Current.Style(this);

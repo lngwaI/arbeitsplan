@@ -38,7 +38,7 @@ namespace Arbeitsplan.Core
     public static class Backup
     {
         // Datenformat; bei inkompatibler Aenderung erhoehen (aeltere exe lesen die Datei dann nicht mehr und schreiben nie zurueck)
-        public const int FormatVersion = 4;   // 2: Equipment-Stammdaten im Katalog; 3: Pflichtpunkte, Varianten, Wochenhaken, Produktprofile, "gehoertzu"; 4: manueller Equipment-Status, Statusuebergaenge, Regeln auf Art-/Gruppenebene ("@Art", "#Gruppe")
+        public const int FormatVersion = 5;   // 5: Puffer je Block, Notizzeilen (Fmt n/oi), Baustein-Felder (puffertyp, notizvorlage); 2: Equipment-Stammdaten im Katalog; 3: Pflichtpunkte, Varianten, Wochenhaken, Produktprofile, "gehoertzu"; 4: manueller Equipment-Status, Statusuebergaenge, Regeln auf Art-/Gruppenebene ("@Art", "#Gruppe")
         public const string Ext = ".apbak", Prefix = "Arbeitsplan_";
         public const int Keep = 14;
         static readonly UTF8Encoding Utf8 = new UTF8Encoding(false);
@@ -300,6 +300,7 @@ namespace Arbeitsplan.Core
                 w.WriteStartElement("Fmt"); w.WriteAttributeString("start", I(f.Start)); w.WriteAttributeString("len", I(f.Length)); w.WriteAttributeString("rgb", I(f.Rgb));
                 w.WriteAttributeString("size", f.Size.ToString("R", Inv)); w.WriteAttributeString("b", B(f.Bold)); w.WriteAttributeString("i", B(f.Italic));
                 if (f.Note) w.WriteAttributeString("n", "1");
+                if (f.Note && f.NoteWasItalic) w.WriteAttributeString("oi", "1");
                 if (f.Font != null) w.WriteAttributeString("font", f.Font);
                 w.WriteEndElement();
             }
@@ -577,7 +578,7 @@ namespace Arbeitsplan.Core
             foreach (XmlElement f in Kids(e, "Fmt"))
             {
                 FormatSpan s = new FormatSpan(); s.Start = Int(f, "start"); s.Length = Int(f, "len"); s.Rgb = Int(f, "rgb");
-                s.Size = float.Parse(f.GetAttribute("size"), Inv); s.Bold = Bool(f, "b"); s.Italic = Bool(f, "i"); s.Note = Bool(f, "n");
+                s.Size = float.Parse(f.GetAttribute("size"), Inv); s.Bold = Bool(f, "b"); s.Italic = Bool(f, "i"); s.Note = Bool(f, "n"); s.NoteWasItalic = s.Note && Bool(f, "oi");
                 s.Font = f.HasAttribute("font") ? f.GetAttribute("font") : null;
                 x.Spans.Add(s);
             }

@@ -28,11 +28,16 @@ namespace Arbeitsplan.Win
         readonly ListBox lbGrp = new ListBox();
         readonly TextBox gName = new TextBox();
         readonly CheckedListBox gPos = new CheckedListBox();
+        readonly ComboBox bVar = new ComboBox();
+        string[] varVals;   // Index 0 = kein Typ, danach die Varianten der Puffer-Zeile
         bool loading;
 
-        public CatalogForm(Catalog catalog, List<string> rowNames)
+        public CatalogForm(Catalog catalog, List<string> rowNames, string[] variants = null)
         {
             cat = catalog.Clone(); this.rowNames = rowNames;
+            List<string> vl = new List<string>(); vl.Add("");
+            foreach (string v in variants ?? new[] { "mobil", "stationaer" }) if (v.Length > 0 && !vl.Contains(v)) vl.Add(v);
+            varVals = vl.ToArray();
             Text = "Equipment-Positionen und Bausteine einrichten";
             Ui.Dialog(this, 760, 540);
             Controls.Add(Ui.Hint("Hier gilt alles für alle Produkte (Standard). Geräte je Produkt: Einstellungen → Produkte & Equipment; Geräte selbst: Equipment-Stammdaten.", 8, 6, 744));
@@ -114,7 +119,12 @@ namespace Arbeitsplan.Win
             bRow.Items.Add("");
             foreach (string r in rowNames) if (r.Length > 0) bRow.Items.Add(r);
             p.Controls.Add(bRow);
-            p.Controls.Add(L("Standardtext (optional):", 260, 62)); bText.SetBounds(260, 82, 460, 22); p.Controls.Add(bText);
+            p.Controls.Add(L("Standardtext (optional):", 260, 62)); bText.SetBounds(260, 82, 220, 22); p.Controls.Add(bText);
+            p.Controls.Add(L("Herstellungstyp (Puffer):", 500, 62)); bVar.DropDownStyle = ComboBoxStyle.DropDownList; bVar.SetBounds(500, 82, 220, 22);
+            bVar.Items.Add("(keiner)");
+            foreach (string v in varVals) if (v.Length > 0) bVar.Items.Add(PlanView.VarLabel(v));
+            p.Controls.Add(bVar);
+            bVar.SelectedIndexChanged += delegate { if (!loading && lbBau.SelectedItem != null && bVar.SelectedIndex >= 0) ((Baustein)lbBau.SelectedItem).Variant = varVals[bVar.SelectedIndex]; };
             p.Controls.Add(L("Fragt diese Equipment-Positionen ab:", 260, 116));
             bPos.SetBounds(260, 136, 220, 150); bPos.CheckOnClick = true;
             foreach (EquipPosition e in cat.Positions) bPos.Items.Add(e.Short + "  –  " + e.Name);
@@ -185,6 +195,9 @@ namespace Arbeitsplan.Win
             bName.Text = b != null ? b.Name : "";
             bRow.SelectedIndex = b != null && b.Row.Length > 0 && bRow.Items.IndexOf(b.Row) >= 0 ? bRow.Items.IndexOf(b.Row) : 0;
             bText.Text = b != null ? b.Text : "";
+            int vi = b != null ? Array.IndexOf(varVals, b.Variant) : 0;
+            if (vi < 0) { List<string> nv = new List<string>(varVals); nv.Add(b.Variant); varVals = nv.ToArray(); bVar.Items.Add(PlanView.VarLabel(b.Variant)); vi = varVals.Length - 1; }   // unbekannter Wert bleibt erhalten
+            bVar.SelectedIndex = vi;
             bNote.Text = b != null ? b.NoteTemplate.Replace("\n", "\r\n") : "";
             bUnique.Checked = b != null && b.Unique; bDefault.Checked = b != null && b.DefaultInCampaign; bSpecial.Checked = b != null && b.Special;
             for (int i = 0; i < bPos.Items.Count; i++) bPos.SetItemChecked(i, b != null && b.Positions.Contains(cat.Positions[i].Short));

@@ -39,43 +39,55 @@ namespace Arbeitsplan.Win
             if (cbName.Items.Count > 0) { cbName.AutoCompleteMode = AutoCompleteMode.SuggestAppend; cbName.AutoCompleteSource = AutoCompleteSource.ListItems; }
 
             Label l2 = new Label(); l2.Text = "Typ:"; l2.SetBounds(12, 51, 60, 20);
-            int x = 80;
+            // Typen in Zeilen umbrechen (Breite 348), der Dialog wächst um die zusätzlichen Zeilen
+            FlowLayoutPanel fl = new FlowLayoutPanel(); fl.WrapContents = true; fl.FlowDirection = FlowDirection.LeftToRight; fl.Margin = Padding.Empty;
             foreach (string v in ch.Types)
             {
-                RadioButton r = new RadioButton(); r.Text = PlanView.VarLabel(v); r.Tag = v; r.AutoSize = true; r.Location = new Point(x, 49);
+                RadioButton r = new RadioButton(); r.Text = PlanView.VarLabel(v); r.Tag = v; r.AutoSize = true; r.Margin = new Padding(0, 0, 24, 2);
                 r.Checked = v == ch.Typ;
-                radios.Add(r); Controls.Add(r);
-                x += TextRenderer.MeasureText(r.Text, Font).Width + 40;
+                radios.Add(r); fl.Controls.Add(r);
             }
             if (radios.Count > 0 && !radios.Exists(delegate(RadioButton r) { return r.Checked; })) radios[0].Checked = true;
+            fl.SetBounds(80, 49, 348, 24);
+            int rows = 1, rx = 0;
+            foreach (RadioButton r in radios)
+            {
+                int rw = TextRenderer.MeasureText(r.Text, Font).Width + 44;
+                if (rx > 0 && rx + rw > 348) { rows++; rx = 0; }
+                rx += rw;
+            }
+            int dy = (rows - 1) * 24;
+            fl.Height = rows * 24;
 
-            Label l3 = new Label(); l3.Text = "Text (optional):"; l3.SetBounds(12, 84, 200, 20);
-            tText.SetBounds(12, 106, 416, 110); tText.Multiline = true; tText.AcceptsReturn = true; tText.ScrollBars = ScrollBars.Vertical; tText.WordWrap = true;
+            Label l3 = new Label(); l3.Text = "Text (optional):"; l3.SetBounds(12, 84 + dy, 200, 20);
+            tText.SetBounds(12, 106 + dy, 416, 110); tText.Multiline = true; tText.AcceptsReturn = true; tText.ScrollBars = ScrollBars.Vertical; tText.WordWrap = true;
             tText.Text = ch.Text.Replace("\n", "\r\n");
             Ui.SimpleMenu(tText);
 
-            Label hint = new Label(); hint.ForeColor = SystemColors.GrayText; hint.SetBounds(12, 224, 416, 36);
+            Label hint = new Label(); hint.ForeColor = SystemColors.GrayText; hint.SetBounds(12, 224 + dy, 416, 36);
             hint.Text = "Der Typ steuert die Pflichtpunkte: mobil = Tagesprobe mit der Herstellung erledigt, stationär = erledigt die Wochenprobe der KW. "
                 + "Er erscheint im Plan nur als Seitenstrich.";
+            ClientSize = new Size(440, 322 + dy);
+            int by = 280 + dy;
 
-            Button ok = new Button(); ok.Text = "OK"; ok.SetBounds(262, 280, 80, 28);
-            Button cancel = new Button(); cancel.Text = "Abbrechen"; cancel.SetBounds(348, 280, 80, 28); cancel.DialogResult = DialogResult.Cancel;
+            Button ok = new Button(); ok.Text = "OK"; ok.SetBounds(262, by, 80, 28);
+            Button cancel = new Button(); cancel.Text = "Abbrechen"; cancel.SetBounds(348, by, 80, 28); cancel.DialogResult = DialogResult.Cancel;
             AcceptButton = ok; CancelButton = cancel;
             ok.Click += delegate { Collect(BufferChoice.Act.Ok); DialogResult = DialogResult.OK; };
             th.StyleButton(ok); th.StyleButton(cancel);
-            Controls.AddRange(new Control[] { l1, cbName, l2, l3, tText, hint, ok, cancel });
+            Controls.AddRange(new Control[] { l1, cbName, l2, fl, l3, tText, hint, ok, cancel });
 
             if (ch.Number > 0)
             {
-                Button rem = new Button(); rem.Text = "Entfernen"; rem.SetBounds(12, 280, 84, 28);
+                Button rem = new Button(); rem.Text = "Entfernen"; rem.SetBounds(12, by, 84, 28);
                 rem.Click += delegate
                 {
                     if (MessageBox.Show(this, "Puffer " + ch.Number + " wirklich entfernen?", "Arbeitsplan", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
                     Collect(BufferChoice.Act.Remove); DialogResult = DialogResult.OK;
                 };
-                Button up = new Button(); up.Text = "Hoch"; up.SetBounds(102, 280, 62, 28); up.Enabled = ch.CanUp;
+                Button up = new Button(); up.Text = "Hoch"; up.SetBounds(102, by, 62, 28); up.Enabled = ch.CanUp;
                 up.Click += delegate { Collect(BufferChoice.Act.Up); DialogResult = DialogResult.OK; };
-                Button down = new Button(); down.Text = "Runter"; down.SetBounds(170, 280, 62, 28); down.Enabled = ch.CanDown;
+                Button down = new Button(); down.Text = "Runter"; down.SetBounds(170, by, 62, 28); down.Enabled = ch.CanDown;
                 down.Click += delegate { Collect(BufferChoice.Act.Down); DialogResult = DialogResult.OK; };
                 th.StyleButton(rem); th.StyleButton(up); th.StyleButton(down);
                 Controls.AddRange(new Control[] { rem, up, down });

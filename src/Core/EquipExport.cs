@@ -7,6 +7,14 @@ namespace Arbeitsplan.Core
     // Equipment-Bedarf: alle erkannten Equipment-Nummern eines Zeitraums, jede einmal (Datum, dann Zeilenreihenfolge).
     public static class EquipExport
     {
+        // Durchsuchter Text eines Blocks: Inhalt ohne Notizzeilen plus Name und Text der Puffer
+        static string ScanText(Entry e)
+        {
+            StringBuilder sb = new StringBuilder(Notes.ContentText(e));
+            foreach (BufferItem b in e.Buffers) sb.Append('\n').Append(b.Name).Append('\n').Append(b.Text);
+            return sb.ToString();
+        }
+
         public static List<string> Collect(IDataStore store, DateTime from, DateTime to)
         {
             List<string> res = new List<string>();
@@ -17,9 +25,7 @@ namespace Arbeitsplan.Core
                 {
                     Entry e = store.Get(d, r.Id);
                     if (e == null) continue;
-                    StringBuilder sb = new StringBuilder(Notes.ContentText(e));
-                    foreach (BufferItem b in e.Buffers) sb.Append('\n').Append(b.Name).Append('\n').Append(b.Text);
-                    string txt = sb.ToString();
+                    string txt = ScanText(e);
                     if (txt.Trim().Length == 0) continue;
                     foreach (System.Text.RegularExpressions.Match m in EquipmentMatcher.Pattern.Matches(txt))
                         if (seen.Add(m.Value)) res.Add(m.Value);
@@ -58,8 +64,10 @@ namespace Arbeitsplan.Core
                     foreach (RowInfo r in rows)
                     {
                         Entry e = store.Get(d, r.Id);
-                        if (e == null || string.IsNullOrEmpty(e.Content)) continue;
-                        foreach (RunRef x in RunNumbers.Find(e))
+                        if (e == null) continue;
+                        string txt = ScanText(e);
+                        if (txt.Trim().Length == 0) continue;
+                        foreach (RunRef x in RunNumbers.Find(txt))
                         {
                             SortedDictionary<int, DateTime> m;
                             if (!byPrefix.TryGetValue(x.Product, out m)) { m = new SortedDictionary<int, DateTime>(); byPrefix[x.Product] = m; }

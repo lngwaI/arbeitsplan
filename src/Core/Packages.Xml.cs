@@ -95,6 +95,7 @@ namespace Arbeitsplan.Core
                         w.WriteAttributeString("fett", f.Bold ? "1" : "0"); w.WriteAttributeString("kursiv", f.Italic ? "1" : "0");
                         w.WriteAttributeString("schrift", f.Font ?? "");
                         if (f.Note) w.WriteAttributeString("notiz", "1");
+                        if (f.Note && f.NoteWasItalic) w.WriteAttributeString("oi", "1");
                         w.WriteEndElement();
                     }
                     w.WriteEndElement();
@@ -213,7 +214,7 @@ namespace Arbeitsplan.Core
                             if (!(f.Size >= 6f && f.Size <= 72f)) f.Size = 0;   // NaN/unsinnig: Standardgroesse
                             f.Bold = c.GetAttribute("fett") == "1"; f.Italic = c.GetAttribute("kursiv") == "1";
                             f.Font = c.GetAttribute("schrift").Length > 0 ? c.GetAttribute("schrift") : null;
-                            f.Note = c.GetAttribute("notiz") == "1";
+                            f.Note = c.GetAttribute("notiz") == "1"; f.NoteWasItalic = f.Note && c.GetAttribute("oi") == "1";
                             b.Data.Spans.Add(f);
                         }
                     }

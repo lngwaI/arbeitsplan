@@ -90,7 +90,9 @@ namespace Arbeitsplan.Win
         {
             List<string> names = new List<string>();
             foreach (RowInfo r in store.GetRows()) if (r.Name.Length > 0) names.Add(r.Name);
-            using (CatalogForm f = new CatalogForm(store.GetCatalog(), names))
+            List<string> vars = new List<string>();
+            foreach (RowInfo r in store.GetRows()) foreach (string v in r.VariantList()) if (!vars.Contains(v)) vars.Add(v);
+            using (CatalogForm f = new CatalogForm(store.GetCatalog(), names, vars.Count > 0 ? vars.ToArray() : null))
             {
                 if (f.ShowDialog(this) != DialogResult.OK) return;
                 try { store.SaveCatalog(f.Result); } catch (Exception ex) { ShowSaveError(ex); }

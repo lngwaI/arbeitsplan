@@ -412,9 +412,19 @@ namespace Arbeitsplan.Win
             {
                 string msg = res.Apply(store, start, mode, schedule, by);
                 MessageBox.Show(owner, msg, "In Plan übernehmen", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                start = FirstRunDay(res, start, schedule);   // der Plan springt zur Woche von Lauf 1 (nicht zu Tag 1/Packen)
                 return true;
             }
             catch (Exception ex) { MessageBox.Show(owner, "Konnte nicht gespeichert werden.\n" + ex.Message, "In Plan übernehmen", MessageBoxButtons.OK, MessageBoxIcon.Error); return false; }
+        }
+
+        // Datum des ersten stattfindenden Hauptlaufs (Schedule-Tag 1 = start); ohne Hauptlauf bleibt start
+        public static DateTime FirstRunDay(Package p, DateTime start, List<RunDate> schedule)
+        {
+            int hi = p.Steps.IndexOf(p.Head), best = int.MaxValue;
+            if (hi < 0 || schedule == null) return start;
+            foreach (RunDate d in schedule) if (d.Step == hi && d.Day < best) best = d.Day;
+            return best == int.MaxValue ? start : start.Date.AddDays(best - 1);
         }
 
         // Direkt startbar: hat Schritte, jeder (nicht leere) Schritt hat einen Raum, den es im Plan gibt

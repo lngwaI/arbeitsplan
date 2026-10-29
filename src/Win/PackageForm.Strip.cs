@@ -122,6 +122,7 @@ namespace Arbeitsplan.Win
         protected override void OnMouseWheel(MouseEventArgs e)
         {
             base.OnMouseWheel(e);
+            if ((Control.ModifierKeys & Keys.Control) != 0) { Zoom = Zoom + (e.Delta > 0 ? -1 : 1); return; }   // Strg+Mausrad = Zoom (Stufen wie −/+)
             int d = e.Delta > 0 ? -Wheel : Wheel;
             if (vb.Visible) SetY(sy + d); else if (hb.Visible) SetX(sx + d);
         }

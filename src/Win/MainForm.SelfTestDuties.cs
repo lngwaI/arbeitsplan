@@ -129,7 +129,7 @@ namespace Arbeitsplan.Win
             bool okPerm = Array.IndexOf(old.Package("Produktion").Rights, Perm.Rounds) >= 0 && Array.IndexOf(old.Package("Leser").Rights, Perm.Rounds) < 0
                 && Array.IndexOf(def.Package("Produktion").Rights, Perm.Rounds) >= 0 && Array.IndexOf(def.Package("Leser").Rights, Perm.Rounds) < 0
                 && Array.IndexOf(def.Package("Admin").Rights, Perm.Rounds) >= 0 && Perm.Label(Perm.Rounds) == "Rundgänge abhaken";
-            sb.AppendLine("Datenformat v" + Backup.FormatVersion + ": Rundreise=" + Ok(okV3) + " v2 lesbar=" + Ok(okV2) + " v4 abgelehnt=" + Ok(okV4) + " Recht Rundgänge (alt/neu)=" + Ok(okPerm));
+            sb.AppendLine("Datenformat v" + Backup.FormatVersion + ": Rundreise=" + Ok(okV3) + " v2 lesbar=" + Ok(okV2) + " neuere abgelehnt=" + Ok(okV4) + " Recht Rundgänge (alt/neu)=" + Ok(okPerm));
 
             // ---------- Wochenhaken: zwei Stores auf derselben Datendatei ----------
             string dir = Path.Combine(Path.GetTempPath(), "apdb_duties");

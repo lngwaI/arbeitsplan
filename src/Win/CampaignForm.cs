@@ -38,6 +38,7 @@ namespace Arbeitsplan.Win
         readonly Dictionary<long, int> offs = new Dictionary<long, int>();      // (Schritt, Lauf) -> Verschiebung in Tagen (gewuenscht - vorgeschlagen)
         readonly Dictionary<long, string> rooms = new Dictionary<long, string>();   // (Schritt, Lauf) -> gewaehlter Block, falls abweichend
         bool filling, building = true, modeTouched;
+        Control[] foot;   // nur Einzelmodus: untere Zeile (Modus, Knöpfe), wandert mit der Höhe
         int firstRunDay = int.MaxValue;
         Font strike;
 
@@ -173,7 +174,7 @@ namespace Arbeitsplan.Win
                 cbRoom.SelectedIndexChanged += delegate { if (!building) SimpleRoom(); };
             }
 
-            Controls.Add(L("Vorhandene Einträge:", 10, 562));   // Uebernahme-Modus wird erst hier gewaehlt (nicht im Paket-Editor)
+            Label lMode = L("Vorhandene Einträge:", 10, 562); Controls.Add(lMode);   // Uebernahme-Modus wird erst hier gewaehlt (nicht im Paket-Editor)
             cbMode.DropDownStyle = ComboBoxStyle.DropDownList; cbMode.SetBounds(135, 558, 250, 22);
             cbMode.Items.AddRange(new object[] { "Nur leere Blöcke füllen", "Vorhandenes überschreiben", "An vorhandenen Text anhängen" });
             cbMode.SelectedIndex = (int)mode; cbMode.SelectionChangeCommitted += delegate { modeTouched = true; if (!building) UpdateAll(); }; Controls.Add(cbMode);
@@ -181,6 +182,7 @@ namespace Arbeitsplan.Win
             ok.Click += delegate { grid.EndEdit(); DialogResult = DialogResult.OK; };
             Button cancel = new Button(); cancel.Text = "Abbrechen"; cancel.SetBounds(785, 556, 105, 28); cancel.DialogResult = DialogResult.Cancel;
             Controls.Add(ok); Controls.Add(cancel); CancelButton = cancel;
+            if (simple) foot = new Control[] { lMode, cbMode, ok, cancel };
 
             dtLauf1.ValueChanged += delegate { Recalc(); };
             tFirst.TextChanged += delegate { Recalc(); };
@@ -376,6 +378,19 @@ namespace Arbeitsplan.Win
             List<string> l = new List<string>();
             for (int i = 0; i < sched.Count; i++) l.Add(sched[i].Label.Replace("\n", " ") + "  →  " + Ui.DayText(Proposed(i).AddDays(Off(i))) + ", " + Room(i) + (IsBusy(i) ? " (belegt)" : ""));
             lSum.Text = string.Join("\r\n", l.ToArray());
+            FitSimple();
+        }
+
+        // Einzelpaket: Höhe nach Inhalt (Zusammenfassung, Hinweiszeile, darunter Modus und Knöpfe)
+        void FitSimple()
+        {
+            if (foot == null) return;
+            int th = TextRenderer.MeasureText(lSum.Text, lSum.Font, new Size(880, 0), TextFormatFlags.WordBreak | TextFormatFlags.NoPrefix).Height;
+            lSum.Height = Math.Max(40, th + 8);
+            lRule.Top = lSum.Bottom + 4;
+            int fy = lRule.Bottom + 8;
+            foreach (Control c in foot) c.Top = fy + (c == foot[0] ? 6 : c == foot[1] ? 2 : 0);
+            ClientSize = new Size(ClientSize.Width, fy + 28 + 12);
         }
 
 #if TESTHOOKS

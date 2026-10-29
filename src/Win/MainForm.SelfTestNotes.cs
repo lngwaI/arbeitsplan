@@ -45,6 +45,19 @@ namespace Arbeitsplan.Win
             Entry none = new Entry(); none.Content = "a\nb"; Notes.SetNote(none, 0, 0, true); Notes.SetNote(none, 0, 0, false);
             okNorm &= none.Spans.Count == 0 && !none.HasNotes;
 
+            // manuelles Kursiv bleibt beim Aufheben der Notiz (nur die kursive Zeile), auch nach XML-Rundweg
+            Entry it = new Entry(); it.Content = "kursiv\nnormal";
+            FormatSpan fi = new FormatSpan(); fi.Start = 0; fi.Length = 6; fi.Italic = true; it.Spans.Add(fi);
+            Notes.SetNote(it, 0, 1, true);
+            MemoryStore ms0 = new MemoryStore(); int sid0 = SuiteId(ms0); ms0.Save(D(2031, 5, 5), sid0, it);
+            string xo = Encoding.UTF8.GetString(Backup.ToXml(ms0.Snapshot()));
+            Entry itRt = EntryIn(Backup.FromXml(Encoding.UTF8.GetBytes(xo)), D(2031, 5, 5), sid0);
+            okNorm &= xo.Contains(" oi=\"1\"");
+            Notes.SetNote(it, 0, 1, false);
+            bool okOi = it.Spans.Count == 1 && it.Spans[0].Italic && !it.Spans[0].Note && it.Spans[0].Start == 0 && it.Spans[0].Length == 6;
+            if (itRt != null) { Notes.SetNote(itRt, 0, 1, false); okOi &= itRt.Spans.Count == 1 && itRt.Spans[0].Italic && itRt.Spans[0].Length == 6; } else okOi = false;
+            okNorm &= okOi;
+
             // mehrere Notizen aus dem Paket (Enter im Notizfeld = naechste Notiz), ohne Praefix "Notiz:", Kennung bleibt letzte Zeile
             PackageStep st = new PackageStep(); st.Title = "Packen"; st.Text = "Zeile a\nZeile b"; st.Note = "Eins\r\nZwei\n\n  Drei  "; st.Ident = "PA 40010001"; st.Row = "Suite 1";
             Entry pk = st.EntryFor(0, "");
@@ -139,6 +152,18 @@ namespace Arbeitsplan.Win
 
             // Suche findet Notizen (Inhalt bleibt Inhalt der Datei)
             bool okFind = s.Find("hinweis").Count == 1;
+
+            // Kampagnen-Scan nimmt Puffertext mit, Notizzeilen nicht; Sprung zum ersten Hauptlauf
+            MemoryStore cs = new MemoryStore(); int cid = SuiteId(cs); DateTime cd = D(2031, 7, 7);
+            Entry ce = new Entry(); ce.Content = "Hinweis"; BufferItem cb = new BufferItem(); cb.Name = "Puffer"; cb.Text = "Lauf 77880001"; ce.Buffers.Add(cb);
+            cs.Save(cd, cid, ce);
+            cs.Save(cd.AddDays(1), cid, NoteEntry("Lauf 77880002", 0));
+            List<EquipExport.CampaignSpan> csp = EquipExport.Campaigns(cs, cd, cd.AddDays(3), "");
+            okFind &= csp.Count == 1 && csp[0].FirstNo == 1 && csp[0].LastNo == 1;
+            Package fp = Package.SampleCampaign("Sprung");
+            List<RunDate> fs = fp.Schedule();
+            DateTime fr = PackageForm.FirstRunDay(fp, cd, fs);
+            okFind &= fr >= cd && fr <= cd.AddDays(14);
 
             sb.AppendLine("Notizen: leer-Regel=" + Ok(okEmpty) + " Normalize=" + Ok(okNorm) + " Paket mehrere Notizen=" + Ok(okPkgNotes) + " Sicherung XML=" + Ok(okBackup)
                 + " Paketdatei=" + Ok(okPkgFile) + " Plan-Datei=" + Ok(okPlanFile) + " Zusammenführen andere Zeile=" + Ok(okMergeSide) + " gleiche Zeile=" + Ok(okMergeClash)

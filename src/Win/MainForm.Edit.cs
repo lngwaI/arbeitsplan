@@ -173,6 +173,8 @@ namespace Arbeitsplan.Win
             Entry n = c.Cur.Clone();
             n.Content = Norm(edContent.Text);
             n.Spans = ExtractSpans();
+            foreach (FormatSpan f in n.Spans)   // ursprüngliches Kursiv der Notizzeilen bleibt erhalten (Editor zeigt Notiz immer kursiv)
+                if (f.Note) { FormatSpan o = c.Cur.Spans.Find(delegate(FormatSpan q) { return q.Note && q.NoteWasItalic && q.Start <= f.Start && f.Start < q.Start + q.Length; }); f.NoteWasItalic = o != null; }
             Notes.Normalize(n);   // Notizmarkierung auf ganze Zeilen, kursiv
             for (int s = 0; s < 3; s++) n.People[s] = Norm(edPpl[s].Text);
             n.Lkz = c.Lkz; n.Buffers = BufferSet.CloneAll(c.Buffers); n.Marks = new List<string>(c.Marks);

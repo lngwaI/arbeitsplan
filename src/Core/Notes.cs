@@ -74,7 +74,7 @@ namespace Arbeitsplan.Core
                 if (c.Start < 0) { c.Length += c.Start; c.Start = 0; }
                 if (c.Start + c.Length > len) c.Length = len - c.Start;
                 if (c.Length <= 0) continue;
-                if (c.Note) { c.Note = false; c.Italic = false; }
+                if (c.Note) { c.Note = false; c.Italic = c.NoteWasItalic; c.NoteWasItalic = false; }
                 res.Add(c);
             }
             e.Spans = res;
@@ -104,7 +104,6 @@ namespace Arbeitsplan.Core
             return n;
         }
 
-        // Offen (QS): beim Aufheben geht manuelles Kursiv der Zeile verloren (Note erzwingt Italic, das Original wird nicht gespeichert; braeuchte ein Formatfeld).
         // Bereich [a, b) mit Note+Italic belegen (on) oder davon befreien; vorhandene Spans werden an den Grenzen geteilt.
         static void Paint(Entry e, int a, int b, bool on)
         {
@@ -120,7 +119,8 @@ namespace Arbeitsplan.Core
                 if (s0 < a) { FormatSpan l = s.Clone(); l.Length = a - s0; res.Add(l); }
                 int m0 = Math.Max(s0, a), m1 = Math.Min(s1, b);
                 if (on && m0 > pos) res.Add(NoteSpan(pos, m0));
-                FormatSpan m = s.Clone(); m.Start = m0; m.Length = m1 - m0; m.Note = on; m.Italic = on;
+                FormatSpan m = s.Clone(); m.Start = m0; m.Length = m1 - m0; bool was = s.Note ? s.NoteWasItalic : s.Italic;
+                m.Note = on; m.NoteWasItalic = on && was; m.Italic = on || was;
                 res.Add(m);
                 pos = Math.Max(pos, m1);
                 if (s1 > b) { FormatSpan r = s.Clone(); r.Start = b; r.Length = s1 - b; res.Add(r); }
@@ -142,7 +142,7 @@ namespace Arbeitsplan.Core
             foreach (FormatSpan s in l)
             {
                 FormatSpan p = res.Count > 0 ? res[res.Count - 1] : null;
-                if (p != null && p.Start + p.Length == s.Start && p.Rgb == s.Rgb && p.Size == s.Size && p.Bold == s.Bold && p.Italic == s.Italic && p.Note == s.Note && p.Font == s.Font)
+                if (p != null && p.Start + p.Length == s.Start && p.Rgb == s.Rgb && p.Size == s.Size && p.Bold == s.Bold && p.Italic == s.Italic && p.Note == s.Note && p.NoteWasItalic == s.NoteWasItalic && p.Font == s.Font)
                     p.Length += s.Length;
                 else res.Add(s);
             }

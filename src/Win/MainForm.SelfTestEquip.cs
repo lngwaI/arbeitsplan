@@ -74,7 +74,9 @@ namespace Arbeitsplan.Win
                 && !rm.IsLegal("H1-T-0102", EquipStatus.Gereinigt, EquipStatus.Sterilisiert) && rm.IsLegal("H1-T-0103", EquipStatus.Gereinigt, EquipStatus.Sterilisiert)
                 && rm.Device("H1-L-0201") == null && rm.Device("H1-F-0201").Props[0].Value == "https://example.org/a.pdf";
             string xs = Encoding.UTF8.GetString(xml).Replace("version=\"" + Backup.FormatVersion + "\"", "version=\"3\"");
-            bool okV3 = Backup.FormatVersion == 4 && xs.Contains("version=\"3\"") && Backup.FromXml(Encoding.UTF8.GetBytes(xs)).Catalog.Master.Devices.Count == m.Devices.Count;
+            bool okV3 = Backup.FormatVersion == 5 && xs.Contains("version=\"3\"") && Backup.FromXml(Encoding.UTF8.GetBytes(xs)).Catalog.Master.Devices.Count == m.Devices.Count;
+            string x4 = Encoding.UTF8.GetString(xml).Replace("version=\"" + Backup.FormatVersion + "\"", "version=\"4\"");
+            okV3 &= x4.Contains("version=\"4\"") && Backup.FromXml(Encoding.UTF8.GetBytes(x4)).Catalog.Master.Devices.Count == m.Devices.Count;   // v4 bleibt lesbar
             XmlDocument old = new XmlDocument();
             old.LoadXml("<Nutzer rechte=\"2\"><Paket name=\"Leser\"><R v=\"" + Perm.Read + "\"/></Paket><Paket name=\"Produktion\"><R v=\"" + Perm.Read + "\"/><R v=\"" + Perm.EditText + "\"/></Paket></Nutzer>");
             UserDb od = UserDb.ReadXml(old.DocumentElement), nd = UserDb.Default();
