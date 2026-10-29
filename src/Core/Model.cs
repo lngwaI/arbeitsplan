@@ -25,22 +25,26 @@ namespace Arbeitsplan.Core
         public List<FormatSpan> Spans = new List<FormatSpan>();
         public string[] People = { "", "", "" };   // Kuerzel je Schicht (F, S, N)
         public bool Lkz;                            // "LKZ gemessen?" (nur Zeilen mit HasLkz)
-        public string Variant = "";                 // Herstellungsvariante (aus RowInfo.Variants), "" = keine
+        public List<BufferItem> Buffers = new List<BufferItem>();   // Puffer (Zeile mit RowInfo.Variants); einzige Datenquelle der Herstellungstypen
         public List<string> Marks = new List<string>();   // gesetzte Pflichtpunkte (CheckDef.Key, ausser LKZ)
         public int Version;                         // Konflikterkennung
+
+        // Typen der Puffer als VariantSet-String ("mobil:2|stationaer"), "" = keine; Eingabe fuer CheckEval
+        public string Types { get { return BufferSet.Types(Buffers); } }
 
         public Entry Clone()
         {
             Entry e = (Entry)MemberwiseClone();
             e.People = (string[])People.Clone();
             e.Marks = new List<string>(Marks);
+            e.Buffers = BufferSet.CloneAll(Buffers);
             e.Spans = new List<FormatSpan>();
             foreach (FormatSpan s in Spans) e.Spans.Add(s.Clone());
             return e;
         }
         public bool IsEmpty { get { return Content.Length == 0 && People[0].Length == 0 && People[1].Length == 0 && People[2].Length == 0; } }
         // Leer UND ohne Haken/Variante (Zuklappen, Hinweispunkt); IsEmpty bleibt fuer Rechte/Pakete wie bisher
-        public bool IsBlank { get { return !HasText && People[0].Trim().Length == 0 && People[1].Trim().Length == 0 && People[2].Trim().Length == 0 && !Lkz && Variant.Length == 0 && Marks.Count == 0; } }
+        public bool IsBlank { get { return !HasText && People[0].Trim().Length == 0 && People[1].Trim().Length == 0 && People[2].Trim().Length == 0 && !Lkz && Buffers.Count == 0 && Marks.Count == 0; } }
         // Inhalt mit sichtbarem Text (nur Leerzeichen/Tabs/Zeilenumbrueche = leer); Daten bleiben unveraendert
         public bool HasText { get { return Content.Trim().Length > 0; } }
         public string MarksKey() { return string.Join("|", Marks.ToArray()); }
@@ -315,6 +319,7 @@ namespace Arbeitsplan.Core
                 Entry e = kv.Value;
                 bool hit = e.Content.IndexOf(q, StringComparison.OrdinalIgnoreCase) >= 0;
                 foreach (string p in e.People) if (p.IndexOf(q, StringComparison.OrdinalIgnoreCase) >= 0) hit = true;
+                if (BufferSet.Matches(e.Buffers, q)) hit = true;   // Puffer: Name und Text
                 if (!hit) continue;
                 string[] parts = kv.Key.Split('|');
                 SearchHit h = new SearchHit();
@@ -380,11 +385,13 @@ namespace Arbeitsplan.Core
             Entry v = new Entry(); v.Content = "Versand Kühlware"; v.People = new[] { "WEPA", "BEER", "" };
             s.Save(monday.AddDays(1), s.IdOf("Versand"), v);
             // Puffer: Herstellung mobil (Tagesprobe automatisch), stationaer mit Tagesprobe, ohne Angabe, beides an einem Tag
-            string[][] pf = { new[] { "Herstellung Puffer A", "mobil", "" }, new[] { "Herstellung Puffer B", "stationaer", "PROBE" }, new[] { "Puffer B abfüllen", "", "" },
-                              new[] { "Herstellung Puffer C und D", "mobil|stationaer", "PROBE" } };
+            string[][] pf = { new[] { "Herstellung Puffer A", "Puffer A|mobil", "" }, new[] { "Herstellung Puffer B", "Puffer B|stationaer", "PROBE" }, new[] { "Puffer B abfüllen", "", "" },
+                              new[] { "Herstellung Puffer C und D", "Puffer C|mobil|Puffer D|stationaer", "PROBE" } };
             for (int d = 0; d < pf.Length; d++)
             {
-                Entry e = new Entry(); e.Content = pf[d][0]; e.Variant = pf[d][1]; e.People = new[] { "WEPA", "", "" };
+                Entry e = new Entry(); e.Content = pf[d][0]; e.People = new[] { "WEPA", "", "" };
+                string[] bp = pf[d][1].Split('|');
+                for (int k = 0; k + 1 < bp.Length; k += 2) BufferSet.Add(e.Buffers, bp[k], bp[k + 1], "");
                 if (pf[d][2].Length > 0) e.Marks.Add(pf[d][2]);
                 s.Save(monday.AddDays(d), s.IdOf("Puffer"), e);
             }

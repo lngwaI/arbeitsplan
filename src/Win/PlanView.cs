@@ -17,7 +17,8 @@ namespace Arbeitsplan.Win
         public string Content;                              // angezeigter/bearbeiteter Text
         public string[] People = { "", "", "" };
         public bool Lkz;                                    // angezeigter/bearbeiteter LKZ-Haken
-        public string Variant = "";                         // angezeigte/bearbeitete Variante
+        public List<BufferItem> Buffers = new List<BufferItem>();   // angezeigte/bearbeitete Puffer
+        public string Variant { get { return BufferSet.Types(Buffers); } }   // Typen als VariantSet (Chips)
         public List<string> Marks = new List<string>();     // angezeigte/bearbeitete Pflichtpunkte
         public bool Editing, Dirty = true;
         public bool Changed;                                // von anderem PC geaendert, kurz hervorgehoben (nur Ansicht)
@@ -25,7 +26,7 @@ namespace Arbeitsplan.Win
         // Angezeigten Stand aus e uebernehmen (ohne Cur zu aendern)
         public void Show(Entry e)
         {
-            Content = e.Content; People = (string[])e.People.Clone(); Lkz = e.Lkz; Variant = e.Variant; Marks = new List<string>(e.Marks); Dirty = true;
+            Content = e.Content; People = (string[])e.People.Clone(); Lkz = e.Lkz; Buffers = BufferSet.CloneAll(e.Buffers); Marks = new List<string>(e.Marks); Dirty = true;
         }
         public TextBlock CB;
         public TextBlock[] PB = new TextBlock[3];

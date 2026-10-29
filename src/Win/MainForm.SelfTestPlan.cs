@@ -103,7 +103,7 @@ namespace Arbeitsplan.Win
             SetVariant(pv, "stationaer");
             bool dirty = HasUnsavedChanges;
             EndEdit(true);
-            bool okVar = dirty && store.Get(w.AddDays(7), pid).Variant == "stationaer" && CellOf(pr, 2).States[pi] == DayState.Missing;
+            bool okVar = dirty && store.Get(w.AddDays(7), pid).Types == "stationaer" && CellOf(pr, 2).States[pi] == DayState.Missing;
             sb.AppendLine("Pruefleiste: LKZ Sa-Fr (fehlt/KW offen/gemessen/nicht nötig)=" + Ok(okLkz) + " KW-Gruppen=" + Ok(okGroups)
                 + " Puffer mobil/stationär/WFI=" + Ok(okP) + " abhaken=" + Ok(okMark) + " Konflikt Inhalt behalten=" + Ok(okConf) + " Variante im Editor=" + Ok(okVar));
 

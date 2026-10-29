@@ -83,24 +83,23 @@ namespace Arbeitsplan.Win
             bool okFmt = VariantSet.Count("mobil:2|stationaer", "mobil") == 2 && VariantSet.Count("mobil|stationaer", "stationaer") == 1
                 && VariantSet.With("mobil|stationaer", "mobil", 1) == "mobil|stationaer" && VariantSet.With("stationaer", "mobil", 2) == "mobil:2|stationaer"
                 && VariantSet.Display("stationaer|mobil:2") == "2× mobil + stationaer" && VariantSet.Count("mobil:x", "mobil") == 1 && VariantSet.With("", "mobil", 12) == "mobil:9";
-            bool okStep = VariantSet.Step("", "mobil", 0) == "mobil" && VariantSet.Step("mobil", "mobil", 1) == "mobil:2" && VariantSet.Step("mobil:2", "mobil", -1) == "mobil"
-                && VariantSet.Step("mobil", "mobil", -1) == "" && VariantSet.Step("mobil:9", "mobil", 1) == "mobil:9" && VariantSet.Step("mobil:3", "mobil", 0) == ""
+            bool okStep = TargetOf("", 0) == 1 && TargetOf("mobil", 1) == 2 && TargetOf("mobil:2", -1) == 1
+                && TargetOf("mobil", -1) == 0 && TargetOf("mobil:9", 1) == 9 && TargetOf("mobil:3", 0) == 0
                 && PlanView.ChipZone(3, 100, true) == -1 && PlanView.ChipZone(95, 100, true) == 1 && PlanView.ChipZone(50, 100, true) == 0 && PlanView.ChipZone(3, 100, false) == 0;
-            bool okMerge = VariantSet.Merge("mobil", "mobil:2", "mobil|stationaer") == "mobil:2|stationaer" && VariantSet.Merge("mobil", "mobil:2", "mobil:3") == "mobil:3"
-                && VariantSet.Merge("mobil:2", "", "mobil:2|stationaer") == "stationaer" && VariantSet.Merge("", "mobil", "stationaer") == "mobil|stationaer"
-                && VariantSet.Sum("mobil", "mobil|stationaer") == "mobil:2|stationaer";
+            bool okMerge = MergeTypes("mobil", "mobil:2", "mobil|stationaer") == "mobil:2|stationaer" && MergeTypes("mobil", "mobil:2", "mobil:3") == "mobil:3"
+                && MergeTypes("mobil:2", "", "mobil:2|stationaer") == "stationaer" && MergeTypes("", "mobil", "stationaer") == "mobil|stationaer";
             int puf = PufferSetup.Row(ms.GetRows()).Id;
             CheckDef probe = ms.GetDuties().Defs.Find(delegate(CheckDef x) { return x.RowId == puf && x.Key == "PROBE"; });
             DateTime tu = d0.AddDays(1);
-            Entry e2 = new Entry(); e2.Content = "Puffer"; e2.Variant = "mobil:2"; ms.Save(tu, puf, e2);
+            Entry e2 = new Entry(); e2.Content = "Puffer"; BufferSet.SetTypes(e2, "mobil:2"); ms.Save(tu, puf, e2);
             bool auto2 = probe != null && CheckEval.Day(ms, probe, tu, tu, ms.GetDuties()) == DayState.Auto;
-            Entry e3 = ms.Get(tu, puf).Clone(); e3.Variant = "mobil:2|stationaer:2"; ms.Save(tu, puf, e3);
-            bool okRule = auto2 && CheckEval.Day(ms, probe, tu, tu, ms.GetDuties()) == DayState.Missing && ms.Get(tu, puf).Variant == "mobil:2|stationaer:2";
+            Entry e3 = ms.Get(tu, puf).Clone(); BufferSet.SetTypes(e3, "mobil:2|stationaer:2"); ms.Save(tu, puf, e3);
+            bool okRule = auto2 && CheckEval.Day(ms, probe, tu, tu, ms.GetDuties()) == DayState.Missing && ms.Get(tu, puf).Types == "mobil:2|stationaer:2";
             Package pv = new Package(); PackageStep ps = P3("Puffer", "Puffer", 1); ps.Variant = "mobil:2|stationaer"; pv.Steps.Add(ps); pv.Steps.Add(ps.Clone());
             pv.Save(path);
             bool okPkg = Package.Load(path).Steps[0].Variant == "mobil:2|stationaer";
             pv.Apply(ms, d0.AddDays(14), ApplyMode.Overwrite, null);
-            okPkg &= ms.Get(d0.AddDays(14), puf).Variant == "mobil:4|stationaer:2";   // zwei Puffer-Schritte am selben Tag: Summe
+            okPkg &= ms.Get(d0.AddDays(14), puf).Types == "mobil:4|stationaer:2";   // zwei Puffer-Schritte am selben Tag: Summe
             sb.AppendLine("Paket3 Varianten: Format " + Ok(okFmt) + " Chips-Logik " + Ok(okStep) + " Merge/Summe " + Ok(okMerge) + " Pflichtpunkte " + Ok(okRule) + " Paket " + Ok(okPkg));
             SelfTestChips(sb);
 
@@ -160,7 +159,16 @@ namespace Arbeitsplan.Win
 
         void ChipClick(CellData c, string v, int zone) { Point p = view.SlotPoint(c, v, -1, zone); if (!p.IsEmpty) view.TestClick(p); }
 
-        string V(DateTime wk, int pid) { Entry e = store.Get(wk.AddDays(1), pid); return e != null ? e.Variant : "(leer)"; }
+        static int TargetOf(string types, int delta) { return BufferSet.Target(BufferSet.FromVariant(types), "mobil", delta); }
+
+        // Dreiwege-Merge der Puffer-Typen (nur Anzahl je Typ; Ids/Namen siehe SelfTestBuffers)
+        static string MergeTypes(string b, string mine, string theirs)
+        {
+            bool clash;
+            return BufferSet.Types(BufferSet.Merge(BufferSet.FromVariant(b), BufferSet.FromVariant(mine), BufferSet.FromVariant(theirs), false, out clash));
+        }
+
+        string V(DateTime wk, int pid) { Entry e = store.Get(wk.AddDays(1), pid); return e != null ? e.Types : "(leer)"; }
     }
 }
 #endif

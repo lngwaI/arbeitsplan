@@ -51,14 +51,14 @@ namespace Arbeitsplan.Win
             Package pv = new Package(); pv.Name = "Puffer";
             PackageStep ps = new PackageStep(); ps.Title = "Puffer"; ps.Row = "Puffer"; ps.Variant = "mobil|stationaer"; pv.Steps.Add(ps);
             pv.Apply(ms, d0, ApplyMode.Overwrite, null);
-            bool okSet = ms.Get(d0, puf) != null && ms.Get(d0, puf).Variant == "mobil|stationaer";
-            Entry keep = new Entry(); keep.Content = "Puffer alt"; keep.Variant = "mobil"; ms.Save(d0.AddDays(1), puf, keep);
+            bool okSet = ms.Get(d0, puf) != null && ms.Get(d0, puf).Types == "mobil|stationaer";
+            Entry keep = new Entry(); keep.Content = "Puffer alt"; BufferSet.SetTypes(keep, "mobil"); ms.Save(d0.AddDays(1), puf, keep);
             Package pn = new Package(); PackageStep pns = ps.Clone(); pns.Variant = ""; pn.Steps.Add(pns);
             pn.Apply(ms, d0.AddDays(1), ApplyMode.Overwrite, null);
-            bool okKeep = ms.Get(d0.AddDays(1), puf).Variant == "mobil" && ms.Get(d0.AddDays(1), puf).Content == "Puffer";
+            bool okKeep = ms.Get(d0.AddDays(1), puf).Types == "mobil" && ms.Get(d0.AddDays(1), puf).Content == "Puffer";
             Package pa = new Package(); PackageStep pas = ps.Clone(); pas.Variant = "stationaer"; pa.Steps.Add(pas);
             pa.Apply(ms, d0.AddDays(1), ApplyMode.Append, null);
-            bool okUnion = ms.Get(d0.AddDays(1), puf).Variant == "mobil|stationaer";
+            bool okUnion = ms.Get(d0.AddDays(1), puf).Types == "mobil|stationaer";
             pv.Save(path);
             bool okFile = Package.Load(path).Steps[0].Variant == "mobil|stationaer";
             sb.AppendLine("Paket2 Puffer-Variante: gesetzt " + Ok(okSet) + " leer behaelt " + Ok(okKeep) + " anhaengen vereinigt " + Ok(okUnion) + " Datei " + Ok(okFile));

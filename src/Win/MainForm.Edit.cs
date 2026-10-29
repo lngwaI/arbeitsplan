@@ -147,7 +147,7 @@ namespace Arbeitsplan.Win
         void UpdateChanged()
         {
             CellData c = editCell;
-            editChanged = c != null && (fmtChanged || c.Lkz != c.Cur.Lkz || c.Content != c.Cur.Content || c.Variant != c.Cur.Variant
+            editChanged = c != null && (fmtChanged || c.Lkz != c.Cur.Lkz || c.Content != c.Cur.Content || BufferSet.Key(c.Buffers) != BufferSet.Key(c.Cur.Buffers)
                 || string.Join("|", c.Marks.ToArray()) != c.Cur.MarksKey()
                 || c.People[0] != c.Cur.People[0] || c.People[1] != c.Cur.People[1] || c.People[2] != c.Cur.People[2]);
         }
@@ -170,14 +170,14 @@ namespace Arbeitsplan.Win
             n.Content = Norm(edContent.Text);
             n.Spans = ExtractSpans();
             for (int s = 0; s < 3; s++) n.People[s] = Norm(edPpl[s].Text);
-            n.Lkz = c.Lkz; n.Variant = c.Variant; n.Marks = new List<string>(c.Marks);
+            n.Lkz = c.Lkz; n.Buffers = BufferSet.CloneAll(c.Buffers); n.Marks = new List<string>(c.Marks);
             return n;
         }
 
         bool EntryDirty(CellData c, Entry n)
         {
             return n.Content != c.Cur.Content || n.People[0] != c.Cur.People[0] || n.People[1] != c.Cur.People[1] || n.People[2] != c.Cur.People[2]
-                || n.Lkz != c.Cur.Lkz || n.Variant != c.Cur.Variant || n.MarksKey() != c.Cur.MarksKey() || n.SpanKey() != c.Cur.SpanKey();
+                || n.Lkz != c.Cur.Lkz || BufferSet.Key(n.Buffers) != BufferSet.Key(c.Cur.Buffers) || n.MarksKey() != c.Cur.MarksKey() || n.SpanKey() != c.Cur.SpanKey();
         }
 
         static bool quiet;   // Selbsttest: keine Meldungsfenster
@@ -215,6 +215,12 @@ namespace Arbeitsplan.Win
                 Entry n = WorkEntry(c);
                 if (EntryDirty(c, n))
                 {
+                    string bmiss = BufferRightMissing(c.Cur, n.Buffers);   // Puffer: Hinzufuegen/Aendern/Entfernen je nach Recht
+                    if (bmiss != null)
+                    {
+                        if (!quiet) MessageBox.Show("Für die Änderung an den Puffern fehlt das Recht \"" + bmiss + "\".\n\nDer Block bleibt im Bearbeitungsmodus.", "Keine Berechtigung", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        return false;
+                    }
                     if (!me.Has(Perm.DeleteText) && RemovesText(c.Cur, n))
                     {
                         if (!quiet) MessageBox.Show("Sie dürfen keinen Text löschen (Recht \"Text löschen\" fehlt).\n\nDer Block bleibt im Bearbeitungsmodus: Entfernten Text wieder eintragen oder mit Esc verwerfen.",

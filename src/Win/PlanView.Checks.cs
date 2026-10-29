@@ -15,7 +15,7 @@ namespace Arbeitsplan.Win
     {
         public List<CheckDef>[] Defs = new List<CheckDef>[0];   // je Zeile (MainForm: aus DutyConfig + LKZ aus der Blockstruktur)
         public Action<CellData, string> MarkClicked;            // Schluessel (CheckDef.LkzKey = LKZ-Haken)
-        public Action<CellData, string, int> VariantClicked;    // Variante: 0 = an/aus, +1/-1 = Anzahl (VariantSet.Step)
+        public Action<CellData, string, int> VariantClicked;    // Variante: 0 = an/aus, +1/-1 = Anzahl (BufferSet.Target)
         CheckSlot[][] slots = new CheckSlot[0][];
         static readonly Color[] ChipColors = { Color.FromArgb(0, 120, 180), Color.FromArgb(115, 80, 175), Color.FromArgb(0, 135, 110) };
 

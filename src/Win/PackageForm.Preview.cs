@@ -114,7 +114,7 @@ namespace Arbeitsplan.Win
                 c.Room = cur.Row.Length > 0 ? cur.Row : "Raum fehlt"; c.Missing = cur.Row.Length == 0;
                 c.Day = "Tag " + cd[r] + " · " + weekStart.AddDays(cd[r] - 1).ToString("ddd dd.MM.", Ui.De) + (cur.Shifted(r) ? " (verschoben)" : "");
                 c.Data = cur.EntryFor(r, prefix);
-                if (c.Data.Variant.Length > 0) c.Extra = "Herstellung: " + VarText(c.Data.Variant);
+                if (c.Data.Types.Length > 0) c.Extra = "Herstellung: " + VarText(c.Data.Types);
                 cards.Add(c);
             }
             if (cd.Count > 6) { BlockPreview.Card m = new BlockPreview.Card(); m.Room = "… " + (cd.Count - 6) + " weitere Wiederholungen"; m.More = true; cards.Add(m); }

@@ -293,8 +293,8 @@ namespace Arbeitsplan.Core
             w.WriteAttributeString("ver", I(e.Version)); w.WriteAttributeString("lkz", B(e.Lkz));
             w.WriteAttributeString("inhalt", e.Content);
             for (int i = 0; i < 3; i++) w.WriteAttributeString("p" + i, e.People[i]);
-            if (e.Variant.Length > 0) w.WriteAttributeString("variante", e.Variant);
             foreach (string m in e.Marks) { w.WriteStartElement("Mark"); w.WriteAttributeString("k", m); w.WriteEndElement(); }
+            BufferSet.WriteXml(w, e.Buffers);
             foreach (FormatSpan f in e.Spans)
             {
                 w.WriteStartElement("Fmt"); w.WriteAttributeString("start", I(f.Start)); w.WriteAttributeString("len", I(f.Length)); w.WriteAttributeString("rgb", I(f.Rgb));
@@ -565,7 +565,7 @@ namespace Arbeitsplan.Core
         {
             Entry x = new Entry(); x.Version = Int(e, "ver"); x.Lkz = Bool(e, "lkz"); x.Content = e.GetAttribute("inhalt");
             for (int i = 0; i < 3; i++) x.People[i] = e.GetAttribute("p" + i);
-            x.Variant = e.GetAttribute("variante");
+            x.Buffers = BufferSet.ReadXml(e);   // alte Dateien: Attribut "variante" -> Puffer ohne Namen
             foreach (XmlElement m in Kids(e, "Mark")) x.Marks.Add(m.GetAttribute("k"));
             foreach (XmlElement f in Kids(e, "Fmt"))
             {

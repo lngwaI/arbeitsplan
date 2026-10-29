@@ -38,9 +38,9 @@ namespace Arbeitsplan.Core
             foreach (string k in theirs.Marks) if (!keys.Contains(k)) keys.Add(k);
             foreach (string k in keys)
                 if (mine.Marks.Contains(k) == b.Marks.Contains(k) ? theirs.Marks.Contains(k) : mine.Marks.Contains(k)) r.Marks.Add(k);
-            if (mine.Variant == b.Variant || mine.Variant == theirs.Variant) r.Variant = theirs.Variant;
-            else if (theirs.Variant == b.Variant) r.Variant = mine.Variant;
-            else r.Variant = VariantSet.Merge(b.Variant, mine.Variant, theirs.Variant);   // mehrere Varianten je Tag: Vereinigung statt Konflikt
+            bool bclash;
+            r.Buffers = BufferSet.Merge(b.Buffers, mine.Buffers, theirs.Buffers, preferMine, out bclash);   // Puffer dreiwege je Id
+            if (bclash) clashes.Add("Puffer");
             return r;
         }
 

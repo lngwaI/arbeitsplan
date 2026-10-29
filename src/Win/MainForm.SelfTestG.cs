@@ -213,14 +213,14 @@ namespace Arbeitsplan.Win
             // Speicherformat: mehrere Varianten im selben Attribut, alter Einzelwert bleibt gueltig
             StoreData x = Backup.FromXml(Backup.ToXml(s.Snapshot()));
             Entry e1 = EntryIn(x, w.AddDays(1), pid), e3 = EntryIn(x, w.AddDays(3), pid);
-            bool okXml = e1 != null && e1.Variant == "mobil|stationaer" && e3 != null && e3.Variant == "stationaer"
+            bool okXml = e1 != null && e1.Types == "mobil|stationaer" && e3 != null && e3.Types == "stationaer"
                 && VariantSet.Of("stationaer").Count == 1 && VariantSet.Of("stationaer|mobil|mobil").Count == 2;
             // Merge: Vereinigung, Entfernen einer Seite bleibt erhalten
             List<string> cl = new List<string>();
             Entry m1 = Conflict.Merge(E("x", false, ""), E("x", false, "mobil"), E("x", false, "stationaer"), cl);
             Entry m2 = Conflict.Merge(E("x", false, "mobil"), E("x", false, ""), E("x", false, "mobil|stationaer"), cl);
-            bool okMerge = m1.Variant == "mobil|stationaer" && m2.Variant == "stationaer" && cl.Count == 0
-                && VariantSet.Toggle("mobil", "stationaer") == "mobil|stationaer" && VariantSet.Toggle("mobil|stationaer", "mobil") == "stationaer"
+            bool okMerge = m1.Types == "mobil|stationaer" && m2.Types == "stationaer" && cl.Count == 0
+                && BufferSet.Target(BufferSet.FromVariant("mobil"), "stationaer", 0) == 1 && BufferSet.Target(BufferSet.FromVariant("mobil|stationaer"), "mobil", 0) == 0
                 && VariantSet.Display("stationaer|mobil") == "mobil + stationaer";
             sb.AppendLine("Puffer-Varianten: Tagesprobe kombiniert/Wochenende/Feiertag=" + Ok(okDays) + " Wochen-WFI entfällt bei Kombination, So hakbar=" + Ok(okWfi)
                 + " XML-Rundreise=" + Ok(okXml) + " Merge-Vereinigung=" + Ok(okMerge));

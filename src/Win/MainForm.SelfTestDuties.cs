@@ -14,7 +14,7 @@ namespace Arbeitsplan.Win
         static DateTime D(int y, int m, int d) { return new DateTime(y, m, d); }
         static Entry E(string content, bool lkz, string variant, params string[] marks)
         {
-            Entry e = new Entry(); e.Content = content; e.Lkz = lkz; e.Variant = variant; e.Marks.AddRange(marks);
+            Entry e = new Entry(); e.Content = content; e.Lkz = lkz; BufferSet.SetTypes(e, variant); e.Marks.AddRange(marks);
             return e;
         }
 
@@ -91,11 +91,11 @@ namespace Arbeitsplan.Win
             Entry b = E("x", false, "mobil", "A"), mi = E("x", false, "mobil", "A", "B"), th = E("x", false, "stationaer");
             List<string> cl = new List<string>();
             Entry r = Conflict.Merge(b, mi, th, cl);
-            bool okM = r.Marks.Count == 1 && r.Marks[0] == "B" && r.Variant == "stationaer" && cl.Count == 0;
+            bool okM = r.Marks.Count == 1 && r.Marks[0] == "B" && r.Types == "stationaer" && cl.Count == 0;
             List<string> cl2 = new List<string>();
             Entry r2 = Conflict.Merge(E("x", false, ""), E("x", false, "mobil"), E("x", false, "stationaer"), cl2);
             Entry r3 = Conflict.Merge(E("x", false, ""), E("x", false, "mobil"), E("x", false, "stationaer"), new List<string>(), true);
-            bool okV = !cl2.Contains("Herstellung") && r2.Variant == "mobil|stationaer" && r3.Variant == "mobil|stationaer";   // beide geaendert = Vereinigung
+            bool okV = !cl2.Contains("Herstellung") && r2.Types == "mobil|stationaer" && r3.Types == "mobil|stationaer";   // beide geaendert = Vereinigung
             sb.AppendLine("Merge: Pflichtpunkte je Schlüssel=" + Ok(okM) + " Variante beidseitig = Vereinigung=" + Ok(okV));
 
             // ---------- Datenformat v3 / v2 / v4 ----------
@@ -109,7 +109,7 @@ namespace Arbeitsplan.Win
             Entry e3 = null; foreach (StoredEntry se in x3.Entries) if (se.Day == w23 && se.RowId == row2) e3 = se.Data;
             AuditEntry a3 = x3.Audit.Find(delegate(AuditEntry a) { return a.RowId == -1; });
             bool okV3 = x3.Rows[0].Mode == ShiftMode.FS && x3.Rows[1].Mode == ShiftMode.Task && x3.Rows[1].Variants == "mobil|stationaer" && x3.Rows[2].Mode == ShiftMode.FSN
-                && e3 != null && e3.Marks.Count == 1 && e3.Marks[0] == "PROBE" && x3.Entries.Exists(delegate(StoredEntry se) { return se.Data.Variant == "stationaer"; })
+                && e3 != null && e3.Marks.Count == 1 && e3.Marks[0] == "PROBE" && x3.Entries.Exists(delegate(StoredEntry se) { return se.Data.Types == "stationaer"; })
                 && x3.Duties.Land == "BY" && x3.Duties.Defs.Count == 3 && x3.Duties.Defs[2].Rule == CheckRule.WeeklyOnce && x3.Duties.Defs[2].Cond == "!stationaer"   // 2 Puffer-Standards + wfi
                 && x3.Duties.Rounds.Count == 5 && !x3.Duties.Rounds[4].Active && x3.Duties.ExtraHolidays[0] == D(2026, 7, 1) && x3.Duties.RemovedHolidays[0] == D(2026, 12, 26)
                 && x3.WeekMarks.Count == 1 && x3.WeekMarks[0].Done && x3.WeekMarks[0].Version == 1 && a3 != null && a3.Mark == "GMP1" && a3.Value == "1" && a3.Day == w43;
@@ -117,7 +117,7 @@ namespace Arbeitsplan.Win
                 + "<Bloecke><Block tag=\"2026-10-19\" zeile=\"1\" ver=\"2\" lkz=\"1\" inhalt=\"Lauf\" p0=\"MUMA\" p1=\"\" p2=\"\"/></Bloecke><Katalog/>"
                 + "<Protokoll><Eintrag zeit=\"1\" login=\"mmuster\" kuerzel=\"MUMA\" tag=\"2026-10-19\" zeile=\"1\" name=\"Suite 1\" ver=\"2\"/></Protokoll></Arbeitsplan>";
             StoreData x2 = Backup.FromXml(Encoding.UTF8.GetBytes(v2));
-            bool okV2 = x2.Rows[0].Mode == ShiftMode.FSN && x2.Rows[0].Variants == "" && x2.Entries[0].Data.Variant == "" && x2.Entries[0].Data.Marks.Count == 0
+            bool okV2 = x2.Rows[0].Mode == ShiftMode.FSN && x2.Rows[0].Variants == "" && x2.Entries[0].Data.Types == "" && x2.Entries[0].Data.Marks.Count == 0
                 && x2.Entries[0].Data.Lkz && x2.Duties.Land == "BW" && x2.Duties.Rounds.Count == 5 && x2.Duties.Rounds[0].Name == "1. GMP-Rundgang"
                 && x2.WeekMarks.Count == 0 && x2.Audit[0].Mark == "";
             bool okV4 = false;
@@ -152,7 +152,7 @@ namespace Arbeitsplan.Win
             List<AuditEntry> au = fc.GetAudit(w43, -1);
             Entry fe2 = fc.Get(w23, 1);
             bool okFile = la.Count == 1 && !la[0].Done && la[0].Version == 2 && au.Count == 2 && au[0].Value == "1" && au[1].Value == "0" && au[1].Mark == "GMP1"
-                && fe2 != null && fe2.Variant == "mobil" && fe2.Marks.Count == 1 && fc.GetDuties().Land == "BY" && fc.GetDuties().Rounds.Count == 5;
+                && fe2 != null && fe2.Types == "mobil" && fe2.Marks.Count == 1 && fc.GetDuties().Land == "BY" && fc.GetDuties().Rounds.Count == 5;
             sb.AppendLine("Wochenhaken: gespeichert=" + Ok(sa) + " Konflikt erkannt=" + Ok(sbConf) + " neu gelesen=" + Ok(reread) + " zweiter PC speichert=" + Ok(sb2)
                 + " Datei/Protokoll/Pflichten=" + Ok(okFile));
             try { Directory.Delete(dir, true); } catch (Exception) { }

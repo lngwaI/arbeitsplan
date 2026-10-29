@@ -65,7 +65,7 @@ namespace Arbeitsplan.Core
         public string Text = "";
         public string Note = "";
         public string Ident = "";           // Kennung je Lauf, Komma-getrennt (z. B. "PA 40010001, PA 40010017"); ganz unten rot, gross, fett
-        public string Variant = "";         // Herstellungsvariante(n) fuer Entry.Variant (z. B. Puffer "mobil|stationaer"), "" = keine
+        public string Variant = "";         // Puffer-Schritt: Typ(en) der erzeugten Puffer (VariantSet, z. B. "mobil"), "" = kein Puffer
         public List<EquipAssign> Equipment = new List<EquipAssign>();
 
         public string IdentFor(int run)
@@ -115,7 +115,25 @@ namespace Arbeitsplan.Core
             return Numbered ? t + " " + RunNo(prefix, run) : t;
         }
 
-        public string Compose(int run, string prefix)
+        public string Compose(int run, string prefix) { return string.Join("\n", Lines(run, prefix).ToArray()); }
+
+        // Puffer-Schritt (Variante gesetzt): erzeugt Puffer statt Inhaltstext
+        public bool IsBuffer { get { return Variant.Trim().Length > 0 && VariantSet.Of(Variant).Count > 0; } }
+
+        // Puffer dieses Laufs (Ids vergibt der Block beim Anhaengen): Name = Titelzeile, Typ = Variante, Text = die uebrigen Zeilen
+        // (Ansatz, Equipment, Notiz). "mobil|stationaer" = zwei Puffer gleichen Namens, "mobil:2" = zwei mobile.
+        public List<BufferItem> BuffersFor(int run, string prefix)
+        {
+            List<string> lines = Lines(run, prefix);
+            string name = "";
+            if (Title.Length > 0 && lines.Count > 0) { name = lines[0]; lines.RemoveAt(0); }
+            List<BufferItem> res = new List<BufferItem>();
+            foreach (KeyValuePair<string, int> kv in VariantSet.Counts(Variant))
+                for (int i = 0; i < kv.Value; i++) BufferSet.Add(res, name, kv.Key, string.Join("\n", lines.ToArray()));
+            return res;
+        }
+
+        List<string> Lines(int run, string prefix)
         {
             string product = prefix;
             List<string> lines = new List<string>();
@@ -140,13 +158,15 @@ namespace Arbeitsplan.Core
             foreach (EquipAssign a in Equipment) { string l = a.Line(run); if (l.Length > 0) lines.Add(l); }
             if (Note.Length > 0) lines.Add("Notiz: " + Note);
             if (IdentFor(run).Length > 0) lines.Add(IdentFor(run));   // immer die letzte Zeile (Format in BuildTargets)
-            return string.Join("\n", lines.ToArray());
+            return lines;
         }
 
         // Block, wie ihn dieser Lauf allein im Plan ergibt (Plantext, rote Kennung, Herstellungsvariante), z. B. fuer die Vorschau.
         public Entry EntryFor(int run, string prefix)
         {
-            Entry e = new Entry(); e.Content = Compose(run, prefix); e.Variant = Variant;
+            Entry e = new Entry();
+            if (IsBuffer) { e.Buffers = BuffersFor(run, prefix); return e; }
+            e.Content = Compose(run, prefix);
             string idt = IdentFor(run);
             if (idt.Length > 0) e.Spans.Add(IdentSpan(e.Content.Length - idt.Length, idt.Length));
             return e;
@@ -204,7 +224,7 @@ namespace Arbeitsplan.Core
                 for (int d = 0; d < 7; d++)
                 {
                     Entry e = store.Get(start.AddDays(d), r.Id);
-                    if (e == null || (e.IsEmpty && !e.Lkz)) continue;
+                    if (e == null || (e.IsEmpty && !e.Lkz && e.Buffers.Count == 0)) continue;
                     PackageBlock b = new PackageBlock(); b.Day = d + 1; b.Row = r.Name; b.Data = e; b.Data.Version = 0;
                     p.Blocks.Add(b);
                 }
@@ -247,10 +267,10 @@ namespace Arbeitsplan.Core
                     string k = day.ToString("yyyyMMdd", CultureInfo.InvariantCulture) + "|" + id;
                     Target t;
                     if (!map.TryGetValue(k, out t)) { t = new Target(); t.Day = day; t.RowId = id; t.Data = new Entry(); map[k] = t; order.Add(t); }
+                    if (s.IsBuffer) { BufferSet.AddRange(t.Data.Buffers, s.BuffersFor(ri, Prefix)); continue; }   // mehrere Puffer am Tag: anhaengen
                     t.Data.Content = t.Data.Content.Length > 0 ? t.Data.Content + "\n\n" + run.Value : run.Value;
                     string idt = s.IdentFor(ri);
                     if (idt.Length > 0) t.Data.Spans.Add(PackageStep.IdentSpan(t.Data.Content.Length - idt.Length, idt.Length));
-                    if (s.Variant.Length > 0) t.Data.Variant = VariantSet.Sum(t.Data.Variant, s.Variant);   // mehrere Puffer am Tag: Anzahlen addieren
                 }
             }
             return order;
@@ -280,10 +300,12 @@ namespace Arbeitsplan.Core
         {
             Entry result;
             if (cur == null) return n.Clone();
-            if (cur.IsEmpty || mode == ApplyMode.Overwrite)
+            bool free = cur.IsEmpty && cur.Buffers.Count == 0;   // ein Block mit Puffern gilt als belegt
+            if (free || mode == ApplyMode.Overwrite)
             {
                 result = n.Clone();
                 for (int i = 0; i < 3; i++) if (result.People[i].Length == 0) result.People[i] = cur.People[i];
+                if (n.Buffers.Count == 0) result.Buffers = BufferSet.CloneAll(cur.Buffers);   // ohne Puffer im Paket bleiben die vorhandenen
             }
             else if (mode == ApplyMode.FillEmpty) return null;
             else
@@ -296,10 +318,9 @@ namespace Arbeitsplan.Core
                     foreach (FormatSpan f in n.Spans) { FormatSpan c = f.Clone(); c.Start += shift; result.Spans.Add(c); }
                 }
                 for (int i = 0; i < 3; i++) if (n.People[i].Length > 0) result.People[i] = result.People[i].Length > 0 ? result.People[i] + ", " + n.People[i] : n.People[i];
+                BufferSet.AddRange(result.Buffers, n.Buffers);   // Puffer hinten anhaengen (neue Ids)
             }
             result.Lkz = cur.Lkz || n.Lkz;
-            // Herstellungsvariante: ohne Angabe im Paket bleibt die vorhandene; anhaengen = Anzahlen addieren, sonst die des Pakets
-            result.Variant = n.Variant.Length == 0 ? cur.Variant : (mode == ApplyMode.Append && !cur.IsEmpty ? VariantSet.Sum(cur.Variant, n.Variant) : n.Variant);
             return result;
         }
 

@@ -56,16 +56,17 @@ namespace Arbeitsplan.Core
             string s = e.Content;
             for (int i = 0; i < 3; i++) s += "\n" + labels[i] + ": " + e.People[i];
             s += "\nLKZ gemessen: " + (e.Lkz ? "ja" : "nein");
-            if (e.Variant.Length > 0) s += "\nHerstellung: " + VariantSet.Display(e.Variant);
+            foreach (string l in BufferSet.DisplayLines(e.Buffers, true)) s += "\n" + l;
             if (e.Marks.Count > 0) s += "\nAbgehakt: " + string.Join(", ", e.Marks.ToArray());
             return s;
         }
 
         public static string Preview(Entry e)
         {
-            if (e == null || e.IsEmpty) return "(leer)";
+            if (e == null || (e.IsEmpty && e.Buffers.Count == 0)) return "(leer)";
             string s = e.Content.Replace("\n", " | ");
-            if (s.Length == 0) s = string.Join(" / ", e.People);
+            if (s.Length == 0 && e.IsEmpty) s = string.Join(" / ", BufferSet.DisplayLines(e.Buffers, false).ToArray());
+            else if (s.Length == 0) s = string.Join(" / ", e.People);
             return s.Length > 60 ? s.Substring(0, 60) + "…" : s;
         }
     }

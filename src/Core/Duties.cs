@@ -197,7 +197,7 @@ namespace Arbeitsplan.Core
         }
 
         static bool AnySet(Entry[] w, CheckDef d) { foreach (Entry e in w) if (IsSet(e, d)) return true; return false; }
-        static bool AnyNA(Entry[] w, CheckDef d) { foreach (Entry e in w) if (Has(d, '!', e.Variant)) return true; return false; }
+        static bool AnyNA(Entry[] w, CheckDef d) { foreach (Entry e in w) if (Has(d, '!', e.Types)) return true; return false; }
 
         public static DayState Day(IDataStore s, CheckDef d, DateTime day, DateTime today, DutyConfig cfg)
         {
@@ -214,19 +214,19 @@ namespace Arbeitsplan.Core
                     if (set) return DayState.Done;
                     return AnySet(w, d) ? DayState.NotNeeded : DayState.WeekOpen;
                 case CheckRule.Workdays:
-                    if (Has(d, '!', e.Variant)) return DayState.NA;
+                    if (Has(d, '!', e.Types)) return DayState.NA;
                     if (day.DayOfWeek == DayOfWeek.Saturday || day.DayOfWeek == DayOfWeek.Sunday || Holidays.Is(day, cfg))
                     {   // Wochenende/Feiertag: nur faellig, wenn dort hergestellt wird und nicht alles automatisch ist (z. B. stationaer)
                         if (set) return DayState.Done;
-                        if (e.Variant.Length == 0) return DayState.NA;
-                        return Auto(d, e.Variant) ? DayState.Auto : open;
+                        if (e.Types.Length == 0) return DayState.NA;
+                        return Auto(d, e.Types) ? DayState.Auto : open;
                     }
-                    if (Auto(d, e.Variant)) return DayState.Auto;
+                    if (Auto(d, e.Types)) return DayState.Auto;
                     return set ? DayState.Done : open;
                 default:   // IfOccupied
-                    if (Has(d, '!', e.Variant)) return DayState.NA;
+                    if (Has(d, '!', e.Types)) return DayState.NA;
                     if (set) return DayState.Done;
-                    if (Auto(d, e.Variant)) return DayState.Auto;
+                    if (Auto(d, e.Types)) return DayState.Auto;
                     if (e.HasText) return open;
                     if (!d.Weekly) return DayState.NotNeeded;
                     return AnySet(w, d) ? DayState.NotNeeded : DayState.WeekOpen;

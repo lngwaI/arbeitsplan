@@ -59,7 +59,7 @@ namespace Arbeitsplan.Win
             pc = CellOf(pr, 1); pm = view.SlotPoint(pc, "mobil", -1);
             view.TestClick(pm);
             Entry v3 = store.Get(wk.AddDays(1), pid);
-            bool okChips = !pm.IsEmpty && !ps.IsEmpty && v1 != null && v1.Variant == "mobil" && auto && v2.Variant == "mobil|stationaer" && v3.Variant == "stationaer";
+            bool okChips = !pm.IsEmpty && !ps.IsEmpty && v1 != null && v1.Types == "mobil" && auto && v2.Types == "mobil|stationaer" && v3.Types == "stationaer";
 
             // Rundgaenge: Datum/Kuerzel aus dem Haken, alte Haken aus dem Protokoll, Leiste bleibt bei 5/5 offen
             List<RoundDef> act = duties.Rounds.FindAll(delegate(RoundDef d) { return d.Active; });

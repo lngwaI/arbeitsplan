@@ -119,13 +119,39 @@ namespace Arbeitsplan.Win
 
         static void SetMark(List<string> l, string key, bool on) { l.Remove(key); if (on) l.Add(key); }
 
+        // Puffer-Typen des Blocks auf v bringen (Namen/Texte vorhandener Puffer bleiben)
         void SetVariant(CellData c, string v)
         {
-            Change(c, delegate(CellData x) { x.Variant = v; }, delegate(Entry e) { return e.Variant == v; }, delegate(Entry e) { e.Variant = v; });
+            if (!BufferRights(c, v)) return;
+            Change(c, delegate(CellData x) { BufferSet.SetTypes(x.Buffers, v); }, delegate(Entry e) { return e.Types == BufferSet.Types(BufferSet.FromVariant(v)); }, delegate(Entry e) { BufferSet.SetTypes(e.Buffers, v); });
         }
 
-        // Chip in der Pruefleiste: Variante sofort an/aus bzw. Anzahl +1/-1 (an einem Tag z. B. 2x mobil UND 1x stationaer)
-        void ToggleVariant(CellData c, string v, int delta) { SetVariant(c, VariantSet.Step(c.Variant, v, delta)); }
+        // Chip in der Pruefleiste: Puffer-Anzahl dieses Typs sofort an/aus bzw. +1/-1 (an einem Tag z. B. 2x mobil UND 1x stationaer)
+        void ToggleVariant(CellData c, string v, int delta)
+        {
+            int want = BufferSet.Target(c.Buffers, v, delta);
+            if (!BufferRights(c, VariantSet.With(c.Variant, v, want))) return;
+            Change(c, delegate(CellData x) { BufferSet.SetCount(x.Buffers, v, want); }, delegate(Entry e) { return BufferSet.Count(e.Buffers, v) == want; }, delegate(Entry e) { BufferSet.SetCount(e.Buffers, v, want); });
+        }
+
+        // Rechte fuer die Puffer-Liste: Hinzufuegen AddText (oder EditText), Entfernen DeleteText, Aendern EditText. null = erlaubt, sonst fehlendes Recht.
+        string BufferRightMissing(Entry old, List<BufferItem> now)
+        {
+            bool add, rem, chg; BufferSet.Diff(old.Buffers, now, out add, out rem, out chg);
+            if (rem && !me.Has(Perm.DeleteText)) return "Text löschen";
+            if (chg && !me.Has(Perm.EditText)) return "Text ändern";
+            if (add && !me.Has(Perm.AddText) && !me.Has(Perm.EditText)) return "Text hinzufügen";
+            return null;
+        }
+
+        bool BufferRights(CellData c, string newTypes)
+        {
+            List<BufferItem> now = BufferSet.CloneAll(c.Buffers); BufferSet.SetTypes(now, newTypes);
+            string miss = BufferRightMissing(c.Cur, now);
+            if (miss == null) return true;
+            if (!quiet) MessageBox.Show("Für diese Änderung fehlt das Recht \"" + miss + "\".", "Keine Berechtigung", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return false;
+        }
 
         // Haken/Variante: im Bearbeitungsmodus nur im Editor (wird mit dem Block gespeichert), sonst sofort speichern.
         // Hat ein anderer PC den Block geaendert, bleibt dessen Inhalt; nur diese Aenderung wird (einmal still erneut) gesetzt.
