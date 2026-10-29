@@ -92,6 +92,12 @@ namespace Arbeitsplan.Win
                 fl.Release(day, 1, "Paula Werk");                                              // Verdraengter beendet seinen Modus
                 okLockF &= fl.Holder(day, 1, "Paula Werk") == "Max Mustermann";
                 fl.Release(day, 1, "Max Mustermann"); okLockF &= fl.Holder(day, 1, "Paula Werk") == null;
+                // Login in der Sperre: alte Sperre ohne Login = "", neue Sperre mit Login; Zusatzdatei passt nur zum selben Namen
+                fl.Acquire(day, 2, "Alt Sperre"); okLockF &= fl.HolderLogin(day, 2) == "" && fl.Holder(day, 2, "x") == "Alt Sperre";
+                fl.AcquireAs(day, 2, "Neu Sperre", "nsperre"); okLockF &= fl.HolderLogin(day, 2) == "nsperre" && fl.Holder(day, 2, "x") == "Neu Sperre";
+                File.WriteAllText(Path.Combine(dir, "sperren", day.ToString("yyyy-MM-dd") + "_2.lock"), "Andere exe");   // aeltere exe setzt die Sperre neu
+                okLockF &= fl.HolderLogin(day, 2) == "" && fl.Holder(day, 2, "x") == "Andere exe";
+                fl.AcquireAs(day, 2, "Neu Sperre", "nsperre"); fl.Release(day, 2, "Neu Sperre"); okLockF &= fl.HolderLogin(day, 2) == "" && fl.Holder(day, 2, "x") == null;
             }
             catch (Exception ex) { okFile = false; sb.AppendLine("Übernahme: Ausnahme in Nachrichtentest " + ex.GetType().Name + ": " + ex.Message); }
             finally { try { Directory.Delete(dir, true); } catch (Exception) { } }
@@ -124,6 +130,9 @@ namespace Arbeitsplan.Win
             using (LockedForm lf = new LockedForm("X", cday, "Paula Werk", true)) okNo &= lf.CanTakeOver;
             string e3; okNo &= !TakeOver(c, "Niemand Bekannt", "", out e3) && e3.Contains("nicht als Nutzer bekannt");
 
+            int nb = notices.List("ebeispiel").Count;                                           // Zuordnung ueber den Login statt Anzeigename
+            locks.AcquireAs(cday, rid, "Anderer Anzeigename", "ebeispiel");
+            okNo &= TakeOver(c, "Anderer Anzeigename", "", out e3) && notices.List("ebeispiel").Count == nb + 1;
             locks.Acquire(cday, rid, me.Display);                                              // wie BeginEdit nach der Uebernahme
             bool okLock = locks.Holder(cday, rid, "Paula Werk") == me.Display;
             locks.Release(cday, rid, "Paula Werk");                                            // Verdraengter beendet seinen Modus

@@ -264,11 +264,13 @@ namespace Arbeitsplan.Core
         string Holder(DateTime day, int row, string me);   // Name eines anderen Bearbeiters oder null
         void Acquire(DateTime day, int row, string me);
         void Release(DateTime day, int row, string me);
+        void AcquireAs(DateTime day, int row, string me, string login);   // wie Acquire, merkt zusaetzlich den Login (eindeutige Zuordnung)
+        string HolderLogin(DateTime day, int row);                        // Login des aktuellen Halters oder "" (unbekannt, z. B. alte Sperre)
     }
 
     public class MemoryLockService : ILockService
     {
-        class Lock { public string User; public DateTime Time; }
+        class Lock { public string User, Login = ""; public DateTime Time; }
         static readonly TimeSpan Stale = TimeSpan.FromMinutes(30);   // abgestuerzte Clients blockieren nicht ewig
         readonly Dictionary<string, Lock> locks = new Dictionary<string, Lock>();
 
@@ -281,10 +283,18 @@ namespace Arbeitsplan.Core
             return null;
         }
 
-        public void Acquire(DateTime day, int row, string me)
+        public void Acquire(DateTime day, int row, string me) { AcquireAs(day, row, me, ""); }
+
+        public void AcquireAs(DateTime day, int row, string me, string login)
         {
-            Lock l = new Lock(); l.User = me; l.Time = DateTime.Now;
+            Lock l = new Lock(); l.User = me; l.Login = login ?? ""; l.Time = DateTime.Now;
             locks[Key(day, row)] = l;
+        }
+
+        public string HolderLogin(DateTime day, int row)
+        {
+            Lock l;
+            return locks.TryGetValue(Key(day, row), out l) && DateTime.Now - l.Time < Stale ? l.Login : "";
         }
 
         public void Release(DateTime day, int row, string me)

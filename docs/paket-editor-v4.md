@@ -1,6 +1,6 @@
 # Paket-Editor v4 und Notizzeilen – Entwurf, Stand 2026-10-29
 
-Status: **Entwurf, nicht umgesetzt** (Architekt Opus/high, Hauptagent hat die Datei geschrieben). Baut auf `docs/paket-editor-v3.md` auf; dort entfallen **Hold-Zeiten** und **Wartungszeitraum**. Nutzerentscheidungen aus `tasks.md` (Plan 2026-10-29, A3, D, E) sind verbindlich. Erst die offenen Fragen am Ende klären, dann E1 starten.
+Status: **umgesetzt (E1–E6, A3, P)** (Entwurf: Architekt Opus/high, Hauptagent hat die Datei geschrieben). Baut auf `docs/paket-editor-v3.md` auf; dort entfallen **Hold-Zeiten** und **Wartungszeitraum**. Nutzerentscheidungen aus `tasks.md` (Plan 2026-10-29, A3, D, E) sind verbindlich. Erst die offenen Fragen am Ende klären, dann E1 starten.
 
 ## Ist-Stand (Branch gmail/paket-editor-v4)
 - Paketformat 6 (`Packages.Xml.cs`), `Backup.FormatVersion` = 4 (`Backup.cs:41`, noch nicht verteilt laut `tasks.md`).

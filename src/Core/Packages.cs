@@ -370,11 +370,11 @@ namespace Arbeitsplan.Core
         }
 
 #if TESTHOOKS
-        // Testpaket (erfundene Daten, Produkt 1234): Packen, Packen Backup, 4 Laeufe im Rhythmus Lauf, Mischen, Ruhe,
-        // 2 Tage Backfill, Ruhe. Lauf mit Auftrag/Netzwerk-ID (= Laufnummer), Equipment und roter PA-Kennung je Lauf.
+        // Testpaket (erfundene Daten, Produkt 1234, Typ Kampagne, Lauf 1 ohne festes Datum): Packen, Packen Backup, Hauptlauf 4x im Rhythmus, Mischen und
+        // 2 Tage Backfill je Lauf (JeLauf). Lauf mit Auftrag/Netzwerk-ID (= Laufnummer), Equipment und roter PA-Kennung (Start + Endziffern) je Lauf.
         public static Package SampleCampaign(string name)
         {
-            Package p = new Package(); p.Name = name; p.ProductCode = "1234";
+            Package p = new Package(); p.Name = name; p.ProductCode = "1234"; p.Type = PackageType.Kampagne;
             PackageStep pk = Step(p, "Packen", "Packen", 1, StepKind.Normal, 1);
             pk.Text = "Auftrag/Netzwerk-ID: siehe Lauf\nDMO-Hinweis: Packanweisung im DMO beachten";
             Eq(pk, "TFF", "H1-X-0101"); Eq(pk, "Pumpe", "H1-P-0101-05"); Eq(pk, "VS", "H1-F-0103-04");
@@ -384,7 +384,7 @@ namespace Arbeitsplan.Core
             EquipAssign tff = Eq(lf, "TFF", "H1-X-0101"); tff.Choices.Add(new EquipChoice("TFF", "H1-X-0102")); tff.Alternate = true; tff.Fallback = "H1-X-0103";
             Eq(lf, "Reds", "H1-T-0131"); Eq(lf, "EV", "H2-X-0201"); Eq(lf, "EVT", "H2-T-0201"); Eq(lf, "PT", "H1-T-0102");
             Eq(lf, "RT", "H1-T-0112"); Eq(lf, "VS", "H1-F-0103-04").Note = "(nur eins vorhanden)"; Eq(lf, "ST1", "H2-T-0211"); Eq(lf, "ST2", "H2-T-0212");
-            lf.Ident = "PA 40010001, PA 40010017, PA 40010032, PA 40010048";
+            lf.IdentStart = "PA 40010001";   // Kennungstart: Endziffern +1 je Lauf
             PackageStep mi = Step(p, "Mischen", "Mischen", 4, StepKind.Run, 4); mi.Bind = StepBind.JeLauf; mi.RunOffset = 1;   // folgt dem Hauptlauf (genau ein Hauptlauf-Schritt, Packages.Rules.cs)
             Eq(mi, "MT", "H2-T-0210"); Eq(mi, "ST1", "H2-T-0211"); Eq(mi, "ST2", "H2-T-0212"); Eq(mi, "MS", "H2-X-0210"); Eq(mi, "EV", "H2-X-0201"); Eq(mi, "Pumpe", "H1-P-0102-05");
             PackageStep b1 = Step(p, "Backfill", "Backfill", 6, StepKind.Run, 4); b1.Text = "Tag 1 von 2"; b1.Bind = StepBind.JeLauf; b1.RunOffset = 3;

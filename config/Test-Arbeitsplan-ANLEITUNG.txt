@@ -123,11 +123,35 @@ KURZ ERKLÄRT (zum Mittesten)
     Woche -> "Offene Pflichten dieser Woche": Liste offener LKZ, Tagesproben/WFI und Rundgänge
     der angezeigten KW (optional mit der nächsten); "Springe dorthin" zeigt den Block.
     Ist nichts offen, steht dort "Alles erledigt".
+  Paket-Editor (Pakete -> Neu/Bearbeiten)
+    Kopf: Produkt, Code, erste Laufnummer und die Laufanzahl; die Laufanzahl setzt den Hauptlauf einmal,
+    Schritte mit "Wann: zu jedem Lauf" (z. B. Mischen, Backfill) folgen ihm. Die Tabelle zeigt je Schritt
+    "Wann" (z. B. 2 Tage vor Lauf 1), Läufe/Termine und die Wiederholung im Klartext.
+    Kennungstabelle: Kennungsstart ("PA 40010001") zählt die Endziffern je Lauf hoch; einzelne Läufe
+    überschreiben oder aussetzen ("fällt aus").
+    Kalender: Ziehen verschiebt ab diesem Lauf (Umschalt = nur dieser Lauf); Teiler zwischen Kalender
+    und Vorschau ziehbar (Höhe wird gemerkt), Zoom, Rückgängig/Wiederholen.
+    Puffer-Schritte erscheinen im Plan als Puffer-Liste ("+ Puffer" im Block).
+  Notizen im Plan
+    Text markieren, Rechtsklick -> als Notiz markieren: ganze Zeilen kursiv mit hellem Hintergrund. Notizen
+    zählen nicht als Inhalt (Block gilt weiter als leer, keine Suche nach Laufnummern/Equipment darin).
+  Bearbeitung übernehmen / Benachrichtigungen
+    Ist ein Block von jemand anderem gesperrt, kann ein Nutzer mit dem Recht "Bearbeitung übernehmen" ihn
+    mit Begründung übernehmen; der Verdrängte bekommt eine Nachricht (Hilfe -> Benachrichtigungen).
+  Equipment-Liste exportieren (Woche)
+    Tag, Woche, Zeitraum oder Kampagne (erkannt über die Laufnummern im Plan, Vorlauf/Nachlauf in Tagen
+    einstellbar): nur Equipment-Nummern, jede einmal, Leerzeile dazwischen; Zwischenablage oder .txt.
+  Statusdatei
+    Optional liegt im Datenordner eine Datei equipstatus.csv (Aufbau: docs/Equipment-Status.md); das
+    Programm liest sie nur. Fehlt sie oder ist älter als StatusdateiMaxAlter Stunden, gilt "nicht gereinigt".
   Änderungs-Hervorhebung (Idee von Claude)
     Übernimmt das Programm Änderungen eines anderen PCs, sind die geänderten Blöcke ca. 20 s
     blau umrandet (Ecke oben rechts), unten steht "Geändert: Di Suite 1 von XXXX". Eigene
     Änderungen und der gerade bearbeitete Block werden nicht markiert.
   [ ] Offene Pflichten: Liste passt zum Plan, "Springe dorthin" landet am richtigen Block.
+  [ ] Paket-Editor: Laufanzahl ändern, Kalender ziehen, Kennungstabelle, Speichern und Übernehmen.
+  [ ] Notiz markieren per Rechtsklick; Block mit nur Notiz zählt als leer.
+  [ ] Gesperrten Block übernehmen: Verdrängter sieht Nachricht unter Hilfe -> Benachrichtigungen.
   [ ] Hervorhebung: an PC 2 etwas ändern, PC 1 zeigt Rahmen + Statuszeile, nach ca. 20 s weg.
 
 

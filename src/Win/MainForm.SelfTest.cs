@@ -280,7 +280,7 @@ namespace Arbeitsplan.Win
             bool okRed = false;
             if (lauf != null) foreach (FormatSpan f in lauf.Spans) okRed |= f.Rgb == 0xFF0000 && f.Bold && f.Size > 10 && lauf.Content.Substring(f.Start, f.Length) == "PA 40010001";
             bool okDays = lauf != null && lauf.Content.StartsWith("Lauf – Auftrag/Netzwerk-ID 12340001") && mi != null && mi.Content.StartsWith("Mischen 12340001")
-                && bf != null && bf.Content == "Backfill 12340001\nTag 2 von 2" && (rest == null || rest.IsEmpty) && lauf2 != null && lauf2.Content.EndsWith("PA 40010017");
+                && bf != null && bf.Content == "Backfill 12340001\nTag 2 von 2" && (rest == null || rest.IsEmpty) && lauf2 != null && lauf2.Content.EndsWith("PA 40010002");
             sb.AppendLine("Testpaket: Roundtrip=" + Ok(okMk) + " PA rot=" + Ok(okRed) + " Tage=" + Ok(okDays) + " " + msg);
         }
 

@@ -121,7 +121,9 @@ namespace Arbeitsplan.Win
             err = null;
             if (!me.Has(Perm.TakeOver)) { err = "Das Recht \"" + Perm.Label(Perm.TakeOver) + "\" fehlt."; return false; }
             User victim = null; int found = 0;
-            foreach (User u in users.Users) if (string.Equals(u.Display, holder, StringComparison.OrdinalIgnoreCase)) { victim = u; found++; }
+            string hl = locks.HolderLogin(c.Day, rowInfo[c.RowIndex].Id);   // Login aus der Sperre; alte Sperren ohne Login: Anzeigename
+            if (hl.Length > 0) foreach (User u in users.Users) if (string.Equals(u.Login, hl, StringComparison.OrdinalIgnoreCase)) { victim = u; found++; }
+            if (found == 0) foreach (User u in users.Users) if (string.Equals(u.Display, holder, StringComparison.OrdinalIgnoreCase)) { victim = u; found++; }
             if (found != 1) { err = found == 0 ? holder + " ist nicht als Nutzer bekannt." : "Der Name " + holder + " ist mehrfach vergeben; die Benachrichtigung ist nicht eindeutig möglich."; return false; }
             RowInfo ri = rowInfo[c.RowIndex];
             Notice nt = Notice.TakeOver(me.Display, me.Kuerzel, BlockTitle(c), Ui.DayText(c.Day), c.Day, ri.Id, reason);
