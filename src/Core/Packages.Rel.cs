@@ -34,22 +34,35 @@ namespace Arbeitsplan.Core
                 List<int> d = h.Days(Day1);
                 for (int i = 0; i < d.Count; i++) if (!h.Skips(i)) { runs.Add(d[i]); nos.Add(i + 1); }
             }
-            string rel;
+            string rel = RelOf(day, runs, nos);
+            DateTime? dt = DateOf(day, tag1);
+            return dt.HasValue ? DateText(dt.Value) + " · " + rel : rel;
+        }
+
+        // Nur der Bezug ("3 Tage vor Lauf 1") zu den stattfindenden Hauptlaeufen eines tatsaechlichen Plans (Kampagnenstart: mit Verschiebungen)
+        public string RelText(int day, List<RunDate> plan)
+        {
+            List<RunDate> main = new List<RunDate>();
+            int hi = Steps.IndexOf(Head);
+            foreach (RunDate d in plan) if (d.Step == hi) main.Add(d);
+            main.Sort(delegate(RunDate a, RunDate b) { return a.Run.CompareTo(b.Run); });
+            List<int> runs = new List<int>(), nos = new List<int>();
+            foreach (RunDate d in main) { runs.Add(d.Day); nos.Add(d.Run + 1); }
+            return RelOf(day, runs, nos);
+        }
+
+        static string RelOf(int day, List<int> runs, List<int> nos)
+        {
             if (runs.Count == 0)
             {
                 int rd = day - 1;
-                rel = rd == 0 ? "Beginn" : DayWord(Math.Abs(rd)) + (rd > 0 ? " nach" : " vor") + " Beginn";
+                return rd == 0 ? "Beginn" : DayWord(Math.Abs(rd)) + (rd > 0 ? " nach" : " vor") + " Beginn";
             }
-            else
-            {
-                int k = 0;   // letzter Lauf am oder vor dem Tag, sonst der erste
-                for (int i = 0; i < runs.Count; i++) if (runs[i] <= day) k = i;
-                int diff = day - runs[k];
-                string lauf = "Lauf " + nos[k];
-                rel = diff == 0 ? lauf : DayWord(Math.Abs(diff)) + (diff > 0 ? " nach " : " vor ") + lauf;
-            }
-            DateTime? dt = DateOf(day, tag1);
-            return dt.HasValue ? DateText(dt.Value) + " · " + rel : rel;
+            int k = 0;   // letzter Lauf am oder vor dem Tag, sonst der erste
+            for (int i = 0; i < runs.Count; i++) if (runs[i] <= day) k = i;
+            int diff = day - runs[k];
+            string lauf = "Lauf " + nos[k];
+            return diff == 0 ? lauf : DayWord(Math.Abs(diff)) + (diff > 0 ? " nach " : " vor ") + lauf;
         }
 
         List<int> DaysOfStep(PackageStep step)

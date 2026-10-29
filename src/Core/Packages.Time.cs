@@ -43,6 +43,30 @@ namespace Arbeitsplan.Core
             set { PackageStep h = Head; if (h != null) h.RunCount = value; }
         }
 
+        // Laufanzahl aendern (Kampagnenstart): Hauptlauf bekommt n Laeufe, eigene Wiederholungen "fuer alle Laeufe" folgen, Ausfaelle ab n entfallen
+        public void SetRunCount(int n)
+        {
+            PackageStep h = Head;
+            if (h == null) return;
+            n = Math.Max(1, Math.Min(PackageStep.MaxRuns, n));
+            int old = RunCount;
+            if (n == old) return;
+            h.RunCount = n;
+            foreach (PackageStep s in Steps)
+                if (s != h && s.Bind == StepBind.Frei && s.Until == 0 && s.Repeat != RepeatMode.DayList && old > 1 && s.Count == old && !s.IsBackup) s.Count = n;
+            h.Skip.RemoveAll(delegate(int r) { return r >= n; });
+        }
+
+        // Schritte, deren Laufnummer beim Kampagnenstart von Hand kommt (Pflicht, kein Vorschlag): Packen; Einzelpaket ohne Packen: der erste Schritt
+        public List<PackageStep> HandNoSteps()
+        {
+            List<PackageStep> l = new List<PackageStep>();
+            foreach (PackageStep s in Steps) if (s.Source == PackenName && !s.IsBackup && !s.IsEmpty) l.Add(s);
+            if (l.Count == 0 && Type == PackageType.Einzel)
+                foreach (PackageStep s in Steps) if (!s.IsBackup && !s.IsEmpty) { l.Add(s); break; }
+            return l;
+        }
+
         // Paket-Tag (1-basiert) von Lauf 1
         public int Lauf1Day { get { PackageStep h = Head; return h != null ? h.Days(Day1)[0] : 1; } }
 

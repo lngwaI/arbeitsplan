@@ -10,7 +10,7 @@ namespace Arbeitsplan.Core
     {
         public string RunPrefix = "";       // XXYY = erste 4 Stellen der Laufnummer; "" = alte Pakete (dann Produktcode, falls 4 Ziffern)
         public const string CodeChars = "-_./+";   // erlaubte Sonderzeichen im Produktcode
-        public DayOfWeek Day1 = DayOfWeek.Monday;  // Wochentag von Tag 1 fuer Schedule/Overflow (Kampagnenstart setzt ihn), nicht gespeichert
+        public DayOfWeek Day1 = DayOfWeek.Monday;  // Wochentag von Tag 1 fuer Schedule/Overflow (Kampagnenstart setzt ihn), gespeichert als "tag1wochentag" (fehlt = Montag)
 
         // Wirksames Praefix der Laufnummern ("" = Laeufe ohne 8-stellige Nummer)
         public string Prefix { get { return IsCode4(RunPrefix) ? RunPrefix : (IsCode4(ProductCode) ? ProductCode : ""); } }

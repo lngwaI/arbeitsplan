@@ -18,12 +18,15 @@ namespace Arbeitsplan.Core
         {
             if (typeSet.HasValue) w.WriteAttributeString("typ", TypeKeys[(int)typeSet.Value]);
             if (Lauf1.HasValue) w.WriteAttributeString("lauf1", Lauf1.Value.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture));
+            if (Day1 != DayOfWeek.Monday) w.WriteAttributeString("tag1wochentag", PackageStep.DayNames[((int)Day1 + 6) % 7]);   // Wochentage der Wiederholung haengen davon ab (Normalize verschiebt den Ursprung)
         }
 
         static void ReadPackage7(XmlElement root, Package p)
         {
             int t = Array.IndexOf(TypeKeys, root.GetAttribute("typ"));
             if (t >= 0) p.typeSet = (PackageType)t;
+            int wd = Array.IndexOf(PackageStep.DayNames, root.GetAttribute("tag1wochentag"));
+            if (wd >= 0) p.Day1 = (DayOfWeek)((wd + 1) % 7);
             DateTime d;
             if (DateTime.TryParseExact(root.GetAttribute("lauf1"), "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out d)) p.Lauf1 = d;
         }

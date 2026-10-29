@@ -17,6 +17,9 @@ namespace Arbeitsplan.Win
             try { E1Golden(sb, seen); } catch (Exception ex) { sb.AppendLine("E1 Golden: Ausnahme " + ex.GetType().Name + ": " + ex.Message); }
             try { E1Model(sb); } catch (Exception ex) { sb.AppendLine("E1 Modell: Ausnahme " + ex.GetType().Name + ": " + ex.Message); }
             try { E1File(sb); } catch (Exception ex) { sb.AppendLine("E1 Datei: Ausnahme " + ex.GetType().Name + ": " + ex.Message); }
+            try { E1cWeekday(sb); } catch (Exception ex) { sb.AppendLine("E1c Wochentag: Ausnahme " + ex.GetType().Name + ": " + ex.Message); }
+            try { E1cCampaign(sb); } catch (Exception ex) { CampaignForm.Quiet = false; sb.AppendLine("E1c Kampagnenstart: Ausnahme " + ex.GetType().Name + ": " + ex.Message); }
+            try { E1cPackNo(sb); } catch (Exception ex) { CampaignForm.Quiet = false; sb.AppendLine("E1c Packen-Nummer: Ausnahme " + ex.GetType().Name + ": " + ex.Message); }
         }
 
         // ---------- Referenz: der alte Schedule() (nur Raster der Schritte, ohne Bezug/Ausfall) ----------

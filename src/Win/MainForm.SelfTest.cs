@@ -69,7 +69,12 @@ namespace Arbeitsplan.Win
                     demo.Steps.Add(s);
                 }
             }
-            if (which == "package3" || which == "package4" || which == "campaign2") demo = Package.SampleCampaign("Testpaket");
+            if (which == "package3" || which == "package4" || which == "campaign2" || which == "campaign3") demo = Package.SampleCampaign("Testpaket");
+            if (which == "campaign4")   // Einzelpaket: einfacher Modus
+            {
+                demo = new Package(); demo.Name = "Einzelpaket"; demo.Type = PackageType.Einzel;
+                PackageStep ps = new PackageStep(); ps.Title = "Packen"; ps.Source = Package.PackenName; ps.Row = "Suite 1"; ps.Day = 1; demo.Steps.Add(ps);
+            }
             if (which == "package4")   // Puffer-Schritt (Herstellung beides), "Mehr Optionen" offen
             {
                 PackageStep pu = new PackageStep(); pu.Title = "Puffer"; pu.Source = "Puffer"; pu.Row = "Puffer"; pu.Day = 2; pu.Variant = "mobil|stationaer"; pu.Note = "Puffer A";
@@ -88,6 +93,13 @@ namespace Arbeitsplan.Win
                 Package.SampleCampaign("alt").Apply(store, start.AddDays(-42), ApplyMode.Overwrite, Package.SampleCampaign("alt").Schedule(new List<int>(new[] { 5, 5, 7 })));
             Form f;
             if (which == "campaign2") { CampaignForm cf = new CampaignForm(demo, store, start, ApplyMode.Overwrite); cf.SetRoom(7, "Suite 2", false); f = cf; }
+            else if (which == "campaign3" || which == "campaign4")   // Kampagnenstart: 5 Laeufe, Packen-Nummer, Lauf 3 faellt aus / Einzelpaket
+            {
+                CampaignForm cf = new CampaignForm(demo, store, start, ApplyMode.FillEmpty);
+                cf.TestPackNo = "12340001";
+                if (which == "campaign3") { cf.TestRuns = 5; cf.SetSkip(cf.TestIndexOf(2, 2), true); }
+                f = cf;
+            }
             else if (which == "wizard" || which == "wizard3")   // Kampagnen-Assistent: Seite 1 bzw. Seite 3 mit Paketen eines Produkts
             {
                 string wd = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "wizard_shot"); System.IO.Directory.CreateDirectory(wd);
@@ -143,9 +155,11 @@ namespace Arbeitsplan.Win
         }
 
         // Paketdatei ab dem angezeigten Montag uebernehmen (vorhandene Bloecke ueberschreiben), fuer das Wochen-Testbild.
-        public void TestApply(string path)
+        public void TestApply(string path, int runs = 0)
         {
-            Package.Load(path).Apply(store, start, ApplyMode.Overwrite, null);
+            Package ap = Package.Load(path);
+            if (runs > 0) ap.SetRunCount(runs);
+            ap.Apply(store, start, ApplyMode.Overwrite, null);
             Rebuild(true);
         }
 
@@ -234,7 +248,7 @@ namespace Arbeitsplan.Win
                 okRh &= cf.Schedule.Find(delegate(RunDate d) { return d.Step == 1 && d.Run == 3; }).Day == 8;
                 cf.UseRhythm = true;
                 cf.SetRoom(cf.Schedule.FindIndex(delegate(RunDate d) { return d.Step == 1 && d.Run == 1; }), "Lyo", false);
-                q.Apply(store, s3, ApplyMode.FillEmpty, cf.Schedule);
+                cf.Result.Apply(store, s3, ApplyMode.FillEmpty, cf.Schedule);
                 Entry ly = store.Get(s3.AddDays(3), lyo), su = store.Get(s3.AddDays(3), suite2), su2 = store.Get(s3.AddDays(5), suite2);
                 okRoom = ly != null && ly.Content == "Lauf 13570045" && (su == null || su.Content.IndexOf("13570045") < 0) && su2 != null && su2.Content == "Lauf 13570046";
             }
@@ -251,7 +265,7 @@ namespace Arbeitsplan.Win
             string l0 = mq.Steps[2].Compose(0, "1234");
             okMk &= l0.StartsWith("Lauf – Auftrag/Netzwerk-ID 12340001\nPumpe: ") && l0.EndsWith("\nPA 40010001");
             DateTime s4 = s2.AddDays(70);
-            using (CampaignForm cf = new CampaignForm(mq, store, s4, ApplyMode.Overwrite)) { cf.SetRoom(0, rowInfo[0].Name, true); msg = mq.Apply(store, s4, ApplyMode.Overwrite, cf.Schedule); }
+            using (CampaignForm cf = new CampaignForm(mq, store, s4, ApplyMode.Overwrite)) { cf.SetRoom(0, rowInfo[0].Name, true); msg = cf.Result.Apply(store, s4, ApplyMode.Overwrite, cf.Schedule); }
             int r0 = rowInfo[0].Id;
             Entry lauf = store.Get(s4.AddDays(2), r0), lauf2 = store.Get(s4.AddDays(8), r0), mi = store.Get(s4.AddDays(3), r0), bf = store.Get(s4.AddDays(6), r0), rest = store.Get(s4.AddDays(4), r0);
             bool okRed = false;

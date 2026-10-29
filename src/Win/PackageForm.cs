@@ -391,17 +391,17 @@ namespace Arbeitsplan.Win
         // Auch direkt aus dem Menue "Pakete > Kampagne starten…" (ohne Editor), wenn das Paket vollstaendig ist (Ready).
         public static bool StartCampaign(IWin32Window owner, Package p, IDataStore store, DateTime weekStart, User by, out DateTime start)
         {
-            List<RunDate> schedule; ApplyMode mode;
+            List<RunDate> schedule; ApplyMode mode; Package res;
             start = weekStart;
             if (!BelongsOk(owner, p, store.GetCatalog(), "übernommen")) return false;
             using (CampaignForm cf = new CampaignForm(p, store, weekStart.Date, ApplyMode.FillEmpty))
             {
                 if (cf.ShowDialog(owner) != DialogResult.OK) return false;
-                start = cf.Start; schedule = cf.Schedule; mode = cf.Mode;
+                start = cf.Start; schedule = cf.Schedule; mode = cf.Mode; res = cf.Result;   // Kopie mit Laufanzahl, Nummern, Ausfaellen
             }
             try
             {
-                string msg = p.Apply(store, start, mode, schedule, by);
+                string msg = res.Apply(store, start, mode, schedule, by);
                 MessageBox.Show(owner, msg, "In Plan übernehmen", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return true;
             }
