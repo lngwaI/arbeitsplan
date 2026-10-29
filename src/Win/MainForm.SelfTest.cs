@@ -357,6 +357,7 @@ namespace Arbeitsplan.Win
             SelfTestE1(sb);   // Zeitmodell des Pakets: Golden-Test, JeLauf, Ausfall, Kennung, Normalize, Paketformat 7 (MainForm.SelfTestE1*.cs)
             SelfTestE3(sb); SelfTestE2(sb); SelfTestE4(sb); SelfTestV(sb); SelfTestE5(sb);   // Kennungstabelle, Notizen aus Paketen, Materialvorlage (MainForm.SelfTestE2.cs)
             SelfTestPB(sb);   // Puffer im Paket: Standard-Anzahl, mehrere Puffer je Termin, Namen, Pufferpaket (MainForm.SelfTestPB.cs)
+            SelfTestUX1(sb);   // UX-1a: Equipment je Puffer, Migration, Standardpuffer, Pufferpaket je Produkt (MainForm.SelfTestUX1.cs)
             sb.Append(PackageForm.TestUx2(equip, start));   // UX-2: Problemtexte mit Beteiligten, Gruppen, nicht validiertes Equipment (PackageForm.TestUx2.cs)
             using (MainForm mx = new MainForm("ux4", true, null, null)) { mx.FitToCursorScreen(); sb.AppendLine("UX4 Hauptfenster startet maximiert: " + Ok(mx.WindowState == FormWindowState.Maximized)); }
             quiet = false;

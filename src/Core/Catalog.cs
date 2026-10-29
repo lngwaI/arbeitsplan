@@ -190,7 +190,7 @@ namespace Arbeitsplan.Core
         public int AddStandardBausteine()
         {
             foreach (EquipPosition np in new EquipPosition[] { Pos("Mobiler Tank", "MobT"), Pos("Glasflasche/Gebinde", "Flasche"), Pos("Tween", "Tween"),
-                Pos("Materialnotiz", "Material"), Pos("Vorlagetank", "VT"), Pos("WFI-Vorlagetank", "WFI", "H1-T-0120") })
+                Pos("Materialnotiz", "Material"), Pos("Vorlagetank", "VT"), Pos("WFI-Vorlagetank", "WFI", "H1-T-0120"), Pos("Ansatztank", "Ansatztank") })
                 if (Position(np.Short) == null) Positions.Add(np);
             Baustein[] std = {
                 Bau("Puffer", "Puffer", false, false, false, "WFI"),   // alt: in Paketen weiter nutzbar, im Schritt-Dialog ausgeblendet (OldBufferName)
@@ -200,7 +200,8 @@ namespace Arbeitsplan.Core
                 Bau("Freeze / Thaw", "Freeze / Thaw", false, false, false, "FZ1", "FZ2", "FA"),
                 Bau("CIP / SIP", "CIP / SIP", false, false, false, "RT", "VS"),
                 Bau("Einwaage", "Einwaage", false, false, false),
-                Bau(Package.BackupName, "Suite 1", false, false, false, "TFF", "Pumpe", "VS") };   // Reservetag nach Packen, Equipment = Ausweich des Packens
+                Bau(Package.BackupName, "Suite 1", false, false, false, "TFF", "Pumpe", "VS"),   // Reservetag nach Packen, Equipment = Ausweich des Packens
+                Bau(StandardPufferName, "Puffer", false, false, false, "Ansatztank", "VT", "WFI", "Tween", "Material") };   // UX-1: Vorlage eines Puffers (kein Schritt; Standardanzahl je Position im Baustein, erweiterbar)
             std[1].Variant = "mobil"; std[2].Variant = "stationaer";
             std[7].Text = "Reservetag, falls Packen nicht abgeschlossen";
             int n = 0;

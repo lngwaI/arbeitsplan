@@ -42,6 +42,7 @@ namespace Arbeitsplan.Core
             s.CopyBind(this);
             s.Equipment = new List<EquipAssign>();
             foreach (EquipAssign a in Equipment) s.Equipment.Add(a.Clone());
+            ClonePuffers(s);
             return s;
         }
 
@@ -49,7 +50,7 @@ namespace Arbeitsplan.Core
         {
             get
             {
-                if (Title.Length > 0 || Text.Length > 0 || Note.Length > 0 || Ident.Trim().Length > 0 || IdentStart.Length > 0 || IdentOver.Count > 0 || ManualNo.Length > 0 || Kind == StepKind.SubRun) return false;
+                if (Title.Length > 0 || Text.Length > 0 || Note.Length > 0 || Ident.Trim().Length > 0 || IdentStart.Length > 0 || IdentOver.Count > 0 || ManualNo.Length > 0 || Kind == StepKind.SubRun || Puffers.Count > 0) return false;
                 foreach (EquipAssign a in Equipment) if (a.Line(0).Length > 0) return false;
                 return true;
             }
@@ -73,30 +74,26 @@ namespace Arbeitsplan.Core
         public string Compose(int run, string prefix) { return string.Join("\n", Lines(run, prefix).ToArray()); }
 
         // Puffer-Schritt (Variante gesetzt): erzeugt Puffer statt Inhaltstext
-        public bool IsBuffer { get { return Variant.Trim().Length > 0 && VariantSet.Of(Variant).Count > 0; } }
+        public bool IsBuffer { get { return Puffers.Count > 0 || (Variant.Trim().Length > 0 && VariantSet.Of(Variant).Count > 0); } }
 
-        // Puffer dieses Laufs (Ids vergibt der Block beim Anhaengen): Name = Titelzeile, Typ = Variante, Text = die uebrigen Zeilen
-        // (Ansatz, Equipment, Notiz). "mobil|stationaer" = zwei Puffer gleichen Namens, "mobil:2" = zwei mobile.
-        // PufferCount (1..9) Puffer gleichen Typs am selben Tag je Vorkommen. Namen: PufferNames (je Puffer einer, "|"-getrennt);
-        // fehlt einer: Titelzeile, ab dem 2. Puffer "Titel 2" usw. Equipment: die Zeilen des Schritts gelten fuer jeden Puffer; bei
-        // "abwechselnd" wird reihum verteilt (Puffer k im Lauf r nimmt Geraet r*n+k).
+        // Puffer dieses Laufs (Ids vergibt der Block beim Anhaengen), je PufferSpec einer: Name = Titelzeile, Typ = Typ des Puffers, Text = die
+        // uebrigen Zeilen (Ansatz, EIGENE Equipment-Zeilen + gemeinsame im Geltungsbereich, Notiz). Name: PufferSpec.Name, sonst Titelzeile (+ NameNo).
+        // Alter Modus (Puffers leer): LegacyPuffers() = PufferCount je Typ ("mobil|stationaer" = zwei, "mobil:2" = zwei mobile), PufferNames,
+        // alle Zeilen in jedem Puffer, "abwechselnd" reihum (Puffer k im Lauf r nimmt Geraet r*n+k); ab dem 2. Puffer "Titel 2" ("Titel 1 (2)" bei Nummern).
         public List<BufferItem> BuffersFor(int run, string prefix)
         {
-            int n = Math.Max(1, PufferCount);
+            List<PufferSpec> specs = Puffers.Count > 0 ? Puffers : LegacyPuffers();
             List<BufferItem> res = new List<BufferItem>();
-            string[] names = BufferNames();
-            int k = 0;
-            foreach (KeyValuePair<string, int> kv in VariantSet.Counts(Variant))
-                for (int i = 0; i < kv.Value; i++)
-                    for (int j = 0; j < n; j++, k++)
-                    {
-                        List<string> lines = Lines(run, prefix, run * n + j);
-                        string name = "";
-                        if (Title.Length > 0 && lines.Count > 0) { name = lines[0]; lines.RemoveAt(0); }
-                        if (k < names.Length && names[k].Length > 0) name = names[k];
-                        else if (n > 1 && k > 0 && name.Length > 0) name += Numbered ? " (" + (k + 1) + ")" : " " + (k + 1);   // "Titel 2"; bei "Titel 1, 2, 3" (Wiederholung) "Titel 1 (2)"
-                        BufferSet.Add(res, name, kv.Key, string.Join("\n", lines.ToArray()));
-                    }
+            for (int k = 0; k < specs.Count; k++)
+            {
+                PufferSpec sp = specs[k];
+                List<string> lines = Lines(run, prefix, PufferEquipLines(sp, k, run));
+                string name = "";
+                if (Title.Length > 0 && lines.Count > 0) { name = lines[0]; lines.RemoveAt(0); }
+                if (sp.Name.Length > 0) name = sp.Name;
+                else if (sp.NameNo > 1 && name.Length > 0) name += Numbered ? " (" + sp.NameNo + ")" : " " + sp.NameNo;
+                BufferSet.Add(res, name, sp.Typ, string.Join("\n", lines.ToArray()));
+            }
             return res;
         }
 
@@ -113,6 +110,14 @@ namespace Arbeitsplan.Core
 
         // alt: Index fuer "abwechselnd" (normal = run; bei mehreren Puffern je Lauf run*n+Puffer)
         List<string> Lines(int run, string prefix, int alt)
+        {
+            List<string> eq = new List<string>();
+            foreach (EquipAssign a in Equipment) { string l = a.Line(alt); if (l.Length > 0) eq.Add(l); }
+            return Lines(run, prefix, eq);
+        }
+
+        // eq: fertige Equipment-Zeilen (alle Zeilen des Schritts oder die eines Puffers)
+        List<string> Lines(int run, string prefix, List<string> eq)
         {
             string product = prefix;
             List<string> lines = new List<string>();
@@ -136,7 +141,7 @@ namespace Arbeitsplan.Core
             else if (Title.Length > 0) lines.Add(Title);
             if (Text.Length > 0) lines.Add(Text);
             if (AnsatzLine().Length > 0) lines.Add(AnsatzLine());   // z. B. "Gebinde: Flasche 5 L"
-            foreach (EquipAssign a in Equipment) { string l = a.Line(alt); if (l.Length > 0) lines.Add(l); }
+            lines.AddRange(eq);
             lines.AddRange(NoteTexts());   // Notizzeilen ohne Praefix (im Plan kursiv, siehe EntryFor)
             if (IdentFor(run).Length > 0) lines.Add(IdentFor(run));   // immer die letzte Zeile (Format in BuildTargets)
             return lines;

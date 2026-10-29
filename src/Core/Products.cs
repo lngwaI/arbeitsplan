@@ -23,7 +23,7 @@ namespace Arbeitsplan.Core
     }
 
     // Equipment je Produkt (Produktcode frei, Package.IsProductCode; Schluessel exakt, Gross/klein zaehlt): ueberschreibt je Position den globalen Standard; ohne Profil gilt global.
-    public class ProductProfile
+    public partial class ProductProfile
     {
         public string Code = "", Name = "";
         public List<ProfilePos> Positions = new List<ProfilePos>();
@@ -34,6 +34,7 @@ namespace Arbeitsplan.Core
             ProductProfile p = (ProductProfile)MemberwiseClone();
             p.Positions = new List<ProfilePos>(); foreach (ProfilePos x in Positions) p.Positions.Add(x.Clone());
             p.Swaps = new List<SwapGroup>(); foreach (SwapGroup g in Swaps) p.Swaps.Add(g.Clone());
+            ClonePuffer(p);
             return p;
         }
 
@@ -106,9 +107,8 @@ namespace Arbeitsplan.Core
                 if (s.IsEmpty) continue;
                 for (int run = 0; run < p.RunCountOf(s); run++)
                 {
-                    List<string> ids = new List<string>();
-                    foreach (EquipAssign a in s.Equipment) { EquipChoice c = a.ChoiceFor(run); if (c != null) ids.Add(c.Id); }
-                    foreach (string e in Master.CheckBelongs(ids)) { string m = s.Label(p.Prefix, run) + ": " + e; if (!err.Contains(m)) err.Add(m); }
+                    foreach (List<string> ids in s.DeviceGroups(run))   // je Puffer eine Gruppe, sonst alle Zeilen des Schritts
+                        foreach (string e in Master.CheckBelongs(ids)) { string m = s.Label(p.Prefix, run) + ": " + e; if (!err.Contains(m)) err.Add(m); }
                 }
             }
             return err;
@@ -139,7 +139,7 @@ namespace Arbeitsplan.Core
     }
 
     // XML im Katalog: <Produkt code name><Pos kurz eigen fest><Id v/></Pos><Tausch name><Id v/></Tausch></Produkt>
-    static class ProductXml
+    static partial class ProductXml
     {
         public static void Write(XmlWriter w, List<ProductProfile> list)
         {
@@ -153,6 +153,7 @@ namespace Arbeitsplan.Core
                     Ids(w, x.Ids); w.WriteEndElement();
                 }
                 foreach (SwapGroup g in p.Swaps) { w.WriteStartElement("Tausch"); w.WriteAttributeString("name", g.Name); Ids(w, g.Ids); w.WriteEndElement(); }
+                WritePuffer(w, p.Puffer);
                 w.WriteEndElement();
             }
         }
@@ -176,6 +177,7 @@ namespace Arbeitsplan.Core
                     foreach (XmlElement i in Kids(x, "Id")) g.Ids.Add(i.GetAttribute("v"));
                     p.Swaps.Add(g);
                 }
+                ReadPuffer(e, p.Puffer);
                 list.Add(p);
             }
         }

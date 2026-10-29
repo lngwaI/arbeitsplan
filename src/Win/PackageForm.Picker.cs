@@ -30,7 +30,7 @@ namespace Arbeitsplan.Win
             Label l1 = new Label(); l1.Text = "1.  Welche Art von Schritt?"; l1.Font = bold; l1.SetBounds(12, 10, 496, 20);
             list.SetBounds(12, 34, 496, 314); list.DrawMode = DrawMode.OwnerDrawFixed; list.ItemHeight = Font.Height * 2 + 10; list.IntegralHeight = false;
             List<Baustein> rest = new List<Baustein>(cat.Bausteine);
-            rest.RemoveAll(delegate(Baustein x) { return x.Name == Catalog.OldBufferName; });   // alter Sammel-Puffer: nur noch in alten Paketen
+            rest.RemoveAll(delegate(Baustein x) { return x.Name == Catalog.OldBufferName || x.Name == Catalog.StandardPufferName; });   // alter Sammel-Puffer: nur noch in alten Paketen; Standardpuffer = Vorlage, kein Schritt
             foreach (string n in Common) { Baustein b = cat.Baustein_(n); if (b != null) { Add(b, steps, n == "Lauf" ? "Prozess-Lauf" : n); rest.Remove(b); } }
             foreach (Baustein b in rest) if (!b.Special) Add(b, steps, b.Name);
             foreach (Baustein b in rest) if (b.Special) Add(b, steps, b.Name);

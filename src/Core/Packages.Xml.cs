@@ -12,6 +12,7 @@ namespace Arbeitsplan.Core
     // (wochentage|tage, fehlt = alle x Tage), "wochentage" (Mo,Mi,Fr), "tage" (1, 4, 9), "bis", "versatz" (Lauf:Tage;…),
     // "ansatz" (gebinde|ohne) mit "gebinde"/"menge"/"einheit"; "variante" mit Anzahl (mobil:2|stationaer).
     // Version 6: Schritt "backup" (= Source des Packen-Schritts; Back-Up folgt ihm, Packages.Backup.cs).
+    // Version 8 (nur wenn ein Schritt eigene Puffer hat, Packages.PufferXml.cs): <Puffer>/<Gemeinsam> je Schritt; die gemeinsame <Equipment>-Liste bleibt fuer aeltere exe.
     // Version 7 (Zeitmodell, Packages.Xml7.cs): Paket "typ"/"lauf1", Schritt "bezug"/"laufversatz"/"jelaeufe"/"nr"/"ausfall"/"versatzab"/"kennungstart"/"kennungje";
     // tag/anzahl/abstand/wiederholung/versatz/kennung stehen zusaetzlich aufgeloest da (aeltere exe). Laden: keine Versionspruefung, <= 6 wird migriert.
     public partial class Package
@@ -36,7 +37,7 @@ namespace Arbeitsplan.Core
         void Write(XmlWriter w)
         {
             {
-                w.WriteStartElement("Paket"); w.WriteAttributeString("name", Name); w.WriteAttributeString("version", "7");
+                w.WriteStartElement("Paket"); w.WriteAttributeString("name", Name); w.WriteAttributeString("version", Steps.Exists(delegate(PackageStep x) { return x.Puffers.Count > 0; }) ? "8" : "7");
                 if (ProductCode.Length > 0) w.WriteAttributeString("produkt", ProductCode);
                 if (Prefix.Length > 0) w.WriteAttributeString("praefix", Prefix);
                 WritePackage7(w);
@@ -51,9 +52,9 @@ namespace Arbeitsplan.Core
                     if (s.SubNos.Length > 0) w.WriteAttributeString("unterlaeufe", s.SubNos);
                     w.WriteAttributeString("text", s.Text); w.WriteAttributeString("notiz", s.Note);
                     WriteStep7(w, o, si, plan);
-                    if (s.Variant.Length > 0) w.WriteAttributeString("variante", s.Variant);
-                    if (s.PufferCount != 1) w.WriteAttributeString("puffer", I(s.PufferCount));
-                    if (s.PufferNames.Length > 0) w.WriteAttributeString("pufnamen", s.PufferNames);
+                    if (s.PufferVariant().Length > 0) w.WriteAttributeString("variante", s.PufferVariant());
+                    if (s.Puffers.Count == 0 && s.PufferCount != 1) w.WriteAttributeString("puffer", I(s.PufferCount));
+                    if (s.Puffers.Count == 0 && s.PufferNames.Length > 0) w.WriteAttributeString("pufnamen", s.PufferNames);
                     if (s.BackupOf.Length > 0) w.WriteAttributeString("backup", s.BackupOf);
                     if (s.Repeat != RepeatMode.Interval) w.WriteAttributeString("wiederholung", s.Repeat == RepeatMode.Weekdays ? "wochentage" : "tage");
                     if (s.WeekDays != 0) w.WriteAttributeString("wochentage", PackageStep.WeekDayText(s.WeekDays));
@@ -65,17 +66,8 @@ namespace Arbeitsplan.Core
                         w.WriteAttributeString("ansatz", s.Ansatz); w.WriteAttributeString("gebinde", s.Gebinde);
                         w.WriteAttributeString("menge", s.Menge); w.WriteAttributeString("einheit", s.Einheit);
                     }
-                    foreach (EquipAssign a in s.Equipment)
-                    {
-                        w.WriteStartElement("Equipment");
-                        w.WriteAttributeString("kurz", a.Short);
-                        w.WriteAttributeString("abwechselnd", a.Alternate ? "1" : "0"); w.WriteAttributeString("ausweich", a.Fallback); w.WriteAttributeString("notiz", a.Note);
-                        foreach (EquipChoice ch in a.Choices)   // je Geraet ein Element: beliebige Zeichen in Kurzname/ID moeglich
-                        {
-                            w.WriteStartElement("Geraet"); w.WriteAttributeString("kurz", ch.Short); w.WriteAttributeString("id", ch.Id); w.WriteEndElement();
-                        }
-                        w.WriteEndElement();
-                    }
+                    foreach (EquipAssign a in s.CompatEquipment()) WriteEquip(w, a);   // eigene Puffer: Zeilen von Puffer 1 + gemeinsame (aeltere exe)
+                    WritePuffers(w, s);   // Version 8: <Puffer>/<Gemeinsam>
                     w.WriteEndElement();
                 }
                 foreach (PackageBlock b in Blocks)
@@ -152,7 +144,7 @@ namespace Arbeitsplan.Core
             p.ProductCode = IsProductCode(root.GetAttribute("produkt")) ? root.GetAttribute("produkt") : "";   // fehlt bei aelteren Paketen
             p.RunPrefix = IsCode4(root.GetAttribute("praefix")) ? root.GetAttribute("praefix") : "";        // fehlt bis Version 3: Prefix = Produktcode
             int version = ToInt(root.GetAttribute("version"), 0);
-            if (version > 7) throw new InvalidDataException("Paket stammt aus einer neueren Programmversion.");
+            if (version > 8) throw new InvalidDataException("Paket stammt aus einer neueren Programmversion.");
             ReadPackage7(root, p);
             foreach (XmlElement e in Elements(root))
             {
@@ -177,25 +169,8 @@ namespace Arbeitsplan.Core
                     s.Ansatz = Array.IndexOf(PackageStep.AnsatzKeys, an) > 0 ? an : "";
                     s.Gebinde = e.GetAttribute("gebinde"); s.Menge = e.GetAttribute("menge"); s.Einheit = e.GetAttribute("einheit");
                     foreach (XmlElement q in Elements(e))
-                        if (q.Name == "Equipment")
-                        {
-                            EquipAssign a = new EquipAssign();
-                            a.Short = q.GetAttribute("kurz");
-                            foreach (XmlElement g in Elements(q))
-                                if (g.Name == "Geraet") a.Choices.Add(new EquipChoice(g.GetAttribute("kurz"), g.GetAttribute("id")));
-                            if (a.Choices.Count == 0)   // aeltere Pakete: "wahl" (Kurz|Id;...) bzw. "ids" (Id|Id|...)
-                            {
-                                foreach (string w in q.GetAttribute("wahl").Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries))
-                                {
-                                    string[] kv = w.Split('|');
-                                    a.Choices.Add(kv.Length > 1 ? new EquipChoice(kv[0], kv[1]) : new EquipChoice(a.Short, w));
-                                }
-                                if (a.Choices.Count == 0)
-                                    foreach (string id in q.GetAttribute("ids").Split(new[] { '|' }, StringSplitOptions.RemoveEmptyEntries)) a.Choices.Add(new EquipChoice(a.Short, id));
-                            }
-                            a.Alternate = q.GetAttribute("abwechselnd") == "1"; a.Fallback = q.GetAttribute("ausweich"); a.Note = q.GetAttribute("notiz");
-                            s.Equipment.Add(a);
-                        }
+                        if (q.Name == "Equipment") s.Equipment.Add(ReadEquip(q));
+                    ReadPuffers(e, s);   // Version 8: ersetzt die Kompat-Zeilen
                     p.Steps.Add(s);
                 }
                 else if (e.Name == "Block")

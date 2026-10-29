@@ -265,9 +265,8 @@ namespace Arbeitsplan.Core
                 if (s.IsEmpty) continue;
                 for (int run = 0; run < p.RunCountOf(s); run++)
                 {
-                    List<string> ids = new List<string>();
-                    foreach (EquipAssign a in s.Equipment) { EquipChoice c = a.ChoiceFor(run); if (c != null) ids.Add(c.Id); }
-                    foreach (string e in Master.CheckCompat(ids)) { string m = s.Label(p.Prefix, run) + ": " + e; if (!warn.Contains(m)) warn.Add(m); }
+                    foreach (List<string> ids in s.DeviceGroups(run))
+                        foreach (string e in Master.CheckCompat(ids)) { string m = s.Label(p.Prefix, run) + ": " + e; if (!warn.Contains(m)) warn.Add(m); }
                 }
             }
             return warn;

@@ -29,6 +29,7 @@ namespace Arbeitsplan.Core
                 case "gleichtag": return "Zwei Hauptläufe am selben Tag und Raum";
                 case "planlauf": return "Hauptlauf liegt schon im Plan";
                 case "puffer": return "Mehr Puffer-Termine als Produktläufe";
+                case "pufdoppelt": return "Gerät in zwei Puffern am selben Tag";
                 case "puffer-produkt": return "Puffer verschiedener Produkte zu nah beieinander";
                 case "unterlauf": return "Unterlauf fehlt";
                 case "frueh": return "Termin sehr früh vor Lauf 1";
@@ -105,10 +106,12 @@ namespace Arbeitsplan.Core
                     Add(res, Severity.Sperre, "ident", "Kennung-Start „" + s.IdentStart + "“ hat keine Endziffern – ab Lauf 2 bleibt die Kennung gleich.", i);
                 if (s.Source == PackenName && !s.IsBackup && s.ManualNo.Length == 0)
                     Add(res, Severity.Hinweis, "packen", "Packen ohne eigene Nummer im Paket – sie wird beim Kampagnenstart Pflicht (von Hand, 8 Ziffern).", i);
-                if (s.IsBuffer && s.PufferCount > 9) Add(res, Severity.Sperre, "pufzahl", "Mehr als 9 Puffer je Termin sind nicht möglich (" + s.PufferCount + ").", i);
-                if (s.IsBuffer && s.BufferNames().Length > Math.Max(1, s.PufferCount)) Add(res, Severity.Hinweis, "pufnamen", "Es sind mehr Puffer-Namen als Puffer eingetragen – die überzähligen Namen werden nicht verwendet.", i);
+                if (s.IsBuffer && Math.Max(s.PufferCount, s.Puffers.Count) > 9) Add(res, Severity.Sperre, "pufzahl", "Mehr als 9 Puffer je Termin sind nicht möglich (" + Math.Max(s.PufferCount, s.Puffers.Count) + ").", i);
+                if (s.IsBuffer && s.Puffers.Count == 0 && s.BufferNames().Length > Math.Max(1, s.PufferCount)) Add(res, Severity.Hinweis, "pufnamen", "Es sind mehr Puffer-Namen als Puffer eingetragen – die überzähligen Namen werden nicht verwendet.", i);
                 if (s.RunEvery > 1 && !s.IsBuffer) Add(res, Severity.Hinweis, "every", "„Reicht für " + s.RunEvery + " Läufe“ ist nur für Puffer üblich.", i);
             }
+
+            CheckPufferDup(res, plan, start, store != null || Lauf1.HasValue);
 
             if (head != null)
             {
