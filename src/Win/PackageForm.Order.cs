@@ -139,13 +139,13 @@ namespace Arbeitsplan.Win
             foreach (RunDate d in Plan()) if (d.Step == si && d.Run == run) at = d.Day;
             if (at < 0) return;
             int delta = toDay - at;
-            if (onlyRun ? (!IsJe(s) && s.MoveRun(run, delta, pk.Day1)) : MoveBy(s, delta)) AfterMove(s);
+            if (onlyRun ? (!IsJe(s) && s.MoveRun(run, delta, pk.Day1)) : MoveBy(s, delta)) { nextRun = run; AfterMove(s); }
         }
 
         void StripMenu(PlanStrip.Item it, Point at)
         {
             PackageStep s = it.Step; int run = it.Run, day = it.Day;
-            if (s != cur) Bind(s);
+            if (s != cur) { nextRun = run; Bind(s); }
             stripMenu.Items.Clear();
             bool many = StepsView().RunCountOf(s) > 1, je = IsJe(s);
             stripMenu.Items.Add("Ganzen Schritt 1 Tag früher", null, delegate { MoveInCalendar(s, run, day - 1, false); });

@@ -144,6 +144,7 @@ namespace Arbeitsplan.Win
 
         void Bind(PackageStep s)
         {
+            if (s != cur) curRun = -1;   // anderer Schritt: Vorschau beginnt beim ersten Eintrag (ausser nextRun, Klick im Kalender)
             cur = s;
             loading = true;
             body.SuspendLayout();

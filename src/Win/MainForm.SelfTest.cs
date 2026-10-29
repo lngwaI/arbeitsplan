@@ -340,7 +340,7 @@ namespace Arbeitsplan.Win
             SelfTestPaket3(sb);   // Wiederholmodi, Verschieben, Varianten mit Anzahl, Ansatz, alte Pakete (MainForm.SelfTestPaket3.cs)
             SelfTestTakeOver(sb);   // Soft-Lock: Uebernahme, Nachrichten, Sperrenwechsel (MainForm.SelfTestTakeOver.cs)
             SelfTestE1(sb);   // Zeitmodell des Pakets: Golden-Test, JeLauf, Ausfall, Kennung, Normalize, Paketformat 7 (MainForm.SelfTestE1*.cs)
-            SelfTestE3(sb); SelfTestE2(sb); SelfTestE4(sb);   // Kennungstabelle, Notizen aus Paketen, Materialvorlage (MainForm.SelfTestE2.cs)
+            SelfTestE3(sb); SelfTestE2(sb); SelfTestE4(sb); SelfTestV(sb);   // Kennungstabelle, Notizen aus Paketen, Materialvorlage (MainForm.SelfTestE2.cs)
             quiet = false;
             return sb.ToString();
         }

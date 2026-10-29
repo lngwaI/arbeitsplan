@@ -11,7 +11,7 @@ namespace Arbeitsplan.Win
     partial class PackageForm
     {
         readonly PlanStrip strip = new PlanStrip();
-        readonly Panel stripScroll = new Panel(), previewScroll = new Panel();
+        readonly Panel stripScroll = new Panel(), previewScroll = new Panel();   // stripScroll = nur der Rahmen um den Kalender
         readonly BlockPreview blockPreview = new BlockPreview();
         readonly ListBox lbHints = new ListBox();
         Label lPreview;
@@ -26,15 +26,14 @@ namespace Arbeitsplan.Win
 
         Control BuildPreview()
         {
-            Panel wrap = new Panel(); wrap.Tag = "keep"; wrap.Dock = DockStyle.Bottom; wrap.Padding = new Padding(8, 0, 8, 0);
-            wrap.Height = 9 * Font.Height / 2 + 84;
-            Section sec = new Section("3   Vorschau & Prüfung", "Kalender der Kampagne; der gewählte Schritt ist blau. Klick wählt, Ziehen verschiebt (Umschalt = nur diesen Lauf).", true, 1000);
+            paneWrap.Tag = "keep"; paneWrap.Dock = DockStyle.Bottom; paneWrap.Padding = new Padding(8, 0, 8, 0);
+            InitPane();   // Hoehe (gemerkt), Teiler zwischen Abschnitt 2 und 3 (PackageForm.Pane.cs)
+            Section sec = new Section("3   Vorschau & Prüfung", "Kalender wie im Plan; der gewählte Schritt ist blau. Klick wählt, Ziehen verschiebt (Umschalt = nur diesen Lauf).", true, 1000);
             sec.Dock = DockStyle.Fill;
             previewScroll.AutoScroll = true; previewScroll.BackColor = Color.White; previewScroll.BorderStyle = BorderStyle.FixedSingle; previewScroll.Tag = "keep";
             blockPreview.Location = Point.Empty; blockPreview.Font = Font; previewScroll.Controls.Add(blockPreview);
             previewScroll.Resize += delegate { blockPreview.Relayout(PreviewW); };
-            Panel right = Column(sec, "So erscheint der gewählte Schritt im Plan:", previewScroll, 350);
-            lPreview = (Label)right.Controls[1];
+            Panel right = BuildPager(previewScroll, 372);   // Ein Eintrag mit ◀ ▶ (PackageForm.Pager.cs)
             Panel hints = Column(sec, "Prüfhinweise (Klick = hinspringen):", lbHints, 290);
             lbHints.IntegralHeight = false; lbHints.DrawMode = DrawMode.OwnerDrawVariable;   // Hinweise umbrechen statt abschneiden
             lbHints.MeasureItem += delegate(object o, MeasureItemEventArgs e)
@@ -57,15 +56,15 @@ namespace Arbeitsplan.Win
                 int ix = lbHints.IndexFromPoint(e.Location);   // SelectedItem wirft bei OwnerDraw-Liste (Klick unter dem Eintrag) eine NullReferenceException
                 if (ix >= 0 && ix < lbHints.Items.Count) HintClicked(lbHints.Items[ix] as Hint);
             };
-            stripScroll.Dock = DockStyle.Fill; stripScroll.AutoScroll = true; stripScroll.BackColor = Color.White; stripScroll.BorderStyle = BorderStyle.FixedSingle; stripScroll.Tag = "keep";
-            strip.Location = Point.Empty; strip.StepClicked += delegate(PackageStep s) { if (s != cur) Bind(s); };
+            stripScroll.Dock = DockStyle.Fill; stripScroll.BackColor = Color.White; stripScroll.BorderStyle = BorderStyle.FixedSingle; stripScroll.Tag = "keep";
+            strip.Dock = DockStyle.Fill; strip.SetRows(rowNames); strip.ItemClicked += StripClicked;
             strip.ItemMoved += delegate(PlanStrip.Item it, int day, bool onlyRun) { MoveInCalendar(it.Step, it.Run, day, onlyRun); };
             strip.ItemMenu += StripMenu;
             tip.SetToolTip(strip, "Klick = Schritt wählen. Auf einen anderen Tag ziehen = Schritt verschieben (mit Umschalt nur diesen Lauf). Rechtsklick = Menü.");
             stripScroll.Controls.Add(strip);
             sec.Controls.Add(stripScroll); sec.Controls.Add(Spacer()); sec.Controls.Add(hints); sec.Controls.Add(Spacer()); sec.Controls.Add(right);
-            wrap.Controls.Add(sec);
-            return wrap;
+            paneWrap.Controls.Add(sec);
+            return paneWrap;
         }
 
         int PreviewW { get { return Math.Max(80, previewScroll.ClientSize.Width - (blockPreview.Height > previewScroll.ClientSize.Height ? 0 : 1)); } }
@@ -90,42 +89,26 @@ namespace Arbeitsplan.Win
             List<RunDate> plan = Plan();
             foreach (PackageStep s in Ordered())
             {
-                int si = steps.IndexOf(s); bool je = IsJe(s);
+                int si = steps.IndexOf(s); bool je = IsJe(s), many = StepsView().RunCountOf(s) > 1;
                 foreach (RunDate d in plan)
                 {
                     if (d.Step != si) continue;
                     PlanStrip.Item it = new PlanStrip.Item(); it.Step = s; it.Day = d.Day; it.Run = d.Run; it.Shifted = !je && s.Shifted(d.Run);
-                    it.Title = TitleOf(s); it.Missing = s.Row.Length == 0;
-                    it.Sub = (s.Row.Length > 0 ? s.Row : "Raum fehlt") + (s.Numbered ? " · " + s.RunNo(prefix, d.Run) : "");
+                    it.Title = TitleOf(s); it.Row = s.Row;
+                    it.Sub = s.Numbered ? s.RunNo(prefix, d.Run) : (many ? (je || s.Kind != StepKind.Normal ? "Lauf " : "Termin ") + (d.Run + 1) : "");
                     items.Add(it);
                 }
             }
+            curDates = cur != null ? plan.FindAll(delegate(RunDate d) { return d.Step == steps.IndexOf(cur); }) : new List<RunDate>();
+            curDates.Sort(delegate(RunDate a, RunDate b) { return a.Day != b.Day ? a.Day.CompareTo(b.Day) : a.Run.CompareTo(b.Run); });
+            if (nextRun >= 0) { curRun = nextRun; nextRun = -1; }
+            if (PageIndex() < 0) curRun = curDates.Count > 0 ? curDates[0].Run : -1;
             strip.HeadText = StripHead;
-            strip.Set(items, cur);
-            if (scrollTo && cur != null)
-            {
-                int x = strip.XOf(cur);
-                if (x >= 0 && (x < -stripScroll.AutoScrollPosition.X || x + 120 > -stripScroll.AutoScrollPosition.X + stripScroll.ClientSize.Width))
-                    stripScroll.AutoScrollPosition = new Point(Math.Max(0, x - 30), -stripScroll.AutoScrollPosition.Y);
-            }
-
-            List<BlockPreview.Card> cards = new List<BlockPreview.Card>();
-            List<RunDate> cd = cur != null ? plan.FindAll(delegate(RunDate d) { return d.Step == steps.IndexOf(cur); }) : new List<RunDate>();
-            cd.Sort(delegate(RunDate a, RunDate b) { return a.Day.CompareTo(b.Day); });
-            for (int r = 0; r < cd.Count && r < 6; r++)
-            {
-                BlockPreview.Card c = new BlockPreview.Card();
-                c.Room = cur.Row.Length > 0 ? cur.Row : "Raum fehlt"; c.Missing = cur.Row.Length == 0;
-                c.Day = RelOf(cur, cd[r]) + (!IsJe(cur) && cur.Shifted(cd[r].Run) ? " (verschoben)" : "");
-                c.Data = cur.EntryFor(cd[r].Run, prefix);
-                if (c.Data.Buffers.Count > 0) c.Extra = string.Join("\n", BufferSet.DisplayLines(c.Data.Buffers, true).ToArray()).Replace("(stationaer)", "(stationär)");   // Puffer-Zeilen wie im Plan (Typ in Klammern)
-                cards.Add(c);
-            }
-            if (cd.Count > 6) { BlockPreview.Card m = new BlockPreview.Card(); m.Room = "… " + (cd.Count - 6) + " weitere Wiederholungen"; m.More = true; cards.Add(m); }
-            lPreview.Text = "So erscheint der gewählte Schritt im Plan:";
+            strip.Set(items, cur, curRun);
+            if (scrollTo) strip.ScrollTo(cur, curRun);
+            lPreview.Text = "So erscheint der Schritt im Plan:";
             tip.SetToolTip(lPreview, pk.Lauf1.HasValue ? "Vorschau mit den Daten ab Lauf 1 am " + DText(pk.Lauf1.Value) + "." : "Vorschau relativ zu Lauf 1; das Datum steht fest, sobald „Lauf 1 am“ im Kopf gesetzt ist oder beim Kampagnenstart.");
-            blockPreview.Set(cards, PreviewW);
-            previewScroll.AutoScrollPosition = Point.Empty;
+            ShowCard();
         }
 
         void UpdateHints()
@@ -181,12 +164,30 @@ namespace Arbeitsplan.Win
     // (z. B. rote, fette Kennung). Statusfarben der Equipment-Nummern erst im Plan (wie im Bearbeitungsmodus).
     class BlockPreview : Control
     {
-        public class Card { public string Room = "", Day = "", Extra = ""; public Entry Data; public bool Missing, More; }
+        public class Card { public string Room = "", Day = "", Extra = ""; public Entry Data; public bool Missing; }
         List<Card> cards = new List<Card>();
         readonly List<TextBlock> blocks = new List<TextBlock>();
         const int Pad = 6, Gap = 8;
 
-        public BlockPreview() { SetStyle(ControlStyles.ResizeRedraw | ControlStyles.OptimizedDoubleBuffer | ControlStyles.AllPaintingInWmPaint | ControlStyles.UserPaint, true); }
+        public event Action<int> Page;   // Pfeiltasten: -1 = voriger, +1 = naechster Eintrag
+
+        public BlockPreview() { SetStyle(ControlStyles.ResizeRedraw | ControlStyles.OptimizedDoubleBuffer | ControlStyles.AllPaintingInWmPaint | ControlStyles.UserPaint | ControlStyles.Selectable, true); TabStop = true; }
+
+#if TESTHOOKS
+        public int Count { get { return cards.Count; } }
+        public void TestKey(Keys k) { OnKeyDown(new KeyEventArgs(k)); }
+#endif
+
+        protected override bool IsInputKey(Keys k) { return k == Keys.Left || k == Keys.Right || k == Keys.Up || k == Keys.Down || base.IsInputKey(k); }
+
+        protected override void OnMouseDown(MouseEventArgs e) { base.OnMouseDown(e); Focus(); }
+
+        protected override void OnKeyDown(KeyEventArgs e)
+        {
+            base.OnKeyDown(e);
+            bool back = e.KeyCode == Keys.Left || e.KeyCode == Keys.Up, fwd = e.KeyCode == Keys.Right || e.KeyCode == Keys.Down;
+            if ((back || fwd) && Page != null) { Page(back ? -1 : 1); e.Handled = true; }
+        }
 
         int HeadH { get { return Font.Height + 8; } }
 
@@ -203,7 +204,7 @@ namespace Arbeitsplan.Win
             {
                 TextBlock b = c.Data != null ? TextBlock.Build(Pieces(c.Data, plain), plain, cw) : null;
                 blocks.Add(b);
-                h += c.More ? Font.Height + Gap : HeadH + ExtraH(c) + (b != null ? b.Height : 0) + 2 * Pad + Gap;
+                h += HeadH + ExtraH(c) + (b != null ? b.Height : 0) + 2 * Pad + Gap;
             }
             Size = new Size(Math.Max(40, width), Math.Max(h, 20));
             Invalidate();
@@ -237,7 +238,6 @@ namespace Arbeitsplan.Win
                 for (int i = 0; i < cards.Count; i++)
                 {
                     Card c = cards[i];
-                    if (c.More) { TextRenderer.DrawText(g, c.Room, Font, new Rectangle(Gap, y, w, Font.Height), Section.HelpColor, ff); y += Font.Height + Gap; continue; }
                     TextBlock b = blocks[i];
                     int h = HeadH + ExtraH(c) + (b != null ? b.Height : 0) + 2 * Pad;
                     Rectangle head = new Rectangle(Gap, y, w, HeadH);

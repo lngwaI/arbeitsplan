@@ -56,10 +56,11 @@ namespace Arbeitsplan.Win
             Control preview = BuildPreview();
             Panel bar = BuildBar();
             crumbs.Height = Font.Height * 2 + 8; crumbs.TabStop = false; crumbs.PartClicked += CrumbClicked;
-            Controls.Add(details); Controls.Add(left); Controls.Add(preview); Controls.Add(bar); Controls.Add(head); Controls.Add(crumbs);   // zuletzt hinzugefuegt = zuerst angedockt
+            Controls.Add(details); Controls.Add(left); Controls.Add(paneSplit); Controls.Add(preview); Controls.Add(bar); Controls.Add(head); Controls.Add(crumbs);   // zuletzt hinzugefuegt = zuerst angedockt
             head.TabIndex = 0; left.TabIndex = 1; details.TabIndex = 2; preview.TabIndex = 3; bar.TabIndex = 4;
             InitSizing();   // Doppelpuffer, Layoutsperre beim Ziehen (PackageForm.Sizing.cs)
             Theme.Current.Style(this);
+            ClampPane();
             LoadPackage(initial);
             ActiveControl = lv;   // Start im Ablauf, nicht mit markiertem Namen
         }
@@ -77,6 +78,7 @@ namespace Arbeitsplan.Win
         {
             left.Width = Math.Max(360, Math.Min(600, ClientSize.Width * 46 / 100));
             base.OnResize(e);
+            ClampPane();
         }
 
         Label Lbl(Control parent, string text, int x, int w)
