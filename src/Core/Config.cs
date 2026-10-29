@@ -15,7 +15,10 @@ namespace Arbeitsplan.Core
         public int PollSeconds = 30;
         public int CacheDays = 7;                   // Offline-Cache auf diesem PC; 0 = kein Cache
         public bool CheckTransitions;               // Uebergangspruefung=1: Statusuebergaenge im Hintergrund pruefen (Standard aus, keine Oberflaeche)
-        public int BackupHours = 24;                // SicherungAlleStunden=: automatische Sicherung im laufenden Programm und beim Beenden
+        public string StatusFile = "equipstatus.csv";   // Statusdatei= (relativ = im Datenordner)
+        public int StatusMaxHours = 24;             // StatusdateiMaxAlter= (Stunden): aeltere Datei gilt als nicht vorhanden
+        public int ManualDays = 14;                 // ManuellTage=: so lange gilt ein manueller Status vor der Statusdatei
+        public int BackupHours = 24;              // SicherungAlleStunden=: automatische Sicherung im laufenden Programm und beim Beenden
 
         // Admins= wirkt nur bei Ersteinrichtung: solange die Nutzerliste der Datendatei noch keinen Admin hat.
         // Danach zaehlen nur die gespeicherten Rechte (eine Kopie mit eigener ini verleiht keine Rechte).
@@ -60,6 +63,9 @@ namespace Arbeitsplan.Core
             if (v.TryGetValue("Abfrage", out s) && int.TryParse(s, out n)) c.PollSeconds = Math.Max(5, Math.Min(3600, n));
             if (v.TryGetValue("CacheTage", out s) && int.TryParse(s, out n)) c.CacheDays = Math.Max(0, Math.Min(365, n));
             if (v.TryGetValue("SicherungAlleStunden", out s) && int.TryParse(s, out n)) c.BackupHours = Backup.ClampHours(n);
+            if (v.TryGetValue("Statusdatei", out s) && s.Length > 0) c.StatusFile = s;
+            if (v.TryGetValue("StatusdateiMaxAlter", out s) && int.TryParse(s, out n)) c.StatusMaxHours = Math.Max(1, Math.Min(8760, n));
+            if (v.TryGetValue("ManuellTage", out s) && int.TryParse(s, out n)) c.ManualDays = Math.Max(0, Math.Min(365, n));
             if (v.TryGetValue("Admins", out s)) c.Admins = Umgebung.SplitList(s);
             if (v.TryGetValue("NurLesenFuer", out s)) c.ReadOnlyPatterns = Umgebung.SplitList(s);
             c.CachePath = Path.Combine(LocalDir, "cache.apdb");
@@ -77,7 +83,9 @@ namespace Arbeitsplan.Core
             return c;
         }
 
-        bool ownBackup, ownPackages;   // in der ini angegeben (sonst Unterordner des Datenordners)
+        public string StatusPath { get { try { return Path.Combine(DataFolder, StatusFile); } catch (Exception) { return Path.Combine(DataFolder, "equipstatus.csv"); } } }
+
+        bool ownBackup, ownPackages;  // in der ini angegeben (sonst Unterordner des Datenordners)
 
         // Anderer Datenordner (gemerkt bzw. im Dialog gewaehlt); Sicherung/Pakete ziehen mit, wenn die ini sie nicht festlegt
         public void UseDataFolder(string folder)

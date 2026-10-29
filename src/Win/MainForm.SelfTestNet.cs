@@ -208,7 +208,8 @@ namespace Arbeitsplan.Win
             foreach (System.Text.RegularExpressions.Match m in EquipmentMatcher.Pattern.Matches(text)) got.Add(m.Value);
             string want = "H1-X-0101|H1-X-0103|H1-P-0101-05|H2-F-0202-01|H1-T-0102|H1-T-0102";
             bool okPat = string.Join("|", got.ToArray()) == want;
-            bool okStat = equip.Get("H1-X-0101") != null && equip.Get("H1-X-0101").Status == EquipStatus.Sterilisiert && equip.Get("H9-X-0000") == null
+            MockEquipmentProvider mock = new MockEquipmentProvider();   // Beispielquelle (der Plan nutzt je nach Start Mock oder Statusdatei)
+            bool okStat = mock.Get("H1-X-0101") != null && mock.Get("H1-X-0101").Status == EquipStatus.Sterilisiert && mock.Get("H9-X-0000") == null
                 && new StatusColors().Get(EquipStatus.Sterilisiert) == 0xFF0000;
             Catalog cat = store.GetCatalog();
             EquipAssign ok1 = new EquipAssign(); ok1.Short = "TFF"; ok1.Choices.Add(new EquipChoice("TFF", "H1-X-0101")); ok1.Fallback = "H1-X-0103";

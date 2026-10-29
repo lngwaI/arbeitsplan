@@ -98,7 +98,10 @@ namespace Arbeitsplan.Win
                 systemPc = fstore.ReadOnly;
             }
             me = ResolveUser(login);
-            equip = new ManualStatusProvider(store, new MockEquipmentProvider());
+            // Basisquelle: Statusdatei im Datenordner (FileStore); Testdaten/Plan-Datei: Mock. Manuell gilt davor (ManuellTage).
+            IEquipmentStatusProvider baseStatus = plan == null && cfg != null ? (IEquipmentStatusProvider)new FileStatusProvider(cfg.StatusPath, cfg.StatusMaxHours) : new MockEquipmentProvider();
+            equip = new ManualStatusProvider(store, baseStatus);
+            if (cfg != null) equip.ManualDays = cfg.ManualDays;
             ManualStatusProvider.CheckTransitions = cfg != null && cfg.CheckTransitions;
 
             view = new PlanView(Font);

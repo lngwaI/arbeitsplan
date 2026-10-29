@@ -39,10 +39,14 @@ namespace Arbeitsplan.Core
 
         public bool IsManual(string number) { return manual.ContainsKey(Key(number)); }
 
+        // Manuell gilt vor der Quelle darunter, solange der Eintrag hoechstens ManualDays Tage alt ist (ini ManuellTage=); danach gilt die Quelle.
+        public int ManualDays = 14;
+        public Func<DateTime> Clock = delegate { return DateTime.Now; };
+
         public EquipmentInfo Get(string number)
         {
             EquipmentInfo i;
-            if (manual.TryGetValue(Key(number), out i)) return i;
+            if (manual.TryGetValue(Key(number), out i) && (inner == null || Clock() - i.Timestamp <= TimeSpan.FromDays(ManualDays))) return i;
             return inner != null ? inner.Get(number) : null;
         }
 
