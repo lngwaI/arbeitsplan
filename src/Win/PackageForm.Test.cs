@@ -67,7 +67,7 @@ namespace Arbeitsplan.Win
                     }
                     else
                     {
-                        Hint h = i < hintList.Count ? hintList[i] : null;
+                        Hint h = i < shownHints.Count ? shownHints[i] : null;
                         if (h != null && h.Field == tName && !tName.Focused) jumped[0] = false;
                         phase = 0; i++;
                     }

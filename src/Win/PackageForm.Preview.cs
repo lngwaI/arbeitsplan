@@ -15,13 +15,18 @@ namespace Arbeitsplan.Win
         readonly BlockPreview blockPreview = new BlockPreview();
         readonly ListBox lbHints = new ListBox();
         Label lPreview;
-        List<Hint> hintList = new List<Hint>();   // Inhalt von lbHints (fuer MeasureItem)
+        List<Hint> hintList = new List<Hint>();   // alle Hinweise (Gruppenkoepfe samt Einzelhinweisen)
+        List<Hint> shownHints = new List<Hint>(); // Inhalt von lbHints (fuer MeasureItem): zugeklappte Gruppen ohne Einzelhinweise
 
         class Hint
         {
             public string Text; public PackageStep Step; public Control Field;
+            public int Run = -1, Run2 = -1; public PackageStep Step2;   // Beteiligte: Klick springt zum ersten, der zweite wird im Kalender rot umrandet
+            public bool Blocks, Indent;                                 // Blocks = Sperre (steht vor den Hinweisen)
+            public string Code = "", UnvalId, UnvalShort;               // UnvalId: nicht validiertes Geraet (Klick = zur Liste hinzufuegen)
+            public List<Hint> Kids; public bool Open;                   // Gruppenkopf gleicher Regeln (Klick klappt auf)
             public Hint(string t, PackageStep s, Control f) { Text = t; Step = s; Field = f; }
-            public override string ToString() { return Text; }
+            public override string ToString() { return (Indent ? "    " : "") + Text; }
         }
 
         Control BuildPreview()
@@ -38,8 +43,8 @@ namespace Arbeitsplan.Win
             lbHints.IntegralHeight = false; lbHints.DrawMode = DrawMode.OwnerDrawVariable;   // Hinweise umbrechen statt abschneiden
             lbHints.MeasureItem += delegate(object o, MeasureItemEventArgs e)
             {
-                if (e.Index < 0 || e.Index >= hintList.Count) return;   // MeasureItem kommt beim Add, bevor Items[e.Index] existiert
-                e.ItemHeight = Math.Min(255, TextRenderer.MeasureText(hintList[e.Index].Text, Font, new Size(Math.Max(20, lbHints.Width - SystemInformation.VerticalScrollBarWidth - 12), 0), TextFormatFlags.WordBreak).Height + 4);
+                if (e.Index < 0 || e.Index >= shownHints.Count) return;   // MeasureItem kommt beim Add, bevor Items[e.Index] existiert
+                e.ItemHeight = Math.Min(255, TextRenderer.MeasureText(shownHints[e.Index].ToString(), Font, new Size(Math.Max(20, lbHints.Width - SystemInformation.VerticalScrollBarWidth - 12), 0), TextFormatFlags.WordBreak).Height + 4);
             };
             lbHints.DrawItem += delegate(object o, DrawItemEventArgs e)
             {
@@ -47,7 +52,8 @@ namespace Arbeitsplan.Win
                 e.DrawBackground();
                 bool sel = (e.State & DrawItemState.Selected) != 0;
                 Rectangle r = new Rectangle(e.Bounds.X + 3, e.Bounds.Y + 2, e.Bounds.Width - 6, e.Bounds.Height - 2);
-                TextRenderer.DrawText(e.Graphics, Convert.ToString(lbHints.Items[e.Index]), Font, r, sel ? SystemColors.HighlightText : lbHints.ForeColor, TextFormatFlags.WordBreak | TextFormatFlags.NoPrefix);
+                Hint hh = lbHints.Items[e.Index] as Hint;
+                TextRenderer.DrawText(e.Graphics, Convert.ToString(lbHints.Items[e.Index]), Font, r, sel ? SystemColors.HighlightText : (hh != null && hh.Blocks ? Color.Firebrick : lbHints.ForeColor), TextFormatFlags.WordBreak | TextFormatFlags.NoPrefix);
             };
             // Resize: nur bei echter Breitenaenderung neu umbrechen (RewrapHints, PackageForm.Sizing.cs)
             lbHints.MouseUp += delegate(object o, MouseEventArgs e)
@@ -137,25 +143,16 @@ namespace Arbeitsplan.Win
                 foreach (string t in s.MissingTanks(cat))
                     h.Add(new Hint(n + ": Tank (" + t + ") nicht gewählt – Gerät wählen oder Ansatz „Flasche/Gebinde“/„Ohne Gebinde“.", s, cbAnsatz));
                 foreach (EquipAssign a in s.Equipment)
-                    foreach (string id in EquipRow.Unvalidated(a, cat, Product)) h.Add(new Hint(n + ": Gerät " + id + " (" + a.Short + ") ist " + (cat.Product(Product) != null ? "für dieses Produkt nicht vorgesehen." : "nicht validiert."), s, null));
+                    foreach (string id in EquipRow.Unvalidated(a, cat, Product)) h.Add(EquipHint(n, a, id, s));
                 Package one = new Package(); one.ProductCode = Product; one.RunPrefix = prefix; one.Steps.Add(s);   // Zugehoerigkeit: sperrt Speichern/Uebernehmen
-                foreach (string e in cat.CheckPackage(one)) h.Add(new Hint(n + " FEHLER: " + e, s, null));
+                foreach (string e in cat.CheckPackage(one)) { Hint fh = new Hint(n + " FEHLER: " + e, s, null); fh.Blocks = true; h.Add(fh); }
                 foreach (string e in cat.CheckPackageWarn(one)) h.Add(new Hint(n + ": " + e, s, null));   // Stammdaten "Passt zu": nur Hinweis
             }
-            foreach (PackageProblem p in StepsView().Check())   // Regeln aus Core/Packages.Rules.cs (Sperre = Übernehmen nicht möglich)
-            {
-                PackageStep ps = p.Step >= 0 && p.Step < steps.Count ? steps[p.Step] : null;
-                int ix = ps != null ? o.IndexOf(ps) : -1;
-                Control fld = p.Code == "ident" ? tIdent : (p.Code == "number" ? (ps != null && ps.Kind != StepKind.Normal ? (Control)tFirst : nStartNo) : null);
-                h.Add(new Hint((p.Blocks ? "SPERRE – " : "") + (ix >= 0 ? "Schritt " + (ix + 1) + ": " : "") + p.Text, ps, fld));
-            }
+            h.AddRange(RuleHints(o));   // Regeln aus Core/Packages.Rules.cs (Sperre = Übernehmen nicht möglich), PackageForm.Hints.cs
             bool ok = h.Count == 0;
             if (ok) h.Add(new Hint("Keine Auffälligkeiten – das Muster kann übernommen werden.", null, null));
-            hintList = h;
-            lbHints.BeginUpdate();
-            lbHints.Items.Clear();
-            foreach (Hint x in h) lbHints.Items.Add(x);
-            lbHints.EndUpdate();
+            FillHintList(BlocksFirst(h));
+            strip.Mark(null, -1);
             lbHints.ForeColor = ok ? Color.DarkGreen : Color.FromArgb(150, 60, 0);
         }
     }

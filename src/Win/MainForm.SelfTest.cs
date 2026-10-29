@@ -151,6 +151,8 @@ namespace Arbeitsplan.Win
                 t.Content = "Lauf 13570030\nTFF: H1-X-0103 (Ausweich)\nPumpe: H1-P-0101-05"; t.People[0] = "MUMA, WEPA";
                 f = new ConflictForm("Suite 1, " + Ui.DayText(start), "Paula Werk", "um 09:41 Uhr", t, m, Conflict.Merge(b, m, t, new List<string>()), true);
             }
+            else if (which == "equipadd") f = new EquipAddForm("H1-T-0999", store.GetCatalog());   // UX-2: nicht validierte Nummer aufnehmen
+            else if (which == "problems") f = new PackageForm(store, equip, start, PackageForm.ProblemSample(), true, true);   // UX-2: Prueffunde mit Beteiligten
             else if (which == "campaign") { CampaignForm cf = new CampaignForm(demo, store, start, ApplyMode.FillEmpty); cf.Shift(1, 1); f = cf; }   // Lauf 13570030 (und Folgende) einen Tag spaeter
             else f = new PackageForm(store, equip, start, demo, true, true);
             Hide();                                   // nur fuer das Testbild: Hauptfenster nicht dahinter
@@ -162,6 +164,7 @@ namespace Arbeitsplan.Win
             if (pf != null && which == "package2") pf.SelectStep(1);
             if (pf != null && which == "package2sub") pf.SelectStep(2);   // Unterlauf-Schritt (Splitten)
             if (pf != null && which == "package3") pf.SelectStep(2);
+            if (pf != null && which == "problems") pf.SelectStep(2);
             if (pf != null && which == "package4") { pf.SelectStep(2); pf.TestMore(); }
             if (pf != null && which == "package5") pf.SelectStep(3);
             if (pf != null && which == "package7") { pf.SelectStep(3); pf.TestMore(); pf.TestScrollEnd(); }   // Hauptlauf, Zusaetze (Kennungstabelle) im Blick
@@ -354,6 +357,8 @@ namespace Arbeitsplan.Win
             SelfTestE1(sb);   // Zeitmodell des Pakets: Golden-Test, JeLauf, Ausfall, Kennung, Normalize, Paketformat 7 (MainForm.SelfTestE1*.cs)
             SelfTestE3(sb); SelfTestE2(sb); SelfTestE4(sb); SelfTestV(sb); SelfTestE5(sb);   // Kennungstabelle, Notizen aus Paketen, Materialvorlage (MainForm.SelfTestE2.cs)
             SelfTestPB(sb);   // Puffer im Paket: Standard-Anzahl, mehrere Puffer je Termin, Namen, Pufferpaket (MainForm.SelfTestPB.cs)
+            sb.Append(PackageForm.TestUx2(equip, start));   // UX-2: Problemtexte mit Beteiligten, Gruppen, nicht validiertes Equipment (PackageForm.TestUx2.cs)
+            using (MainForm mx = new MainForm("ux4", true, null, null)) { mx.FitToCursorScreen(); sb.AppendLine("UX4 Hauptfenster startet maximiert: " + Ok(mx.WindowState == FormWindowState.Maximized)); }
             quiet = false;
             return sb.ToString();
         }

@@ -83,7 +83,7 @@ namespace Arbeitsplan.Win
             List<PackageProblem> shown = Problems.FindAll(delegate(PackageProblem p) { return p.Code != "packen" && p.Code != "number"; });   // Packen-Nummer/Ueberlauf zeigen schon eigene Felder
             foreach (PackageProblem p in shown)
                 for (int i = 0; i < sched.Count && i < grid.Rows.Count; i++)
-                    if (p.Run >= 0 && sched[i].Step == p.Step && sched[i].Run == p.Run)
+                    if ((p.Run >= 0 && sched[i].Step == p.Step && sched[i].Run == p.Run) || (p.Run2 >= 0 && sched[i].Step == p.Step2 && sched[i].Run == p.Run2))   // beide Beteiligte rot
                     {
                         grid.Rows[i].Cells[cLabel].Style.BackColor = p.Blocks ? Rot : Belegt;
                         grid.Rows[i].Cells[cLabel].ToolTipText = pkg.Describe(p);

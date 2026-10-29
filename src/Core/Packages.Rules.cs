@@ -14,9 +14,27 @@ namespace Arbeitsplan.Core
         public Severity Severity;
         public string Code = "", Text = "";
         public int Step = -1, Run = -1;
+        public int Step2 = -1, Run2 = -1;   // zweiter Beteiligter im Paket (z. B. der andere Lauf); -1 = keiner / liegt im Plan
+        public string Action = "";          // kurze Handlungsanweisung; Text nennt Ursache und Beteiligte
 
         public bool Blocks { get { return Severity == Severity.Sperre; } }
-        public override string ToString() { return Text; }
+        public string Full { get { return Action.Length > 0 ? Text + " – " + Action : Text; } }
+        public override string ToString() { return Full; }
+
+        // Kurzname der Regel (Gruppenkopf in der Hinweisliste)
+        public static string RuleTitle(string code)
+        {
+            switch (code)
+            {
+                case "gleichtag": return "Zwei Hauptläufe am selben Tag und Raum";
+                case "planlauf": return "Hauptlauf liegt schon im Plan";
+                case "puffer": return "Mehr Puffer-Termine als Produktläufe";
+                case "puffer-produkt": return "Puffer verschiedener Produkte zu nah beieinander";
+                case "unterlauf": return "Unterlauf fehlt";
+                case "frueh": return "Termin sehr früh vor Lauf 1";
+                default: return "";   // ohne Titel: nie gruppiert
+            }
+        }
     }
 
     // Regelpruefung eines Pakets (E4). Eine Quelle fuer Paket-Editor (Hinweisliste), Kampagnenstart und Apply.
@@ -30,13 +48,13 @@ namespace Arbeitsplan.Core
         // Text mit Schrittname, fuer Meldungen ausserhalb des Paket-Editors
         public string Describe(PackageProblem p)
         {
-            return (p.Step >= 0 && p.Step < Steps.Count && Steps[p.Step].Title.Length > 0 ? Steps[p.Step].Title + ": " : "") + p.Text;
+            return (p.Step >= 0 && p.Step < Steps.Count && Steps[p.Step].Title.Length > 0 ? Steps[p.Step].Title + ": " : "") + p.Full;
         }
 
         public string DescribeBlocks(List<PackageProblem> l)
         {
             StringBuilder sb = new StringBuilder();
-            foreach (PackageProblem p in l) if (p.Blocks) { if (sb.Length > 0) sb.Append('\n'); sb.Append(Describe(p)); }
+            foreach (PackageProblem p in l) if (p.Blocks) { if (sb.Length > 0) sb.Append('\n'); sb.Append(Describe(p)); }   // Describe: Text + Handlung
             return sb.ToString();
         }
 
@@ -102,12 +120,14 @@ namespace Arbeitsplan.Core
                 CheckSubRuns(res, plan, main, runs);
                 foreach (RunDate d in plan)
                     if (first != int.MaxValue && d.Day < first - 60 && d.Step != main)
-                        Add(res, Severity.Hinweis, "frueh", "Mehr als 60 Tage vor Lauf 1 (" + d.Label.Replace("\n", " ") + ").", d.Step, d.Run);
+                        Add(res, Severity.Hinweis, "frueh", StepName(d.Step) + " (" + d.Label.Replace("\n", " ") + ") liegt mehr als 60 Tage vor Lauf 1", d.Step, d.Run).Action = "Tag prüfen";
                 if (store != null) CheckPlan(res, store, start, mode, plan, main);
             }
             else if (store != null) CheckPlan(res, store, start, mode, plan, -1);
             return res;
         }
+
+        string StepName(int i) { return Steps[i].Title.Length > 0 ? Steps[i].Title : "Schritt " + (i + 1); }
 
         string DayLabel(int day, DateTime start, bool known)
         {
@@ -123,7 +143,10 @@ namespace Arbeitsplan.Core
                 string k = d.Day + "|" + (d.Row.Length > 0 ? d.Row : Steps[main].Row).ToLowerInvariant();
                 RunDate o;
                 if (seen.TryGetValue(k, out o))
-                    Add(res, Severity.Sperre, "gleichtag", "Zwei Hauptläufe am selben Tag (" + DayLabel(d.Day, start, known) + ") im Block „" + (d.Row.Length > 0 ? d.Row : Steps[main].Row) + "“: Lauf " + (o.Run + 1) + " und Lauf " + (d.Run + 1) + ".", main, d.Run);
+                {
+                    PackageProblem p = Add(res, Severity.Sperre, "gleichtag", "Lauf " + (o.Run + 1) + " und Lauf " + (d.Run + 1) + " liegen beide am " + DayLabel(d.Day, start, known) + " in " + (d.Row.Length > 0 ? d.Row : Steps[main].Row) + " (zwei Hauptläufe am selben Tag nicht erlaubt)", main, d.Run);
+                    p.Step2 = main; p.Run2 = o.Run; p.Action = "einen der beiden Läufe auf einen anderen Tag oder Raum legen";
+                }
                 else seen[k] = d;
             }
         }
@@ -136,7 +159,8 @@ namespace Arbeitsplan.Core
                 PackageStep s = Steps[i];
                 if (s.IsEmpty || !s.IsBuffer || s.Bind != StepBind.Frei) continue;
                 int cnt = plan.FindAll(delegate(RunDate d) { return d.Step == i; }).Count;
-                if (cnt > planned) Add(res, Severity.Sperre, "puffer", "Mehr Puffer-Termine (" + cnt + ") als Produktläufe (" + planned + ") – „Zu jedem Lauf“ wählen oder die Anzahl verringern.", i);
+                if (cnt > planned)
+                    Add(res, Severity.Sperre, "puffer", "Pufferläufe (" + cnt + ") von Puffer „" + StepName(i) + "“ übersteigen Produktläufe (" + planned + ")", i).Action = "„Zu jedem Lauf“ wählen oder die Anzahl verringern";
             }
         }
 
@@ -151,7 +175,11 @@ namespace Arbeitsplan.Core
                 List<int> miss = new List<int>();
                 foreach (RunDate r in runs) if (!subs.Exists(delegate(RunDate d) { return d.Group == r.Run; })) miss.Add(r.Run);
                 if (miss.Count == 0 && subs.Count < runs.Count) miss.Add(runs.Count - 1);   // mehrere Unterlaeufe im selben Lauf-Fenster: Zahl stimmt nicht
-                foreach (int r in miss) Add(res, Severity.Sperre, "unterlauf", "Lauf " + (r + 1) + " ohne Unterlauf (Unterläufe: " + subs.Count + ", Hauptläufe: " + runs.Count + ").", i, r);
+                foreach (int r in miss)
+                {
+                    PackageProblem p = Add(res, Severity.Sperre, "unterlauf", "Lauf " + (r + 1) + " ohne Unterlauf (Schritt „" + StepName(i) + "“: " + subs.Count + " Unterläufe für " + runs.Count + " Hauptläufe)", i, r);
+                    p.Action = "Unterlauf-Nummer für Lauf " + (r + 1) + " ergänzen oder Wiederholungen angleichen";
+                }
             }
         }
 
@@ -171,8 +199,9 @@ namespace Arbeitsplan.Core
                 if (d.Step == main && mode != ApplyMode.Overwrite)
                 {
                     Entry e = store.Get(day, id);
-                    if (e != null && RunNumbers.Find(e).Count > 0 && done.Add("h" + day.Ticks + "|" + id))
-                        Add(res, Severity.Sperre, "planlauf", "Am " + DateText(day) + " liegt im Block „" + (d.Row.Length > 0 ? d.Row : s.Row) + "“ schon ein Hauptlauf im Plan – zwei Hauptläufe am selben Tag sind nicht möglich.", d.Step, d.Run);
+                    List<RunRef> have = e != null ? RunNumbers.Find(e) : null;
+                    if (have != null && have.Count > 0 && done.Add("h" + day.Ticks + "|" + id))
+                        Add(res, Severity.Sperre, "planlauf", "Lauf " + (d.Run + 1) + " dieses Pakets und Lauf " + have[0].Run + " (schon im Plan) liegen beide am " + DateText(day) + " in " + (d.Row.Length > 0 ? d.Row : s.Row) + " (zwei Hauptläufe am selben Tag nicht erlaubt)", d.Step, d.Run).Action = "Startdatum oder Raum ändern oder „Überschreiben“ wählen";
                 }
                 if (!s.IsBuffer) continue;
                 for (int off = -1; off <= 1; off++)
@@ -182,10 +211,14 @@ namespace Arbeitsplan.Core
                     int other = ProductOfBuffers(e, mine);   // 1 = anderes Produkt, 0 = unbekannt, -1 = dasselbe
                     if (other < 0 || (other == 0 && off != 0) || !done.Add("p" + day.Ticks + "|" + id + "|" + off)) continue;
                     string when = off == 0 ? "am selben Tag" : (off < 0 ? "am Vortag" : "am Folgetag");
-                    string txt = "Im Block „" + (d.Row.Length > 0 ? d.Row : s.Row) + "“ stehen " + when + " (" + DateText(day.AddDays(off)) + ") schon Puffer"
-                        + (other == 1 ? " eines anderen Produkts" : " (Produkt nicht erkennbar, Zuordnung unsicher)")
-                        + " – Puffer verschiedener Produkte werden nie am selben Tag, in der Regel mit mindestens 1 Tag Abstand hergestellt.";
-                    Add(res, off == 0 && other == 1 ? Severity.Sperre : Severity.Hinweis, "puffer-produkt", txt, d.Step, d.Run);
+                    string oname = "", oprod = "";
+                    foreach (BufferItem b in e.Buffers)
+                        foreach (RunRef r in RunNumbers.Find(b.Name + "\n" + b.Text, null))
+                            if (oname.Length == 0 && r.Product != mine) { oname = b.Name; oprod = r.Product; }
+                    if (oname.Length == 0 && e.Buffers.Count > 0) oname = e.Buffers[0].Name;
+                    string txt = "Puffer „" + StepName(d.Step) + "“ (Produkt " + ProductCode + ") am " + DateText(day) + " in " + (d.Row.Length > 0 ? d.Row : s.Row)
+                        + " und im Plan schon Puffer „" + oname + "“" + (other == 1 ? " (Produkt " + oprod + ")" : " (Produkt nicht erkennbar, Zuordnung unsicher)") + " " + when;
+                    Add(res, off == 0 && other == 1 ? Severity.Sperre : Severity.Hinweis, "puffer-produkt", txt, d.Step, d.Run).Action = "Puffer verschiedener Produkte nie am selben Tag, möglichst mit 1 Tag Abstand – Termin verschieben";
                 }
             }
         }

@@ -54,6 +54,11 @@ namespace Arbeitsplan.Win
 
         public void SetRows(List<string> planOrder) { order = planOrder; }
 
+        PackageStep markStep; int markRun = -1;
+        public bool HasMark { get { return markStep != null; } }
+        // Rot umrandeter Eintrag (zweiter Beteiligter eines Prueffunds); null = keine Markierung
+        public void Mark(PackageStep s, int run) { markStep = s; markRun = run; Invalidate(); }
+
         public void Set(List<Item> list, PackageStep sel, int run) { all = list; selected = sel; selRun = run; Rebuild(); Invalidate(); }
 
         // Nur die Auswahl wechseln (Blaettern, Klick): kein Neuaufbau
@@ -176,6 +181,7 @@ namespace Arbeitsplan.Win
                     bool on = i.Step == selected, cur = on && i.Run == selRun, moving = press != null && dropDay > 0 && (i == press || (!OnlyRun && i.Step == press.Step && (press.Je || i.Run >= press.Run)));   // wandert mit
                     if (on) g.FillRectangle(selBack, r);
                     if (cur) g.DrawRectangle(sel, r); else g.DrawRectangle(on ? t.Pen(t.BorderSel, 1) : line, r);
+                    if (markStep != null && i.Step == markStep && i.Run == markRun) using (Pen red = new Pen(Color.Firebrick, 2f)) g.DrawRectangle(red, r.X + 1, r.Y + 1, r.Width - 2, r.Height - 2);   // zweiter Beteiligter eines Problems
                     if (moving) { r.Inflate(-1, -1); using (Pen dash = new Pen(t.BorderEdit, 1f)) { dash.DashStyle = System.Drawing.Drawing2D.DashStyle.Dash; g.DrawRectangle(dash, r); } }
                     TextRenderer.DrawText(g, i.Title, bold, new Rectangle(r.X + 4, r.Y + 2, r.Width - (i.Shifted ? 20 : 6), Font.Height + 1), t.HeadText, ff);
                     if (i.Shifted) DrawLock(g, r.Right - 14, r.Y + 4, t.BorderEdit);

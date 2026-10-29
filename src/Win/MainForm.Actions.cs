@@ -26,6 +26,7 @@ namespace Arbeitsplan.Win
             Screen s = Screen.FromPoint(Cursor.Position);
             StartPosition = FormStartPosition.Manual;
             Bounds = s.WorkingArea;
+            WindowState = FormWindowState.Maximized;   // UX-4: Start im Vollbild (Arbeitsbereich), auch Testdaten/Demo; Shot/Selbsttest rufen das nicht auf
             lastScreen = s; filled = true;
         }
 

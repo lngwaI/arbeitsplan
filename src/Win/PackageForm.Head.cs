@@ -215,7 +215,13 @@ namespace Arbeitsplan.Win
         void GoToHint(Hint h)
         {
             if (IsDisposed || h == null) return;
-            if (h.Step != null && steps.Contains(h.Step) && h.Step != cur) Bind(h.Step);
+            if (h.Kids != null) { ToggleGroup(h); return; }                       // Gruppenkopf: auf-/zuklappen
+            if (h.UnvalId != null) { AddToList(h.UnvalId, h.UnvalShort); return; }   // nicht validiert: zur Liste hinzufuegen / vormerken
+            if (h.Step != null && steps.Contains(h.Step))
+            {
+                if (h.Run >= 0) SelectRun(h.Step, h.Run); else if (h.Step != cur) Bind(h.Step);   // erster Beteiligter
+                strip.Mark(h.Step2 != null && steps.Contains(h.Step2) ? h.Step2 : null, h.Run2);    // zweiter Beteiligter rot umrandet
+            }
             Control f = h.Field;
             if (f == null || f.IsDisposed) return;
             if (!more && (f == nStartNo || f == tIdent || f == tNote || f == nEvery)) SetMore(true);
