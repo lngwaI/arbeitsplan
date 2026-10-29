@@ -86,6 +86,28 @@ namespace Arbeitsplan.Win
             edContent.Focus();
         }
 
+        // Zeilenhoehe des Editors = Zeilenhoehe der Ansicht (Font.Height): PARAFORMAT2, Regel 4 = exakt (Twips), fuer den ganzen Text
+        [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
+        struct ParaFmt2
+        {
+            public int cbSize, dwMask; public short wNumbering, wEffects; public int dxStartIndent, dxRightIndent, dxOffset;
+            public short wAlignment, cTabCount;
+            [System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.ByValArray, SizeConst = 32)] public int[] rgxTabs;
+            public int dySpaceBefore, dySpaceAfter, dyLineSpacing; public short sStyle; public byte bLineSpacingRule, bOutlineLevel;
+            public short wShadingWeight, wShadingStyle, wNumberingStart, wNumberingStyle, wNumberingTab, wBorderSpace, wBorderWidth, wBorders;
+        }
+        [DllImport("user32.dll")] static extern IntPtr SendMessage(IntPtr h, int msg, IntPtr w, ref ParaFmt2 l);
+
+        static void ExactLineSpacing(RichTextBox rb, int px)
+        {
+            float dpi; using (Graphics g = rb.CreateGraphics()) dpi = g.DpiY;
+            ParaFmt2 pf = new ParaFmt2();
+            pf.cbSize = System.Runtime.InteropServices.Marshal.SizeOf(typeof(ParaFmt2));
+            pf.dwMask = 0x100;   // PFM_LINESPACING
+            pf.dyLineSpacing = (int)Math.Round(px * 1440.0 / dpi); pf.bLineSpacingRule = 4;
+            SendMessage(rb.Handle, 0x447, IntPtr.Zero, ref pf);   // EM_SETPARAFORMAT
+        }
+
         void LoadEditors(CellData c)
         {
             loadingEditor = true;
@@ -112,6 +134,7 @@ namespace Arbeitsplan.Win
                 if (ind > 0) { edContent.Select(pos, para.Length); edContent.SelectionIndent = 0; edContent.SelectionHangingIndent = ind; }
                 pos += para.Length + 1;
             }
+            ExactLineSpacing(edContent, plainFont.Height);
             edContent.Select(edContent.TextLength, 0);
             bool task = rowInfo[c.RowIndex].Mode == ShiftMode.Task;
             for (int s = 0; s < 3; s++) { edPpl[s].Text = Win(c.Cur.People[s]); edPpl[s].BackColor = task ? Theme.Current.TaskBack : Theme.Current.ShiftBack[s]; }
@@ -134,7 +157,7 @@ namespace Arbeitsplan.Win
         {
             if (editCell == null) { foreach (Control c in editors) c.Visible = false; return; }
             CellData c0 = editCell;
-            edContent.SetBounds(c0.RContent.X + PlanView.TP - 3, c0.RContent.Y + PlanView.TV, c0.RContent.Width - 2 * (PlanView.TP - 3) - 6, c0.RContent.Height - 2 * PlanView.TV);
+            edContent.SetBounds(c0.RContent.X + PlanView.TP - 1, c0.RContent.Y + PlanView.TV, c0.RContent.Width - 2 * (PlanView.TP - 3) - 8, c0.RContent.Height - 2 * PlanView.TV);
             for (int s = 0; s < 3; s++)
                 edPpl[s].SetBounds(c0.RPpl[s].X + PlanView.TP - 2, c0.RPpl[s].Y + PlanView.TV, c0.RPpl[s].Width - 2 * (PlanView.TP - 2), c0.RPpl[s].Height - 2 * PlanView.TV);
             edContent.Visible = true;

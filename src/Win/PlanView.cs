@@ -192,7 +192,7 @@ namespace Arbeitsplan.Win
             foreach (CellData c in Cells)
             {
                 if (c.RowIndex != r) continue;
-                int extra = c.Editing ? lh : 0;      // Editor bricht minimal anders um: eine Zeile Reserve
+                int extra = 0;      // Editor: gleiche Zeilenhoehe/Breite wie die Ansicht (ExactLineSpacing), keine Reserve mehr noetig
                 ch = Math.Max(ch, c.CB.Height + 2 * TV + extra);
                 for (int s = 0; s < 3; s++) if (sh[s] > 0) sh[s] = Math.Max(sh[s], c.PB[s].Height + 2 * TV + extra);
             }

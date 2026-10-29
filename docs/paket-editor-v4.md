@@ -132,3 +132,20 @@ Zum Schluss: `SampleCampaign` auf v7, `config/Testprodukt.apkg` neu, Anleitung (
 11. **Präfix „Notiz:“** aus Paketen entfällt? *Empfehlung:* ja.
 12. **FormatVersion:** wurde eine exe mit Datenformat 4 schon verteilt (auch Test in der Firma)? *Empfehlung:* falls ja, Notizen/Baustein-Felder als Version 5.
 13. **Notiz nur für einen Lauf** (Spalte in Kennungstabelle)? *Empfehlung:* vorerst nein.
+
+---
+
+# Anhang P: Puffer-Liste (Entwurf architekt, 2026-10-29)
+
+**Entscheidung:** Puffer werden eine geordnete Liste je Block: `Entry.Buffers` = `List<BufferItem>` (`Id` laufend je Block `p1…`, `Name`, `Typ` mobil/stationaer, `Text` mehrzeilig ohne Format). Einzige Datenquelle; die Nummer ergibt sich aus der Position und wird nie gespeichert. `Entry.Types` liefert die Typen als `VariantSet`-String (`mobil:2|stationaer`) für `CheckEval` (Logik unverändert: Tagesprobe nur wenn alle mobil; Wochen-WFI erledigt bei irgendeinem stationären Puffer in der KW). `Entry.Variant` wird nur noch beim Laden alter Daten gelesen. `Backup.FormatVersion` bleibt 4. XML: `<puffer id="p1" typ="mobil" name="…">Text</puffer>`.
+Verworfen: A) Zeilen "Puffer n: Name" im Content (Nummer/Typ hängen an Textposition, fehleranfällig); C) nur Anzeige aus Anzahlen (keine Namen).
+
+**Bereiche:** Merge (`Conflict.Merge`) dreiwege je `Id` (neu = dazu, einseitig gelöscht = weg, beide ändern denselben Puffer = ConflictForm; doppelte Ids werden neu nummeriert). Rechte: hinzufügen `AddText`, entfernen `DeleteText`, ändern `EditText`. Audit: "Puffer n: Name (mobil)". Paket: Puffer-Schritt (`s.Variant`) → ein `BufferItem` (Name = Schritt-Titel, Typ = `s.Variant`, Text = übrige `Compose`-Zeilen); mehrere Puffer-Schritte am Tag werden angehängt statt summiert; Modi: Überschreiben = Liste des Pakets, Anhängen = hinten, Nur leere füllen = Block mit Puffern gilt als belegt. Suche/`Find` durchsucht Name und Text.
+
+**Bedienung:** Chips entfallen, Knopf "+ Puffer" (Dialog `BufferForm`: Name mit Vorschlägen, Typ aus `RowInfo.Variants`, Text, OK); Klick auf Puffer-Zeile = derselbe Dialog mit "Entfernen"/Hoch/Runter. Speichern wie der Chip-Klick (`MainForm.Change`, sofort ohne Bearbeitungsmodus; im Bearbeitungsmodus mit dem Block).
+**Anzeige:** über dem freien Inhalt je Puffer "**Puffer 1:** Name", Text eingerückt darunter; Typ nie als Text, nur 3-px-Seitenstrich (Blau mobil, Violett stationär) + Tooltip. Eigener Bereich (wie `RChecks`), zählt in die Zeilenhöhe.
+**Migration:** Block mit `Variant` ohne `<puffer>` → Einträge ohne Namen (`mobil:2|stationaer` = 3 Einträge, "Puffer 1: –", Typ im Tooltip); `Content` unverändert; Testdaten direkt umstellen.
+
+**Entscheidungen zu den offenen Fragen (Annahmen, Empfehlungen des Architekten übernommen):** (1) Name = freie Eingabe mit Vorschlägen (bisherige Namen der Zeile + Puffer-Bausteine); (2) Paket-Variante "beides" entfällt, ein Schritt = ein Puffer mit einem Typ (alte Pakete mit "beides" = zwei Puffer gleichen Namens); (3) Equipment und Notiz des Puffer-Schritts gehören zum Puffer (eingerückt).
+
+**Bauschritte:** P1 Core (Datenmodell, XML, Migration, `Types`, Merge, Paket, Audit, `Find`, Tests umstellen ~100 Stellen) → P2 Win (Anzeige, `BufferForm`, Chips entfernen, Shots 4:3/16:9, Anleitung). Risiken: Layout (dritter Bereich in der Zelle), breiter Testumbau, zwei Textorte (Hinweis im Bearbeitungsmodus "Puffer per Klick bearbeiten"), alte exe verliert Puffer still (nichts verteilt).
