@@ -244,7 +244,7 @@ namespace Arbeitsplan.Win
             tip.SetToolTip(rowHint, rowHint.Text);
             int y = gWhat.ContentTop;
             y = Row(y, true, lTitle, tTitle); y = Row(y, true, lRow, cbRow); y = Row(y, off, rowHint) - (off ? 4 : 0);
-            y = Row(y, true, lKind, cbKind); y = LayoutVariants(y, var); y = LayoutAnsatz(y, s);
+            y = Row(y, true, lKind, cbKind); y = LayoutVariants(y, var); y = LayoutPuffer(y, s); y = LayoutAnsatz(y, s);
             y = Row(y, s.Source == Package.PackenName && !s.IsBackup, lManual, tManualNo);
             y = Row(y, sub, lSub, tSubNos); y = Row(y, sub, lSubHelp);
             int hWhat = y + 2, hWhen = LayoutWhen(s);   // Wann?: PackageForm.When.cs

@@ -326,7 +326,7 @@ namespace Arbeitsplan.Core
                 if (b.NoteTemplate.Length > 0) w.WriteAttributeString("notizvorlage", b.NoteTemplate);
                 if (b.Variant.Length > 0) w.WriteAttributeString("puffertyp", b.Variant);
                 w.WriteAttributeString("einmal", B(b.Unique)); w.WriteAttributeString("standard", B(b.DefaultInCampaign)); w.WriteAttributeString("sonder", B(b.Special));
-                foreach (string s in b.Positions) { w.WriteStartElement("P"); w.WriteAttributeString("v", s); w.WriteEndElement(); }
+                foreach (string s in b.Positions) { w.WriteStartElement("P"); w.WriteAttributeString("v", s); if (b.DefaultCount(s) > 1) w.WriteAttributeString("n", b.DefaultCount(s).ToString(CultureInfo.InvariantCulture)); w.WriteEndElement(); }
                 w.WriteEndElement();
             }
             WriteMaster(w, c.Master);
@@ -518,7 +518,11 @@ namespace Arbeitsplan.Core
             {
                 Baustein b = new Baustein(); b.Name = e.GetAttribute("name"); b.Row = e.GetAttribute("block"); b.Text = e.GetAttribute("text"); b.NoteTemplate = e.GetAttribute("notizvorlage"); b.Variant = e.GetAttribute("puffertyp");
                 b.Unique = Bool(e, "einmal"); b.DefaultInCampaign = Bool(e, "standard"); b.Special = Bool(e, "sonder");
-                foreach (XmlElement x in Kids(e, "P")) b.Positions.Add(x.GetAttribute("v"));
+                foreach (XmlElement x in Kids(e, "P"))
+                {
+                    b.Positions.Add(x.GetAttribute("v"));
+                    int cn; if (int.TryParse(x.GetAttribute("n"), NumberStyles.Integer, CultureInfo.InvariantCulture, out cn)) b.SetDefaultCount(x.GetAttribute("v"), cn);   // fehlt bei aelteren Bestaenden = 1
+                }
                 d.Catalog.Bausteine.Add(b);
             }
             XmlElement sd = Kid(k, "Stammdaten");

@@ -23,6 +23,7 @@ namespace Arbeitsplan.Win
         readonly ComboBox bRow = new ComboBox();
         readonly CheckedListBox bPos = new CheckedListBox();
         readonly CheckBox bUnique = new CheckBox(), bDefault = new CheckBox(), bSpecial = new CheckBox();
+        readonly NumericUpDown bCount = new NumericUpDown();   // Standard-Anzahl Equipment-Zeilen der markierten Position
         // Austausch-Gruppen
         readonly ListBox lbGrp = new ListBox();
         readonly TextBox gName = new TextBox();
@@ -122,6 +123,10 @@ namespace Arbeitsplan.Win
             bDefault.Text = "In jeder neuen Kampagne enthalten"; bDefault.SetBounds(500, 176, 230, 22);
             bSpecial.Text = "Sonderereignis (z. B. TFF Flush)"; bSpecial.SetBounds(500, 202, 230, 22);
             p.Controls.AddRange(new Control[] { bUnique, bDefault, bSpecial });
+            Label lc = L("Standard-Anzahl der markierten Position\n(neue Schritte legen so viele Zeilen an):", 500, 232); lc.AutoSize = false; lc.SetBounds(500, 232, 220, 34); p.Controls.Add(lc);
+            bCount.Minimum = 1; bCount.Maximum = 9; bCount.SetBounds(500, 268, 60, 22); p.Controls.Add(bCount);
+            bCount.ValueChanged += delegate { SetCount(); };
+            bPos.SelectedIndexChanged += delegate { ShowCount(); };
             p.Controls.Add(L("Notiz-Vorlage (je Zeile eine Notiz, z. B. Puffer-Material):", 260, 292));
             bNote.Multiline = true; bNote.AcceptsReturn = true; bNote.ScrollBars = ScrollBars.Vertical; bNote.SetBounds(260, 312, 460, 52); p.Controls.Add(bNote);
             Label hint2 = L("Einmalige Schritte (Packen) dürfen nur Nutzer mit dem Recht \"Pakete einrichten\" löschen oder erneut einfügen.", 260, 372); hint2.AutoSize = false; hint2.SetBounds(260, 372, 460, 36); p.Controls.Add(hint2);
@@ -139,9 +144,29 @@ namespace Arbeitsplan.Win
                 Baustein b = (Baustein)lbBau.SelectedItem;
                 string sh = cat.Positions[e.Index].Short;
                 b.Positions.RemoveAll(delegate(string x) { return x == sh; });
-                if (e.NewValue == CheckState.Checked) b.Positions.Add(sh);
+                if (e.NewValue == CheckState.Checked) b.Positions.Add(sh); else b.Counts.Remove(sh);
+                if (e.Index == bPos.SelectedIndex) { bCount.Enabled = e.NewValue == CheckState.Checked; bCount.Value = 1; }
             };
             if (lbBau.Items.Count > 0) lbBau.SelectedIndex = 0;
+        }
+
+        // Standard-Anzahl der markierten (nicht nur angekreuzten) Position anzeigen / setzen
+        void ShowCount()
+        {
+            Baustein b = lbBau.SelectedItem as Baustein;
+            int i = bPos.SelectedIndex;
+            bool on = b != null && i >= 0 && i < cat.Positions.Count && b.Positions.Contains(cat.Positions[i].Short);
+            bool was = loading; loading = true;
+            bCount.Enabled = on; bCount.Value = on ? b.DefaultCount(cat.Positions[i].Short) : 1;
+            loading = was;
+        }
+
+        void SetCount()
+        {
+            Baustein b = lbBau.SelectedItem as Baustein;
+            int i = bPos.SelectedIndex;
+            if (loading || b == null || i < 0 || i >= cat.Positions.Count) return;
+            b.SetDefaultCount(cat.Positions[i].Short, (int)bCount.Value);
         }
 
         // Positionen koennen im anderen Tab geaendert worden sein: Liste im Baustein-Tab neu fuellen
@@ -164,6 +189,7 @@ namespace Arbeitsplan.Win
             bUnique.Checked = b != null && b.Unique; bDefault.Checked = b != null && b.DefaultInCampaign; bSpecial.Checked = b != null && b.Special;
             for (int i = 0; i < bPos.Items.Count; i++) bPos.SetItemChecked(i, b != null && b.Positions.Contains(cat.Positions[i].Short));
             loading = false;
+            ShowCount();
         }
 
         // ---------- Austausch-Gruppen ----------

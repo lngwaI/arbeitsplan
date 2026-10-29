@@ -65,7 +65,13 @@ namespace Arbeitsplan.Core
         public bool Special;                                   // Sonderereignis (z. B. TFF Flush, Zwischenreinigung): von Hand eingeplant, nie Teil einer Kampagnen-Automatik
         public string Variant = "";                            // Puffer-Baustein: Typ des erzeugten Puffers ("mobil" / "stationaer"), sonst ""
 
-        public Baustein Clone() { Baustein b = (Baustein)MemberwiseClone(); b.Positions = new List<string>(Positions); return b; }
+        public Dictionary<string, int> Counts = new Dictionary<string, int>();   // Standard-Anzahl Equipment-Zeilen je Position (Kurzform); fehlt = 1
+
+        // Standard-Anzahl der Equipment-Zeilen, die ein neuer Schritt dieses Bausteins je Position anlegt (1..9)
+        public int DefaultCount(string shortName) { int n; return Counts.TryGetValue(shortName, out n) ? Math.Max(1, Math.Min(9, n)) : 1; }
+        public void SetDefaultCount(string shortName, int n) { if (n <= 1) Counts.Remove(shortName); else Counts[shortName] = Math.Min(9, n); }
+
+        public Baustein Clone() { Baustein b = (Baustein)MemberwiseClone(); b.Positions = new List<string>(Positions); b.Counts = new Dictionary<string, int>(Counts); return b; }
         public override string ToString() { return Name; }
     }
 

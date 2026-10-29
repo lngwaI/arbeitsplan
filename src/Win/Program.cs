@@ -238,7 +238,7 @@ namespace Arbeitsplan.Win
                 return;
             }
             string mk = Arg(args, "--makepkg");   // Test: Testpaket als Datei erzeugen (Name = Dateiname), z. B. testpakete\Name.apkg
-            if (mk != null) { Arbeitsplan.Core.Package.SampleCampaign(System.IO.Path.GetFileNameWithoutExtension(mk)).Save(mk); return; }
+            if (mk != null) { string mkn = System.IO.Path.GetFileNameWithoutExtension(mk); (mkn.StartsWith("PB") ? Arbeitsplan.Core.Package.SampleBuffers(mkn) : Arbeitsplan.Core.Package.SampleCampaign(mkn)).Save(mk); return; }   // PB...: mit 3 mobilen Puffern
             if (shot == null)
             {
 #if DEMO

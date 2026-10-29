@@ -88,6 +88,10 @@ namespace Arbeitsplan.Win
                 pu.Ansatz = "gebinde"; pu.Gebinde = "Flasche"; pu.Menge = "5"; pu.Einheit = "L"; pu.Repeat = RepeatMode.DayList; pu.DayList = "2, 5, 9";
                 demo.Steps.Add(pu);
             }
+            if (which == "package10")   // PB: Puffer-Schritt mit 3 mobilen Puffern, Namen, 2 mobilen Tanks als Standard
+            {
+                demo = Package.SampleBuffers("Testpaket");
+            }
             if (which.StartsWith("rt:")) demo = Package.Load(which.Substring(3));   // Roundtrip: Datei laden, im Editor unveraendert wieder speichern (.rt.apkg)
             if (which == "campaign2")   // fruehere Kampagne (Laeufe 1-4, Abstaende 5, 5, 7) sechs Wochen vorher
                 Package.SampleCampaign("alt").Apply(store, start.AddDays(-42), ApplyMode.Overwrite, Package.SampleCampaign("alt").Schedule(new List<int>(new[] { 5, 5, 7 })));
@@ -162,6 +166,7 @@ namespace Arbeitsplan.Win
             if (pf != null && which == "package5") pf.SelectStep(3);
             if (pf != null && which == "package7") { pf.SelectStep(3); pf.TestMore(); pf.TestScrollEnd(); }   // Hauptlauf, Zusaetze (Kennungstabelle) im Blick
             if (pf != null && which == "package6") pf.SelectStep(2);
+            if (pf != null && which == "package10") pf.TestSelectBuffer();
             if (pf != null && (which == "package8" || which == "package9")) pf.TestE5Shot(which);   // E5/E6: verschobene Laeufe mit Schloss; Zoom Woche + nur Auswahl
             return f;
         }
@@ -348,6 +353,7 @@ namespace Arbeitsplan.Win
             SelfTestTakeOver(sb);   // Soft-Lock: Uebernahme, Nachrichten, Sperrenwechsel (MainForm.SelfTestTakeOver.cs)
             SelfTestE1(sb);   // Zeitmodell des Pakets: Golden-Test, JeLauf, Ausfall, Kennung, Normalize, Paketformat 7 (MainForm.SelfTestE1*.cs)
             SelfTestE3(sb); SelfTestE2(sb); SelfTestE4(sb); SelfTestV(sb); SelfTestE5(sb);   // Kennungstabelle, Notizen aus Paketen, Materialvorlage (MainForm.SelfTestE2.cs)
+            SelfTestPB(sb);   // Puffer im Paket: Standard-Anzahl, mehrere Puffer je Termin, Namen, Pufferpaket (MainForm.SelfTestPB.cs)
             quiet = false;
             return sb.ToString();
         }

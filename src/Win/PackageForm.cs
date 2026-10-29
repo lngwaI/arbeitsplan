@@ -113,6 +113,7 @@ namespace Arbeitsplan.Win
             Btn(bDup, "Duplizieren", 78, bh + 10, 100, delegate { Duplicate(); });
             Btn(bDel, "Entfernen…", 184, bh + 10, 100, delegate { RemoveStep(); });
             btns.Controls.AddRange(new Control[] { bAdd, bUp, bDown, bDup, bDel });
+            BuildBufferPkg(btns, bh, w);   // Pufferpaket (PackageForm.BufferPkg.cs)
             tip.SetToolTip(bAdd, "Baustein (Packen, Lauf, Splitten …) oder leeren Schritt hinzufügen");
             tip.SetToolTip(lv, "Anklicken = rechts bearbeiten. Ziehen oder Alt+↑/↓ = Reihenfolge ändern (über die Tagesgrenze: übernimmt den Tag des Nachbarn).");
             tip.SetToolTip(bUp, "Schritt nach oben (Alt+Hoch); übernimmt dabei ggf. den Tag des Vorgängers");
@@ -166,7 +167,8 @@ namespace Arbeitsplan.Win
             s.Variant = b.Variant;   // Puffer mobil / stationaer: ein Schritt = ein Puffer mit diesem Typ
             if (b.Name == "Lauf") s.Kind = StepKind.Run; else if (b.Name == "Splitten") s.Kind = StepKind.SubRun;   // Vorbelegung, im Schritt aenderbar
             if (s.Kind != StepKind.Normal) s.StartNo = NewRunNo();
-            foreach (string sh in b.Positions) { EquipAssign a = new EquipAssign(); a.Short = sh; s.Equipment.Add(a); }
+            foreach (string sh in b.Positions)
+                for (int i = 0, n = b.DefaultCount(sh); i < n; i++) { EquipAssign a = new EquipAssign(); a.Short = sh; s.Equipment.Add(a); }   // Standard-Anzahl (z. B. 2 mobile Tanks)
             return s;
         }
 

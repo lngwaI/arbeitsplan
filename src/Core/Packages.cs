@@ -66,6 +66,8 @@ namespace Arbeitsplan.Core
         public string Note = "";
         public string Ident = "";           // alte Kennung je Lauf, Komma-getrennt (z. B. "PA 40010001, PA 40010017"); neu: IdentStart/IdentOver (Packages.Bind.cs); ganz unten rot, gross, fett
         public string Variant = "";         // Puffer-Schritt: Typ(en) der erzeugten Puffer (VariantSet, z. B. "mobil"), "" = kein Puffer
+        public int PufferCount = 1;         // Puffer-Schritt: so viele Puffer des Typs je Vorkommen am selben Tag (1..9, XML "puffer")
+        public string PufferNames = "";     // Namen der Puffer, "|"-getrennt (XML "pufnamen"); leer = Titel (+ Nummer)
         public List<EquipAssign> Equipment = new List<EquipAssign>();
 
         // Format der Kennungszeile (rot, gross, fett).
@@ -117,18 +119,42 @@ namespace Arbeitsplan.Core
 
         // Puffer dieses Laufs (Ids vergibt der Block beim Anhaengen): Name = Titelzeile, Typ = Variante, Text = die uebrigen Zeilen
         // (Ansatz, Equipment, Notiz). "mobil|stationaer" = zwei Puffer gleichen Namens, "mobil:2" = zwei mobile.
+        // PufferCount (1..9) Puffer gleichen Typs am selben Tag je Vorkommen. Namen: PufferNames (je Puffer einer, "|"-getrennt);
+        // fehlt einer: Titelzeile, ab dem 2. Puffer "Titel 2" usw. Equipment: die Zeilen des Schritts gelten fuer jeden Puffer; bei
+        // "abwechselnd" wird reihum verteilt (Puffer k im Lauf r nimmt Geraet r*n+k).
         public List<BufferItem> BuffersFor(int run, string prefix)
         {
-            List<string> lines = Lines(run, prefix);
-            string name = "";
-            if (Title.Length > 0 && lines.Count > 0) { name = lines[0]; lines.RemoveAt(0); }
+            int n = Math.Max(1, PufferCount);
             List<BufferItem> res = new List<BufferItem>();
+            string[] names = BufferNames();
+            int k = 0;
             foreach (KeyValuePair<string, int> kv in VariantSet.Counts(Variant))
-                for (int i = 0; i < kv.Value; i++) BufferSet.Add(res, name, kv.Key, string.Join("\n", lines.ToArray()));
+                for (int i = 0; i < kv.Value; i++)
+                    for (int j = 0; j < n; j++, k++)
+                    {
+                        List<string> lines = Lines(run, prefix, run * n + j);
+                        string name = "";
+                        if (Title.Length > 0 && lines.Count > 0) { name = lines[0]; lines.RemoveAt(0); }
+                        if (k < names.Length && names[k].Length > 0) name = names[k];
+                        else if (n > 1 && k > 0 && name.Length > 0) name += Numbered ? " (" + (k + 1) + ")" : " " + (k + 1);   // "Titel 2"; bei "Titel 1, 2, 3" (Wiederholung) "Titel 1 (2)"
+                        BufferSet.Add(res, name, kv.Key, string.Join("\n", lines.ToArray()));
+                    }
             return res;
         }
 
-        List<string> Lines(int run, string prefix)
+        // Namen aus PufferNames (getrimmt, leere bleiben als "" erhalten)
+        public string[] BufferNames()
+        {
+            if (PufferNames.Length == 0) return new string[0];
+            string[] a = PufferNames.Split('|');
+            for (int i = 0; i < a.Length; i++) a[i] = a[i].Trim();
+            return a;
+        }
+
+        List<string> Lines(int run, string prefix) { return Lines(run, prefix, run); }
+
+        // alt: Index fuer "abwechselnd" (normal = run; bei mehreren Puffern je Lauf run*n+Puffer)
+        List<string> Lines(int run, string prefix, int alt)
         {
             string product = prefix;
             List<string> lines = new List<string>();
@@ -152,7 +178,7 @@ namespace Arbeitsplan.Core
             else if (Title.Length > 0) lines.Add(Title);
             if (Text.Length > 0) lines.Add(Text);
             if (AnsatzLine().Length > 0) lines.Add(AnsatzLine());   // z. B. "Gebinde: Flasche 5 L"
-            foreach (EquipAssign a in Equipment) { string l = a.Line(run); if (l.Length > 0) lines.Add(l); }
+            foreach (EquipAssign a in Equipment) { string l = a.Line(alt); if (l.Length > 0) lines.Add(l); }
             lines.AddRange(NoteTexts());   // Notizzeilen ohne Praefix (im Plan kursiv, siehe EntryFor)
             if (IdentFor(run).Length > 0) lines.Add(IdentFor(run));   // immer die letzte Zeile (Format in BuildTargets)
             return lines;
@@ -215,6 +241,27 @@ namespace Arbeitsplan.Core
         public string ProductCode = "";     // frei (z. B. "AB1", alt "1357"), siehe IsProductCode; leer = ohne Produkt
         public List<PackageStep> Steps = new List<PackageStep>();
         public List<PackageBlock> Blocks = new List<PackageBlock>();
+
+        // Pufferpaket (Unterpaket): kleines wiederverwendbares Paket nur aus Puffer-Schritten; im Paket-Editor als Kopie in eine Kampagne einsetzbar
+        public bool IsBufferPackage
+        {
+            get
+            {
+                if (Steps.Count == 0 || Blocks.Count > 0) return false;
+                foreach (PackageStep s in Steps) if (!s.IsBuffer) return false;
+                return true;
+            }
+        }
+
+        // Kopie des Puffer-Schritts fuer ein Pufferpaket: ohne Bezug zu Hauptlauf und Rhythmus (Tag 1, ein Termin)
+        public static PackageStep ForBufferPackage(PackageStep s)
+        {
+            PackageStep c = s.Clone();
+            c.Day = 1; c.Count = 1; c.Interval = 1; c.Bind = StepBind.Frei; c.RunOffset = 0; c.RunEvery = 1;
+            c.Repeat = RepeatMode.Interval; c.WeekDays = 0; c.DayList = ""; c.Until = 0;
+            c.Shift.Clear(); c.Move.Clear(); c.Skip.Clear(); c.IdentOver.Clear();
+            return c;
+        }
 
         // ---------- Aus einer Woche erstellen / in eine Woche uebernehmen ----------
 
@@ -403,6 +450,17 @@ namespace Arbeitsplan.Core
         static EquipAssign Eq(PackageStep s, string sh, string id)
         {
             EquipAssign a = new EquipAssign(); a.Short = sh; a.Choices.Add(new EquipChoice(sh, id)); s.Equipment.Add(a); return a;
+        }
+
+        // PB: Testkampagne plus Puffer-Schritt mit 3 mobilen Puffern (Namen), 2 mobilen Tanks und einer Flasche je Puffer; Tag 2 (--makepkg PB...)
+        public static Package SampleBuffers(string name)
+        {
+            Package p = SampleCampaign(name);
+            PackageStep pu = new PackageStep(); pu.Title = "Puffer mobil"; pu.Source = "Puffer mobil"; pu.Row = "Puffer"; pu.Day = 2; pu.Variant = "mobil"; pu.PufferCount = 3; pu.PufferNames = "Lösung A|Lösung B";
+            for (int i = 1; i <= 2; i++) { EquipAssign a = new EquipAssign(); a.Short = "MobT"; a.Note = "Tank " + i; pu.Equipment.Add(a); }
+            EquipAssign fl = new EquipAssign(); fl.Short = "Flasche"; fl.Note = "5 L"; pu.Equipment.Add(fl);
+            p.Steps.Add(pu);
+            return p;
         }
 #endif
 

@@ -87,6 +87,8 @@ namespace Arbeitsplan.Core
                     Add(res, Severity.Sperre, "ident", "Kennung-Start „" + s.IdentStart + "“ hat keine Endziffern – ab Lauf 2 bleibt die Kennung gleich.", i);
                 if (s.Source == PackenName && !s.IsBackup && s.ManualNo.Length == 0)
                     Add(res, Severity.Hinweis, "packen", "Packen ohne eigene Nummer im Paket – sie wird beim Kampagnenstart Pflicht (von Hand, 8 Ziffern).", i);
+                if (s.IsBuffer && s.PufferCount > 9) Add(res, Severity.Sperre, "pufzahl", "Mehr als 9 Puffer je Termin sind nicht möglich (" + s.PufferCount + ").", i);
+                if (s.IsBuffer && s.BufferNames().Length > Math.Max(1, s.PufferCount)) Add(res, Severity.Hinweis, "pufnamen", "Es sind mehr Puffer-Namen als Puffer eingetragen – die überzähligen Namen werden nicht verwendet.", i);
                 if (s.RunEvery > 1 && !s.IsBuffer) Add(res, Severity.Hinweis, "every", "„Reicht für " + s.RunEvery + " Läufe“ ist nur für Puffer üblich.", i);
             }
 

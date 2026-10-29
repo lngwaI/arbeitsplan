@@ -52,6 +52,8 @@ namespace Arbeitsplan.Core
                     w.WriteAttributeString("text", s.Text); w.WriteAttributeString("notiz", s.Note);
                     WriteStep7(w, o, si, plan);
                     if (s.Variant.Length > 0) w.WriteAttributeString("variante", s.Variant);
+                    if (s.PufferCount != 1) w.WriteAttributeString("puffer", I(s.PufferCount));
+                    if (s.PufferNames.Length > 0) w.WriteAttributeString("pufnamen", s.PufferNames);
                     if (s.BackupOf.Length > 0) w.WriteAttributeString("backup", s.BackupOf);
                     if (s.Repeat != RepeatMode.Interval) w.WriteAttributeString("wiederholung", s.Repeat == RepeatMode.Weekdays ? "wochentage" : "tage");
                     if (s.WeekDays != 0) w.WriteAttributeString("wochentage", PackageStep.WeekDayText(s.WeekDays));
@@ -163,6 +165,7 @@ namespace Arbeitsplan.Core
                     s.SubNos = e.GetAttribute("unterlaeufe");
                     s.Text = e.GetAttribute("text"); s.Note = e.GetAttribute("notiz");
                     s.Variant = e.GetAttribute("variante"); s.BackupOf = e.GetAttribute("backup");   // fehlt bis Version 5
+                    s.PufferCount = Clamp(ToInt(e.GetAttribute("puffer"), 1), 1, 99); s.PufferNames = e.GetAttribute("pufnamen");   // fehlt = 1 Puffer, keine Namen; >9 sperrt die Pruefung
                     string wh = e.GetAttribute("wiederholung");   // fehlt bis Version 4: alle x Tage
                     s.Repeat = wh == "wochentage" ? RepeatMode.Weekdays : (wh == "tage" ? RepeatMode.DayList : RepeatMode.Interval);
                     s.WeekDays = PackageStep.ParseWeekDays(e.GetAttribute("wochentage")); s.DayList = e.GetAttribute("tage");

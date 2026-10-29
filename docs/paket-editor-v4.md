@@ -155,3 +155,17 @@ Verworfen: A) Zeilen "Puffer n: Name" im Content (Nummer/Typ hängen an Textposi
 **Entscheidungen zu den offenen Fragen (Annahmen, Empfehlungen des Architekten übernommen):** (1) Name = freie Eingabe mit Vorschlägen (bisherige Namen der Zeile + Puffer-Bausteine); (2) Paket-Variante "beides" entfällt, ein Schritt = ein Puffer mit einem Typ (alte Pakete mit "beides" = zwei Puffer gleichen Namens); (3) Equipment und Notiz des Puffer-Schritts gehören zum Puffer (eingerückt).
 
 **Bauschritte:** P1 Core (Datenmodell, XML, Migration, `Types`, Merge, Paket, Audit, `Find`, Tests umstellen ~100 Stellen) → P2 Win (Anzeige, `BufferForm`, Chips entfernen, Shots 4:3/16:9, Anleitung). Risiken: Layout (dritter Bereich in der Zelle), breiter Testumbau, zwei Textorte (Hinweis im Bearbeitungsmodus "Puffer per Klick bearbeiten"), alte exe verliert Puffer still (nichts verteilt).
+
+---
+
+# PB: Puffer im Paket-Editor (2026-10-29)
+
+Nutzerwunsch: mehrere Equipments je Puffer als Standard, mehrere Puffer am selben Tag, Namen, "Unterpaket". `Backup.FormatVersion` bleibt 4, Paketformat bleibt 7 (neue Attribute sind optional).
+
+- **Standard-Anzahl Equipment** (`Baustein.Counts`, `DefaultCount(Kurzform)`, XML `<P v="MobT" n="2"/>`, nur >1 geschrieben; Eingabe in `CatalogForm` → Baustein → Position markieren → "Standard-Anzahl"): ein neuer Schritt aus dem Baustein legt je Position so viele Equipment-Zeilen an (z. B. 2 mobile Tanks); im Schritt wie bisher hinzufügen/entfernen. Der Katalog-Standard bleibt 1 (Fachregel nicht geändert; der Admin trägt z. B. "MobT = 2" selbst ein).
+- **Anzahl Puffer** (`PackageStep.PufferCount`, XML `puffer`, Standard 1, UI 1..9 neben "Puffer-Typ"): ein Vorkommen erzeugt n Puffer gleichen Typs am selben Tag. Equipment: die Zeilen des Schritts gelten für **jeden** Puffer; bei "abwechselnd" reihum (Lauf r, Puffer k nimmt Gerät r·n+k). Mobil und stationär am selben Tag = zwei Puffer-Schritte.
+- **Namen** (`PufferNames`, XML `pufnamen`, durch `|` getrennt; im Editor eine Zeile je Puffer, sichtbar sobald Anzahl > 1 oder Namen gesetzt): fehlt ein Name, gilt der Titel, ab Puffer 2 "Titel 2" (bei nummerierten Schritten "Titel 1 (2)"). Im Plan "Puffer n: Name".
+- **Prüfregeln** (`Packages.Rules.cs`): "Mehr Puffer-Termine als Produktläufe" zählt Vorkommen (nicht Puffer); Puffer-Zahl > 9 = Sperre (`pufzahl`); mehr Namen als Puffer = Hinweis (`pufnamen`).
+- **Pufferpaket (Annahme für "Unterpaket")**: kleines normales `.apkg`, das nur Puffer-Schritte enthält (`Package.IsBufferPackage`, kein neuer Typ im XML). Paket-Editor, Knopf "Pufferpaket ▾" unter dem Ablauf: "Gewählten Puffer-Schritt als Pufferpaket speichern…" (Schritt ohne Bezug zu Hauptlauf/Rhythmus, Tag 1) und "Pufferpaket einfügen…" (Paketauswahl wie "Öffnen"; Puffer-Schritte werden als **Kopie** eingesetzt, nicht verknüpft; andere Schritte werden nicht übernommen, mit Hinweis). Ein Pufferpaket kann mehrere Puffer-Schritte enthalten (z. B. mobil + stationär).
+- **Migration**: alte Pakete = `PufferCount` 1, keine Namen; alte Kataloge = Anzahl 1; Golden-Test unverändert.
+- Tests: `MainForm.SelfTestPB.cs` (Core), `PackageForm.TestPB.cs` (Editor); Testbilder `--form package10`, `--makepkg PB<Name>.apkg` + `--applypkg`.
