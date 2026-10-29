@@ -217,7 +217,7 @@ namespace Arbeitsplan.Win
             Rebuild(false);
         }
 
-        static string NoPufferFile { get { return System.IO.Path.Combine(System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Arbeitsplan"), "keine-puffer-standards"); } }
+        static string NoPufferFile { get { return System.IO.Path.Combine(System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), Arbeitsplan.Core.AppId.Dir), "keine-puffer-standards"); } }
 
         // Alter Bestand ohne Puffer-Standards (Pflichtpunkte/Varianten): nach dem Start nur Admins (PackageAdmin) fragen, nie ungefragt,
         // vorhandene Einstellungen bleiben. "Nein" wird auf diesem PC gemerkt (Knopf in "Pflichtpunkte & Feiertage" bleibt).

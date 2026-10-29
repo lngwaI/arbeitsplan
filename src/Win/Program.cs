@@ -4,7 +4,7 @@ using System.Windows.Forms;
 
 namespace Arbeitsplan.Win
 {
-    static class Program
+    static partial class Program
     {
         static string Arg(string[] a, string name)
         {
@@ -205,7 +205,11 @@ namespace Arbeitsplan.Win
             // Test: --data <ordner> nutzt die verschluesselte Datendatei (wie Release) statt der Testdaten; Testadmin mmuster
             Arbeitsplan.Core.AppConfig cfg = null;
             Arbeitsplan.Core.FileStore fs = null;
-            if (Arg(args, "--data") != null)
+#if DEMO
+            // Vorfuehr-Version: eigener Demo-Datenordner, Rollenwahl statt Windows-Login (Program.Demo.cs)
+            if (!DemoStart(args, shot != null, nosave, ref login, out cfg, out fs)) return;
+#endif
+            if (!Arbeitsplan.Core.AppId.IsDemo && Arg(args, "--data") != null)
             {
                 cfg = Arbeitsplan.Core.AppConfig.Load(AppDomain.CurrentDomain.BaseDirectory);
                 cfg.DataFolder = System.IO.Path.GetFullPath(Arg(args, "--data")); cfg.Note = null;
@@ -237,12 +241,19 @@ namespace Arbeitsplan.Win
             if (mk != null) { Arbeitsplan.Core.Package.SampleCampaign(System.IO.Path.GetFileNameWithoutExtension(mk)).Save(mk); return; }
             if (shot == null)
             {
+#if DEMO
+                MainForm dm = new MainForm(login, nosave, cfg, fs);
+                if (sz != null) dm.ClientSize = cs; else dm.FitToCursorScreen();
+                DemoRun(dm, cfg);
+                return;
+#else
                 Splash sp = StartSplash();
                 MainForm m = new MainForm(login, nosave, cfg, fs);
                 if (sz != null) m.ClientSize = cs; else m.FitToCursorScreen();
                 m.Shown += delegate { m.BeginInvoke((MethodInvoker)delegate { m.OfferPufferDefaults(); }); };
                 RunMain(m, sp, t0);
                 return;
+#endif
             }
 
             MainForm f = new MainForm(login, nosave, cfg, fs);

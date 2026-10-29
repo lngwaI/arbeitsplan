@@ -35,3 +35,4 @@ _privat/
 Test-Arbeitsplan/
 testergebnis/
 !config/Testprodukt.apkg
+bin_demo/

@@ -116,6 +116,9 @@ namespace Arbeitsplan.Win
                 if (which == "wizard3") cw.TestPage(2, "1234", false);
                 f = cw;
             }
+#if DEMO
+            else if (which == "demorole") f = new DemoRoleForm(users, null);
+#endif
             else if (which == "structure") f = new StructureForm(store.GetRows(), true, true, true);
             else if (which == "duties") f = new DutiesForm(store.GetDuties(), store.GetRows());
             else if (which == "equipexport")
@@ -291,6 +294,9 @@ namespace Arbeitsplan.Win
         {
             System.Text.StringBuilder sb = new System.Text.StringBuilder();
             quiet = true;
+#if DEMO
+            if (cfg != null) return SelfTestDemo();   // Vorfuehr-Version: eigene Tests (MainForm.SelfTestDemo.cs)
+#endif
             try { SelfTestSave(sb); }
             catch (System.IO.IOException ex)
             {

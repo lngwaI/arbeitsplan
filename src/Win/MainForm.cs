@@ -142,6 +142,9 @@ namespace Arbeitsplan.Win
             Controls.Add(dateBar);
             Controls.Add(fmtBar);
             Controls.Add(topBar);
+#if DEMO
+            Controls.Add(BuildDemoBanner());   // Vorfuehr-Version: Banner unter dem Menue (MainForm.Demo.cs)
+#endif
             Controls.Add(BuildMenu());
             Controls.Add(bar);
             Controls.Add(statusBar);   // zuletzt = ganz unten
@@ -156,6 +159,9 @@ namespace Arbeitsplan.Win
             StartPolling();   // Datendatei regelmaessig auf Aenderungen pruefen (MainForm.Storage.cs)
             InitNotices();    // Benachrichtigungen, Uebernahme der Bearbeitung (MainForm.TakeOver.cs)
             Theme.Current.Style(this);
+#if DEMO
+            StyleDemoBanner();
+#endif
             Rebuild(true);
 #if TESTHOOKS
             if (TestWeeks == 2) SetWeeks(2);
@@ -205,7 +211,11 @@ namespace Arbeitsplan.Win
             ToolStripMenuItem help = new ToolStripMenuItem("Hilfe");
             miNotices = (ToolStripMenuItem)help.DropDownItems.Add("Benachrichtigungen…", null, delegate { ShowNotices(); });
             miNotices.Enabled = shownPlan == null;
+#if DEMO
+            AddDemoMenu(help);   // Rolle wechseln, Demo zuruecksetzen (keine Verknuepfung)
+#else
             help.DropDownItems.Add("Verknüpfung prüfen / anlegen…", null, delegate { Shortcut.Check(this); });
+#endif
             help.DropDownItems.Add("Info…", null, delegate { ShowInfo(); });
 
             ms.Items.AddRange(new ToolStripItem[] { file, pk, set, help });

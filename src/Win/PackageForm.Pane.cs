@@ -17,7 +17,7 @@ namespace Arbeitsplan.Win
         const int MiddleMin = 240;          // Platz, der Abschnitt 1 und 2 mindestens bleibt
 
         // Datei der gemerkten Einstellungen (Tests setzen einen anderen Pfad)
-        internal static string PrefsFile = Path.Combine(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Arbeitsplan"), "paketeditor.ini");
+        internal static string PrefsFile = Path.Combine(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), Arbeitsplan.Core.AppId.Dir), "paketeditor.ini");
 
         int PaneMin { get { return 9 * Font.Height / 2 + 84; } }
         int PaneMax

@@ -49,7 +49,7 @@ namespace Arbeitsplan.Win
             string pkg = admin ? UserDb.AdminId : users.FindByLogin(login) != null ? null : (cfg.Pilot ? "produktion" : "leser");
             if (fstore.ReadOnly) { pkg = "leser"; offlineStart = fstore.Offline; }   // Systemrechner / OFFLINE: nur ansehen
             if (pkg != null) users.Assign(u, pkg);
-            List<string> bind = Umgebung.AutoBind(Umgebung.UserDomain, Umgebung.MachineDomain, Umgebung.Machine);
+            List<string> bind = AppId.IsDemo ? new List<string>() : Umgebung.AutoBind(Umgebung.UserDomain, Umgebung.MachineDomain, Umgebung.Machine);   // Demo: nie Domaenenbindung
             if (!fstore.ReadOnly && users.Domains.Count == 0 && UserDb.IsAdmin(u.Rights) && bind.Count > 0)
             {   // erster Admin mit Domaenenkonto bindet die Daten an diese Umgebung (Umgebung.Allowed); aenderbar in der Nutzerverwaltung
                 UserChanges dc = new UserChanges(); dc.Domains = bind;
@@ -63,6 +63,9 @@ namespace Arbeitsplan.Win
         {
             System.Reflection.Assembly asm = System.Reflection.Assembly.GetExecutingAssembly();
             string ver = System.Diagnostics.FileVersionInfo.GetVersionInfo(asm.Location).FileVersion;
+#if DEMO
+            if (ShowDemoInfo()) return;
+#endif
             string exe = Application.ExecutablePath, state = "Testdaten (keine Speicherung)";
             if (fstore != null) state = fstore.Folder + (fstore.Offline ? "  (OFFLINE, letzter Stand dieses PCs)" : fstore.ReadOnly ? "  (nur lesen)" : "");
             MessageBox.Show(this, "Arbeitsplan " + ver + "  (Stand " + File.GetLastWriteTime(exe).ToString("dd.MM.yyyy HH:mm") + ")"
@@ -85,7 +88,7 @@ namespace Arbeitsplan.Win
                 : fstore == null ? "Testdaten" + (systemPc ? ", kein Speichern" : "")
                 : fstore.Offline ? "OFFLINE"
                 : refreshing ? "aktualisiere…" : "√ online, aktuell";
-            Text = "Arbeitsplan (" + st + ")";
+            Text = AppId.IsDemo ? "Arbeitsplan – VORFÜHRUNG – Testdaten (" + st + ")" : "Arbeitsplan (" + st + ")";
         }
 
         // Rechts in der Statusleiste: Datenstand + letztes Ereignis (ev == null: unveraendert). flash = kurz gelb hinterlegen.
@@ -95,6 +98,7 @@ namespace Arbeitsplan.Win
         {
             if (ev != null) lastEvent = ev;
             List<string> p = new List<string>();
+            if (AppId.IsDemo) p.Add("VORFÜHRUNG – Testdaten");
             bool off = fstore != null && fstore.Offline;
             if (newVersion) p.Add("NEUE VERSION: bitte neu starten");
             if (off) p.Add("OFFLINE – nur Lesen");
