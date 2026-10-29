@@ -73,11 +73,9 @@ namespace Arbeitsplan.Win
 
             RowInfo ri = rowInfo[c.RowIndex];
             string holder = locks.Holder(c.Day, ri.Id, me.Display);
-            if (holder != null)
-            {
-                MessageBox.Show("Das Fenster " + BlockTitle(c) + " wird gerade von " + holder + " bearbeitet.", "Arbeitsplan", MessageBoxButtons.OK, MessageBoxIcon.Information);
-            }
+            if (holder != null && !AskLocked(c, holder)) return;   // Hinweis: trotzdem bearbeiten, Bearbeitung uebernehmen oder abbrechen (MainForm.TakeOver.cs)
             locks.Acquire(c.Day, ri.Id, me.Display);   // Soft-Lock: danach trotzdem bearbeiten und speichern
+            editStart = DateTime.Now;
 
             editCell = c;
             c.Editing = true; c.Dirty = true;

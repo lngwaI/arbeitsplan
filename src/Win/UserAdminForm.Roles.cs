@@ -20,11 +20,11 @@ namespace Arbeitsplan.Win
 
         void BuildRoles()
         {
-            roleList.SetBounds(10, 10, 255, 500);
+            roleList.SetBounds(10, 10, 255, 522);
             roleList.SelectedIndexChanged += delegate { RoleItem it = roleList.SelectedItem as RoleItem; SelectRole(it != null ? it.R : null); };
-            bRoleNew.SetBounds(10, 520, 65, 30); bRoleNew.Text = "Neu"; bRoleNew.Click += delegate { NewRole(false); };
-            bRoleCopy.SetBounds(80, 520, 80, 30); bRoleCopy.Text = "Kopieren"; bRoleCopy.Click += delegate { NewRole(true); };
-            bRoleEnd.SetBounds(165, 520, 100, 30); bRoleEnd.Click += delegate { ToggleRole(); };
+            bRoleNew.SetBounds(10, 542, 65, 30); bRoleNew.Text = "Neu"; bRoleNew.Click += delegate { NewRole(false); };
+            bRoleCopy.SetBounds(80, 542, 80, 30); bRoleCopy.Text = "Kopieren"; bRoleCopy.Click += delegate { NewRole(true); };
+            bRoleEnd.SetBounds(165, 542, 100, 30); bRoleEnd.Click += delegate { ToggleRole(); };
             Label1(pRoles, "Name", 280, 10); tRoleName.SetBounds(400, 10, 280, 22);
             Label1(pRoles, "Kennung", 280, 40); tRoleId.SetBounds(400, 40, 120, 22); tRoleId.ReadOnly = true;
             Label1(pRoles, "Rechte der Rolle:", 280, 74);
@@ -35,7 +35,7 @@ namespace Arbeitsplan.Win
                 y += 22; roleBoxes[r] = cb; pRoles.Controls.Add(cb);
             }
             lRoleHint.SetBounds(280, y + 8, 400, 70);
-            bRoleSave.SetBounds(280, 520, 120, 30); bRoleSave.Text = "Übernehmen"; bRoleSave.Click += delegate { ApplyRole(); };
+            bRoleSave.SetBounds(280, 542, 120, 30); bRoleSave.Text = "Übernehmen"; bRoleSave.Click += delegate { ApplyRole(); };
             pRoles.Controls.AddRange(new Control[] { roleList, bRoleNew, bRoleCopy, bRoleEnd, tRoleName, tRoleId, lRoleHint, bRoleSave });
             ReloadRoles(null);
         }

@@ -33,16 +33,16 @@ namespace Arbeitsplan.Win
             FormClosed += delegate { foreach (User u in fresh) db.Users.Remove(u); fresh.Clear(); };   // nie uebernommen (ohne Login) = verwerfen
             FormClosing += delegate { TakeDomains(); };
             Text = "Nutzerverwaltung";
-            Ui.Dialog(this, 720, 636);
-            tabs.SetBounds(8, 8, 704, 620);
+            Ui.Dialog(this, 720, 658);
+            tabs.SetBounds(8, 8, 704, 642);
             tabs.TabPages.AddRange(new[] { pUsers, pRoles, pEnv });
             Controls.Add(tabs);
 
-            list.SetBounds(10, 10, 200, 530);
+            list.SetBounds(10, 10, 200, 552);
             list.SelectedIndexChanged += delegate { Select(list.SelectedItem as User); };
-            bNew.SetBounds(10, 550, 60, 30); bNew.Text = "+"; bNew.Enabled = me.Has(Perm.UserCreate);
+            bNew.SetBounds(10, 572, 60, 30); bNew.Text = "+"; bNew.Enabled = me.Has(Perm.UserCreate);
             bNew.Click += delegate { AddUser(); };
-            bDel.SetBounds(80, 550, 90, 30); bDel.Text = "Löschen"; bDel.Enabled = me.Has(Perm.UserDelete);
+            bDel.SetBounds(80, 572, 90, 30); bDel.Text = "Löschen"; bDel.Enabled = me.Has(Perm.UserDelete);
             bDel.Click += delegate { DeleteUser(); };
 
             Label1(pUsers, "Vorname", 225, 10); tFirst.SetBounds(440, 10, 240, 22);
@@ -61,9 +61,9 @@ namespace Arbeitsplan.Win
                 y += 22; rightBoxes[r] = cb; pUsers.Controls.Add(cb);
             }
             lPreview.SetBounds(225, y + 6, 460, 20);
-            bReset.SetBounds(225, 550, 200, 30); bReset.Text = "Abweichungen zurücksetzen";
+            bReset.SetBounds(225, 572, 200, 30); bReset.Text = "Abweichungen zurücksetzen";
             bReset.Click += delegate { TakeRole(); };
-            bSave.SetBounds(435, 550, 120, 30); bSave.Text = "Übernehmen";
+            bSave.SetBounds(435, 572, 120, 30); bSave.Text = "Übernehmen";
             bSave.Click += delegate { Apply(); };
             pUsers.Controls.AddRange(new Control[] { list, bNew, bDel, tFirst, tLast, tLogin, tKuerzel, cbRole, lPreview, bReset, bSave });
 

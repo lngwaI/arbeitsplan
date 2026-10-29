@@ -154,6 +154,7 @@ namespace Arbeitsplan.Win
             FormClosing += OnClosing;
             InitData();   // Verlauf-Menue, Sicherung beim Beenden (MainForm.Data.cs)
             StartPolling();   // Datendatei regelmaessig auf Aenderungen pruefen (MainForm.Storage.cs)
+            InitNotices();    // Benachrichtigungen, Uebernahme der Bearbeitung (MainForm.TakeOver.cs)
             Theme.Current.Style(this);
             Rebuild(true);
 #if TESTHOOKS
@@ -202,6 +203,8 @@ namespace Arbeitsplan.Win
             set.Visible = structure || usr || me.Has(Perm.PackageAdmin);
 
             ToolStripMenuItem help = new ToolStripMenuItem("Hilfe");
+            miNotices = (ToolStripMenuItem)help.DropDownItems.Add("Benachrichtigungen…", null, delegate { ShowNotices(); });
+            miNotices.Enabled = shownPlan == null;
             help.DropDownItems.Add("Verknüpfung prüfen / anlegen…", null, delegate { Shortcut.Check(this); });
             help.DropDownItems.Add("Info…", null, delegate { ShowInfo(); });
 

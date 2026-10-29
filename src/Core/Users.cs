@@ -8,9 +8,9 @@ namespace Arbeitsplan.Core
     public static class Perm
     {
         public const string Read = "Lesen", EditText = "TextAendern", DeleteText = "TextLoeschen", AddText = "TextHinzufuegen",
-            Format = "Format", SortRows = "ZeilenSortieren", PackageAdmin = "PaketeEinrichten", Export = "Exportieren", ImportPackage = "PaketeImportieren", EditNames = "BlockNamenAendern", EditHeight = "BlockhoeheAendern", UserCreate = "NutzerAnlegen", UserEdit = "NutzerBearbeiten", UserDelete = "NutzerLoeschen", Rounds = "RundgangAbhaken", SetStatus = "StatusSetzen";
+            Format = "Format", SortRows = "ZeilenSortieren", PackageAdmin = "PaketeEinrichten", Export = "Exportieren", ImportPackage = "PaketeImportieren", EditNames = "BlockNamenAendern", EditHeight = "BlockhoeheAendern", UserCreate = "NutzerAnlegen", UserEdit = "NutzerBearbeiten", UserDelete = "NutzerLoeschen", Rounds = "RundgangAbhaken", SetStatus = "StatusSetzen", TakeOver = "BearbeitungUebernehmen";
 
-        public static readonly string[] All = { Read, EditText, DeleteText, AddText, Format, EditNames, EditHeight, SortRows, Export, ImportPackage, Rounds, SetStatus, PackageAdmin, UserCreate, UserEdit, UserDelete };
+        public static readonly string[] All = { Read, EditText, DeleteText, AddText, Format, EditNames, EditHeight, SortRows, Export, ImportPackage, Rounds, SetStatus, TakeOver, PackageAdmin, UserCreate, UserEdit, UserDelete };
 
         public static string Label(string r)
         {
@@ -32,6 +32,7 @@ namespace Arbeitsplan.Core
                 case UserDelete: return "Nutzer löschen";
                 case Rounds: return "Rundgänge abhaken";
                 case SetStatus: return "Equipment-Status setzen";
+                case TakeOver: return "Bearbeitung übernehmen (Bearbeiter ablösen)";
             }
             return r;
         }
@@ -56,6 +57,7 @@ namespace Arbeitsplan.Core
                 case UserDelete: return "Nutzer löschen";
                 case Rounds: return "Rundgänge";
                 case SetStatus: return "Status";
+                case TakeOver: return "Übernehmen";
             }
             return r;
         }
@@ -159,7 +161,7 @@ namespace Arbeitsplan.Core
         {
             UserDb db = new UserDb();
             db.Packages.Add(new RightsPackage("leser", "Leser", Perm.Read, Perm.Export));
-            db.Packages.Add(new RightsPackage("produktion", "Produktion", Perm.Read, Perm.EditText, Perm.DeleteText, Perm.AddText, Perm.Format, Perm.Export, Perm.ImportPackage, Perm.Rounds, Perm.SetStatus));
+            db.Packages.Add(new RightsPackage("produktion", "Produktion", Perm.Read, Perm.EditText, Perm.DeleteText, Perm.AddText, Perm.Format, Perm.Export, Perm.ImportPackage, Perm.Rounds, Perm.SetStatus, Perm.TakeOver));
             db.Packages.Add(new RightsPackage(AdminId, "Admin", (string[])Perm.All.Clone()));
             return db;
         }
@@ -168,7 +170,7 @@ namespace Arbeitsplan.Core
         public void WriteXml(XmlWriter w)
         {
             w.WriteStartElement("Nutzer");
-            w.WriteAttributeString("rechte", "3");   // 2: mit Perm.Rounds; 3: mit Perm.SetStatus
+            w.WriteAttributeString("rechte", "4");   // 2: mit Perm.Rounds; 3: mit Perm.SetStatus; 4: mit Perm.TakeOver (Rechte sind Texte, aeltere Programme ignorieren das neue)
             if (Domains.Count > 0) w.WriteAttributeString("domaenen", string.Join(",", Domains.ToArray()));
             foreach (RightsPackage p in Packages)
             {
@@ -203,6 +205,7 @@ namespace Arbeitsplan.Core
                 int rv; int.TryParse(e.GetAttribute("rechte"), out rv);
                 if (rv == 0 && rights.Contains(Perm.EditText)) rights.Add(Perm.Rounds);   // alte Datei: Produktion/Admin bekommen das neue Recht
                 if (rv < 3 && rights.Contains(Perm.EditText)) rights.Add(Perm.SetStatus);
+                if (rv < 4 && rights.Contains(Perm.EditText)) rights.Add(Perm.TakeOver);
                 if (x.Name == "Paket")
                 {
                     string name = x.GetAttribute("name"), id = x.GetAttribute("id");

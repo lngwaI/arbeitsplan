@@ -107,6 +107,7 @@ namespace Arbeitsplan.Win
             else if (which == "openduties") { DateTime mon = ShownWeek; f = new OpenDutiesForm("Offen in " + PlanView.WeekTitle(mon), delegate(int w) { return OpenDuties.List(store, store.GetDuties(), store.GetRows(), mon, w, DateTime.Today); }); }
             else if (which == "steppicker") { List<string> nm = new List<string>(); foreach (RowInfo r in store.GetRows()) nm.Add(r.Name); StepPicker sp = new StepPicker(store.GetCatalog(), new List<PackageStep>(), nm); sp.TestSelect("Puffer"); f = sp; }
             else if (which == "catalog") { List<string> nm = new List<string>(); foreach (RowInfo r in store.GetRows()) nm.Add(r.Name); f = new CatalogForm(store.GetCatalog(), nm); }
+            else if (which == "locked" || which == "takeover" || which == "notices") f = TestNoticeForm(which);
             else if (which == "history" || which == "backup") f = TestDataForm(which);
             else if (which == "quickadd" || which == "unassigned" || which == "equipfits") f = TestQuickForm(which);
             else if (which.StartsWith("stammdaten") || which == "products" || which.StartsWith("equiptable") || which.StartsWith("equipmatrix")) f = TestStammForm(which);
@@ -306,6 +307,7 @@ namespace Arbeitsplan.Win
             SelfTestEquipFile(sb);   // Status aus Datei, Vorrang manuell (MainForm.SelfTestEquipFile.cs)
             SelfTestEquipQuick(sb);   // Schnellerfassung, Nicht zugeordnet, Passt zu, Felder (MainForm.SelfTestEquipQuick.cs)
             SelfTestPaket3(sb);   // Wiederholmodi, Verschieben, Varianten mit Anzahl, Ansatz, alte Pakete (MainForm.SelfTestPaket3.cs)
+            SelfTestTakeOver(sb);   // Soft-Lock: Uebernahme, Nachrichten, Sperrenwechsel (MainForm.SelfTestTakeOver.cs)
             quiet = false;
             return sb.ToString();
         }
