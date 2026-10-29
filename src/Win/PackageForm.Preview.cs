@@ -120,6 +120,7 @@ namespace Arbeitsplan.Win
         void UpdateHints()
         {
             List<Hint> h = new List<Hint>();
+            pufBad.Clear();
             if (tName.Text.Trim().Length == 0) h.Add(new Hint("Das Muster hat noch keinen Namen.", null, tName));
             bool runs = steps.Exists(delegate(PackageStep s) { return s.Kind != StepKind.Normal; });
             if (ProductError() != null) h.Add(new Hint(ProductError(), null, tProduct));
@@ -144,6 +145,7 @@ namespace Arbeitsplan.Win
                     h.Add(new Hint(n + ": Tank (" + t + ") nicht gewählt – Gerät wählen oder Ansatz „Flasche/Gebinde“/„Ohne Gebinde“.", s, cbAnsatz));
                 foreach (EquipAssign a in s.Equipment)
                     foreach (string id in EquipRow.Unvalidated(a, cat, Product)) h.Add(EquipHint(n, a, id, s));
+                PufferHints(h, n, s);   // je Puffer: nicht validiert, Produktpassung, Kartenmarkierung (PackageForm.PufferCards.cs)
                 Package one = new Package(); one.ProductCode = Product; one.RunPrefix = prefix; one.Steps.Add(s);   // Zugehoerigkeit: sperrt Speichern/Uebernehmen
                 foreach (string e in cat.CheckPackage(one)) { Hint fh = new Hint(n + " FEHLER: " + e, s, null); fh.Blocks = true; h.Add(fh); }
                 foreach (string e in cat.CheckPackageWarn(one)) h.Add(new Hint(n + ": " + e, s, null));   // Stammdaten "Passt zu": nur Hinweis
@@ -152,6 +154,7 @@ namespace Arbeitsplan.Win
             bool ok = h.Count == 0;
             if (ok) h.Add(new Hint("Keine Auffälligkeiten – das Muster kann übernommen werden.", null, null));
             FillHintList(BlocksFirst(h));
+            MarkCards();
             strip.Mark(null, -1);
             lbHints.ForeColor = ok ? Color.DarkGreen : Color.FromArgb(150, 60, 0);
         }

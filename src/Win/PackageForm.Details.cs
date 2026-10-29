@@ -103,6 +103,7 @@ namespace Arbeitsplan.Win
             Btn(bPos, "+ Position hinzufügen ▾", 8, 0, 190, delegate { menuPos.Show(bPos, new Point(0, bPos.Height)); });
             gEquip.Controls.Add(bPos);
             BuildPosMenu();
+            BuildPuffer();   // Karten je Puffer (PackageForm.PufferCards.cs)
             bMore.TabIndex = 3; gEquip.TabIndex = 4; gExtra.TabIndex = 5;
 
             foreach (TextBox t in new[] { tTitle, tSubNos, tIdent, tNote }) Ui.SimpleMenu(t);
@@ -155,6 +156,8 @@ namespace Arbeitsplan.Win
             loading = true;
             body.SuspendLayout();
             while (equipRows.Controls.Count > 0) { Control c = equipRows.Controls[0]; equipRows.Controls.RemoveAt(0); c.Dispose(); }
+            if (s != null && s.IsBuffer) s.MigratePuffers();   // alter Modus -> eigene Puffer (verlustfrei, gleicher Plantext, kein "geändert")
+            BindPuffer(s);   // Karten je Puffer (PackageForm.PufferCards.cs)
             if (s != null)
             {
                 foreach (EquipAssign a in s.Equipment) equipRows.Controls.Add(new EquipRow(a, cat, Product, delegate { Changed(); }, RemoveAssign));
@@ -219,14 +222,15 @@ namespace Arbeitsplan.Win
         }
 
         // Equipment mit Spalten abwechselnd/Ausweich: aufgeklappt oder wenn ein Wert gesetzt ist (nichts verschwindet still)
-        bool WideEquip { get { return more || (cur != null && cur.Equipment.Exists(delegate(EquipAssign a) { return a.Alternate || a.Fallback.Length > 0; })); } }
+        bool WideEquip { get { return more || (cur != null && cur.AllEquip().Exists(delegate(EquipAssign a) { return a.Alternate || a.Fallback.Length > 0; })); } }
 
         // Zusammenfassung der eingeklappten Optionen auf der Schaltflaeche
         string MoreSummary(PackageStep s)
         {
             List<string> p = new List<string>();
-            if (s.Equipment.Exists(delegate(EquipAssign a) { return a.Alternate; })) p.Add("abwechselnd");
-            if (s.Equipment.Exists(delegate(EquipAssign a) { return a.Fallback.Length > 0; })) p.Add("Ausweich");
+            List<EquipAssign> all = s.AllEquip();
+            if (all.Exists(delegate(EquipAssign a) { return a.Alternate; })) p.Add("abwechselnd");
+            if (all.Exists(delegate(EquipAssign a) { return a.Fallback.Length > 0; })) p.Add("Ausweich");
             if (s.IdentList(StepsView().RunCountOf(s)).Length > 0) p.Add("Kennung");
             if (s.Note.Length > 0) p.Add(s.NoteTexts().Count > 1 ? "Notizen" : "Notiz");
             if (s.RunEvery > 1) p.Add("reicht für " + s.RunEvery + " Läufe");
@@ -239,7 +243,7 @@ namespace Arbeitsplan.Win
             laying = true;
             PackageStep s = cur;
             bool sub = s.Kind == StepKind.SubRun;
-            bool var = s.IsBuffer;   // Typ (mobil / stationaer) steht fest, kommt aus dem Baustein
+            bool var = s.IsBuffer && s.Puffers.Count == 0;   // Typ steht je Puffer in der Karte (PackageForm.PufferCards.cs)
             int w = body.ClientSize.Width, g = 8;
             int a = Math.Max((w - g) / 2, Math.Min(w - g - 250, (w - g) * 55 / 100));   // Breite Was? Wo? | Rest Wann?
             gWhat.Width = a; gWhen.Width = w - a - g;   // Feldbreiten (Anker) stehen vor dem Anordnen fest
@@ -250,7 +254,7 @@ namespace Arbeitsplan.Win
             tip.SetToolTip(rowHint, rowHint.Text);
             int y = gWhat.ContentTop;
             y = Row(y, true, lTitle, tTitle); y = Row(y, true, lRow, cbRow); y = Row(y, off, rowHint) - (off ? 4 : 0);
-            y = Row(y, true, lKind, cbKind); y = LayoutVariants(y, var); y = LayoutPuffer(y, s); y = LayoutAnsatz(y, s);
+            y = Row(y, true, lKind, cbKind); y = LayoutVariants(y, var); y = LayoutAnsatz(y, s);
             y = Row(y, s.Source == Package.PackenName && !s.IsBackup, lManual, tManualNo);
             y = Row(y, sub, lSub, tSubNos); y = Row(y, sub, lSubHelp);
             int hWhat = y + 2, hWhen = LayoutWhen(s);   // Wann?: PackageForm.When.cs
@@ -268,7 +272,9 @@ namespace Arbeitsplan.Win
             y = h + 4;
             bMore.Text = (more ? "▾ Weniger Optionen" : "▸ Mehr Optionen (eigene Nummer, Abwechseln, Ausweich, Kennung, Notizen)" + MoreSummary(s));
             bMore.SetBounds(0, y, w, bMore.Height); y = bMore.Bottom + 4;
-            gEquip.SetBounds(0, y, w, ArrangeEquip(w - 16)); y = gEquip.Bottom + g;
+            gEquip.Visible = !s.IsBuffer; gPuf.Visible = s.IsBuffer;   // Puffer-Schritt: je Puffer eine Karte statt der gemeinsamen Equipment-Liste
+            if (s.IsBuffer) { gPuf.Width = w; gPuf.SetBounds(0, y, w, ArrangePuffer(w - 16)); y = gPuf.Bottom + g; }
+            else { gEquip.SetBounds(0, y, w, ArrangeEquip(w - 16)); y = gEquip.Bottom + g; }
             gExtra.Visible = more;
             if (more) { gExtra.SetBounds(0, y, w, hExtra); y = gExtra.Bottom; }
             body.Height = y + 4;

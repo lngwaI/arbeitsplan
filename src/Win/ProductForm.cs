@@ -18,6 +18,7 @@ namespace Arbeitsplan.Win
 
         readonly ListBox lbProd = new ListBox(), lbPos = new ListBox();
         readonly TextBox pCode = new TextBox(), pName = new TextBox();
+        readonly Button bPuf;
 
         public ProductForm(Catalog catalog)
         {
@@ -36,6 +37,7 @@ namespace Arbeitsplan.Win
             Controls.Add(Btn("Neu…", 8, 544, 60, delegate { NewProduct(); }));
             Controls.Add(Btn("Wie markiertes kopieren…", 72, 544, 166, delegate { CopySelected(); }));
             Controls.Add(Btn("Entfernen", 8, 574, 80, delegate { RemoveSelected(); }));
+            bPuf = Btn("Pufferpaket…", 96, 574, 142, delegate { EditPuffer(); }); Controls.Add(bPuf);   // Puffer des Produkts (ProductForm.Puffer.cs)
 
             Controls.Add(L("Equipment-Positionen:", 250, 30));
             lbPos.SetBounds(250, 48, 210, 360); lbPos.IntegralHeight = false; Controls.Add(lbPos);
@@ -84,7 +86,8 @@ namespace Arbeitsplan.Win
             prod = p;
             loading = true;
             pCode.Text = p != null ? p.Code : ""; pName.Text = p != null ? p.Name : "";
-            pCode.Enabled = pName.Enabled = lbPos.Enabled = p != null;
+            pCode.Enabled = pName.Enabled = lbPos.Enabled = bPuf.Enabled = p != null;
+            bPuf.Text = "Pufferpaket" + (p != null && p.Puffer.Count > 0 ? " (" + p.Puffer.Count + ")" : "") + "…";
             EquipPosition keep = pos;
             lbPos.Items.Clear();
             foreach (EquipPosition g in cat.Positions) { PosItem pi = new PosItem(); pi.P = g; pi.Pr = p; lbPos.Items.Add(pi); if (g == keep) lbPos.SelectedItem = pi; }
@@ -185,6 +188,7 @@ namespace Arbeitsplan.Win
         public void TestSwap(string name, params string[] ids) { NewSwap(); swName.Text = name; for (int i = 0; i < swMembers.Items.Count; i++) swMembers.SetSelected(i, Array.IndexOf(ids, swMembers.Items[i]) >= 0); }
         public bool TestCommit() { Commit(); return Result != null; }
         public Catalog TestCatalog { get { return cat; } }
+        public string TestPufButton { get { return bPuf.Text + "|" + bPuf.Enabled; } }
 #endif
     }
 }

@@ -54,19 +54,20 @@ namespace Arbeitsplan.Win
                 f.MoveInCalendar(lauf, 0, 5, false); Application.DoEvents();
                 cal &= Days(lauf) == "5,12,17" && f.lv.SelectedItems.Count == 1 && f.lv.SelectedItems[0].Tag == lauf;
 
-                // Puffer: Typ nur Anzeige, Ansatz Tank -> Flasche -> Tank
+                // Puffer: Ansatz Tank -> Flasche -> Tank (Schritt ohne Typ); mit Typ wandern die Zeilen in die Karte von Puffer 1 (UX-1b)
                 Baustein bp = f.cat.Baustein_("Puffer");
                 PackageStep pu = f.FromBaustein(bp); pu.Row = "Puffer"; f.AddStep(pu); Application.DoEvents();
-                Label tl = f.pVar.Controls.Count == 1 ? f.pVar.Controls[0] as Label : null;
-                bool var = false;
-                pu.Variant = "mobil"; f.Bind(pu); Application.DoEvents();   // Typ kommt aus dem Baustein, im Editor nur Anzeige
-                tl = f.pVar.Controls.Count == 1 ? f.pVar.Controls[0] as Label : null;
-                var = tl != null && f.pVar.Visible && tl.Text == "mobil" && f.blockPreview.Visible;
                 bool tank = HasTank(f) && f.cbAnsatz.Visible && f.equipRows.Controls.Count == 1;
                 f.cbAnsatz.SelectedIndex = 1; f.tGebinde.Text = "Flasche"; f.tMenge.Text = "5"; f.cbUnit.Text = "L"; Application.DoEvents();
                 bool geb = !HasTank(f) && f.equipRows.Controls.Count == 0 && f.tGebinde.Visible && pu.Compose(0, f.prefix).Contains("Gebinde: Flasche 5 L");
                 f.cbAnsatz.SelectedIndex = 0; Application.DoEvents();
                 geb &= pu.Ansatz == "" && f.equipRows.Controls.Count == 1 && HasTank(f) && !f.tGebinde.Visible;
+                pu.Variant = "mobil"; f.Bind(pu); Application.DoEvents();   // Typ kommt aus dem Baustein: Puffer 1 mit der Zeile
+                bool var = f.cards.Count == 1 && f.Card(0).TestTyp.SelectedIndex == 0 && f.Card(0).TestRows.Count == 1 && f.gPuf.Visible && !f.pVar.Visible && f.blockPreview.Visible && pu.Equipment.Count == 0 && HasTank(f);
+                f.cbAnsatz.SelectedIndex = 1; Application.DoEvents();   // Flasche: die leere Tank-Zeile der Karte faellt weg
+                geb &= f.Card(0).TestRows.Count == 0 && !HasTank(f) && pu.Puffers[0].Lines.Count == 0;
+                f.cbAnsatz.SelectedIndex = 0; Application.DoEvents();   // zurueck auf Tank: Tank-Positionen des Standardpuffers (Ansatztank, VT, WFI)
+                geb &= f.Card(0).TestRows.Count == 3 && HasTank(f);
                 return "Paket3 Editor: Wiederholt sich " + T(rep) + " Reihenfolge ohne Neuaufbau " + T(ord) + " Alt+Hoch " + T(alt) + " Kalender " + T(cal)
                     + " Puffer-Typ Anzeige " + T(var) + " Tank-Hinweis " + T(tank) + " Ansatz Flasche " + T(geb);
             }

@@ -34,7 +34,11 @@ namespace Arbeitsplan.Win
             return x;
         }
 
-        public EquipRow(EquipAssign a, Catalog cat, string product, Action changed, Action<EquipAssign> remove)
+        public const string NoneText = "nicht benötigt";   // Eintrag oben in der Liste (nur mit allowNone): Zeile entfernen
+
+        public EquipRow(EquipAssign a, Catalog cat, string product, Action changed, Action<EquipAssign> remove) : this(a, cat, product, changed, remove, false) { }
+
+        public EquipRow(EquipAssign a, Catalog cat, string product, Action changed, Action<EquipAssign> remove, bool allowNone)
         {
             this.a = a; this.cat = cat; this.product = product; this.pos = cat.Position(a.Short); this.changed = changed;
             name.Text = pos != null && pos.Name != a.Short ? pos.Name + " (" + a.Short + ")" : a.Short; name.AutoEllipsis = true;
@@ -42,6 +46,7 @@ namespace Arbeitsplan.Win
             List<string> own = cat.Allowed(product, a.Short);   // nur erlaubte Geraete (Produktprofil, sonst global)
             string ph = Placeholder(cat, product, a.Short);
             cbId.DropDownStyle = ComboBoxStyle.DropDown;   // frei eintippbar (Notfall-/Ausweichgeraet)
+            if (allowNone) cbId.Items.Add(NoneText);
             cbId.Items.AddRange(own.ToArray()); if (ph.Length > 0) cbId.Items.Add(ph);
             cbFb.DropDownStyle = ComboBoxStyle.DropDown;
             foreach (string id in cat.SwapsFor(product, a.Short, "")) cbFb.Items.Add(id);   // Austauschgruppe des Produkts zuerst
@@ -63,7 +68,7 @@ namespace Arbeitsplan.Win
             tip.SetToolTip(btnAlt, "Geräte für den Wechsel auswählen");
             tip.SetToolTip(cbFb, "Ausweich-Gerät (Backup), falls das geplante ausfällt.");
             tip.SetToolTip(note, "Notiz/Bezeichnung zu diesem Gerät (steht im Plan hinter der Nummer).");
-            tip.SetToolTip(del, "Position aus diesem Schritt entfernen");
+            tip.SetToolTip(del, allowNone ? "Position entfernen (wie „" + NoneText + "“)" : "Position aus diesem Schritt entfernen");
 
             loading = true;
             chkAlt.Checked = a.Alternate; cbFb.Text = a.Fallback; note.Text = a.Note;
@@ -73,6 +78,11 @@ namespace Arbeitsplan.Win
             cbId.TextChanged += delegate
             {
                 if (loading || chkAlt.Checked) return;
+                if (allowNone && cbId.Text == NoneText)   // Zeile weglassen (nach dem Auswahlereignis, damit das Feld nicht mitten im Ereignis verschwindet)
+                {
+                    if (IsHandleCreated) BeginInvoke(new Action(delegate { remove(a); })); else remove(a);
+                    return;
+                }
                 a.Choices.Clear();
                 if (cbId.Text.Trim().Length > 0) a.Choices.Add(new EquipChoice(a.Short, cbId.Text.Trim()));
                 Warn(); changed();

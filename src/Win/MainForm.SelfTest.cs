@@ -92,6 +92,10 @@ namespace Arbeitsplan.Win
             {
                 demo = Package.SampleBuffers("Testpaket");
             }
+            if (which == "package11" || which == "package12")   // UX-1b: Puffer-Schritt mit zwei Karten (12: Geraet doppelt = rote Karten)
+            {
+                PackageForm.Ux1bPrepare(store); demo = PackageForm.Ux1bSample("Testpaket", which == "package12");
+            }
             if (which.StartsWith("rt:")) demo = Package.Load(which.Substring(3));   // Roundtrip: Datei laden, im Editor unveraendert wieder speichern (.rt.apkg)
             if (which == "campaign2")   // fruehere Kampagne (Laeufe 1-4, Abstaende 5, 5, 7) sechs Wochen vorher
                 Package.SampleCampaign("alt").Apply(store, start.AddDays(-42), ApplyMode.Overwrite, Package.SampleCampaign("alt").Schedule(new List<int>(new[] { 5, 5, 7 })));
@@ -151,6 +155,7 @@ namespace Arbeitsplan.Win
                 t.Content = "Lauf 13570030\nTFF: H1-X-0103 (Ausweich)\nPumpe: H1-P-0101-05"; t.People[0] = "MUMA, WEPA";
                 f = new ConflictForm("Suite 1, " + Ui.DayText(start), "Paula Werk", "um 09:41 Uhr", t, m, Conflict.Merge(b, m, t, new List<string>()), true);
             }
+            else if (which == "pufferpack") f = PackageForm.Ux1bPackForm(store);   // UX-1b: Pufferpaket eines Produkts
             else if (which == "equipadd") f = new EquipAddForm("H1-T-0999", store.GetCatalog());   // UX-2: nicht validierte Nummer aufnehmen
             else if (which == "problems") f = new PackageForm(store, equip, start, PackageForm.ProblemSample(), true, true);   // UX-2: Prueffunde mit Beteiligten
             else if (which == "campaign") { CampaignForm cf = new CampaignForm(demo, store, start, ApplyMode.FillEmpty); cf.Shift(1, 1); f = cf; }   // Lauf 13570030 (und Folgende) einen Tag spaeter
@@ -170,6 +175,7 @@ namespace Arbeitsplan.Win
             if (pf != null && which == "package7") { pf.SelectStep(3); pf.TestMore(); pf.TestScrollEnd(); }   // Hauptlauf, Zusaetze (Kennungstabelle) im Blick
             if (pf != null && which == "package6") pf.SelectStep(2);
             if (pf != null && which == "package10") pf.TestSelectBuffer();
+            if (pf != null && (which == "package11" || which == "package12")) { pf.TestSelectBuffer(); if (which == "package12") pf.TestOpenCard(1); pf.TestScrollEnd(); }
             if (pf != null && (which == "package8" || which == "package9")) pf.TestE5Shot(which);   // E5/E6: verschobene Laeufe mit Schloss; Zoom Woche + nur Auswahl
             return f;
         }
@@ -358,6 +364,7 @@ namespace Arbeitsplan.Win
             SelfTestE3(sb); SelfTestE2(sb); SelfTestE4(sb); SelfTestV(sb); SelfTestE5(sb);   // Kennungstabelle, Notizen aus Paketen, Materialvorlage (MainForm.SelfTestE2.cs)
             SelfTestPB(sb);   // Puffer im Paket: Standard-Anzahl, mehrere Puffer je Termin, Namen, Pufferpaket (MainForm.SelfTestPB.cs)
             SelfTestUX1(sb);   // UX-1a: Equipment je Puffer, Migration, Standardpuffer, Pufferpaket je Produkt (MainForm.SelfTestUX1.cs)
+            SelfTestUX1b(sb);  // UX-1b: Puffer-Karten im Paket-Editor, Geltungsbereich, Pufferpaket-Dialog (MainForm.SelfTestUX1b.cs)
             sb.Append(PackageForm.TestUx2(equip, start));   // UX-2: Problemtexte mit Beteiligten, Gruppen, nicht validiertes Equipment (PackageForm.TestUx2.cs)
             using (MainForm mx = new MainForm("ux4", true, null, null)) { mx.FitToCursorScreen(); sb.AppendLine("UX4 Hauptfenster startet maximiert: " + Ok(mx.WindowState == FormWindowState.Maximized)); }
             quiet = false;

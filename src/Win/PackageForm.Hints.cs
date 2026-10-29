@@ -21,6 +21,7 @@ namespace Arbeitsplan.Win
             Control fld = p.Code == "ident" ? tIdent : (p.Code == "number" ? (ps != null && ps.Kind != StepKind.Normal ? (Control)tFirst : nStartNo) : null);
             Hint h = new Hint((p.Blocks ? "SPERRE – " : "") + (ix >= 0 ? "Schritt " + (ix + 1) + ": " : "") + p.Full, ps, fld);
             h.Blocks = p.Blocks; h.Code = p.Code; h.Run = p.Run; h.Step2 = ps2; h.Run2 = p.Run2;
+            if (p.Code == "pufdoppelt") NoteDup(p, ps, ps2);   // betroffene Karten rot (PackageForm.PufferCards.cs)
             return h;
         }
 
