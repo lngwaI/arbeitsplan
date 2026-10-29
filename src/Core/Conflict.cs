@@ -22,6 +22,7 @@ namespace Arbeitsplan.Core
             bool clash;
             List<Line> lines = MergeLines(Lines(b), Lines(mine), Lines(theirs), preferMine, out clash);
             Join(lines, r);
+            Notes.Normalize(r);   // Notiz-Markierung nur auf ganzen Zeilen (auch nach Zusammenfuehren zweier Fassungen)
             if (clash) clashes.Add("Inhalt");
             string[] names = { "F", "S", "N" };
             for (int s = 0; s < 3; s++)

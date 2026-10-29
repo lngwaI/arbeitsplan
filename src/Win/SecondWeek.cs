@@ -21,7 +21,12 @@ namespace Arbeitsplan.Win
         {
             this.parent = parent;
             View = new PlanView(font);
-            View.Equip = first.Equip; View.Colors = first.Colors; View.MyKuerzel = first.MyKuerzel; View.Rows = rows;   // keine Callbacks = nur lesen
+            View.Equip = first.Equip; View.Colors = first.Colors; View.MyKuerzel = first.MyKuerzel; View.Rows = rows;   // sonst keine Callbacks = nur lesen
+            if (first.BufferClicked != null)   // Puffer wie in der Hauptansicht bearbeiten (MainForm.Buffers.cs), danach diese Woche neu zeichnen
+            {
+                Action<CellData, int> edit = first.BufferClicked;
+                View.BufferClicked = delegate(CellData c, int i) { edit(c, i); View.Relayout(); };
+            }
             title.SetBounds(0, 0, 900, 20); title.Font = new Font(font, FontStyle.Bold);
             head.Height = 48; head.Controls.Add(title);
             for (int i = 0; i < 7; i++) { days[i] = new DayLabel(font); head.Controls.Add(days[i]); }

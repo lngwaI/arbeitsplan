@@ -148,7 +148,7 @@ namespace Arbeitsplan.Core
                 if (before != default(DateTime) && h.Day >= before.Date) continue;
                 Entry e = store.Get(h.Day, h.RowId);
                 if (e == null) continue;
-                foreach (RunRef r in RunNumbers.Find(e.Content, product))
+                foreach (RunRef r in RunNumbers.Find(e, product))
                 {
                     int n = int.Parse(r.Run, CultureInfo.InvariantCulture);
                     DateTime t;

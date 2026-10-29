@@ -35,7 +35,7 @@ namespace Arbeitsplan.Win
             {
                 AuditEntry a = audit[i];
                 ListViewItem it = new ListViewItem(new[] { a.Version.ToString(), a.Time.ToString("dd.MM.yyyy HH:mm:ss"),
-                    a.Kuerzel.Length > 0 ? a.Login + " (" + a.Kuerzel + ")" : a.Login, RoleOf(a, users), a.Mark.Length > 0 ? MarkText(a) : Audit.Preview(a.After) });
+                    a.Kuerzel.Length > 0 ? a.Login + " (" + a.Kuerzel + ")" : a.Login, RoleOf(a, users), a.Mark.Length > 0 ? MarkText(a) : Audit.Summary(a) });
                 it.Tag = a;
                 list.Items.Add(it);
             }

@@ -299,6 +299,7 @@ namespace Arbeitsplan.Core
             {
                 w.WriteStartElement("Fmt"); w.WriteAttributeString("start", I(f.Start)); w.WriteAttributeString("len", I(f.Length)); w.WriteAttributeString("rgb", I(f.Rgb));
                 w.WriteAttributeString("size", f.Size.ToString("R", Inv)); w.WriteAttributeString("b", B(f.Bold)); w.WriteAttributeString("i", B(f.Italic));
+                if (f.Note) w.WriteAttributeString("n", "1");
                 if (f.Font != null) w.WriteAttributeString("font", f.Font);
                 w.WriteEndElement();
             }
@@ -570,7 +571,7 @@ namespace Arbeitsplan.Core
             foreach (XmlElement f in Kids(e, "Fmt"))
             {
                 FormatSpan s = new FormatSpan(); s.Start = Int(f, "start"); s.Length = Int(f, "len"); s.Rgb = Int(f, "rgb");
-                s.Size = float.Parse(f.GetAttribute("size"), Inv); s.Bold = Bool(f, "b"); s.Italic = Bool(f, "i");
+                s.Size = float.Parse(f.GetAttribute("size"), Inv); s.Bold = Bool(f, "b"); s.Italic = Bool(f, "i"); s.Note = Bool(f, "n");
                 s.Font = f.HasAttribute("font") ? f.GetAttribute("font") : null;
                 x.Spans.Add(s);
             }

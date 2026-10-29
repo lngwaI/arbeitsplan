@@ -51,6 +51,11 @@ namespace Arbeitsplan.Win
                 g.FillEllipse(th.Brush(th.Dot), c.RHead.Right - 29, c.RHead.Y + (c.RHead.Height - 7) / 2, 8, 8);
                 nr.Width -= 12;
             }
+            else if (collapsed && c.Cur.HasNotes)   // zugeklappt, nur Notizen: kleiner grauer Hohlpunkt
+            {
+                g.DrawEllipse(th.Pen(th.Muted, 1), c.RHead.Right - 28, c.RHead.Y + (c.RHead.Height - 6) / 2, 6, 6);
+                nr.Width -= 12;
+            }
             nr.Width -= PaintNote(g, c, nr);   // Hinweis "KW offen" / dringend, auch zugeklappt
             TextRenderer.DrawText(g, ri.Name, HeadFont, nr, collapsed ? th.HeadTextCollapsed : th.HeadText,
                 TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
@@ -97,7 +102,8 @@ namespace Arbeitsplan.Win
         // Farbbalken je Produkt am linken Rand der Kopfleiste (max. 3); Rueckgabe = belegte Breite.
         int ProductBars(Graphics g, CellData c)
         {
-            if (c.RunsFor != c.Content) { c.Runs = RunNumbers.Find(c.Content); c.RunsFor = c.Content; }
+            string txt = c.Editing ? c.Content : Notes.ContentText(c.Cur);   // Notizzeilen zaehlen nicht
+            if (c.RunsFor != txt) { c.Runs = RunNumbers.Find(txt); c.RunsFor = txt; }
             if (c.Runs.Count == 0) return 0;
             List<string> prods = new List<string>();
             foreach (RunRef r in c.Runs) if (!prods.Contains(r.Product) && prods.Count < 3) prods.Add(r.Product);

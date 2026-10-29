@@ -50,6 +50,7 @@ namespace Arbeitsplan.Win
 
         public readonly List<List<Item>> Lines = new List<List<Item>>();
         public readonly List<int> LineH = new List<int>();
+        public readonly List<int> Para = new List<int>();   // Absatz (Zeile des Inhalts) je Anzeigezeile
         public int Height;
 
         static int Raw(Font f, string s)
@@ -121,25 +122,26 @@ namespace Arbeitsplan.Win
                 }
 
             List<Item> cur = new List<Item>();
-            b.Lines.Add(cur);
+            b.Lines.Add(cur); b.Para.Add(0);
+            int para = 0;
             int i = 0, indent = HangingIndent(toks, 0, maxW), x = 0;
             bool skipSpace = false;
             while (i < toks.Count)
             {
                 T t = toks[i];
-                if (t.Kind == 2) { cur = new List<Item>(); b.Lines.Add(cur); x = 0; skipSpace = false; i++; indent = HangingIndent(toks, i, maxW); }
+                if (t.Kind == 2) { cur = new List<Item>(); b.Lines.Add(cur); b.Para.Add(++para); x = 0; skipSpace = false; i++; indent = HangingIndent(toks, i, maxW); }
                 else if (t.Kind == 1)
                 {
                     i++;
                     if (skipSpace && cur.Count == 0) continue;
-                    if (x + t.W > maxW) { cur = new List<Item>(); b.Lines.Add(cur); x = indent; skipSpace = true; continue; }
+                    if (x + t.W > maxW) { cur = new List<Item>(); b.Lines.Add(cur); b.Para.Add(para); x = indent; skipSpace = true; continue; }
                     Add(cur, t, t.Text, x, t.W); x += t.W;
                 }
                 else
                 {
                     int j = i, total = 0;
                     while (j < toks.Count && toks[j].Kind == 0) { total += toks[j].W; j++; }
-                    if (cur.Count > 0 && x + total > maxW) { cur = new List<Item>(); b.Lines.Add(cur); x = indent; }
+                    if (cur.Count > 0 && x + total > maxW) { cur = new List<Item>(); b.Lines.Add(cur); b.Para.Add(para); x = indent; }
                     skipSpace = false;
                     if (cur.Count == 0 && x > 0 && x + total > maxW) x = 0;   // Wort passt nicht hinter die Einrueckung: ohne Einrueckung setzen
                     if (x + total <= maxW || (cur.Count == 0 && total <= maxW)) { for (; i < j; i++) { Add(cur, toks[i], toks[i].Text, x, toks[i].W); x += toks[i].W; } }
@@ -148,7 +150,7 @@ namespace Arbeitsplan.Win
                             foreach (char ch in toks[i].Text)
                             {
                                 int cw = Width(toks[i].P.Font, ch.ToString());
-                                if (cur.Count > 0 && x + cw > maxW) { cur = new List<Item>(); b.Lines.Add(cur); x = indent; }
+                                if (cur.Count > 0 && x + cw > maxW) { cur = new List<Item>(); b.Lines.Add(cur); b.Para.Add(para); x = indent; }
                                 Add(cur, toks[i], ch.ToString(), x, cw); x += cw;
                             }
                 }
@@ -167,6 +169,14 @@ namespace Arbeitsplan.Win
             Item it = new Item();
             it.Text = text; it.Font = t.P.Font; it.X = x; it.W = w; it.Fore = t.P.Fore; it.HasBack = t.P.HasBack; it.Back = t.P.Back;
             line.Add(it);
+        }
+
+        // Absatz (Zeile des Inhalts) an der Hoehe py (relativ zum Textursprung); -1 ausserhalb
+        public int ParaAt(int py)
+        {
+            int y = 0;
+            for (int l = 0; l < Lines.Count; l++) { if (py >= y && py < y + LineH[l]) return Para[l]; y += LineH[l]; }
+            return -1;
         }
 
         // Wort (zusammenhaengende Textstuecke ohne Leerraum) an der Stelle (Koordinaten relativ zum Textursprung); "" bei Leerraum/ausserhalb

@@ -54,6 +54,13 @@ namespace Arbeitsplan.Core
         {
             if (e == null) return "(leer)";
             string s = e.Content;
+            if (e.HasNotes)   // Notizzeilen kenntlich machen
+            {
+                List<int[]> nl = Notes.NoteLines(e);
+                string[] ls = e.Content.Split('\n');
+                foreach (int[] n in nl) ls[n[0]] = "[Notiz] " + ls[n[0]];
+                s = string.Join("\n", ls);
+            }
             for (int i = 0; i < 3; i++) s += "\n" + labels[i] + ": " + e.People[i];
             s += "\nLKZ gemessen: " + (e.Lkz ? "ja" : "nein");
             foreach (string l in BufferSet.DisplayLines(e.Buffers, true)) s += "\n" + l;
@@ -61,10 +68,32 @@ namespace Arbeitsplan.Core
             return s;
         }
 
+        // Wurde nur die Notiz-Markierung geaendert (Text, Kuerzel, LKZ gleich)? "Notiz markiert" / "Notiz aufgehoben", sonst "".
+        public static string NoteChange(AuditEntry a)
+        {
+            Entry b = a.Before ?? new Entry(), n = a.After ?? new Entry();
+            if (b.Content != n.Content || b.People[0] != n.People[0] || b.People[1] != n.People[1] || b.People[2] != n.People[2] || b.Lkz != n.Lkz) return "";
+            int cb = Notes.NoteLines(b).Count, cn = Notes.NoteLines(n).Count;
+            return cn > cb ? "Notiz markiert" : cn < cb ? "Notiz aufgehoben" : "";
+        }
+
+        // Zeile im Verlauf: Notiz-Aenderung oder Vorschau des neuen Stands
+        public static string Summary(AuditEntry a)
+        {
+            string c = NoteChange(a);
+            return c.Length > 0 ? c + ": " + Preview(a.After) : Preview(a.After);
+        }
+
         public static string Preview(Entry e)
         {
-            if (e == null || (e.IsEmpty && e.Buffers.Count == 0)) return "(leer)";
-            string s = e.Content.Replace("\n", " | ");
+            if (e == null) return "(leer)";
+            string pre = "";
+            if (e.IsEmpty && e.Buffers.Count == 0)
+            {
+                if (!e.HasNotes) return "(leer)";
+                pre = "(nur Notizen) ";   // Notizen allein zaehlen nicht als Inhalt
+            }
+            string s = pre + e.Content.Replace("\n", " | ");
             if (s.Length == 0 && e.IsEmpty) s = string.Join(" / ", BufferSet.DisplayLines(e.Buffers, false).ToArray());
             else if (s.Length == 0) s = string.Join(" / ", e.People);
             return s.Length > 60 ? s.Substring(0, 60) + "…" : s;

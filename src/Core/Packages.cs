@@ -156,18 +156,34 @@ namespace Arbeitsplan.Core
             if (Text.Length > 0) lines.Add(Text);
             if (AnsatzLine().Length > 0) lines.Add(AnsatzLine());   // z. B. "Gebinde: Flasche 5 L"
             foreach (EquipAssign a in Equipment) { string l = a.Line(run); if (l.Length > 0) lines.Add(l); }
-            if (Note.Length > 0) lines.Add("Notiz: " + Note);
+            lines.AddRange(NoteTexts());   // Notizzeilen ohne Praefix (im Plan kursiv, siehe EntryFor)
             if (IdentFor(run).Length > 0) lines.Add(IdentFor(run));   // immer die letzte Zeile (Format in BuildTargets)
             return lines;
         }
 
         // Block, wie ihn dieser Lauf allein im Plan ergibt (Plantext, rote Kennung, Herstellungsvariante), z. B. fuer die Vorschau.
+        // Notizen des Schritts: je Zeile (Enter im Notizfeld) eine Notiz
+        public List<string> NoteTexts()
+        {
+            List<string> res = new List<string>();
+            foreach (string n in Note.Replace("\r", "").Split('\n')) if (n.Trim().Length > 0) res.Add(n.Trim());
+            return res;
+        }
+
         public Entry EntryFor(int run, string prefix)
         {
             Entry e = new Entry();
             if (IsBuffer) { e.Buffers = BuffersFor(run, prefix); return e; }
-            e.Content = Compose(run, prefix);
+            List<string> lines = Lines(run, prefix);
+            e.Content = string.Join("\n", lines.ToArray());
             string idt = IdentFor(run);
+            int nn = NoteTexts().Count;
+            if (nn > 0)
+            {
+                int first = 0, before = lines.Count - nn - (idt.Length > 0 ? 1 : 0);   // Zeilen des Inhalts vor der ersten Notiz (Text kann mehrzeilig sein)
+                for (int k = 0; k < before; k++) first += lines[k].Split('\n').Length;
+                Notes.SetNote(e, first, first + nn - 1, true);
+            }
             if (idt.Length > 0) e.Spans.Add(IdentSpan(e.Content.Length - idt.Length, idt.Length));
             return e;
         }
@@ -175,12 +191,12 @@ namespace Arbeitsplan.Core
         // Tag (1-basiert, Paket-Rhythmus) der Wiederholung run (0-basiert); Tag 1 = Montag (Editor), sonst Days(day1).
         public int DayOf(int run) { List<int> d = Days(); return run < d.Count ? d[run] : Day + run * Math.Max(1, Interval); }
 
-        // Alle Laeufe: Tag (1-basiert, Paket-Rhythmus) und Text; day1 = Wochentag des Starttags (Wiederholung an Wochentagen).
-        public List<KeyValuePair<int, string>> Runs(string prefix, DayOfWeek day1 = DayOfWeek.Monday)
+        // Alle Laeufe: Tag (1-basiert, Paket-Rhythmus) und Block (Text mit Notizen/Kennung); day1 = Wochentag des Starttags (Wiederholung an Wochentagen).
+        public List<KeyValuePair<int, Entry>> Runs(string prefix, DayOfWeek day1 = DayOfWeek.Monday)
         {
-            List<KeyValuePair<int, string>> res = new List<KeyValuePair<int, string>>();
+            List<KeyValuePair<int, Entry>> res = new List<KeyValuePair<int, Entry>>();
             List<int> days = Days(day1);
-            for (int i = 0; i < days.Count; i++) res.Add(new KeyValuePair<int, string>(days[i], Compose(i, prefix)));
+            for (int i = 0; i < days.Count; i++) res.Add(new KeyValuePair<int, Entry>(days[i], EntryFor(i, prefix)));
             return res;
         }
     }
@@ -224,7 +240,7 @@ namespace Arbeitsplan.Core
                 for (int d = 0; d < 7; d++)
                 {
                     Entry e = store.Get(start.AddDays(d), r.Id);
-                    if (e == null || (e.IsEmpty && !e.Lkz && e.Buffers.Count == 0)) continue;
+                    if (e == null || (e.IsEmpty && !e.HasNotes && !e.Lkz && e.Buffers.Count == 0)) continue;
                     PackageBlock b = new PackageBlock(); b.Day = d + 1; b.Row = r.Name; b.Data = e; b.Data.Version = 0;
                     p.Blocks.Add(b);
                 }
@@ -255,10 +271,10 @@ namespace Arbeitsplan.Core
             {
                 PackageStep s = Steps[si];
                 if (s.IsEmpty) continue;
-                List<KeyValuePair<int, string>> runs = s.Runs(Prefix, start.DayOfWeek);
+                List<KeyValuePair<int, Entry>> runs = s.Runs(Prefix, start.DayOfWeek);
                 for (int ri = 0; ri < runs.Count; ri++)
                 {
-                    KeyValuePair<int, string> run = runs[ri];
+                    KeyValuePair<int, Entry> run = runs[ri];
                     RunDate rd;
                     bool has = over.TryGetValue(RunDate.KeyOf(si, ri), out rd);
                     int id = RowId(rows, has && rd.Row.Length > 0 ? rd.Row : s.Row);   // Raumwechsel je Lauf; Equipment bleibt
@@ -268,9 +284,7 @@ namespace Arbeitsplan.Core
                     Target t;
                     if (!map.TryGetValue(k, out t)) { t = new Target(); t.Day = day; t.RowId = id; t.Data = new Entry(); map[k] = t; order.Add(t); }
                     if (s.IsBuffer) { BufferSet.AddRange(t.Data.Buffers, s.BuffersFor(ri, Prefix)); continue; }   // mehrere Puffer am Tag: anhaengen
-                    t.Data.Content = t.Data.Content.Length > 0 ? t.Data.Content + "\n\n" + run.Value : run.Value;
-                    string idt = s.IdentFor(ri);
-                    if (idt.Length > 0) t.Data.Spans.Add(PackageStep.IdentSpan(t.Data.Content.Length - idt.Length, idt.Length));
+                    AppendText(t.Data, run.Value);   // Notizzeilen und Kennung (Format) kommen mit
                 }
             }
             return order;
@@ -294,29 +308,45 @@ namespace Arbeitsplan.Core
             return Item(rows, t, result, by);
         }
 
+        // Text und Formate von add hinter dst haengen (Leerzeile dazwischen), Formate verschoben
+        static void AppendText(Entry dst, Entry add)
+        {
+            if (add.Content.Length == 0) return;
+            int shift = dst.Content.Length > 0 ? dst.Content.Length + 2 : 0;
+            dst.Content = dst.Content.Length > 0 ? dst.Content + "\n\n" + add.Content : add.Content;
+            foreach (FormatSpan f in add.Spans) { FormatSpan c = f.Clone(); c.Start += shift; dst.Spans.Add(c); }
+        }
+
+        // Notizzeilen aus old ans Ende von dst (nicht, wenn dst dieselbe Zeile schon hat)
+        static void KeepNotes(Entry dst, Entry old)
+        {
+            List<string> have = Notes.NoteTexts(dst), keep = new List<string>();
+            foreach (string t in Notes.NoteTexts(old)) if (!have.Contains(t)) keep.Add(t);
+            if (keep.Count == 0) return;
+            int first = Notes.Lines(dst.Content).Count;
+            dst.Content = dst.Content.Length > 0 ? dst.Content + "\n" + string.Join("\n", keep.ToArray()) : string.Join("\n", keep.ToArray());
+            Notes.SetNote(dst, first, first + keep.Count - 1, true);
+        }
+
         // Neuer Blockinhalt aus vorhandenem (cur) und Paket-Block (n); null = ueberspringen. Kuerzel und LKZ-Haken des vorhandenen Blocks bleiben erhalten.
         // Ein Block mit nur LKZ-Haken zaehlt als leer (IsEmpty), verliert den Haken aber nicht.
         internal static Entry Merge(Entry cur, Entry n, ApplyMode mode)
         {
             Entry result;
             if (cur == null) return n.Clone();
-            bool free = cur.IsEmpty && cur.Buffers.Count == 0;   // ein Block mit Puffern gilt als belegt
+            bool free = cur.IsEmpty && cur.Buffers.Count == 0;   // ein Block mit Puffern gilt als belegt; nur Notizen zaehlen als leer
             if (free || mode == ApplyMode.Overwrite)
             {
                 result = n.Clone();
                 for (int i = 0; i < 3; i++) if (result.People[i].Length == 0) result.People[i] = cur.People[i];
                 if (n.Buffers.Count == 0) result.Buffers = BufferSet.CloneAll(cur.Buffers);   // ohne Puffer im Paket bleiben die vorhandenen
+                KeepNotes(result, cur);   // vorhandene Notizen bleiben (ans Ende)
             }
             else if (mode == ApplyMode.FillEmpty) return null;
             else
             {   // anhaengen: Text nach dem vorhandenen, Formatierung der neuen Textteile verschieben
                 result = cur.Clone();
-                if (n.Content.Length > 0)
-                {
-                    int shift = result.Content.Length > 0 ? result.Content.Length + 2 : 0;
-                    result.Content = result.Content.Length > 0 ? result.Content + "\n\n" + n.Content : n.Content;
-                    foreach (FormatSpan f in n.Spans) { FormatSpan c = f.Clone(); c.Start += shift; result.Spans.Add(c); }
-                }
+                AppendText(result, n);
                 for (int i = 0; i < 3; i++) if (n.People[i].Length > 0) result.People[i] = result.People[i].Length > 0 ? result.People[i] + ", " + n.People[i] : n.People[i];
                 BufferSet.AddRange(result.Buffers, n.Buffers);   // Puffer hinten anhaengen (neue Ids)
             }

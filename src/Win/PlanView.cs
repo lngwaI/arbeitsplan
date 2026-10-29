@@ -312,6 +312,8 @@ namespace Arbeitsplan.Win
             return null;
         }
 
+        public int MenuPara = -1;   // Rechtsklick: Zeile (Absatz) des Inhalts unter dem Mauszeiger, -1 = keine
+
         readonly ToolTip tip = new ToolTip();
         string tipText = "";
 
@@ -333,6 +335,8 @@ namespace Arbeitsplan.Win
             if (RoundsMouse(e.Location, e.Clicks == 1 ? e.Button : MouseButtons.None)) return;
             CellData c = CellAt(e.Location);
             bool head = c != null && c.RHead.Contains(e.Location);
+            MenuPara = e.Button == MouseButtons.Right && c != null && !c.Editing && !Collapsed[c.RowIndex] && c.CB != null && c.RContent.Contains(e.Location)
+                ? c.CB.ParaAt(e.Location.Y - (c.RContent.Y + TV)) : -1;   // Textzeile unter dem Mauszeiger (Rechtsklick-Menue "Als Notiz markieren")
             // Auswahl nur durch Klick in einen Block; freie Flaeche und Linksklick auf den Zeilenkopf (Zuklappen) heben sie auf.
             // Rechtsklick auf den Kopf waehlt den Block (Verlauf…).
             CellData sel = c == null || (head && e.Button == MouseButtons.Left) ? null : c;

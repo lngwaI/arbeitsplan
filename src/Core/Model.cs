@@ -13,10 +13,11 @@ namespace Arbeitsplan.Core
         public int Start, Length, Rgb;      // Rgb 0xRRGGBB
         public float Size;                  // Punkt; 0 = Standardgroesse
         public bool Bold, Italic;
+        public bool Note;                   // Notizzeile (immer ganze Zeilen, zusaetzlich Italic), zaehlt nicht als Inhalt
         public string Font;                 // null = Standardschrift
 
         public FormatSpan Clone() { return (FormatSpan)MemberwiseClone(); }
-        public string Key() { return Start + "," + Length + "," + Rgb + "," + Size + "," + Bold + "," + Italic + "," + Font + ";"; }
+        public string Key() { return Start + "," + Length + "," + Rgb + "," + Size + "," + Bold + "," + Italic + "," + Font + (Note ? ",N" : "") + ";"; }
     }
 
     public class Entry   // Inhalt eines Blocks (Tag x Zeile)
@@ -42,11 +43,14 @@ namespace Arbeitsplan.Core
             foreach (FormatSpan s in Spans) e.Spans.Add(s.Clone());
             return e;
         }
-        public bool IsEmpty { get { return Content.Length == 0 && People[0].Length == 0 && People[1].Length == 0 && People[2].Length == 0; } }
+        // Block nur mit Notizzeilen gilt als leer
+        public bool IsEmpty { get { return (Content.Length == 0 || (HasNotes && Notes.ContentText(this).Trim().Length == 0)) && People[0].Length == 0 && People[1].Length == 0 && People[2].Length == 0; } }
         // Leer UND ohne Haken/Variante (Zuklappen, Hinweispunkt); IsEmpty bleibt fuer Rechte/Pakete wie bisher
         public bool IsBlank { get { return !HasText && People[0].Trim().Length == 0 && People[1].Trim().Length == 0 && People[2].Trim().Length == 0 && !Lkz && Buffers.Count == 0 && Marks.Count == 0; } }
-        // Inhalt mit sichtbarem Text (nur Leerzeichen/Tabs/Zeilenumbrueche = leer); Daten bleiben unveraendert
-        public bool HasText { get { return Content.Trim().Length > 0; } }
+        // Inhalt mit sichtbarem Text ohne Notizzeilen (nur Leerzeichen/Tabs/Zeilenumbrueche = leer); Daten bleiben unveraendert
+        public bool HasText { get { return Notes.ContentText(this).Trim().Length > 0; } }
+        // Notizzeilen vorhanden (Block mit nur Notizen gilt als leer)
+        public bool HasNotes { get { return Notes.NoteLines(this).Count > 0; } }
         public string MarksKey() { return string.Join("|", Marks.ToArray()); }
         public string SpanKey() { string k = ""; foreach (FormatSpan s in Spans) k += s.Key(); return k; }
     }
@@ -358,6 +362,12 @@ namespace Arbeitsplan.Core
                     FormatSpan sp = new FormatSpan(); sp.Start = e.Content.IndexOf("LKZ"); sp.Length = 10; sp.Rgb = 0xC00000; sp.Bold = true; sp.Size = 11;
                     e.Spans.Add(sp);
                 }
+                if (d == 1)   // Beispiel Notizzeilen (kursiv, zaehlen nicht als Inhalt)
+                {
+                    e.Content += "\nProbe bis 10:00 zur QC bringen\nBei Abweichung Schichtleiter informieren";
+                    int nl = e.Content.Split('\n').Length;
+                    Notes.SetNote(e, nl - 2, nl - 1, true);
+                }
                 s.Save(monday.AddDays(d), suite1, e);
             }
             // Folgewoche (fuer die Testansicht "2 Wochen")
@@ -378,6 +388,8 @@ namespace Arbeitsplan.Core
             }
             Entry c = new Entry(); c.Content = "Raumreinigung"; c.People = new[] { "BEER, WEPA", "", "" };
             s.Save(monday.AddDays(2), cc, c);
+            Entry cn = new Entry(); cn.Content = "Schlüssel liegt beim Pförtner"; Notes.SetNote(cn, 0, 0, true);   // Block nur mit Notiz = leer
+            s.Save(monday.AddDays(4), cc, cn);
             // Schichtmodus: Raum CC = Tagesaufgabe ("Erledigt von"), Versand = nur Frueh/Spaet
             List<RowInfo> rs = s.GetRows();
             foreach (RowInfo r in rs) { if (r.Name == "Raum CC") r.Mode = ShiftMode.Task; if (r.Name == "Versand") r.Mode = ShiftMode.FS; }

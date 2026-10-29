@@ -74,6 +74,7 @@ namespace Arbeitsplan.Core
                         w.WriteAttributeString("farbe", I(f.Rgb)); w.WriteAttributeString("groesse", f.Size.ToString(CultureInfo.InvariantCulture));
                         w.WriteAttributeString("fett", f.Bold ? "1" : "0"); w.WriteAttributeString("kursiv", f.Italic ? "1" : "0");
                         w.WriteAttributeString("schrift", f.Font ?? "");
+                        if (f.Note) w.WriteAttributeString("notiz", "1");
                         w.WriteEndElement();
                     }
                     w.WriteEndElement();
@@ -167,6 +168,7 @@ namespace Arbeitsplan.Core
                             if (!(f.Size >= 6f && f.Size <= 72f)) f.Size = 0;   // NaN/unsinnig: Standardgroesse
                             f.Bold = c.GetAttribute("fett") == "1"; f.Italic = c.GetAttribute("kursiv") == "1";
                             f.Font = c.GetAttribute("schrift").Length > 0 ? c.GetAttribute("schrift") : null;
+                            f.Note = c.GetAttribute("notiz") == "1";
                             b.Data.Spans.Add(f);
                         }
                     }

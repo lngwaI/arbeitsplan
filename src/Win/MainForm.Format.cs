@@ -94,6 +94,7 @@ namespace Arbeitsplan.Win
         void ToggleStyle(FontStyle s)
         {
             ChangeFont(delegate(Font f) { return MakeFont(f.Name, f.SizeInPoints, (f.Style & s) != 0 ? f.Style & ~s : f.Style | s); });
+            if (s == FontStyle.Italic) RestoreNoteLook();   // Notizzeilen bleiben kursiv
         }
 
         Button markedSwatch;
@@ -124,7 +125,7 @@ namespace Arbeitsplan.Win
         void ClearFormat()
         {
             if (editCell == null || !me.Has(Perm.Format)) return;
-            edContent.SelectionFont = plainFont; edContent.SelectionColor = Color.Black; FormatTouched(); edContent.Focus();
+            edContent.SelectionFont = plainFont; edContent.SelectionColor = Color.Black; RestoreNoteLook(); FormatTouched(); edContent.Focus();   // Notizen bleiben Notizen
         }
 
         // Zeigt Schrift/Groesse/Fett/Kursiv der Markierung in der Leiste an.
@@ -146,6 +147,7 @@ namespace Arbeitsplan.Win
 
         void OnContentKey(object sender, KeyEventArgs e)
         {
+            if (e.KeyCode == Keys.Enter && !e.Control && !e.Alt && NoteEnter()) { e.SuppressKeyPress = true; return; }   // neue Zeile nach einer Notiz ist keine Notiz
             if (e.Control && (e.KeyCode == Keys.U || e.KeyCode == Keys.E || e.KeyCode == Keys.R || e.KeyCode == Keys.L || e.KeyCode == Keys.J)) { e.SuppressKeyPress = true; return; }
             if (e.Control && (e.KeyCode == Keys.B || e.KeyCode == Keys.I) && !me.Has(Perm.Format)) { e.SuppressKeyPress = true; return; }
             if (e.Control && (e.KeyCode == Keys.B || e.KeyCode == Keys.I)) FormatTouched();
@@ -175,6 +177,7 @@ namespace Arbeitsplan.Win
         List<FormatSpan> ExtractSpans(int n, List<FormatSpan> res)
         {
             FormatSpan open = null;
+            int noteArgb = Theme.Current.NoteBack.ToArgb();
             int[] stat = new int[n];   // Statusfarbe+1 je Zeichen einer Equipment-Nummer (0 = keine): diese Farbe ist kein manuelles Format
             foreach (System.Text.RegularExpressions.Match m in EquipmentMatcher.Pattern.Matches(edContent.Text))
                 for (int k = m.Index; k < m.Index + m.Length && k < n; k++) stat[k] = view.StatusRgb(m.Value) + 1;
@@ -192,10 +195,11 @@ namespace Arbeitsplan.Win
                     t.Size = Math.Abs(f.SizeInPoints - plainFont.SizeInPoints) > 0.05f ? f.SizeInPoints : 0;
                     t.Bold = f.Bold; t.Italic = f.Italic;
                     t.Font = f.Name != plainFont.Name ? f.Name : null;
+                    t.Note = edContent.SelectionBackColor.ToArgb() == noteArgb;   // Notizzeile: heller Hintergrund (Normalize setzt kursiv, ganze Zeilen)
                     if (sf != null) sf.Dispose();
-                    if (t.Rgb != 0 || t.Size > 0 || t.Bold || t.Italic || t.Font != null) a = t;
+                    if (t.Rgb != 0 || t.Size > 0 || t.Bold || t.Italic || t.Font != null || t.Note) a = t;
                 }
-                bool same = open != null && a != null && open.Rgb == a.Rgb && open.Size == a.Size && open.Bold == a.Bold && open.Italic == a.Italic && open.Font == a.Font;
+                bool same = open != null && a != null && open.Rgb == a.Rgb && open.Size == a.Size && open.Bold == a.Bold && open.Italic == a.Italic && open.Font == a.Font && open.Note == a.Note;
                 if (open != null && !same) { open.Length = i - open.Start; res.Add(open); open = null; }
                 if (open == null && a != null) { a.Start = i; open = a; }
             }

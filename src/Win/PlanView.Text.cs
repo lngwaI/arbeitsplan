@@ -20,7 +20,7 @@ namespace Arbeitsplan.Win
             for (int i = 1; i <= n; i++)
                 if (i == n || fore[i] != fore[s] || mode[i] != mode[s] || fnt[i] != fnt[s])
                 {
-                    res.Add(new Piece(text.Substring(s, i - s), fnt[s], fore[s], mode[s] != 0, mode[s] == 1 ? Yellow : Green));
+                    res.Add(new Piece(text.Substring(s, i - s), fnt[s], fore[s], mode[s] != 0, mode[s] == 1 ? Yellow : mode[s] == 3 ? Theme.Current.NoteBack : Green));
                     s = i;
                 }
             return res;
@@ -57,7 +57,12 @@ namespace Arbeitsplan.Win
             foreach (FormatSpan sp in c.Cur.Spans)
             {
                 Font f = SpanFont(sp, plain);
-                for (int i = sp.Start; i < sp.Start + sp.Length && i < fore.Length; i++) { if (sp.Rgb != 0) fore[i] = Rgb(sp.Rgb); fnt[i] = f; }
+                for (int i = sp.Start; i < sp.Start + sp.Length && i < fore.Length; i++)
+                {
+                    if (sp.Rgb != 0) fore[i] = Rgb(sp.Rgb); else if (sp.Note) fore[i] = Theme.Current.NoteText;
+                    fnt[i] = f;
+                    if (sp.Note) mode[i] = 3;   // Notizzeile: abgesetzt (Suchtreffer gelb gewinnt unten)
+                }
             }
             // Erkannte Equipment-Nummer: Statusfarbe; Status unbekannt/nicht abrufbar -> Standard schwarz (Lesbarkeit).
             foreach (Match m in EquipmentMatcher.Pattern.Matches(text))

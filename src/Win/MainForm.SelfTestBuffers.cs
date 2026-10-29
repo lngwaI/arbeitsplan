@@ -125,7 +125,7 @@ namespace Arbeitsplan.Win
             p.Steps.Add(a); p.Steps.Add(c);
             p.Apply(ms, d0, ApplyMode.Overwrite, null);
             Entry g = ms.Get(d0, puf);
-            bool okPk = g != null && g.Content == "" && g.Buffers.Count == 3 && g.Buffers[0].Name == "Puffer A" && g.Buffers[0].Text == "Notiz: Charge 1" && g.Buffers[1].Name == "Puffer B" && g.Buffers[2].Name == "Puffer B"
+            bool okPk = g != null && g.Content == "" && g.Buffers.Count == 3 && g.Buffers[0].Name == "Puffer A" && g.Buffers[0].Text == "Charge 1" && g.Buffers[1].Name == "Puffer B" && g.Buffers[2].Name == "Puffer B"
                 && g.Types == "mobil:2|stationaer" && UniqueIds(g);   // "beides" = zwei Puffer gleichen Namens; nicht summiert, sondern angehaengt
             Entry pre = Bufs("alt", "Alt", "mobil", "x");
             ms.Save(d0.AddDays(1), puf, pre);

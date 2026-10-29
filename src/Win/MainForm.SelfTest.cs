@@ -303,6 +303,8 @@ namespace Arbeitsplan.Win
             SelfTestPlan(sb);
             SelfTestF(sb);   // Plan-Datei, Sicherung nach Zeitplan, Paket-Editor-Groesse (MainForm.SelfTestF.cs)
             SelfTestBuffers(sb);   // Puffer-Liste: XML, Migration, Merge, Paket (MainForm.SelfTestBuffers.cs)
+            SelfTestNotes(sb);   // Notizzeilen: leer-Regel, XML, Konflikt, Paket-Modi, Laufnummern, Protokoll (MainForm.SelfTestNotes.cs)
+            SelfTestNotesUi(sb);   // Notizzeilen in Ansicht und Editor
             SelfTestG(sb);   // Puffer-Varianten, Migration, 2 Wochen, Hervorhebung, Offene Pflichten (MainForm.SelfTestG.cs)
             SelfTestA(sb);
             SelfTestAnsicht2(sb);   // Chips, LKZ dringend, Rundgang-Datum, Auswahlrahmen (MainForm.SelfTestAnsicht2.cs)

@@ -24,6 +24,7 @@ namespace Arbeitsplan.Win
             cm.Items.Add(new ToolStripSeparator());
             ToolStripItem h = cm.Items.Add("Verlauf…", null, delegate { if (editCell != null) ShowHistory(editCell); });
             cm.Opening += delegate { h.Enabled = true; };   // nach der Format-Sperre: Lesen genuegt
+            InitNotes(vm, cm);   // Notizzeilen markieren/aufheben (MainForm.Notes.cs)
             FormClosed += delegate { AutoBackup(); };
             StartBackupTimer();
         }

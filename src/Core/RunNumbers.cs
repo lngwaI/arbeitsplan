@@ -24,6 +24,9 @@ namespace Arbeitsplan.Core
         // Alle Laufnummern des Textes (ohne Doppelte, Reihenfolge des Auftretens).
         public static List<RunRef> Find(string content) { return Find(content, null); }
 
+        // Wie Find(Text), Notizzeilen des Blocks zaehlen nicht.
+        public static List<RunRef> Find(Entry e, string product = null) { return Find(Notes.ContentText(e), product); }
+
         // product: nur Laeufe mit diesem Praefix (XXYY), null = alle.
         public static List<RunRef> Find(string content, string product)
         {

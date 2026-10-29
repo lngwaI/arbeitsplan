@@ -121,6 +121,7 @@ namespace Arbeitsplan.Win
                 edContent.Select(sp.Start, sp.Length);
                 edContent.SelectionFont = PlanView.SpanFont(sp, plainFont);
                 edContent.SelectionColor = Ui.Rgb(sp.Rgb);
+                if (sp.Note) edContent.SelectionBackColor = Theme.Current.NoteBack;   // Notizzeile (ExtractSpans liest den Hintergrund)
             }
             foreach (System.Text.RegularExpressions.Match m in EquipmentMatcher.Pattern.Matches(edContent.Text))   // Statusfarbe wie in der Ansicht (beim Speichern nicht als Format uebernommen, siehe ExtractSpans)
             {
@@ -169,6 +170,7 @@ namespace Arbeitsplan.Win
             Entry n = c.Cur.Clone();
             n.Content = Norm(edContent.Text);
             n.Spans = ExtractSpans();
+            Notes.Normalize(n);   // Notizmarkierung auf ganze Zeilen, kursiv
             for (int s = 0; s < 3; s++) n.People[s] = Norm(edPpl[s].Text);
             n.Lkz = c.Lkz; n.Buffers = BufferSet.CloneAll(c.Buffers); n.Marks = new List<string>(c.Marks);
             return n;
