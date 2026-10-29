@@ -29,7 +29,9 @@ namespace Arbeitsplan.Win
             Theme.Current.Style(this);
         }
 
+#if TESTHOOKS
         public bool CanTakeOver { get { return bTake.Enabled; } }
+#endif
     }
 
     // Zweiter Schritt der Uebernahme: Warnung, optionaler Kommentar "Warum?" (hoechstens 300 Zeichen), Bestaetigung.
@@ -59,6 +61,8 @@ namespace Arbeitsplan.Win
             Theme.Current.Style(this);
         }
 
+#if TESTHOOKS
         public void TestReason(string r) { why.Text = r; }
+#endif
     }
 }

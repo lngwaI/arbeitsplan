@@ -159,7 +159,7 @@ namespace Arbeitsplan.Core
             foreach (BufferItem b in n) { BufferItem o = ById(old, b.Id); if (o == null) added = true; else if (!o.SameValue(b)) changed = true; }
             foreach (BufferItem o in old) if (ById(n, o.Id) == null) removed = true;
             if (!added && !removed && !changed)
-                for (int i = 0; i < n.Count; i++) if (n[i].Id != old[i].Id) changed = true;
+                for (int i = 0; i < n.Count && i < old.Count; i++) if (n[i].Id != old[i].Id) changed = true;
         }
 
         // Dreiwege je Id. Basis b, eigene Fassung mine, gespeicherter Stand theirs.

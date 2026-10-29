@@ -16,8 +16,12 @@ namespace Arbeitsplan.Core
                 foreach (RowInfo r in rows)
                 {
                     Entry e = store.Get(d, r.Id);
-                    if (e == null || string.IsNullOrEmpty(e.Content)) continue;
-                    foreach (System.Text.RegularExpressions.Match m in EquipmentMatcher.Pattern.Matches(e.Content))
+                    if (e == null) continue;
+                    StringBuilder sb = new StringBuilder(Notes.ContentText(e));
+                    foreach (BufferItem b in e.Buffers) sb.Append('\n').Append(b.Name).Append('\n').Append(b.Text);
+                    string txt = sb.ToString();
+                    if (txt.Trim().Length == 0) continue;
+                    foreach (System.Text.RegularExpressions.Match m in EquipmentMatcher.Pattern.Matches(txt))
                         if (seen.Add(m.Value)) res.Add(m.Value);
                 }
             return res;

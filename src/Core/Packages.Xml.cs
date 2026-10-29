@@ -151,6 +151,7 @@ namespace Arbeitsplan.Core
             p.ProductCode = IsProductCode(root.GetAttribute("produkt")) ? root.GetAttribute("produkt") : "";   // fehlt bei aelteren Paketen
             p.RunPrefix = IsCode4(root.GetAttribute("praefix")) ? root.GetAttribute("praefix") : "";        // fehlt bis Version 3: Prefix = Produktcode
             int version = ToInt(root.GetAttribute("version"), 0);
+            if (version > 7) throw new InvalidDataException("Paket stammt aus einer neueren Programmversion.");
             ReadPackage7(root, p);
             foreach (XmlElement e in Elements(root))
             {

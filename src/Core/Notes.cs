@@ -104,6 +104,7 @@ namespace Arbeitsplan.Core
             return n;
         }
 
+        // Offen (QS): beim Aufheben geht manuelles Kursiv der Zeile verloren (Note erzwingt Italic, das Original wird nicht gespeichert; braeuchte ein Formatfeld).
         // Bereich [a, b) mit Note+Italic belegen (on) oder davon befreien; vorhandene Spans werden an den Grenzen geteilt.
         static void Paint(Entry e, int a, int b, bool on)
         {

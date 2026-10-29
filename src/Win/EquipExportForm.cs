@@ -21,6 +21,9 @@ namespace Arbeitsplan.Win
         readonly Label count = new Label();
         readonly DateTime weekStart;
         string text = "";
+        readonly Timer campTimer = new Timer();   // Produktfeld entprellt (300 ms)
+        Font bold;
+        bool loading;
 
         public EquipExportForm(IDataStore store, DateTime weekStart, DateTime? selectedDay)
         {
@@ -50,10 +53,12 @@ namespace Arbeitsplan.Win
             if (selectedDay.HasValue) rDay.Checked = true; else rWeek.Checked = true;
             EventHandler upd = delegate { Update_(); };
             rDay.CheckedChanged += upd; rWeek.CheckedChanged += upd; rRange.CheckedChanged += upd; rCamp.CheckedChanged += upd; camps.SelectedIndexChanged += upd; before.ValueChanged += upd; after.ValueChanged += upd;
-            prefix.TextChanged += delegate { LoadCamps(); Update_(); };
+            campTimer.Interval = 300;
+            campTimer.Tick += delegate { campTimer.Stop(); LoadCamps(); Update_(); };
+            prefix.TextChanged += delegate { campTimer.Stop(); campTimer.Start(); };
             dDay.ValueChanged += upd; dFrom.ValueChanged += upd; dTo.ValueChanged += upd;
 
-            count.AutoSize = true; count.Location = new Point(14, 160); count.Font = new Font(Font, FontStyle.Bold);
+            count.AutoSize = true; count.Location = new Point(14, 160); bold = new Font(Font, FontStyle.Bold); count.Font = bold;
             preview.Multiline = true; preview.ReadOnly = true; preview.ScrollBars = ScrollBars.Vertical; preview.BackColor = th.Window;
             preview.SetBounds(14, 184, 430, 238);
 
@@ -69,7 +74,19 @@ namespace Arbeitsplan.Win
             Update_();
         }
 
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing) { campTimer.Stop(); campTimer.Dispose(); if (bold != null) bold.Dispose(); }
+            base.Dispose(disposing);
+        }
+
         void LoadCamps()
+        {
+            loading = true;
+            try { LoadCampsCore(); } finally { loading = false; }
+        }
+
+        void LoadCampsCore()
         {
             camps.Items.Clear();
             string px = prefix.Text.Trim();
@@ -96,6 +113,7 @@ namespace Arbeitsplan.Win
 
         void Update_()
         {
+            if (loading) return;   // Neubefuellen der Kampagnenliste: Aufrufer aktualisiert danach einmal
             dDay.Enabled = rDay.Checked; dFrom.Enabled = dTo.Enabled = rRange.Checked;
             camps.Enabled = prefix.Enabled = before.Enabled = after.Enabled = rCamp.Checked;
             DateTime a, b; Range(out a, out b);

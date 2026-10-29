@@ -20,6 +20,7 @@ namespace Arbeitsplan.Win
             ToolStripItem vOn = new ToolStripMenuItem("Als Notiz markieren", null, delegate { ViewNote(true); });
             ToolStripItem vOff = new ToolStripMenuItem("Notiz aufheben", null, delegate { ViewNote(false); });
             vm.Items.Add(vsep); vm.Items.Add(vOn); vm.Items.Add(vOff);
+            vm.Closed += delegate { BeginInvoke((MethodInvoker)delegate { view.MenuPara = -1; }); };   // erst nach dem Klick auf den Eintrag zuruecksetzen
             vm.Opening += delegate
             {
                 CellData c = view.Selected; int p = view.MenuPara;

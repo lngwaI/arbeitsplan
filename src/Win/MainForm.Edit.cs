@@ -35,7 +35,7 @@ namespace Arbeitsplan.Win
         // Bearbeiten erlaubt: Text aendern, oder leerer Block und Text hinzufuegen; sonst Meldung.
         bool CanEdit(CellData c)
         {
-            if (me.Has(Perm.EditText) || (c.Cur.IsEmpty && me.Has(Perm.AddText))) return true;
+            if (me.Has(Perm.EditText) || (c.Cur.IsEmpty && c.Cur.Buffers.Count == 0 && !c.Cur.HasNotes && me.Has(Perm.AddText))) return true;
             MessageBox.Show("Keine Berechtigung zum Bearbeiten.", "Arbeitsplan", MessageBoxButtons.OK, MessageBoxIcon.Information);
             return false;
         }
@@ -104,8 +104,11 @@ namespace Arbeitsplan.Win
             ParaFmt2 pf = new ParaFmt2();
             pf.cbSize = System.Runtime.InteropServices.Marshal.SizeOf(typeof(ParaFmt2));
             pf.dwMask = 0x100;   // PFM_LINESPACING
-            pf.dyLineSpacing = (int)Math.Round(px * 1440.0 / dpi); pf.bLineSpacingRule = 4;
-            SendMessage(rb.Handle, 0x447, IntPtr.Zero, ref pf);   // EM_SETPARAFORMAT
+            pf.dyLineSpacing = (int)Math.Round(px * 1440.0 / dpi); pf.bLineSpacingRule = 3;   // 3 = mindestens (grosse Schrift wird nicht abgeschnitten)
+            int ss = rb.SelectionStart, sl = rb.SelectionLength;
+            rb.SelectAll();
+            SendMessage(rb.Handle, 0x447, IntPtr.Zero, ref pf);   // EM_SETPARAFORMAT (alle Absaetze)
+            rb.Select(ss, sl);
         }
 
         void LoadEditors(CellData c)

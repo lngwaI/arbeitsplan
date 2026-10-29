@@ -25,22 +25,28 @@ namespace Arbeitsplan.Win
 
         static bool White(IntPtr p, int i) { char c = (char)Marshal.ReadInt16(p, i * 2); return c == ' ' || c == '\t' || c == '\r' || c == '\n' || c == '\v' || c == '\f' || c == '\0'; }
 
+        // cch zaehlt Zeichen (Unicode-RichEdit), nicht Bytes; Fehler im Rueckruf duerfen nie nach aussen dringen
         static int Proc(IntPtr text, int cur, int cch, int code)
         {
-            if (cch < 0) cch = 0;
-            if (cur < 0) cur = 0;
-            if (cur > cch) cur = cch;
-            switch (code)
+            try
             {
-                case 2: return cur < cch && White(text, cur) ? 1 : 0;                       // WB_ISDELIMITER
-                case 0: case 4: case 6:                                                     // links: Wortanfang
-                    while (cur > 0 && !White(text, cur - 1)) cur--;
-                    return cur;
-                default:                                                                    // rechts: Anfang des naechsten Worts
-                    while (cur < cch && !White(text, cur)) cur++;
-                    while (cur < cch && White(text, cur)) cur++;
-                    return cur;
+                if (cch < 0) cch = 0;
+                if (cur < 0) cur = 0;
+                if (cur > cch) cur = cch;
+                switch (code)
+                {
+                    case 2: return cur < cch && White(text, cur) ? 1 : 0;                       // WB_ISDELIMITER
+                    case 3: return cur < cch && White(text, cur) ? 0x50 : 0;                    // WB_CLASSIFY
+                    case 0: case 4: case 6:                                                     // links: Wortanfang
+                        while (cur > 0 && !White(text, cur - 1)) cur--;
+                        return cur;
+                    default:                                                                    // rechts: Anfang des naechsten Worts
+                        while (cur < cch && !White(text, cur)) cur++;
+                        while (cur < cch && White(text, cur)) cur++;
+                        return cur;
+                }
             }
+            catch (Exception) { return 0; }
         }
     }
 }

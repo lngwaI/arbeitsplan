@@ -15,7 +15,10 @@ namespace Arbeitsplan.Win
         readonly Func<List<Notice>> load;
         readonly Func<int> markAllRead;
         int unread;
+        readonly Font bold;   // eine Schrift fuer Kopf und ungelesene Zeilen
+#if TESTHOOKS
         public int Unread { get { return unread; } }
+#endif
 
         public NoticesForm(Func<List<Notice>> load, Func<int> markAllRead)
         {
@@ -23,7 +26,7 @@ namespace Arbeitsplan.Win
             Text = "Benachrichtigungen";
             Ui.Dialog(this, 720, 420, false);
             Theme th = Theme.Current;
-            head.Font = new Font(Font, FontStyle.Bold); head.SetBounds(12, 10, 696, 20);
+            bold = new Font(Font, FontStyle.Bold); head.Font = bold; head.SetBounds(12, 10, 696, 20);
             grid.SetBounds(12, 36, 696, 336);
             grid.AllowUserToAddRows = false; grid.AllowUserToDeleteRows = false; grid.AllowUserToResizeRows = false; grid.ReadOnly = true;
             grid.RowHeadersVisible = false; grid.MultiSelect = false; grid.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
@@ -33,6 +36,7 @@ namespace Arbeitsplan.Win
             grid.DefaultCellStyle.SelectionBackColor = th.ButtonOn; grid.DefaultCellStyle.SelectionForeColor = th.HeadText;
             grid.DefaultCellStyle.WrapMode = DataGridViewTriState.True; grid.AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.AllCells;
             Col("Zeit", 110); Col("Meldung", 490); Col("Stand", 80);
+            grid.Columns[1].AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
             empty.Text = "Keine Benachrichtigungen"; empty.TextAlign = ContentAlignment.MiddleCenter; empty.ForeColor = SystemColors.GrayText;
             empty.SetBounds(12, 36, 696, 336); empty.Visible = false;
             markAll.Text = "Alle als gelesen markieren"; markAll.SetBounds(12, 382, 190, 28);
@@ -41,6 +45,12 @@ namespace Arbeitsplan.Win
             Controls.AddRange(new Control[] { head, empty, grid, markAll, close });
             Theme.Current.Style(this);
             Fill();
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing) bold.Dispose();
+            base.Dispose(disposing);
         }
 
         void Col(string title, int w)
@@ -56,7 +66,7 @@ namespace Arbeitsplan.Win
             foreach (Notice n in l)
             {
                 int i = grid.Rows.Add(n.Time.ToString("dd.MM.yyyy HH:mm", Ui.De), n.Text, n.Read ? "gelesen" : "ungelesen");
-                if (!n.Read) { unread++; grid.Rows[i].DefaultCellStyle.Font = new Font(Font, FontStyle.Bold); }
+                if (!n.Read) { unread++; grid.Rows[i].DefaultCellStyle.Font = bold; }
             }
             empty.Visible = l.Count == 0; grid.Visible = l.Count > 0; markAll.Enabled = unread > 0;
             head.Text = unread > 0 ? unread + " ungelesen von " + l.Count : l.Count + " Meldung" + (l.Count == 1 ? "" : "en") + ", alle gelesen";

@@ -17,6 +17,11 @@ namespace Arbeitsplan.Win
         // index -1 = neuer Puffer, sonst Puffer an dieser Position
         void EditBuffer(CellData c, int index)
         {
+            if (!me.Has(Perm.EditText) && !me.Has(Perm.AddText))   // Recht vor dem Dialog pruefen (Feinpruefung folgt in ChangeBuffers)
+            {
+                if (!quiet) MessageBox.Show("Keine Berechtigung zum Bearbeiten.", "Arbeitsplan", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
             if (!c.Editing) FreshCur(c);
             RowInfo ri = rowInfo[c.RowIndex];
             if (index >= c.Buffers.Count) return;

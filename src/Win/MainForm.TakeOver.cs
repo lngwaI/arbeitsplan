@@ -74,11 +74,12 @@ namespace Arbeitsplan.Win
             int n = CountUnread(l);
             if (n > lastUnread) Status("Neue Benachrichtigung (Hilfe)", true);
             ShowNoticeCount(n);
+            if (!quiet && (!Enabled || ActiveForm != this)) return;   // modaler Dialog offen oder Fenster nicht aktiv: naechster Takt
             CellData c = editCell;
             if (c == null || (!quiet && Application.OpenForms.Count > 1)) return;   // kein Dialog offen: sonst naechster Takt
             foreach (Notice x in l)
                 if (!x.Read && x.Kind == Notice.KindTakeOver && x.Day == c.Day.Date && x.RowId == rowInfo[c.RowIndex].Id
-                    && x.Time >= editStart.AddMinutes(-1) && !shownNotices.Contains(x.Id))
+                    && x.Time >= editStart.AddMinutes(-5) && !shownNotices.Contains(x.Id))
                 { Evicted(x); return; }
         }
 
@@ -87,11 +88,13 @@ namespace Arbeitsplan.Win
         {
             shownNotices.Add(x.Id);
             notices.MarkRead(me.Login, x.Id);
+            bool saved = false;
+            try { if (editCell != null && editCell.Dirty && edContent.Text.Length > 0) { Clipboard.SetText(edContent.Text); saved = true; } } catch (Exception) { }
             EndEdit(false);
             if (fstore != null) fstore.Refresh();
             Rebuild(false);
             ShowNoticeCount(Math.Max(0, lastUnread - 1));
-            if (!quiet) MessageBox.Show(this, x.Text, "Bearbeitung übernommen", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            if (!quiet) MessageBox.Show(this, x.Text + (saved ? "\n\nIhr ungespeicherter Text liegt in der Zwischenablage." : ""), "Bearbeitung übernommen", MessageBoxButtons.OK, MessageBoxIcon.Warning);
         }
 
         // Hinweis beim Bearbeiten eines belegten Blocks (Soft-Lock). false = nicht bearbeiten.
@@ -127,12 +130,13 @@ namespace Arbeitsplan.Win
             if (found != 1) { err = found == 0 ? holder + " ist nicht als Nutzer bekannt." : "Der Name " + holder + " ist mehrfach vergeben; die Benachrichtigung ist nicht eindeutig möglich."; return false; }
             RowInfo ri = rowInfo[c.RowIndex];
             Notice nt = Notice.TakeOver(me.Display, me.Kuerzel, BlockTitle(c), Ui.DayText(c.Day), c.Day, ri.Id, reason);
-            AuditEntry a = new AuditEntry();   // erst protokollieren: schlaegt es fehl, wird niemand benachrichtigt
+            AuditEntry a = new AuditEntry();   // Protokolleintrag (wird nach der Benachrichtigung geschrieben)
             a.Time = DateTime.Now; a.Login = me.Login; a.Kuerzel = me.Kuerzel; a.Role = me.RoleText;
             a.Day = c.Day.Date; a.RowId = NoticeAuditRow; a.RowName = BlockTitle(c); a.Mark = "Uebernahme";
             a.Value = "Bearbeitung übernommen von " + me.Display + ", bisher " + holder + ", Grund " + Notice.CleanReason(reason);
-            try { store.AppendAudit(a); } catch (Exception ex) { err = ex.Message; return false; }
-            return notices.Add(victim.Login, nt, out err);
+            if (!notices.Add(victim.Login, nt, out err)) return false;   // erst benachrichtigen: bei Fehler steht nichts als "uebernommen" im Protokoll
+            try { store.AppendAudit(a); } catch (Exception ex) { err = "Benachrichtigt, aber nicht protokolliert: " + ex.Message; return false; }
+            return true;
         }
     }
 }

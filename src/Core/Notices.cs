@@ -32,7 +32,7 @@ namespace Arbeitsplan.Core
         // "<Wer> (<Kuerzel>) hat Ihre Bearbeitung von <Ueberschrift> am <Datum> uebernommen. Grund: ... Ihre ungespeicherten Aenderungen sind verloren."
         public static Notice TakeOver(string byName, string byKuerzel, string title, string dayText, DateTime day, int rowId, string reason)
         {
-            string r = CleanReason(reason);
+            string r = CleanReason(reason); byName = byName ?? ""; byKuerzel = byKuerzel ?? ""; title = title ?? ""; dayText = dayText ?? "";
             Notice n = new Notice(); n.Time = DateTime.Now; n.Kind = KindTakeOver; n.Day = day.Date; n.RowId = rowId;
             n.Text = byName + (byKuerzel.Length > 0 ? " (" + byKuerzel + ")" : "") + " hat Ihre Bearbeitung von " + title + " am " + dayText
                 + " übernommen. Grund: " + r + (r.EndsWith(".") ? " " : ". ") + "Ihre ungespeicherten Änderungen sind verloren.";
@@ -112,11 +112,40 @@ namespace Arbeitsplan.Core
 
         public FileNoticeService(string dataFolder) { dir = Path.Combine(dataFolder, "nachrichten"); }
 
+        // Eindeutig: Kleinbuchstaben a-z, Ziffern, '-' und '_' bleiben, alles andere als %XX (UTF-8). Aelterer, nur bereinigter Ordnername
+        // wird weiter gelesen, solange es ihn gibt und den neuen noch nicht.
         string UserDir(string login)
         {
-            StringBuilder s = new StringBuilder();
-            foreach (char ch in (login ?? "").ToLowerInvariant()) s.Append(char.IsLetterOrDigit(ch) || ch == '-' || ch == '_' ? ch : '_');
-            return Path.Combine(dir, s.Length > 0 ? s.ToString() : "_");
+            string lg = (login ?? "").ToLowerInvariant();
+            StringBuilder s = new StringBuilder(), old = new StringBuilder();
+            foreach (char ch in lg) old.Append(char.IsLetterOrDigit(ch) || ch == '-' || ch == '_' ? ch : '_');
+            foreach (byte b in Utf8.GetBytes(lg))
+            {
+                char c = (char)b;
+                if ((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '-' || c == '_') s.Append(c);
+                else s.Append('%').Append(b.ToString("X2", CultureInfo.InvariantCulture));
+            }
+            string nu = Path.Combine(dir, s.Length > 0 ? s.ToString() : "_");
+            string ol = Path.Combine(dir, old.Length > 0 ? old.ToString() : "_");
+            return !Directory.Exists(nu) && Directory.Exists(ol) ? ol : nu;
+        }
+
+        // Aufraeumen: neueste 200 Nachrichten behalten, uebrig gebliebene .tmp (> 1 Tag) loeschen
+        static void Tidy(string d)
+        {
+            try
+            {
+                List<string> files = new List<string>();
+                foreach (string f in Directory.GetFiles(d))
+                {
+                    string x = Path.GetExtension(f);
+                    if (x == ".tmp") { if (File.GetLastWriteTime(f) < DateTime.Now.AddDays(-1)) File.Delete(f); }
+                    else if (x == ".txt" || x == ".gelesen") files.Add(f);
+                }
+                files.Sort(delegate(string a, string b) { return string.CompareOrdinal(Path.GetFileNameWithoutExtension(b), Path.GetFileNameWithoutExtension(a)); });
+                for (int i = 200; i < files.Count; i++) File.Delete(files[i]);
+            }
+            catch (Exception) { }
         }
 
         static string Esc(string s) { return (s ?? "").Replace("\\", "\\\\").Replace("\r", "").Replace("\n", "\\n"); }
@@ -146,6 +175,7 @@ namespace Arbeitsplan.Core
                     + "\ntext=" + Esc(n.Text) + "\n", Utf8);
                 File.Move(tmp, Path.Combine(d, id + ".txt"));
                 n.Id = id;
+                Tidy(d);
                 return true;
             }
             catch (Exception ex) { error = ex.Message; return false; }

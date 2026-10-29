@@ -382,11 +382,18 @@ namespace Arbeitsplan.Core
         // Ergebnis der Uebernahme (Meldung fuer den Nutzer). schedule: Tage je Lauf (aus Schedule(), ggf. verschoben); null = Paket-Rhythmus.
         public string Apply(IDataStore store, DateTime start, ApplyMode mode, List<RunDate> schedule, User by = null)
         {
+            if (schedule != null) return ApplyCore(store, start, mode, schedule, by);
+            Package c = Clone();   // Back-Up-Tage nur auf der Kopie angleichen, das Eingabepaket bleibt unveraendert
+            SyncBackups(c.Steps);   // Back-Up immer einen Tag nach dem Packen
+            return c.ApplyCore(store, start, mode, null, by);
+        }
+
+        string ApplyCore(IDataStore store, DateTime start, ApplyMode mode, List<RunDate> schedule, User by)
+        {
             List<string> belongs = store.GetCatalog().CheckPackage(this);   // harter Fehler: Zubehoer eines anderen Hauptgeraets
             if (belongs.Count > 0) throw new InvalidOperationException("Equipment passt nicht zusammen:\n" + string.Join("\n", belongs.ToArray()));
             string bp = BackupProblem(Steps);   // Back-Up ohne Packen
             if (bp != null) throw new InvalidOperationException(bp);
-            if (schedule == null) SyncBackups(Steps);   // Back-Up immer einen Tag nach dem Packen
             List<PackageProblem> rules = Check(store, start, mode, schedule);   // Regeln (Packages.Rules.cs): Sperre gilt fuer alle, auch PackageAdmin
             if (HasBlock(rules)) throw new InvalidOperationException("Gesperrt, Regel verletzt:\n" + DescribeBlocks(rules));
             List<RowInfo> rows = store.GetRows();

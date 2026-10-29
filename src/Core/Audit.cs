@@ -72,7 +72,7 @@ namespace Arbeitsplan.Core
         public static string NoteChange(AuditEntry a)
         {
             Entry b = a.Before ?? new Entry(), n = a.After ?? new Entry();
-            if (b.Content != n.Content || b.People[0] != n.People[0] || b.People[1] != n.People[1] || b.People[2] != n.People[2] || b.Lkz != n.Lkz) return "";
+            if (b.Content != n.Content || b.People[0] != n.People[0] || b.People[1] != n.People[1] || b.People[2] != n.People[2] || b.Lkz != n.Lkz || BufferSet.Key(b.Buffers) != BufferSet.Key(n.Buffers)) return "";
             int cb = Notes.NoteLines(b).Count, cn = Notes.NoteLines(n).Count;
             return cn > cb ? "Notiz markiert" : cn < cb ? "Notiz aufgehoben" : "";
         }
@@ -87,14 +87,14 @@ namespace Arbeitsplan.Core
         public static string Preview(Entry e)
         {
             if (e == null) return "(leer)";
-            string pre = "";
-            if (e.IsEmpty && e.Buffers.Count == 0)
+            string pre = "", bufs = string.Join(" / ", BufferSet.DisplayLines(e.Buffers, false).ToArray());
+            if (e.IsEmpty)
             {
-                if (!e.HasNotes) return "(leer)";
-                pre = "(nur Notizen) ";   // Notizen allein zaehlen nicht als Inhalt
+                if (!e.HasNotes && e.Buffers.Count == 0) return "(leer)";
+                if (e.HasNotes) pre = "(nur Notizen) ";   // Notizen allein zaehlen nicht als Inhalt
             }
             string s = pre + e.Content.Replace("\n", " | ");
-            if (s.Length == 0 && e.IsEmpty) s = string.Join(" / ", BufferSet.DisplayLines(e.Buffers, false).ToArray());
+            if (e.IsEmpty && bufs.Length > 0) s = (e.HasNotes ? s + " | " : "") + bufs;
             else if (s.Length == 0) s = string.Join(" / ", e.People);
             return s.Length > 60 ? s.Substring(0, 60) + "…" : s;
         }

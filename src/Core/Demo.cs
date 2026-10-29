@@ -60,8 +60,11 @@ namespace Arbeitsplan.Core
             if (problem != null) return null;
             try
             {
-                bool have = File.Exists(Path.Combine(cfg.DataFolder, FileStore.FileName));
-                if (!have || (SeedMonday(cfg) != MondayOf(DateTime.Today) && OtherInstances() == 0)) { if (have) Wipe(cfg); DemoData.Seed(cfg); }
+                using (SeedLock l = new SeedLock())   // zwei gleichzeitig startende Demos: nur eine legt an/loescht
+                {
+                    bool have = File.Exists(Path.Combine(cfg.DataFolder, FileStore.FileName));
+                    if (!have || (SeedMonday(cfg) != MondayOf(DateTime.Today) && OtherInstances() == 0)) { if (have) Wipe(cfg); DemoData.Seed(cfg); }
+                }
             }
             catch (Exception ex) { problem = "Die Demo-Daten konnten nicht angelegt werden:\n" + ex.Message; return null; }
             FileStore fs = new FileStore(cfg.DataFolder, cfg.ReadOnly, cfg.CachePath, 0);
@@ -75,17 +78,54 @@ namespace Arbeitsplan.Core
             string err = CheckFolder(cfg.DataFolder) ?? (IsDemoPath(cfg.BackupFolder) ? null : "Sicherungsordner liegt nicht im Demo-Ordner.");
             if (err != null) return err;
             if (!ignoreOthers && OtherInstances() > 0) return "Es sind noch weitere Demo-Fenster offen. Bitte alle anderen Demo-Fenster schließen und erneut zurücksetzen.";
-            try { Wipe(cfg); DemoData.Seed(cfg); }
+            try { using (SeedLock l = new SeedLock()) { Wipe(cfg); DemoData.Seed(cfg); } }
             catch (Exception ex) { return "Zurücksetzen fehlgeschlagen:\n" + ex.Message; }
             return null;
         }
 
+        // Sperre (benannter Mutex, Sitzung) um Anlegen/Loeschen der Demo-Daten
+        sealed class SeedLock : IDisposable
+        {
+            readonly System.Threading.Mutex m = new System.Threading.Mutex(false, "Local\\ArbeitsplanDemoSeed");
+            bool held;
+            public SeedLock()
+            {
+                try { held = m.WaitOne(30000); } catch (System.Threading.AbandonedMutexException) { held = true; }
+            }
+            public void Dispose() { if (held) { try { m.ReleaseMutex(); } catch (Exception) { } } m.Close(); }
+        }
+
+        // Nur bekannte Demo-Inhalte loeschen (nie den ganzen Ordner rekursiv); Ordner danach nur entfernen, wenn leer.
         static void Wipe(AppConfig cfg)
         {
             if (CheckFolder(cfg.DataFolder) != null || !IsDemoPath(cfg.BackupFolder)) throw new InvalidOperationException("kein Demo-Ordner");
-            if (Directory.Exists(cfg.DataFolder)) Directory.Delete(cfg.DataFolder, true);
-            if (Directory.Exists(cfg.BackupFolder)) Directory.Delete(cfg.BackupFolder, true);
+            string d = cfg.DataFolder;
+            if (Directory.Exists(d))
+            {
+                string[] files = { FileStore.FileName, FileStore.FileName + ".bak1", FileStore.FileName + ".bak2", FileStore.FileName + ".bak3", FileStore.KeyFileName, MarkerFile, "arbeitsplan.lock", "version" };
+                foreach (string f in files) DeleteFile(Path.Combine(d, f));
+                foreach (string f in Directory.GetFiles(d, "*.tmp")) DeleteFile(f);
+                foreach (string sub in new[] { "Pakete", "sperren", "nachrichten" })
+                    if (Directory.Exists(Path.Combine(d, sub))) Directory.Delete(Path.Combine(d, sub), true);
+                TryRemoveEmpty(d);
+            }
+            string b = cfg.BackupFolder;
+            if (Directory.Exists(b))
+            {
+                foreach (string f in Directory.GetFiles(b, "*.apbak")) DeleteFile(f);
+                foreach (string f in Directory.GetFiles(b, "*.tmp")) DeleteFile(f);
+                TryRemoveEmpty(b);
+            }
         }
+
+        static void DeleteFile(string f)
+        {
+            if (!File.Exists(f)) return;
+            File.SetAttributes(f, FileAttributes.Normal);   // Schluessel ist Hidden+System
+            File.Delete(f);
+        }
+
+        static void TryRemoveEmpty(string dir) { try { Directory.Delete(dir, false); } catch (Exception) { } }
 
         public static DateTime SeedMonday(AppConfig cfg)
         {

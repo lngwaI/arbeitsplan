@@ -144,7 +144,7 @@ namespace Arbeitsplan.Win
             bool okEv = editCell == c;
             Entry before = store.Get(cday, rid) ?? new Entry(); string content0 = before.Content; int ver0 = before.Version;
             edContent.Text = edContent.Text + " ungespeichert"; okEv &= HasUnsavedChanges;
-            Notice old = Notice.TakeOver("Paula Werk", "WEPA", title, Ui.DayText(cday), cday, rid, ""); old.Time = editStart.AddMinutes(-5); notices.Add(me.Login, old, out e);
+            Notice old = Notice.TakeOver("Paula Werk", "WEPA", title, Ui.DayText(cday), cday, rid, ""); old.Time = editStart.AddMinutes(-6); notices.Add(me.Login, old, out e);
             Notice oth = Notice.TakeOver("Paula Werk", "WEPA", "Anderer Block", Ui.DayText(cday), cday, rid + 1000, ""); notices.Add(me.Login, oth, out e);
             OnNotices(notices.List(me.Login));
             okEv &= editCell == c && locks.Holder(cday, rid, "Paula Werk") == me.Display;          // alte Nachricht/anderer Block: bleibt im Bearbeitungsmodus
@@ -157,6 +157,17 @@ namespace Arbeitsplan.Win
             notices.MarkAllRead(me.Login);
             sb.AppendLine("Übernahme: Nachricht mit/ohne Grund=" + Ok(okN) + " Protokoll=" + Ok(okA) + " gelesen/ungelesen=" + Ok(okRead) + " Recht fehlt=" + Ok(okNo)
                 + " Sperre wechselt=" + Ok(okLock) + " Verdrängung ohne Speichern=" + Ok(okEv));
+            // QS Teil 1: Paket aus neuerer Version, manueller Status mit Altersgrenze, Equipment-Bedarf aus Puffern, Apply ohne Seiteneffekt am Paket
+            bool okQs = false;
+            try { Package.FromXml("<Paket name=\"x\" version=\"9\"></Paket>"); } catch (System.IO.InvalidDataException ex) { okQs = ex.Message.IndexOf("neueren Programmversion") >= 0; }
+            MemoryStore qd = new MemoryStore(); DateTime qnow = DateTime.Now;
+            ManualStatusProvider qm = new ManualStatusProvider(qd, new MockEquipmentProvider()); qm.Clock = delegate { return qnow; };
+            qm.Set("H1-T-0102", EquipStatus.Freigabe, me); okQs &= qm.IsManual("H1-T-0102");
+            qnow = qnow.AddDays(qm.ManualDays + 1); okQs &= !qm.IsManual("H1-T-0102");
+            MemoryStore qe = MemoryStore.Sample(DateTime.Today); RowInfo qr = qe.GetRows()[0];
+            Entry qen = new Entry(); BufferSet.Add(qen.Buffers, "Test H1-T-0777", "", "Tank H2-T-0888"); qe.Save(DateTime.Today.AddDays(400), qr.Id, qen);
+            List<string> qids = EquipExport.Collect(qe, DateTime.Today.AddDays(400), DateTime.Today.AddDays(400)); okQs &= qids.Contains("H1-T-0777") && qids.Contains("H2-T-0888");
+            sb.AppendLine("QS Kern 1: neuere Paketversion=" + Ok(okQs) + " (Ids " + string.Join(",", qids.ToArray()) + ")");
         }
     }
 }

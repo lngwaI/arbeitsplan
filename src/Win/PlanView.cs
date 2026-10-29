@@ -313,6 +313,7 @@ namespace Arbeitsplan.Win
         }
 
         public int MenuPara = -1;   // Rechtsklick: Zeile (Absatz) des Inhalts unter dem Mauszeiger, -1 = keine
+        protected override void OnKeyDown(KeyEventArgs e) { MenuPara = -1; base.OnKeyDown(e); }
 
         readonly ToolTip tip = new ToolTip();
         string tipText = "";
