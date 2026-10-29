@@ -227,7 +227,7 @@ namespace Arbeitsplan.Core
                     if (Has(d, '!', e.Variant)) return DayState.NA;
                     if (set) return DayState.Done;
                     if (Auto(d, e.Variant)) return DayState.Auto;
-                    if (e.Content.Trim().Length > 0) return open;
+                    if (e.HasText) return open;
                     if (!d.Weekly) return DayState.NotNeeded;
                     return AnySet(w, d) ? DayState.NotNeeded : DayState.WeekOpen;
             }

@@ -40,7 +40,9 @@ namespace Arbeitsplan.Core
         }
         public bool IsEmpty { get { return Content.Length == 0 && People[0].Length == 0 && People[1].Length == 0 && People[2].Length == 0; } }
         // Leer UND ohne Haken/Variante (Zuklappen, Hinweispunkt); IsEmpty bleibt fuer Rechte/Pakete wie bisher
-        public bool IsBlank { get { return IsEmpty && !Lkz && Variant.Length == 0 && Marks.Count == 0; } }
+        public bool IsBlank { get { return !HasText && People[0].Trim().Length == 0 && People[1].Trim().Length == 0 && People[2].Trim().Length == 0 && !Lkz && Variant.Length == 0 && Marks.Count == 0; } }
+        // Inhalt mit sichtbarem Text (nur Leerzeichen/Tabs/Zeilenumbrueche = leer); Daten bleiben unveraendert
+        public bool HasText { get { return Content.Trim().Length > 0; } }
         public string MarksKey() { return string.Join("|", Marks.ToArray()); }
         public string SpanKey() { string k = ""; foreach (FormatSpan s in Spans) k += s.Key(); return k; }
     }

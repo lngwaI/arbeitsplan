@@ -96,6 +96,16 @@ namespace Arbeitsplan.Win
             return ind < maxW / 2 ? ind : 0;
         }
 
+        // Haengende Einrueckung eines Absatzes wie in Build (fuer den Editor, damit der Umbruch gleich bleibt)
+        public static int Hanging(string para, Font f, int maxW)
+        {
+            Match m = Regex.Match(para, @"^[^\s]+");
+            if (!m.Success) return 0;
+            T t = new T(); t.Text = m.Value; t.P = new Piece(m.Value, f, Color.Black, false, Color.Empty); t.W = Width(f, m.Value);
+            List<T> l = new List<T>(); l.Add(t);
+            return HangingIndent(l, 0, maxW);
+        }
+
         public static TextBlock Build(List<Piece> pieces, Font baseFont, int maxW)
         {
             TextBlock b = new TextBlock();

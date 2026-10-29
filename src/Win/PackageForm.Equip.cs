@@ -79,7 +79,7 @@ namespace Arbeitsplan.Win
             };
             cbFb.TextChanged += delegate { if (!loading) { a.Fallback = cbFb.Text.Trim(); changed(); } };
             // Stammdaten: Ersatzgeraete des gewaehlten Geraets zuerst vorschlagen; Hinweise (Reihen-Notiz, Wartung, Regeln) als Tooltip
-            cbFb.DropDown += delegate { SuggestFallbacks(); };
+            cbFb.DropDown += delegate { SuggestFallbacks(); DropMain(); };
             cbId.TextChanged += delegate { ShowInfo(tip); };
             ShowInfo(tip);
             note.TextChanged += delegate { if (!loading) { a.Note = note.Text.Trim(); changed(); } };
@@ -161,6 +161,24 @@ namespace Arbeitsplan.Win
         }
 
         string CurrentId() { return a.Alternate || a.Choices.Count == 0 ? "" : a.Choices[0].Id; }
+
+        // Das Hauptgeraet der Zeile (alle gewaehlten) gehoert nicht in die Ausweich-Liste.
+        void DropMain()
+        {
+            bool was = loading; loading = true; string text = cbFb.Text;
+            foreach (EquipChoice c in a.Choices)
+                for (int i = cbFb.Items.Count - 1; i >= 0; i--)
+                { string t = cbFb.Items[i].ToString(); if (t == c.Id || t.EndsWith(" " + c.Id)) cbFb.Items.RemoveAt(i); }
+            cbFb.Text = text; loading = was;
+        }
+
+#if TESTHOOKS
+        public List<string> FallbackItems()   // Selbsttest: Inhalt des Ausweich-Dropdowns nach dem Aufklappen
+        {
+            SuggestFallbacks(); DropMain();
+            List<string> l = new List<string>(); foreach (object o in cbFb.Items) l.Add(o.ToString()); return l;
+        }
+#endif
 
         void SuggestFallbacks()
         {

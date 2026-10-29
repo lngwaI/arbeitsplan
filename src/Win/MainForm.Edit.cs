@@ -15,7 +15,7 @@ namespace Arbeitsplan.Win
         {
             edContent.Font = plainFont;
             edContent.BorderStyle = BorderStyle.None; edContent.ScrollBars = RichTextBoxScrollBars.None; edContent.DetectUrls = false;
-            edContent.HideSelection = false; edContent.AcceptsTab = false;
+            edContent.HideSelection = false; edContent.AcceptsTab = false; WordBreak.Apply(edContent);
             edContent.TextChanged += delegate { if (!loadingEditor && editCell != null) { editCell.Content = Norm(edContent.Text); editCell.Dirty = true; UpdateChanged(); view.RelayoutCell(editCell); } };
             edContent.SelectionChanged += delegate { if (!extracting) SyncFormat(); };
             edContent.KeyDown += OnContentKey;
@@ -106,6 +106,13 @@ namespace Arbeitsplan.Win
             {
                 edContent.Select(m.Index, m.Length);
                 edContent.SelectionColor = Ui.Rgb(view.StatusRgb(m.Value));
+            }
+            int tw = c.RContent.Width - 2 * PlanView.TP, pos = 0;   // haengende Einrueckung wie in der Ansicht ("Kurzname:" -> Folgezeilen eingerueckt)
+            foreach (string para in edContent.Text.Split('\n'))
+            {
+                int ind = TextBlock.Hanging(para, plainFont, tw);
+                if (ind > 0) { edContent.Select(pos, para.Length); edContent.SelectionIndent = 0; edContent.SelectionHangingIndent = ind; }
+                pos += para.Length + 1;
             }
             edContent.Select(edContent.TextLength, 0);
             bool task = rowInfo[c.RowIndex].Mode == ShiftMode.Task;

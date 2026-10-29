@@ -291,6 +291,7 @@ namespace Arbeitsplan.Win
             SelfTestPlan(sb);
             SelfTestF(sb);   // Plan-Datei, Sicherung nach Zeitplan, Paket-Editor-Groesse (MainForm.SelfTestF.cs)
             SelfTestG(sb);   // Puffer-Varianten, Migration, 2 Wochen, Hervorhebung, Offene Pflichten (MainForm.SelfTestG.cs)
+            SelfTestA(sb);
             SelfTestAnsicht2(sb);   // Chips, LKZ dringend, Rundgang-Datum, Auswahlrahmen (MainForm.SelfTestAnsicht2.cs)
             sb.AppendLine(PackageForm.TestFlow(store, equip, start));
             SelfTestPaket2(sb);   // Produktcode frei, Laufnummer 8-stellig, Hinweis-Klick, Puffer-Variante, Bausteine (MainForm.SelfTestPaket2.cs)
