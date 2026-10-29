@@ -11,7 +11,7 @@ namespace Arbeitsplan.Win
     // Ohne Raum geht es nicht weiter; "Sonstiges" fragt zusaetzlich einen Titel.
     class StepPicker : Form
     {
-        static readonly string[] Common = { "Lauf", "Puffer", "Freeze / Thaw", "CIP / SIP", "Einwaage" };
+        static readonly string[] Common = { "Lauf", "Puffer mobil", "Puffer stationär", "Freeze / Thaw", "CIP / SIP", "Einwaage" };
         readonly ListBox list = new ListBox();
         readonly ComboBox cbRoom = new ComboBox();
         readonly TextBox tTitle = new TextBox();
@@ -30,6 +30,7 @@ namespace Arbeitsplan.Win
             Label l1 = new Label(); l1.Text = "1.  Welche Art von Schritt?"; l1.Font = bold; l1.SetBounds(12, 10, 496, 20);
             list.SetBounds(12, 34, 496, 314); list.DrawMode = DrawMode.OwnerDrawFixed; list.ItemHeight = Font.Height * 2 + 10; list.IntegralHeight = false;
             List<Baustein> rest = new List<Baustein>(cat.Bausteine);
+            rest.RemoveAll(delegate(Baustein x) { return x.Name == Catalog.OldBufferName; });   // alter Sammel-Puffer: nur noch in alten Paketen
             foreach (string n in Common) { Baustein b = cat.Baustein_(n); if (b != null) { Add(b, steps, n == "Lauf" ? "Prozess-Lauf" : n); rest.Remove(b); } }
             foreach (Baustein b in rest) if (!b.Special) Add(b, steps, b.Name);
             foreach (Baustein b in rest) if (b.Special) Add(b, steps, b.Name);

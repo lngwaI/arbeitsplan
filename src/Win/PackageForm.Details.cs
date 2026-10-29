@@ -54,7 +54,7 @@ namespace Arbeitsplan.Win
 
             // Was? Wo im Plan? – der Raum steht direkt unter dem Titel
             gWhat = Group("Was? Wo im Plan?", "Titel, Raum (Block im Plan) und Art des Schritts", 280);
-            int lw = LabelW("Unterlauf-Nr.:", "Titel:", "Wo im Plan?", "Art:", "Herstellung:", "Gebinde:", "Laufnummer (von Hand):"), x = 8 + lw, w = 280 - 8 - x;
+            int lw = LabelW("Unterlauf-Nr.:", "Titel:", "Wo im Plan?", "Art:", "Puffer-Typ:", "Gebinde:", "Laufnummer (von Hand):"), x = 8 + lw, w = 280 - 8 - x;
             lTitle = Lbl(gWhat, "Titel:", 8, lw); tTitle.SetBounds(x, 0, w, IH);
             lRow = Lbl(gWhat, "Wo im Plan?", 8, lw); lRow.Font = new Font(Font, FontStyle.Bold);
             cbRow.SetBounds(x, 0, w, IH); cbRow.DropDownStyle = ComboBoxStyle.DropDownList; cbRow.Items.AddRange(rowNames.ToArray());
@@ -64,8 +64,8 @@ namespace Arbeitsplan.Win
             cbKind.Items.AddRange(new object[] { "Sonstiges (ohne Laufnummer)", "Lauf-Schritt mit Laufnummer", "Unterlauf (Splitten/Einfrieren)" });   // Eintrag 2: beim Hauptlauf "Hauptlauf"
             lManual = Lbl(gWhat, "Laufnummer (von Hand):", 8, lw); tManualNo.SetBounds(x, 0, w, IH); tManualNo.MaxLength = 8; gWhat.Controls.Add(tManualNo);
             tip.SetToolTip(tManualNo, "Nummer des Packens, 8 Ziffern (z. B. 12340001); wird nicht vorgeschlagen. Im Plan: „Packen (Nr. 12340001)“, zählt nicht als Kampagnenlauf.");
-            lVar = Lbl(gWhat, "Herstellung:", 8, lw);
-            tip.SetToolTip(lVar, "Herstellungsvarianten mit Anzahl, die beim Übernehmen am Block gesetzt werden (z. B. 2× mobil + 1× stationär).");
+            lVar = Lbl(gWhat, "Puffer-Typ:", 8, lw);
+            tip.SetToolTip(lVar, "Ergibt sich aus dem Baustein (Puffer mobil / Puffer stationär); ein Schritt = ein Puffer.");
             lSub = Lbl(gWhat, "Unterlauf-Nr.:", 8, lw); tSubNos.SetBounds(x, 0, w, IH);
             lSubHelp = Lbl(gWhat, "Komma = nächster Lauf, „/“ = mehrere (z. B. 4186/4187, 4188); 4 Ziffern + Praefix der Laufnummer", x, w);
             lSubHelp.Height = 3 * Font.Height + 2; lSubHelp.TextAlign = ContentAlignment.TopLeft;
@@ -229,8 +229,7 @@ namespace Arbeitsplan.Win
             laying = true;
             PackageStep s = cur;
             bool sub = s.Kind == StepKind.SubRun;
-            string[] vs;
-            bool var = (rowVars.TryGetValue(s.Row, out vs) && vs.Length > 0) || s.Variant.Length > 0;
+            bool var = s.IsBuffer;   // Typ (mobil / stationaer) steht fest, kommt aus dem Baustein
             int w = body.ClientSize.Width, g = 8;
             int a = Math.Max((w - g) / 2, Math.Min(w - g - 250, (w - g) * 55 / 100));   // Breite Was? Wo? | Rest Wann?
             gWhat.Width = a; gWhen.Width = w - a - g;   // Feldbreiten (Anker) stehen vor dem Anordnen fest

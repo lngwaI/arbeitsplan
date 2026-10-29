@@ -149,8 +149,8 @@ namespace Arbeitsplan.Win
                 using (StepPicker p = new StepPicker(f.cat, f.steps, f.rowNames))
                 {
                     p.Show(); Application.DoEvents();
-                    bool order = p.TestNames.Count > 5 && p.TestNames[0] == "Prozess-Lauf" && p.TestNames[1] == "Puffer" && p.TestNames[p.TestNames.Count - 1] == "Sonstiges";
-                    bool rooms = p.TestSelect("Puffer") == "Puffer" && p.TestOk && p.TestSelect("Freeze / Thaw") == "Freeze / Thaw" && p.TestSelect("CIP / SIP") == "CIP / SIP"
+                    bool order = p.TestNames.Count > 5 && p.TestNames[0] == "Prozess-Lauf" && p.TestNames[1] == "Puffer mobil" && !p.TestNames.Contains("Puffer") && p.TestNames[p.TestNames.Count - 1] == "Sonstiges";
+                    bool rooms = p.TestSelect("Puffer mobil") == "Puffer" && p.TestSelect("Puffer stationär") == "Puffer" && p.TestOk && p.TestSelect("Freeze / Thaw") == "Freeze / Thaw" && p.TestSelect("CIP / SIP") == "CIP / SIP"
                         && p.TestSelect("Einwaage") == "Einwaage" && p.TestSelect("Prozess-Lauf") == (f.rowNames.Contains("Suite 1") ? "Suite 1" : "");   // Selbsttest benennt Suite 1 um: dann nicht vorbelegt
                     bool other = p.TestSelect("Sonstiges") == "" && !p.TestOk;
                     sb.AppendLine("Paket2 Schrittauswahl: Reihenfolge " + T(order) + " Raum vorbelegt " + T(rooms) + " Sonstiges braucht Raum " + T(other));

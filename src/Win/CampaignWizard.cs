@@ -7,19 +7,20 @@ using Arbeitsplan.Core;
 
 namespace Arbeitsplan.Win
 {
-    // Pakete > Neue Kampagne…: 1) Produkt (Paket-Produktcodes, Katalog-Produkte oder frei eintippen), 2) Kampagne oder Sonderlauf,
+    // Pakete > Neue Kampagne…: 1) Produkt (Paket-Produktcodes, Katalog-Produkte oder frei eintippen), 2) Pakettyp: Kampagne | Einzelpaket | Sonderereignis,
     // 3) Paket dieses Produkts waehlen oder neues Paket anlegen. Danach macht MainForm den Kampagnenstart (CampaignForm) bzw. oeffnet den Editor.
     class CampaignWizard : Form
     {
         public string Product = "";      // gewaehlter Produktcode
-        public bool Special;             // Sonderlauf statt Kampagne
+        public PackageType Type = PackageType.Kampagne;   // Kampagne | Einzelpaket (eigene Laufnummer) | Sonderereignis (ohne Nummer)
+        public bool Special { get { return Type == PackageType.Ereignis; } }
         public string PackageFile;       // gewaehltes Paket; null + NewPackage = neues Paket
         public bool NewPackage;
 
         readonly string folder;
         readonly Catalog cat;
         readonly ComboBox cbProduct = new ComboBox();
-        readonly RadioButton rbCampaign = new RadioButton(), rbSpecial = new RadioButton();
+        readonly RadioButton rbCampaign = new RadioButton(), rbSingle = new RadioButton(), rbSpecial = new RadioButton();
         readonly ListView list = new ListView();
         readonly Label[] heads = new Label[3];
         readonly Label[] hints = new Label[3];
@@ -32,9 +33,9 @@ namespace Arbeitsplan.Win
             this.folder = folder; this.cat = cat;
             Text = "Neue Kampagne";
             Ui.Dialog(this, 560, 360);
-            string[] titles = { "1  Produkt", "2  Art des Laufs", "3  Paket" };
+            string[] titles = { "1  Produkt", "2  Pakettyp", "3  Paket" };
             string[] help = { "Für welches Produkt? Aus den vorhandenen Paketen und Produkten wählen oder den Code eintippen.",
-                "Eine normale Kampagne oder ein Sonderlauf (z. B. TFF Flush)?",
+                "Kampagne, Einzelpaket oder Sonderereignis?",
                 "Ein vorhandenes Paket dieses Produkts nehmen oder ein neues anlegen." };
             for (int i = 0; i < 3; i++)
             {
@@ -49,8 +50,9 @@ namespace Arbeitsplan.Win
             cbProduct.Text = preProduct ?? "";
             pages[0].Controls.Add(cbProduct);
             rbCampaign.Text = "Kampagne (Packen, Läufe, …)"; rbCampaign.Checked = true; rbCampaign.SetBounds(20, 96, 400, 24);
-            rbSpecial.Text = "Sonderlauf (Sonderereignis, z. B. TFF Flush)"; rbSpecial.SetBounds(20, 126, 400, 24);
-            pages[1].Controls.Add(rbCampaign); pages[1].Controls.Add(rbSpecial);
+            rbSingle.Text = "Einzelpaket (eigene Laufnummer ohne Bezug zur Kampagne, anderer Raum, Sonderfall)"; rbSingle.SetBounds(20, 126, 520, 24);
+            rbSpecial.Text = "Sonderereignis (ohne Nummer, z. B. TFF Flush, Zwischenreinigung)"; rbSpecial.SetBounds(20, 156, 520, 24);
+            pages[1].Controls.Add(rbCampaign); pages[1].Controls.Add(rbSingle); pages[1].Controls.Add(rbSpecial);
             list.View = View.Details; list.FullRowSelect = true; list.MultiSelect = false; list.HideSelection = false;
             list.Columns.Add("Paket", 330); list.Columns.Add("Produkt", 80); list.Columns.Add("Geändert", 110);
             list.SetBounds(14, 84, 530, 176); list.DoubleClick += delegate { Next(); };
@@ -98,7 +100,7 @@ namespace Arbeitsplan.Win
                 }
                 Product = c; Go(1);
             }
-            else if (page == 1) { Special = rbSpecial.Checked; Go(2); }
+            else if (page == 1) { Type = rbSpecial.Checked ? PackageType.Ereignis : (rbSingle.Checked ? PackageType.Einzel : PackageType.Kampagne); Go(2); }
             else
             {
                 if (list.SelectedItems.Count == 0 || list.SelectedItems[0].Tag == null) { MessageBox.Show(this, "Bitte ein Paket wählen oder „Neues Paket für dieses Produkt…“.", "Neue Kampagne", MessageBoxButtons.OK, MessageBoxIcon.Information); return; }
@@ -106,35 +108,37 @@ namespace Arbeitsplan.Win
             }
         }
 
-        // Pakete des Produkts; Sonderlauf: nur Pakete mit Sonderereignis-Schritt, Kampagne: alle mit mindestens einem normalen Schritt
+        // Pakete des Produkts; Sonderereignis: nur Pakete mit Sonderereignis-Schritt, Einzelpaket: Pakete vom Typ Einzel, Kampagne: alle anderen mit mindestens einem normalen Schritt
         void FillList()
         {
             list.Items.Clear();
             foreach (KeyValuePair<string, string> kv in PackagePicker.Files(folder))
             {
                 if (kv.Value != Product) continue;
-                bool anySpecial = false, anyNormal = false;
+                bool anySpecial = false, anyNormal = false, single = false;
                 try
                 {
-                    foreach (PackageStep s in Package.Load(kv.Key).Steps)
+                    Package pk = Package.Load(kv.Key); single = pk.Type == PackageType.Einzel;
+                    foreach (PackageStep s in pk.Steps)
                     {
                         Baustein b = cat.Baustein_(s.Source);
                         if (b != null && b.Special) anySpecial = true; else anyNormal = true;
                     }
                 }
                 catch (Exception) { continue; }
-                if (Special ? !anySpecial : !anyNormal) continue;
+                if (Type == PackageType.Ereignis ? !anySpecial : (Type == PackageType.Einzel ? !single : (!anyNormal || single))) continue;
                 ListViewItem it = new ListViewItem(Path.GetFileNameWithoutExtension(kv.Key));
                 it.SubItems.Add(kv.Value); it.SubItems.Add(File.GetLastWriteTime(kv.Key).ToString("dd.MM.yyyy HH:mm"));
                 it.Tag = kv.Key; list.Items.Add(it);
             }
             if (list.Items.Count > 0) list.Items[0].Selected = true;
-            else list.Items.Add(new ListViewItem("(noch kein " + (Special ? "Sonderlauf-" : "Kampagnen-") + "Paket für " + Product + " – unten ein neues anlegen)"));
+            else list.Items.Add(new ListViewItem("(noch kein " + (Type == PackageType.Ereignis ? "Sonderereignis-" : (Type == PackageType.Einzel ? "Einzel-" : "Kampagnen-")) + "Paket für " + Product + " – unten ein neues anlegen)"));
         }
 
 #if TESTHOOKS
         // Selbsttest: Seite setzen und Eingaben vorgeben, ohne Dialog zu zeigen
-        public void TestPage(int p, string product, bool special) { cbProduct.Text = product; Product = product; rbSpecial.Checked = special; rbCampaign.Checked = !special; Special = special; Go(p); }
+        public void TestPage(int p, string product, bool special) { TestPage(p, product, special ? PackageType.Ereignis : PackageType.Kampagne); }
+        public void TestPage(int p, string product, PackageType t) { cbProduct.Text = product; Product = product; rbSpecial.Checked = t == PackageType.Ereignis; rbSingle.Checked = t == PackageType.Einzel; rbCampaign.Checked = t == PackageType.Kampagne; Type = t; Go(p); }
         public List<string> TestItems() { List<string> r = new List<string>(); foreach (ListViewItem i in list.Items) if (i.Tag != null) r.Add(i.Text); return r; }
         public List<string> TestProducts() { List<string> r = new List<string>(); foreach (object o in cbProduct.Items) r.Add((string)o); return r; }
 #endif

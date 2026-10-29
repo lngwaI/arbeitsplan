@@ -249,9 +249,9 @@ namespace Arbeitsplan.Win
                 if (w.ShowDialog(this) != DialogResult.OK) return;
                 file = w.PackageFile;
                 if (w.NewPackage)
-                {   // Sonderlauf: Name gesetzt = ohne Standardschritte (Packen); Kampagne: leer = mit Packen + Back-Up
+                {   // Einzelpaket/Sonderereignis: Name gesetzt = ohne Standardschritte (Packen); Kampagne: leer = mit Packen + Back-Up
                     neu = new Package(); neu.ProductCode = w.Product;
-                    if (w.Special) neu.Name = "Sonderlauf " + w.Product;
+                    if (w.Type != PackageType.Kampagne) { neu.Type = w.Type; neu.Name = (w.Special ? "Sonderereignis " : "Einzelpaket ") + w.Product; }
                 }
             }
             if (neu != null) { OpenPackageEditor(neu); return; }

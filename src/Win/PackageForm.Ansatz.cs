@@ -63,43 +63,30 @@ namespace Arbeitsplan.Win
             return Row(y, show && s.Ansatz.Length > 0, lMenge, tMenge, cbUnit);
         }
 
-        // Herstellung: je Variante der Zeile ein Feld "Anzahl" (0 = nicht); gesetzte, an der Zeile unbekannte Varianten bleiben sichtbar
+
+        // Puffer-Typ: nur Anzeige (kommt aus dem Baustein). Alte Schritte mit "mobil|stationaer" zeigen beide Typen und liefern weiter zwei Puffer.
         void FillVariants(PackageStep s)
         {
-            string[] vs; if (!rowVars.TryGetValue(s.Row, out vs)) vs = new string[0];
-            List<string> names = new List<string>(vs);
-            foreach (string v in VariantSet.Of(s.Variant)) if (!names.Contains(v)) names.Add(v);
             pVar.SuspendLayout();
             while (pVar.Controls.Count > 0) { Control c = pVar.Controls[0]; pVar.Controls.RemoveAt(0); c.Dispose(); }
-            foreach (string v in names)
+            if (s.IsBuffer)
             {
-                string name = v;
-                NumericUpDown n = new NumericUpDown(); n.Minimum = 0; n.Maximum = VariantSet.Max; n.Width = 44; n.Height = IH; n.TextAlign = HorizontalAlignment.Right;
-                n.Value = VariantSet.Count(s.Variant, v); n.Tag = v;
-                n.ValueChanged += delegate { if (Edit()) { cur.Variant = VariantSet.With(cur.Variant, name, (int)n.Value); Changed(); } };
-                Label l = new Label(); l.Text = "× " + VarText(v); l.AutoSize = true; l.UseMnemonic = false;
-                tip.SetToolTip(n, "Wie oft „" + VarText(v) + "“ an diesem Tag hergestellt wird (0 = nicht)");
-                pVar.Controls.Add(n); pVar.Controls.Add(l);
+                string t = VarText(s.Variant);
+                if (VariantSet.Of(s.Variant).Count > 1) t += "  (alter Schritt: zwei Puffer)";
+                Label l = new Label(); l.Text = t; l.AutoSize = true; l.UseMnemonic = false;
+                pVar.Controls.Add(l);
             }
             pVar.ResumeLayout();
         }
 
-        // Felder nebeneinander, bei Platzmangel umbrechen; liefert die naechste y-Position
         int LayoutVariants(int y, bool show)
         {
             lVar.Visible = pVar.Visible = show;
-            if (!show) return y;
-            int x = tTitle.Left, w = Math.Max(80, tTitle.Width), px = 0, py = 0;
-            for (int i = 0; i + 1 < pVar.Controls.Count; i += 2)
-            {
-                Control n = pVar.Controls[i], l = pVar.Controls[i + 1];
-                int pw = n.Width + 4 + l.PreferredSize.Width + 10;
-                if (px > 0 && px + pw > w) { px = 0; py += IH + 4; }
-                n.Location = new Point(px, py); l.Location = new Point(px + n.Width + 4, py + (IH - l.PreferredSize.Height) / 2);
-                px += pw;
-            }
-            lVar.Top = y; pVar.SetBounds(x, y, w, py + IH + 1);
-            return y + py + IH + 6;
+            if (!show || pVar.Controls.Count == 0) return y;
+            Control l = pVar.Controls[0];
+            lVar.Top = y; pVar.SetBounds(tTitle.Left, y, Math.Max(80, tTitle.Width), IH);
+            l.Location = new Point(0, (IH - l.PreferredSize.Height) / 2);
+            return y + IH + 6;
         }
     }
 }

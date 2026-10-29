@@ -54,20 +54,21 @@ namespace Arbeitsplan.Win
                 f.MoveInCalendar(lauf, 0, 5, false); Application.DoEvents();
                 cal &= Days(lauf) == "5,12,17" && f.lv.SelectedItems.Count == 1 && f.lv.SelectedItems[0].Tag == lauf;
 
-                // Puffer: Herstellung mit Anzahl je Variante, Ansatz Tank -> Flasche -> Tank
+                // Puffer: Typ nur Anzeige, Ansatz Tank -> Flasche -> Tank
                 Baustein bp = f.cat.Baustein_("Puffer");
                 PackageStep pu = f.FromBaustein(bp); pu.Row = "Puffer"; f.AddStep(pu); Application.DoEvents();
-                NumericUpDown n0 = f.pVar.Controls.Count >= 4 ? f.pVar.Controls[0] as NumericUpDown : null, n1 = n0 != null ? f.pVar.Controls[2] as NumericUpDown : null;
-                bool var = n0 != null && n1 != null && f.pVar.Visible && (string)n0.Tag == "mobil";
-                if (var) { n0.Value = 2; n1.Value = 1; Application.DoEvents(); }
-                var &= pu.Variant == "mobil:2|stationaer" && f.blockPreview.Visible;
+                Label tl = f.pVar.Controls.Count == 1 ? f.pVar.Controls[0] as Label : null;
+                bool var = false;
+                pu.Variant = "mobil"; f.Bind(pu); Application.DoEvents();   // Typ kommt aus dem Baustein, im Editor nur Anzeige
+                tl = f.pVar.Controls.Count == 1 ? f.pVar.Controls[0] as Label : null;
+                var = tl != null && f.pVar.Visible && tl.Text == "mobil" && f.blockPreview.Visible;
                 bool tank = HasTank(f) && f.cbAnsatz.Visible && f.equipRows.Controls.Count == 1;
                 f.cbAnsatz.SelectedIndex = 1; f.tGebinde.Text = "Flasche"; f.tMenge.Text = "5"; f.cbUnit.Text = "L"; Application.DoEvents();
                 bool geb = !HasTank(f) && f.equipRows.Controls.Count == 0 && f.tGebinde.Visible && pu.Compose(0, f.prefix).Contains("Gebinde: Flasche 5 L");
                 f.cbAnsatz.SelectedIndex = 0; Application.DoEvents();
                 geb &= pu.Ansatz == "" && f.equipRows.Controls.Count == 1 && HasTank(f) && !f.tGebinde.Visible;
                 return "Paket3 Editor: Wiederholt sich " + T(rep) + " Reihenfolge ohne Neuaufbau " + T(ord) + " Alt+Hoch " + T(alt) + " Kalender " + T(cal)
-                    + " Herstellung Anzahl " + T(var) + " Tank-Hinweis " + T(tank) + " Ansatz Flasche " + T(geb);
+                    + " Puffer-Typ Anzeige " + T(var) + " Tank-Hinweis " + T(tank) + " Ansatz Flasche " + T(geb);
             }
             catch (Exception ex) { return "Paket3 Editor: FEHLER " + ex.GetType().Name + ": " + ex.Message; }
             finally { f.dirty = false; f.Close(); f.Dispose(); }

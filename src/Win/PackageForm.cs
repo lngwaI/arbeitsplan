@@ -161,6 +161,7 @@ namespace Arbeitsplan.Win
         {
             PackageStep s = new PackageStep();
             s.Title = b.Name; s.Source = b.Name; s.Row = b.Row; s.Text = b.Text; s.Day = steps.Count == 0 ? 1 : NextDay();
+            s.Variant = b.Variant;   // Puffer mobil / stationaer: ein Schritt = ein Puffer mit diesem Typ
             if (b.Name == "Lauf") s.Kind = StepKind.Run; else if (b.Name == "Splitten") s.Kind = StepKind.SubRun;   // Vorbelegung, im Schritt aenderbar
             if (s.Kind != StepKind.Normal) s.StartNo = NewRunNo();
             foreach (string sh in b.Positions) { EquipAssign a = new EquipAssign(); a.Short = sh; s.Equipment.Add(a); }

@@ -62,7 +62,8 @@ namespace Arbeitsplan.Core
         public List<string> Positions = new List<string>();   // Kurzformen der Equipment-Positionen, die der Schritt abfragt
         public bool Unique;                                    // nur einmal je Kampagne (z. B. Packen); weiteres Einfuegen/Entfernen nur mit Recht
         public bool DefaultInCampaign;                         // in jeder neuen Kampagne vorhanden
-        public bool Special;                                   // Sonderereignis (z. B. TFF Flush), eher als eigenes Paket
+        public bool Special;                                   // Sonderereignis (z. B. TFF Flush, Zwischenreinigung): von Hand eingeplant, nie Teil einer Kampagnen-Automatik
+        public string Variant = "";                            // Puffer-Baustein: Typ des erzeugten Puffers ("mobil" / "stationaer"), sonst ""
 
         public Baustein Clone() { Baustein b = (Baustein)MemberwiseClone(); b.Positions = new List<string>(Positions); return b; }
         public override string ToString() { return Name; }
@@ -70,6 +71,8 @@ namespace Arbeitsplan.Core
 
     public partial class Catalog
     {
+        public const string OldBufferName = "Puffer";   // alter Sammel-Baustein (beides): bleibt fuer alte Pakete, neue Schritte nehmen "Puffer mobil" / "Puffer stationär"
+
         public List<EquipPosition> Positions = new List<EquipPosition>();
         public List<EquipGroup> Groups = new List<EquipGroup>();
         public List<Baustein> Bausteine = new List<Baustein>();
@@ -180,13 +183,20 @@ namespace Arbeitsplan.Core
         // Liefert die Anzahl ergaenzter Bausteine.
         public int AddStandardBausteine()
         {
+            foreach (EquipPosition np in new EquipPosition[] { Pos("Mobiler Tank", "MobT"), Pos("Glasflasche/Gebinde", "Flasche"), Pos("Tween", "Tween"),
+                Pos("Materialnotiz", "Material"), Pos("Vorlagetank", "VT"), Pos("WFI-Vorlagetank", "WFI", "H1-T-0120") })
+                if (Position(np.Short) == null) Positions.Add(np);
             Baustein[] std = {
-                Bau("Puffer", "Puffer", false, false, false, "WFI"),
+                Bau("Puffer", "Puffer", false, false, false, "WFI"),   // alt: in Paketen weiter nutzbar, im Schritt-Dialog ausgeblendet (OldBufferName)
+                Bau("Puffer mobil", "Puffer", false, false, false, "MobT", "Flasche", "Tween", "Material"),
+                Bau("Puffer stationär", "Puffer", false, false, false, "VT", "WFI", "Material"),
+                Bau("Zwischenreinigung", "Suite 1", false, false, true, "RT", "VS", "Pumpe", "Schlauch"),
                 Bau("Freeze / Thaw", "Freeze / Thaw", false, false, false, "FZ1", "FZ2", "FA"),
                 Bau("CIP / SIP", "CIP / SIP", false, false, false, "RT", "VS"),
                 Bau("Einwaage", "Einwaage", false, false, false),
                 Bau(Package.BackupName, "Suite 1", false, false, false, "TFF", "Pumpe", "VS") };   // Reservetag nach Packen, Equipment = Ausweich des Packens
-            std[4].Text = "Reservetag, falls Packen nicht abgeschlossen";
+            std[1].Variant = "mobil"; std[2].Variant = "stationaer";
+            std[7].Text = "Reservetag, falls Packen nicht abgeschlossen";
             int n = 0;
             foreach (Baustein b in std)
                 if (!Bausteine.Exists(delegate(Baustein x) { return string.Equals(x.Name, b.Name, StringComparison.OrdinalIgnoreCase); })) { Bausteine.Add(b); n++; }
