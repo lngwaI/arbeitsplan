@@ -42,10 +42,18 @@ namespace Arbeitsplan.Win
             Predicate<OpenDuty> lkzMo = delegate(OpenDuty o) { return o.RowId == s1 && o.Day == mo && o.State == "fehlt" && o.Overdue && o.When == "Mo 02.11."; };
             Predicate<OpenDuty> lkzFr = delegate(OpenDuty o) { return o.RowId == s1 && o.Day == mo.AddDays(4) && o.State == "fällig" && !o.Overdue; };
             Predicate<OpenDuty> kwOpen = delegate(OpenDuty o) { return o.Week && o.Where == "Mix / Split" && o.State == "KW offen" && o.When == "KW45"; };
-            int probe = l.FindAll(delegate(OpenDuty o) { return o.RowId == pid && o.What == "Tagesprobe"; }).Count;   // Di, Mi fehlt; Do, Fr faellig
+            int probe = l.FindAll(delegate(OpenDuty o) { return o.RowId == pid && o.What == "Tagesprobe (täglich)"; }).Count;   // Di, Mi fehlt; Do, Fr faellig
             int rounds = l.FindAll(delegate(OpenDuty o) { return o.RowId == -1; }).Count;
             bool okList = l.Exists(lkzMo) && l.Exists(lkzFr) && l.Exists(kwOpen) && probe == 4 && rounds == 4
-                && !l.Exists(delegate(OpenDuty o) { return o.What == "WFI-Probe der Woche"; }) && l.Count == 13 && l[0].Week;
+                && !l.Exists(delegate(OpenDuty o) { return o.What == "Manuelle Probe (wöchentlich)"; }) && l.Count == 13 && l[0].Week;
+            // Wochenprobe: KW46 nur mobil, kein Haken -> manuelle Probe offen und in der Liste; mit Haken weg
+            DateTime k46 = D(2026, 11, 9);
+            s.Save(k46, pid, E("Herstellung", false, "mobil"));
+            Predicate<OpenDuty> man = delegate(OpenDuty o) { return o.RowId == pid && o.What == "Manuelle Probe (wöchentlich)" && o.Week; };
+            bool okMan = OpenDuties.List(s, cfg, rows, k46, 1, today).Exists(man);
+            s.Save(k46.AddDays(1), pid, E("", false, "", "WFIW"));
+            okMan &= !OpenDuties.List(s, cfg, rows, k46, 1, today).Exists(man);
+            okList &= okMan;
             bool okNext = OpenDuties.List(s, cfg, rows, mo, 2, today).Exists(delegate(OpenDuty o) { return o.Day >= mo.AddDays(7); });
             // leer: nur Suite 1 mit gemessenem LKZ, alle Rundgaenge der KW abgehakt
             DateTime k47 = D(2026, 11, 16);
@@ -199,7 +207,7 @@ namespace Arbeitsplan.Win
             s.Save(k25, pid, E("Herstellung", false, "mobil"));
             bool wfiOpen = CheckEval.Week(s, wfi, k25, today, cfg) == DayState.WeekOpen;
             s.Save(k25.AddDays(6), pid, E("", false, "", "WFIW"));
-            bool okWfi = CheckEval.Week(s, wfi, w, today, cfg) == DayState.NA && CheckEval.Day(s, wfi, w.AddDays(5), today, cfg) == DayState.NA
+            bool okWfi = CheckEval.Week(s, wfi, w, today, cfg) == DayState.Done && CheckEval.Day(s, wfi, w.AddDays(5), today, cfg) == DayState.Auto
                 && wfiOpen && CheckEval.Week(s, wfi, k25, today, cfg) == DayState.Done && CheckEval.Day(s, wfi, k25.AddDays(6), today, cfg) == DayState.Done
                 && CheckEval.Day(s, wfi, k25, today, cfg) == DayState.NotNeeded;
             // Speicherformat: mehrere Varianten im selben Attribut, alter Einzelwert bleibt gueltig

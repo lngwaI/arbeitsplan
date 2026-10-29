@@ -1,0 +1,116 @@
+Zeilen=12 Standard offen(o)/zu(z): oozozzozzozz | Lyo vor Freeze / Thaw
+Geändert-Flag: sauber=OK Text=OK zurück=OK Format=OK
+Save=True [Neuer Text LKZ ABC] Spans=11,3,16711680,14,True,True,Arial; F=[TEST, ABCD] Lkz=True Ver=2
+Lkz nach Klick: False
+Lkz-Konflikt: Inhalt behalten=OK
+Struktur: Suite 1A/5, Neu (Id 13), Zeilen=13
+Austausch FZ1: 2 Geräte, Positionen=26
+Platzhalter TFF: H1-X-010X | Pumpe: H1-P-010X-05
+Paket: Blöcke=18 Schritte=2 Format erhalten=1
+Apply: 21 Block/Blöcke geschrieben, 3 übersprungen (bereits belegt).
+Lauf-Tag 1: [Lauf 1|PT: H1-T-0102 Charge 7 mit einer sehr langen Notiz, die umbrechen muss und eingerückt weiterlaufen soll|TFF: H1-X-0101 (Ausweich: H1-X-0103)|Schlauch: S-12 (grün)|Notiz: nur wenn frei]
+Lauf-Tag 2: [Lauf 2|PT: H1-T-0102 Charge 7 mit einer sehr langen Notiz, die umbrechen muss und eingerückt weiterlaufen soll|TFF: H1-X-0102 (Ausweich: H1-X-0103)|Schlauch: S-12 (grün)|Notiz: nur wenn frei]
+Lauf-Tag 3: [Lauf 3|PT: H1-T-0102 Charge 7 mit einer sehr langen Notiz, die umbrechen muss und eingerückt weiterlaufen soll|TFF: H1-X-0101 (Ausweich: H1-X-0103)|Schlauch: S-12 (grün)|Notiz: nur wenn frei]
+Produkt: Nummern=OK Unterlauf=OK Umnummern=OK [Splitten|Unterlauf 13574186 (aus 13570030)|Unterlauf 13574187 (aus 13570030)]
+Produkt-Datei: Roundtrip=OK altesPaket=OK
+Kampagne: Dialog/Mitverschieben=OK Überschreibung=OK früheKampagne=OK (letzter 43, Abstand 2) 9 Block/Blöcke geschrieben.
+Rhythmus/Raum: Abstände=OK [2,2,3] Rhythmus=OK RaumDialog=OK RaumÜbernahme=OK
+Testpaket: Roundtrip=OK PA rot=OK Tage=OK 18 Block/Blöcke geschrieben.
+Find 'TEST': 2
+Löschen erkannt: kürzer=OK Kürzel=OK nurErgänzt=OK gleichlang überschrieben=OK zusammengezogen=OK Wort ersetzt=OK Recht Produktion=OK
+Protected: ok=True falschesPw=True manipuliert=True
+Nutzerverwaltung: eigene Rechte gesperrt=OK nur eigene Rechte vergebbar=OK letzter Admin bleibt=OK Admin herabstufen (2 Admins)=OK ohne Änderung nichts=OK leerer Neuer verworfen=OK Domänen nur Admin/kein Aussperren=OK Rollen-Reiter=OK
+Protokoll: schreiben/lesen=OK unveränderlich=OK Version wiederherstellen=OK (Einträge 3)
+Sicherung: Roundtrip=OK Version weiterzählen=OK Protokoll erhalten=OK Jahr zurück=OK (3905 Byte)
+Sicherung APBAK2: Roundtrip verschlüsselt=OK falscher Schlüssel abgelehnt=OK Byte verändert abgelehnt=OK APBAK1 lesbar=OK 200-MB-Grenze=OK
+Stammdaten: Sicherung Roundtrip=OK Nummernbereich=OK Regeln/Ersatz=OK
+Sicherung manipuliert abgelehnt: Byte=OK Inhalt=OK | behalten=14 (soll 14)
+Nutzer/Rechte: parallel zusammengeführt=OK Admins= nur Ersteinrichtung=OK
+Schlüssel: key-Datei erzeugt/gelesen=OK apdb ohne key->Offline=OK falsche/kaputte key->Offline=OK Cache eigener Schlüssel/abgelaufen=OK
+Datendatei: Erststart=OK Neustart=OK kein Klartext=OK Refresh=OK Konflikt=OK Historie=OK bak=OK (2276 Byte, Speichern+Protokoll 64 ms)
+Datendatei: NurLesen=OK manipuliert->Cache=OK fremd->leer=OK unerreichbar=OK wieder erreichbar=OK Sperrdatei=OK kein stilles Überschreiben=OK
+Umgebung: Muster=OK Domäne=OK kopierte exe=OK Laufwerk-Aufbau=OK nicht eingerichtet=OK Einrichtung=OK Einrichter=OK fremde Domäne=OK unbekannter Nutzer=OK NurLesenFuer=OK Pilot=OK Datei weg->kein Neuanlegen=OK neueres Format=OK Verknüpfung=OK Datenordner merken=OK Rolle=OK (hier: MININT-OAPTANE)
+Mehrplatz: Zeilen=OK gleicheZeile=OK Kürzel=OK Format/LKZ=OK neu=OK Editor zusammengeführt=OK Vorschlag=OK Abbrechen/Meine=OK Paket-Übernahme mit Konflikt=OK
+Kampagnenstart: Datum ohne Jahr abgelehnt=OK TT.MM.JJJJ=OK direkt startbar=OK unbekannter Raum->Editor=OK
+Equipment: Nummern erkannt=OK (6 von 6) Status/Farbe=OK Wechsel/Ausweich geprüft=OK
+Feiertage: Ostern=OK beweglich (Fronleichnam 04.06.2026)=OK fest=OK BW ohne 15.8./BY mit=OK Extra/Entfernt=OK ISO-KW53 (31.12.2026/01.01.2027, Montag 28.12.)=OK
+LKZ-Regel: Tage=OK Wochen=OK
+  belegt + Haken                19.10. -> Done (OK)
+  belegt ohne Haken, <= heute   20.10. -> Missing (OK)
+  leer + Haken (gemessen)       21.10. -> Done (OK)
+  belegt ohne Haken, Zukunft    22.10. -> Due (OK)
+  leer, KW erfüllt              23.10. -> NotNeeded (OK)
+  leer, KW offen                26.10. -> WeekOpen (OK)
+  nur Leerzeichen, KW offen     27.10. -> WeekOpen (OK)
+  leer, KW durch So erfüllt     02.11. -> NotNeeded (OK)
+  leer + Haken am So            08.11. -> Done (OK)
+Tagesprobe: Werktage/Feiertag/mobil=OK  Wochen-WFI: offen=OK erledigt/fehlt=OK stationär entfällt=OK
+Merge: Pflichtpunkte je Schlüssel=OK Variante beidseitig = Vereinigung=OK
+Datenformat v4: Rundreise=OK v2 lesbar=OK v4 abgelehnt=OK Recht Rundgänge (alt/neu)=OK
+Wochenhaken: gespeichert=OK Konflikt erkannt=OK neu gelesen=OK zweiter PC speichert=OK Datei/Protokoll/Pflichten=OK
+Produkte: Zugehörigkeit (A+B Verstoß, A ok, allein ok)=OK erlaubt global/Produkt/fest/Tausch=OK Kopieren=OK XML-Rundreise=OK Katalog ohne Produkt=OK
+Produkte Editor: Dropdown nur erlaubte (fest sperrt Wechsel)=OK freie Eingabe -> Hinweis=OK Blocktext Verstoß/Hinweis=OK Zugehörigkeit je Lauf sperrt Apply=OK
+Stammdaten-Formular: Baum Art/Gruppe/Gerät/Zubehör=OK Suche=OK Karte Gehört zu/Passt zu/Ersatz=OK Gruppe Gehört zu für Markierte=OK Speichern=OK Rundreise=OK
+Produkte-Formular: eigen+fest=OK ganze Gruppe=OK Austauschgruppe=OK Kopieren=OK Speichern=OK Katalog erhalten=OK [H1-X-0102|H1-T-0103,H1-T-0104]
+Rollen: alte Datei->Rolle/Plus/Minus=OK Admin alle Rechte=OK beenden lässt Nutzer=OK Anzeige=OK parallel Rolle+Nutzer=OK letzter Admin=OK nur eigene Rechte/eigene Zeile=OK beendete Rolle=OK Protokoll-Rolle=OK
+Pflichtpunkt-Schlüssel: OK
+Schichtmodus: Höhen F/S + Tagesaufgabe=OK Editoren nur über sichtbaren Feldern=OK N-Kürzel bleibt beim Speichern=OK nach Zurückschalten da=OK
+Pruefleiste: LKZ Sa-Fr (fehlt/KW offen/gemessen/nicht nötig)=OK KW-Gruppen=OK Puffer mobil/stationär/WFI=OK abhaken=OK Konflikt Inhalt behalten=OK Variante im Editor=OK
+Rundgaenge-UI: Haken+Protokoll=OK anderer PC schon gehakt=OK entfernen=OK Leser darf nicht=OK zuklappen=OK KW getrennt=OK
+Plan-Datei: Rundreise=OK nur Zeitraum/ohne Nutzer+Protokoll=OK manipuliert abgelehnt=OK Ansicht ohne Datenordner=OK (791 Byte)
+Sicherung-Zeitplan: faellig=OK Einstellung sicherung.ini=OK SicherungAlleStunden=OK Hintergrund-Schreiben=OK
+Paket-Editor Resize: Layoutsperre beim Ziehen ok, kein Neuaufbau ok, danach angepasst ok, Kopfzeile Kampagne ok (Lauf 12340001 bis 12340004 · alle 6 Tage)
+Puffer-Varianten: Tagesprobe kombiniert/Wochenende/Feiertag=OK Wochen-WFI entfällt bei Kombination, So hakbar=OK XML-Rundreise=OK Merge-Vereinigung=OK
+  Mo mobil = automatisch          01.06. -> Auto (OK)
+  Di mobil+stationär ohne Haken   02.06. -> Missing (OK)
+  Mi mobil+stationär mit Haken    03.06. -> Done (OK)
+  Do Feiertag stationär           04.06. -> Missing (OK)
+  Fr ohne Angabe (Werktag)        05.06. -> Missing (OK)
+  Sa ohne Herstellung             06.06. -> NA (OK)
+  So nur mobil                    07.06. -> Auto (OK)
+  Sa Zukunft mobil+stationär      13.06. -> Due (OK)
+  So Inhalt ohne Variante         14.06. -> NA (OK)
+  Pfingstmontag ohne Herstellung  25.05. -> NA (OK)
+  Sa stationär gehakt             23.05. -> Done (OK)
+Puffer-Migration: nötig erkannt=OK ohne Recht nichts=OK eingerichtet=OK idempotent=OK Vorhandenes bleibt=OK neuer Bestand ohne Rückfrage=OK
+2-Wochen: Prüfleiste Zellen 35/35=OK Rundgänge je KW (1)=OK nach Neuaufbau=OK
+Hervorhebung: geänderte Blöcke ohne eigene=OK bleibt 20 s=OK erneut=Neustart=OK abgelaufen=OK Statustext=OK Markierung im Plan=OK
+Offene Pflichten: Liste (LKZ fehlt/fällig/KW offen, Tagesprobe, Rundgänge, WFI entfällt)=OK [13] nächste KW=OK leer=OK Springe dorthin=OK
+Leerraum-Inhalt: gilt als leer=OK
+Ausweich-Liste ohne Hauptgeraet=OK (2 Einträge)
+Ansicht2: Chips toggeln speichert=OK LKZ dringend ab Sonntag=OK Haken an leerem Tag (vergangene KW)=OK Rundgang-Datum=OK Leiste offen bei 5/5=OK am/von im XML=OK Auswahl weg (Zuklappen/Fläche/Esc)=OK
+Paket-Editor Ablauf: Schritte 6 -> +2 = 8 -> -2 = 6 ok, leeres Paket ok, neues Paket ok, Prüfhinweise ok, Ziehen ok
+Paket2 Produktcode: gueltig OK ungueltig OK
+Paket2 Laufnummer: 8-stellig/Hochzaehlen OK Eingabe OK Ueberlauf gemeldet OK Datei OK
+Paket2 alte Pakete: lesbar OK
+Paket2 Puffer-Variante: gesetzt OK leer behaelt OK anhaengen vereinigt OK Datei OK
+Paket2 Bausteine: Standard OK Ergaenzung alter Bestand OK (4 ergaenzt)
+Paket2 Kampagnenstart: Laufnummer OK Ueberlauf gesperrt OK ungueltig gesperrt OK
+Paket2 Hinweis-Klick: 19 Klicks (Testpaket 10 Hinweise), Ausnahmen 0 OK
+Paket2 Kopfzeile: Code+Laufnummer OK Ueberlauf OK ungueltig erkannt OK Speichern OK schlank OK Hinweis klappt auf OK
+Paket2 Schrittauswahl: Reihenfolge OK Raum vorbelegt OK Sonstiges braucht Raum OK
+Hinweis-Klick leeres Paket: 13 Klicks (13 per Maus, 13 Hinweise in 4 Fällen), Sprung zum Namen OK, Ausnahmen 0 OK
+Hinweis-Klick Menue Neues Paket: 3 Klicks (3 per Maus), Sprung zum Namen OK, Ausnahmen 0 OK
+Back-Up Paket: Kopplung OK Datei OK Regel in Load/Apply OK
+Back-Up Folgen: Verschieben OK Apply OK
+Back-Up alte Pakete: lesbar OK
+Assistent: Produktcodes frei OK Liste OK Filter Produkt/Art OK
+Back-Up Editor: neues Paket ok, Packen bleibt mit Back-Up ok, Back-Up folgt ok, Back-Up allein entfernbar ok, danach Packen entfernbar ok
+Equipment Regeln: Art/Gruppe (@/#)=OK Vertraeglichkeit=OK Blocktext-Warnung=OK Paket-Warnung=OK
+Equipment Matrix-Paare/Notiz=OK Serienanlage=OK Vorschlag/Duplizieren/Link-Feld=OK
+Equipment Datenformat v4: Rundreise (Regeln, Links, Uebergaenge)=OK v3 lesbar=OK Recht Status (alt/neu)=OK
+Equipment Formulare: Tabelle (Filter/Links)=OK Matrix (Klick/Notiz/Produkt)=OK Stammdaten (Serie/Duplizieren/Regeln)=OK
+Status manuell: Provider setzen/entfernen/Gross-klein=OK Audit=OK Sicherung/Wiederherstellen=OK
+Status Uebergangslogik: Regeln Geraet/Art/Standard=OK Schalter aus/an (nur Vermerk, kein UI)=OK
+Status im Plan: Rechtsklick-Wort=OK Setzen/Recht/Audit/Entfernen=OK
+Schnellerfassung: Parser Tab/Semikolon=OK Schema-Vorschlag=OK Duplikate/ungültig=OK Nicht zugeordnet=OK
+Schnellerfassung Formular=OK Zuordnen mehrerer=OK Zähler Stammdaten=OK
+Passt zu bequemer: Vorschlag nach Gruppe, Mehrfachauswahl, beide Richtungen=OK
+Eigenschaftsfelder je Art: hinzufügen/umbenennen/Reihenfolge=OK
+Paket3 Wiederholung: alle x Tage/bis Tag OK Wochentage OK Tagesliste OK Kampagnenstart Mi OK Uebernahme OK Datei OK
+Paket3 Verschieben: Zieltag aus x OK ganzer Schritt OK einzelner Lauf OK Reihenfolge OK
+Paket3 Varianten: Format OK Chips-Logik OK Merge/Summe OK Pflichtpunkte OK Paket OK
+Paket3 Chips: Anzahl per +/- OK (mobil mobil:2 mobil:3 mobil:2 mobil:2|stationaer stationaer)
+Paket3 Ansatz: Tank-Hinweis OK Flasche/ohne Gebinde OK nur Puffer OK
+Paket3 alte Pakete: lesbar OK
+Paket3 Editor: Wiederholt sich OK Reihenfolge ohne Neuaufbau OK Alt+Hoch OK Kalender OK Herstellung Anzahl OK Tank-Hinweis OK Ansatz Flasche OK

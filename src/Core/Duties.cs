@@ -60,11 +60,11 @@ namespace Arbeitsplan.Core
         }
 
         // Standard fuer die Zeile "Puffer" (neue Datenbestaende): Tagesprobe werktags (mobil = mit Herstellung erledigt),
-        // WFI-Probe einmal je KW (entfaellt bei stationaerer Herstellung).
+        // Wochenprobe (WFI) einmal je KW: erledigt durch stationaere Herstellung in der KW (Cond "!stationaer"), sonst manuell abhaken.
         public void AddPufferDefaults(int rowId)
         {
-            CheckDef p = new CheckDef(); p.Key = "PROBE"; p.Name = "Tagesprobe"; p.Short = "Tagesprobe"; p.RowId = rowId; p.Rule = CheckRule.Workdays; p.Cond = "+mobil";
-            CheckDef w = new CheckDef(); w.Key = "WFIW"; w.Name = "WFI-Probe der Woche"; w.Short = "WFI-Woche"; w.RowId = rowId; w.Rule = CheckRule.WeeklyOnce; w.Cond = "!stationaer";
+            CheckDef p = new CheckDef(); p.Key = "PROBE"; p.Name = "Tagesprobe (täglich)"; p.Short = "Tagesprobe"; p.RowId = rowId; p.Rule = CheckRule.Workdays; p.Cond = "+mobil";
+            CheckDef w = new CheckDef(); w.Key = "WFIW"; w.Name = "Manuelle Probe (wöchentlich)"; w.Short = "Probe wöchentl."; w.RowId = rowId; w.Rule = CheckRule.WeeklyOnce; w.Cond = "!stationaer";
             Defs.Add(p); Defs.Add(w);
         }
     }
@@ -210,7 +210,7 @@ namespace Arbeitsplan.Core
             switch (d.Rule)
             {
                 case CheckRule.WeeklyOnce:
-                    if (AnyNA(w, d)) return DayState.NA;
+                    if (AnyNA(w, d)) return DayState.Auto;   // Variante mit "!" (stationaer) in der KW = Wochenprobe damit erledigt
                     if (set) return DayState.Done;
                     return AnySet(w, d) ? DayState.NotNeeded : DayState.WeekOpen;
                 case CheckRule.Workdays:
@@ -250,7 +250,7 @@ namespace Arbeitsplan.Core
             if (d.Rule == CheckRule.WeeklyOnce)
             {
                 Entry[] w = LoadWeek(s, d, mon);
-                if (AnyNA(w, d)) return DayState.NA;
+                if (AnyNA(w, d)) return DayState.Done;
                 if (AnySet(w, d)) return DayState.Done;
                 return mon.AddDays(6) <= today.Date ? DayState.Missing : DayState.WeekOpen;
             }

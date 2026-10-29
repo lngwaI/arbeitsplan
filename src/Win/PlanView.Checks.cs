@@ -32,11 +32,11 @@ namespace Arbeitsplan.Win
             if (On(c, d)) return d.Short;
             switch (StateOf(c, i))
             {
-                case DayState.Auto: return d.Short + " auto";
+                case DayState.Auto: return d.Rule == CheckRule.WeeklyOnce ? d.Short + " ✓ stationär" : d.Short + " auto";
                 case DayState.Missing: return d.Short + " fehlt";
                 case DayState.NA: return d.Short + " entfällt";
                 case DayState.NotNeeded: return d.Short + " KW ok";
-                case DayState.WeekOpen: return d.Short + " offen";
+                case DayState.WeekOpen: return d.Rule == CheckRule.WeeklyOnce ? "manuell: " + d.Short + " offen" : d.Short + " offen";
             }
             return d.Short;
         }
@@ -198,10 +198,20 @@ namespace Arbeitsplan.Win
             foreach (CheckDef d in DefsOf(r))
             {
                 if (CheckEval.Cond(d, '+', v)) l.Add(d.Name + " automatisch");
-                else if (CheckEval.Cond(d, '!', v)) l.Add(d.Name + (d.Rule == CheckRule.WeeklyOnce ? " entfällt in dieser KW" : " entfällt"));
+                else if (CheckEval.Cond(d, '!', v)) l.Add(d.Rule == CheckRule.WeeklyOnce ? d.Name + " erledigt für die ganze KW" : d.Name + " entfällt");
                 else if (d.Rule == CheckRule.Workdays) l.Add(d.Name + " manuell ziehen");
             }
             return VarLabel(v) + (l.Count > 0 ? ": " + string.Join(", ", l.ToArray()) : "");
+        }
+
+        // " (Di)" = Wochentag des ersten Tags der KW mit auslösender Variante (soweit angezeigt)
+        string FirstDayText(CellData c, CheckDef d)
+        {
+            CellData best = null;
+            foreach (CellData x in Cells)
+                if (x.RowIndex == c.RowIndex && IsoWeek.Monday(x.Day) == IsoWeek.Monday(c.Day) && (best == null || x.Day < best.Day))
+                    foreach (string v in VariantSet.Of(x.Variant)) if (CheckEval.Cond(d, '!', v)) { best = x; break; }
+            return best == null ? "" : " (" + best.Day.ToString("ddd", System.Globalization.CultureInfo.GetCultureInfo("de-DE")).TrimEnd('.') + ")";
         }
 
         string CheckTip(CellData c, CheckSlot s)
@@ -214,7 +224,9 @@ namespace Arbeitsplan.Win
             }
             CheckDef d = DefsOf(c.RowIndex)[s.Def];
             DayState st = StateOf(c, s.Def);
+            if (d.Rule == CheckRule.WeeklyOnce && st == DayState.Auto) return d.Name + ": erledigt durch stationäre Herstellung" + FirstDayText(c, d) + " – kein offener Punkt";
             string t = d.Name + ": " + (On(c, d) ? "erledigt" : StateText(st));
+            if (d.Rule == CheckRule.WeeklyOnce && !On(c, d) && st != DayState.Done) t += " (manuell, 1× pro Woche abhaken)";
             if (On(c, d) || (st != DayState.Auto && st != DayState.NA)) return t;
             List<string> why = new List<string>();
             foreach (string v in VariantSet.Of(c.Variant)) if (CheckEval.Cond(d, st == DayState.Auto ? '+' : '!', v)) why.Add(VarLabel(v));

@@ -83,8 +83,8 @@ namespace Arbeitsplan.Win
             List<CheckDef> pd = view.Defs[pr];
             int pi = pd.FindIndex(delegate(CheckDef d) { return d.Key == "PROBE"; }), wi = pd.FindIndex(delegate(CheckDef d) { return d.Key == "WFIW"; });
             bool okP = pi >= 0 && wi >= 0 && CellOf(pr, 2).States[pi] == DayState.Auto && CellOf(pr, 3).States[pi] == DayState.Missing
-                && CellOf(pr, 0).States[pi] == DayState.NA && CellOf(pr, 2).States[wi] == DayState.NA && CellOf(pr, 0).States[wi] == DayState.WeekOpen
-                && CellOf(pr, 0).Note == "WFI-Woche KW36 offen";
+                && CellOf(pr, 0).States[pi] == DayState.NA && CellOf(pr, 2).States[wi] == DayState.Auto && CellOf(pr, 0).States[wi] == DayState.WeekOpen
+                && CellOf(pr, 0).Note == "Probe wöchentl. KW36 offen";
             if (pi < 0) { sb.AppendLine("Pruefleiste: FEHLER Puffer-Pflichtpunkte fehlen"); return; }
 
             // Abhaken ohne Bearbeitungsmodus; danach Konflikt: anderer PC hat den Block inzwischen geaendert

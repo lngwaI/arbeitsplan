@@ -84,7 +84,7 @@ namespace Arbeitsplan.Win
             bool wfiDone = CheckEval.Week(s, wfi, w23.AddDays(-7), t23, bw) == DayState.Done && CheckEval.Day(s, wfi, w23.AddDays(-7), t23, bw) == DayState.NotNeeded
                 && CheckEval.Day(s, wfi, w23.AddDays(-5), t23, bw) == DayState.Done && CheckEval.Week(s, wfi, w23.AddDays(-14), t23, bw) == DayState.Missing;
             s.Save(w23.AddDays(2), row2, E("Herstellung", false, "stationaer"));
-            bool wfiNA = CheckEval.Week(s, wfi, w23, t23, bw) == DayState.NA && CheckEval.Day(s, wfi, w23.AddDays(4), t23, bw) == DayState.NA;
+            bool wfiNA = CheckEval.Week(s, wfi, w23, t23, bw) == DayState.Done && CheckEval.Day(s, wfi, w23.AddDays(4), t23, bw) == DayState.Auto;
             sb.AppendLine("Tagesprobe: Werktage/Feiertag/mobil=" + Ok(okProbe) + "  Wochen-WFI: offen=" + Ok(wfiOpen) + " erledigt/fehlt=" + Ok(wfiDone) + " stationär entfällt=" + Ok(wfiNA));
 
             // ---------- Merge Marks/Variante ----------
