@@ -144,7 +144,7 @@ namespace Arbeitsplan.Win
             int n = StepsView().RunCountOf(it.Step);
             bool run = IsJe(it.Step) || it.Step.Kind != StepKind.Normal;
             string t = TitleOf(it.Step) + (it.Sub.Length > 0 && it.Step.Numbered ? " – " + it.Sub : "") + "\n" + RelOf(it.Step, d) + "\n" + (run ? "Lauf " : "Termin ") + (it.Run + 1) + " von " + n;
-            if (it.Shifted) t += "\n🔒 fest verschoben – Rechtsklick: auf Regel zurücksetzen".Replace("🔒 ", "Schloss: ");
+            if (it.Shifted) t += "\nSchloss: fest verschoben – Rechtsklick: auf Regel zurücksetzen";
             return t + "\n\n" + (it.Je ? "Ziehen: alle Läufe (folgt dem Hauptlauf)" : DragHint);
         }
     }

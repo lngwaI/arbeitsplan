@@ -70,7 +70,7 @@ namespace Arbeitsplan.Win
                 cards.Add(c);
             }
             bool run = cur != null && (IsJe(cur) || cur.Kind != StepKind.Normal);
-            lPage.Text = ix >= 0 ? (run ? "Lauf " : "Termin ") + (ix + 1) + " von " + n : "";
+            lPage.Text = ix >= 0 ? (run ? "Lauf " + (curDates[ix].Run + 1) + " von " + StepsView().RunCountOf(cur) : "Termin " + (ix + 1) + " von " + n) : "";   // Lauf = Nummer im Hauptlauf (Ausfaelle/Verschiebungen aendern die Position, nicht die Nummer)
             bPrev.Enabled = ix > 0; bNext.Enabled = ix >= 0 && ix < n - 1;
             blockPreview.Set(cards, PreviewW);
             previewScroll.AutoScrollPosition = Point.Empty;

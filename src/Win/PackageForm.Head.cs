@@ -105,7 +105,8 @@ namespace Arbeitsplan.Win
             bool was = loading; loading = true;
             cbType.SelectedIndex = (int)pk.Type;
             dtLauf1.Checked = pk.Lauf1.HasValue;
-            if (pk.Lauf1.HasValue) dtLauf1.Value = pk.Lauf1.Value;
+            if (pk.Lauf1.HasValue && pk.Lauf1.Value >= dtLauf1.MinDate && pk.Lauf1.Value <= dtLauf1.MaxDate) dtLauf1.Value = pk.Lauf1.Value;
+            else if (pk.Lauf1.HasValue) { pk.Lauf1 = null; dtLauf1.Checked = false; }
             SyncRuns();
             loading = was;
         }
@@ -128,11 +129,9 @@ namespace Arbeitsplan.Win
         {
             PackageStep h = StepsView().Head;
             if (loading || h == null) return;
-            int old = pk.RunCount, n = (int)nRuns.Value;
-            if (n == old) return;
-            pk.RunCount = n;
-            foreach (PackageStep s in steps)
-                if (s != h && s.Bind == StepBind.Frei && s.Until == 0 && s.Repeat != RepeatMode.DayList && old > 1 && s.Count == old && !s.IsBackup) s.Count = n;
+            int n = (int)nRuns.Value;
+            if (n == pk.RunCount) return;
+            pk.SetRunCount(n);
             if (cur != null) { bool was = loading; loading = true; BindWhen(cur); loading = was; }
             Changed();
         }
@@ -143,12 +142,14 @@ namespace Arbeitsplan.Win
             if (loading) return;
             pk.Lauf1 = dtLauf1.Checked ? dtLauf1.Value.Date : (DateTime?)null;
             if (pk.Lauf1.HasValue)
-                for (int i = 0; i < 7; i++)
+            {
+                DateTime fix = pk.SyncDay1(pk.Lauf1.Value);
+                if (fix != pk.Lauf1.Value)
                 {
-                    DayOfWeek d1 = pk.StartFor(pk.Lauf1.Value).DayOfWeek;
-                    if (pk.Day1 == d1) break;
-                    pk.Day1 = d1;
+                    pk.Lauf1 = fix; loading = true; dtLauf1.Value = fix; loading = false;
+                    Say(Package.Day1Hint + " – auf " + fix.ToString("dd.MM.yyyy") + " gesetzt.");
                 }
+            }
             if (cur != null) { bool was = loading; loading = true; BindWhen(cur); loading = was; }
             Changed();
         }

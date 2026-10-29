@@ -42,7 +42,7 @@ namespace Arbeitsplan.Win
                 chkDays[i] = c; gWhen.Controls.Add(c);
             }
             lDaysList = Lbl(gWhen, "Tage:", 8, lw); tDays.SetBounds(x, 0, w, IH); gWhen.Controls.Add(tDays); Ui.SimpleMenu(tDays);
-            lDaysHelp = Lbl(gWhen, "Komma-getrennt, 1 = erster Tag des Ablaufs (z. B. 1, 4, 9)", x, w); lDaysHelp.Height = 2 * Font.Height + 2; lDaysHelp.TextAlign = ContentAlignment.TopLeft;
+            lDaysHelp = Lbl(gWhen, "Tage nach Beginn des Ablaufs, Komma-getrennt: 1 = erster Termin-Tag (z. B. 1, 4, 9)", x, w); lDaysHelp.Height = 2 * Font.Height + 2; lDaysHelp.TextAlign = ContentAlignment.TopLeft;
             int ex = 8 + lw + 22;
             cbEnd.SetBounds(8, 0, lw + 14, IH); cbEnd.DropDownStyle = ComboBoxStyle.DropDownList; gWhen.Controls.Add(cbEnd);
             Num(nCount, 1, PackageStep.MaxRuns, ex, 56, gWhen); Num(nUntil, 1, PackageStep.MaxRuns, ex, 56, gWhen); lEndUnit = Lbl(gWhen, "mal", ex + 62, 60);
@@ -56,7 +56,7 @@ namespace Arbeitsplan.Win
             tip.SetToolTip(nStartNo, "Hintere 4 Stellen (ZZZZ) des ersten Laufs dieses Schritts; normalerweise wie „Erste Laufnummer“ oben.");
             tip.SetToolTip(cbRepeat, "Wann sich der Schritt wiederholt; die Termine stehen darunter und im Kalender unten.");
             tip.SetToolTip(cbEnd, "Ende der Wiederholung: für alle Läufe der Kampagne, genau n-mal oder bis zu einem Lauf");
-            tip.SetToolTip(tDays, "Tage des Ablaufs, an denen der Schritt stattfindet (1 = erster Tag des Ablaufs); die Termine stehen darunter");
+            tip.SetToolTip(tDays, "Tage nach Beginn des Ablaufs, an denen der Schritt stattfindet (1 = erster Termin-Tag); die Termine stehen darunter");
 
             nDay.ValueChanged += delegate { OffsetEdited(); };
             cbDir.SelectedIndexChanged += delegate { OffsetEdited(); };
@@ -67,7 +67,7 @@ namespace Arbeitsplan.Win
             {
                 PackageStep h = StepsView().Head;
                 if (!Edit() || h == null) return;
-                List<int> hd = h.Days(pk.Day1);
+                List<int> hd = h.BaseDays(pk.Day1);   // Rohtage: Until wird gegen die Regel des Hauptlaufs (ohne Move/Shift) ausgewertet
                 cur.Until = hd[Math.Max(0, Math.Min(hd.Count, (int)nUntil.Value) - 1)]; Changed();
             };
             nInterval.ValueChanged += delegate { if (Edit()) { cur.Interval = (int)nInterval.Value; Changed(); } };
@@ -110,7 +110,7 @@ namespace Arbeitsplan.Win
         {
             PackageStep h = StepsView().Head; int k = 1;
             if (h == null) return 1;
-            List<int> hd = h.Days(pk.Day1);
+            List<int> hd = h.BaseDays(pk.Day1);
             for (int i = 0; i < hd.Count; i++) if (hd[i] <= day) k = i + 1;
             return k;
         }
@@ -190,7 +190,7 @@ namespace Arbeitsplan.Win
             int runs = Math.Max(1, h != null ? pk.RunCount : s.Count);
             if (kind == 0) { s.Until = 0; s.Count = runs; }
             else if (kind == 1) { if (s.Until > 0) s.Count = Math.Max(1, s.Days(pk.Day1).Count); s.Until = 0; }
-            else if (h != null) { List<int> hd = h.Days(pk.Day1); s.Until = hd[Math.Min(hd.Count, runs) - 1]; }
+            else if (h != null) { List<int> hd = h.BaseDays(pk.Day1); s.Until = hd[Math.Min(hd.Count, runs) - 1]; }
             Rebind();
         }
 

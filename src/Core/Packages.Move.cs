@@ -15,14 +15,42 @@ namespace Arbeitsplan.Core
             Day1 = (DayOfWeek)((((int)Day1 - k) % 7 + 7) % 7);
         }
 
+        public const string Day1Hint = "Lauf 1 liegt nicht auf einem gewählten Wochentag";
+
+        // Wochentag von Tag 1 so setzen, dass Lauf 1 am Datum lauf1 liegt (Wochentagsmuster bleiben auf echten Wochentagen).
+        // Liegt auf dem Datum kein Lauf (Muster ohne diesen Wochentag), wird der naechste passende Tag gesucht und zurueckgegeben
+        // (Day1Hint zeigen); sonst lauf1 unveraendert.
+        public DateTime SyncDay1(DateTime lauf1)
+        {
+            lauf1 = lauf1.Date;
+            if (Day1Converges(lauf1)) return lauf1;
+            DayOfWeek keep = Day1;
+            for (int k = 1; k <= 7; k++) if (Day1Converges(lauf1.AddDays(k))) return lauf1.AddDays(k);
+            Day1 = keep;
+            return lauf1;
+        }
+
+        bool Day1Converges(DateTime l1)
+        {
+            for (int k = 0; k < 8; k++)
+            {
+                DayOfWeek d = StartFor(l1).DayOfWeek;
+                if (Day1 == d) return true;
+                Day1 = d;
+            }
+            return false;
+        }
+
         // Fruehester Termin = Tag 1: rutscht ein JeLauf-Schritt (Versatz -1) oder ein Schritt davor, werden alle Schritte nach hinten geschoben;
         // fehlt vorn eine Luecke, wird sie geschlossen (soweit die rohen Tage der Schritte es zulassen). true = geaendert.
-        public bool Normalize()
+        // closeGap = false: nur Termine vor Tag 1 korrigieren, eine Luecke vorn bleibt (Ziehen im Kalender soll nicht zurueckspringen)
+        public bool Normalize(bool closeGap = true)
         {
             int min = int.MaxValue;
             foreach (RunDate d in Schedule(null)) min = Math.Min(min, d.Day);
             if (min == int.MaxValue || min == 1) return false;
             int k = 1 - min;
+            if (k < 0 && !closeGap) return false;
             if (k < 0)
             {
                 int slack = int.MaxValue;
@@ -60,6 +88,13 @@ namespace Arbeitsplan.Core
         // der ganze Schritt), onlyRun = nur dieser Lauf (Shift). JeLauf-Schritte folgen dem Hauptlauf: nur der Versatz zum Lauf, nie ein
         // einzelner Lauf. false = nicht moeglich (vor Tag 1, Versatz zu gross).
         public bool DragRun(PackageStep s, int run, int delta, bool onlyRun)
+        {
+            if (!DragRunRaw(s, run, delta, onlyRun)) return false;
+            Normalize(false);   // JeLauf-Schritte mit negativem Versatz (Puffer -1) duerfen nie vor Tag 1 landen
+            return true;
+        }
+
+        bool DragRunRaw(PackageStep s, int run, int delta, bool onlyRun)
         {
             if (delta == 0) return false;
             if (s.Bind == StepBind.JeLauf && Head != null && s != Head) return !onlyRun && MoveStep(s, delta);

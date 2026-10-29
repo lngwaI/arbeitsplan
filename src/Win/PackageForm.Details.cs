@@ -110,6 +110,12 @@ namespace Arbeitsplan.Win
             cbKind.SelectedIndexChanged += delegate
             {
                 if (!Edit() || cbKind.SelectedIndex < 0) return;
+                if (cur == StepsView().Head && (StepKind)cbKind.SelectedIndex != StepKind.Run)
+                {   // der Hauptlauf ist die Grundlage der Kampagne: Art nicht umstellbar
+                    loading = true; cbKind.SelectedIndex = (int)StepKind.Run; loading = false;
+                    Say("Der Hauptlauf bleibt Lauf-Art; weiteren Lauf-Schritt anlegen.");
+                    return;
+                }
                 bool wasNormal = cur.Kind == StepKind.Normal;
                 cur.Kind = (StepKind)cbKind.SelectedIndex;
                 if (wasNormal && cur.Kind != StepKind.Normal)

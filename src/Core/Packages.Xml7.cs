@@ -28,7 +28,7 @@ namespace Arbeitsplan.Core
             int wd = Array.IndexOf(PackageStep.DayNames, root.GetAttribute("tag1wochentag"));
             if (wd >= 0) p.Day1 = (DayOfWeek)((wd + 1) % 7);
             DateTime d;
-            if (DateTime.TryParseExact(root.GetAttribute("lauf1"), "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out d)) p.Lauf1 = d;
+            if (DateTime.TryParseExact(root.GetAttribute("lauf1"), "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out d) && d.Year >= 2000 && d.Year <= 2100) p.Lauf1 = d;   // unsinnige Jahre ignorieren (DateTimePicker waere ausserhalb)
         }
 
         // Fuer aeltere exe aufgeloestes Raster: JeLauf-Schritte als Tagesliste, Move in den Versatz eingerechnet. Sonst der Schritt selbst.

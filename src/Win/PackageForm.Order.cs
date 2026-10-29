@@ -119,13 +119,16 @@ namespace Arbeitsplan.Win
             List<int> d = s.Days(p.Day1); int first = d[0];
             foreach (int x in d) first = Math.Min(first, x);
             if (first + delta < 1) p.ShiftOrigin(1 - (first + delta));
-            return s.MoveAll(delta, p.Day1);
+            if (!s.MoveAll(delta, p.Day1)) return false;
+            p.Normalize(false);
+            return true;
         }
 
         // Nach dem Verschieben: nur die Wann?-Felder, Liste (Texte in place), Kalender und Hinweise nachziehen; Equipment bleibt stehen
         void AfterMove(PackageStep s)
         {
             dirty = true;
+            StepsView().Normalize(false);   // nach jedem Verschieben: frueheste Termine (Puffer -1) nie vor Tag 1
             RecordPins(s);   // bewusste Aenderung: die neuen Tage sind der Sollstand der festen Laeufe
             if (s != cur) Bind(s);
             else { BindWhen(s); UpdateView(true); }

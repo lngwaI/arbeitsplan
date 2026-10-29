@@ -29,7 +29,7 @@ namespace Arbeitsplan.Core
         static int MonIndex(DayOfWeek d) { return ((int)d + 6) % 7; }
 
         // Tage (1 = Starttag) aller Laeufe ohne Versatz; day1 = Wochentag von Tag 1
-        List<int> BaseDays(DayOfWeek day1)
+        internal List<int> BaseDays(DayOfWeek day1)
         {
             List<int> r = new List<int>();
             int cap = Until > 0 ? MaxRuns : Math.Max(1, Math.Min(MaxRuns, Count));
@@ -133,6 +133,7 @@ namespace Arbeitsplan.Core
         public bool Shifted(int run) { return Shift.ContainsKey(run); }
 
         // Kurzfassung, z. B. "4× alle 6 Tage", "Mo, Mi, Fr bis Tag 14", "Tage 1, 4, 9", "einmal"
+#if TESTHOOKS
         public string RepeatText()
         {
             string end = Until > 0 ? " bis Tag " + Until : " (" + RunCount + "×)";
@@ -143,6 +144,7 @@ namespace Arbeitsplan.Core
             else t = Until > 0 ? "alle " + Math.Max(1, Interval) + (Interval == 1 ? " Tag" : " Tage") + end : RunCount + "× alle " + Math.Max(1, Interval) + (Interval == 1 ? " Tag" : " Tage");
             return Shift.Count > 0 ? t + " · " + Shift.Count + (Shift.Count == 1 ? " Ausnahme" : " Ausnahmen") : t;
         }
+#endif
 
         // ---------- Ansatz ----------
 

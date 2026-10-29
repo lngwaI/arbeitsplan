@@ -93,7 +93,7 @@ namespace Arbeitsplan.Win
 
             Controls.Add(L(simple ? "Datum:" : "Lauf 1 am:", 10, 14));
             dtLauf1.Format = DateTimePickerFormat.Custom; dtLauf1.CustomFormat = "dd.MM.yyyy";   // immer TT.MM.JJJJ (GMP), unabhaengig von der Windows-Einstellung
-            dtLauf1.Value = lauf1; dtLauf1.SetBounds(simple ? 70 : 85, 10, 110, 22); Controls.Add(dtLauf1);
+            dtLauf1.Value = lauf1 < dtLauf1.MinDate ? dtLauf1.MinDate : lauf1 > dtLauf1.MaxDate ? dtLauf1.MaxDate : lauf1; dtLauf1.SetBounds(simple ? 70 : 85, 10, 110, 22); Controls.Add(dtLauf1);
             Font big = new Font(Font.FontFamily, Font.SizeInPoints + 2f, FontStyle.Bold);
             Label ln = L("Läufe:", 200, 14); Controls.Add(ln);
             nRuns.Minimum = 1; nRuns.Maximum = PackageStep.MaxRuns; nRuns.Value = Math.Max(1, Math.Min(PackageStep.MaxRuns, pkg.RunCount));
@@ -207,14 +207,15 @@ namespace Arbeitsplan.Win
         // Wochentag von Tag 1 so setzen, dass Wochentags-Wiederholungen auf echten Wochentagen liegen (haengt von "Lauf 1 am" ab)
         void SyncDay1()
         {
-            DateTime l1 = dtLauf1.Value.Date;
-            for (int k = 0; k < 7; k++)
+            DateTime l1 = dtLauf1.Value.Date, fix = pkg.SyncDay1(l1);
+            day1Hint = null;
+            if (fix != l1 && fix >= dtLauf1.MinDate && fix <= dtLauf1.MaxDate)
             {
-                DayOfWeek d = pkg.StartFor(l1).DayOfWeek;
-                if (pkg.Day1 == d) break;
-                pkg.Day1 = d;
+                day1Hint = Package.Day1Hint + " – auf " + fix.ToString("dd.MM.yyyy") + " gesetzt.";
+                bool b = building; building = true; dtLauf1.Value = fix; building = b;
             }
         }
+        string day1Hint;
 
         // Vorschlaege neu berechnen (Datum/Laeufe/Nummern/Rhythmus geaendert); eigene Verschiebungen und Raeume bleiben je Lauf erhalten.
         void Recalc()
@@ -233,7 +234,7 @@ namespace Arbeitsplan.Win
             sched.Sort(delegate(RunDate a, RunDate b) { return a.Day != b.Day ? a.Day.CompareTo(b.Day) : (a.Step != b.Step ? a.Step.CompareTo(b.Step) : a.Run.CompareTo(b.Run)); });
             string firstLabel = "";
             foreach (RunDate d in sched) if (pkg.Steps[d.Step].Kind != StepKind.Normal) { firstLabel = d.Label; break; }
-            lFirst.Text = !valid ? "bitte 8 Ziffern eingeben (z. B. 13570030)" : over ?? (firstLabel.Length > 0 ? "→ " + firstLabel : "(keine Läufe im Paket)");
+            lFirst.Text = !valid ? "bitte 8 Ziffern eingeben (z. B. 13570030)" : over ?? day1Hint ?? (firstLabel.Length > 0 ? "→ " + firstLabel : "(keine Läufe im Paket)");
             lFirst.ForeColor = valid && over == null ? SystemColors.ControlText : Color.Firebrick;
             Warning = valid ? over : lFirst.Text;
             filling = true;

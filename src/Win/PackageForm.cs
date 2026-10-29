@@ -374,7 +374,7 @@ namespace Arbeitsplan.Win
                 }
             try { p.Save(f); }
             catch (Exception ex) { MessageBox.Show(this, "Paket konnte nicht gespeichert werden.\n" + ex.Message, "Paket-Editor", MessageBoxButtons.OK, MessageBoxIcon.Error); return false; }
-            file = f; dirty = false;
+            file = f; dirty = false; MarkSaved();
             UpdateHeader();
             return true;
         }

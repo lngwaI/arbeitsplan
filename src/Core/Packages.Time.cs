@@ -53,8 +53,17 @@ namespace Arbeitsplan.Core
             if (n == old) return;
             h.RunCount = n;
             foreach (PackageStep s in Steps)
-                if (s != h && s.Bind == StepBind.Frei && s.Until == 0 && s.Repeat != RepeatMode.DayList && old > 1 && s.Count == old && !s.IsBackup) s.Count = n;
-            h.Skip.RemoveAll(delegate(int r) { return r >= n; });
+                if (s != h && s.Bind == StepBind.Frei && s.Until == 0 && s.Repeat != RepeatMode.DayList && old > 1 && s.Count == old && !s.IsBackup) { s.Count = n; DropRunsFrom(s, n); }
+            DropRunsFrom(h, n);
+        }
+
+        // Ausfaelle, Verschiebungen und Kennungs-Texte von Hand ab Lauf n (0-basiert) entfernen (der Lauf existiert nicht mehr)
+        static void DropRunsFrom(PackageStep s, int n)
+        {
+            s.Skip.RemoveAll(delegate(int r) { return r >= n; });
+            foreach (Dictionary<int, int> m in new[] { s.Move, s.Shift })
+                foreach (int k in new List<int>(m.Keys)) if (k >= n) m.Remove(k);
+            foreach (int k in new List<int>(s.IdentOver.Keys)) if (k >= n) s.IdentOver.Remove(k);
         }
 
         // Schritte, deren Laufnummer beim Kampagnenstart von Hand kommt (Pflicht, kein Vorschlag): Packen; Einzelpaket ohne Packen: der erste Schritt

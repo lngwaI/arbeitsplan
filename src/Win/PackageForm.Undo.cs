@@ -35,20 +35,44 @@ namespace Arbeitsplan.Win
         }
 
         // In Textfeldern gilt Strg+Z zuerst fuer den Text; sonst fuer den ganzen Editor
-        bool TextUndo() { TextBoxBase tb = ActiveControl as TextBoxBase; return tb != null && tb.CanUndo; }
+        // (auch in Zahlenfeldern, editierter Tabellenzelle und editierbarem Auswahlfeld: dort gehoert Strg+Z dem Feld)
+        bool TextUndo()
+        {
+            Control a = ActiveControl;
+            while (a is ContainerControl && ((ContainerControl)a).ActiveControl != null) a = ((ContainerControl)a).ActiveControl;
+            for (Control c = a; c != null; c = c.Parent)
+            {
+                if (c is NumericUpDown) return true;
+                DataGridView g = c as DataGridView;
+                if (g != null && g.IsCurrentCellInEditMode) return true;
+                ComboBox cb = c as ComboBox;
+                if (cb != null && cb.DropDownStyle != ComboBoxStyle.DropDownList) return true;
+            }
+            TextBoxBase tb = a as TextBoxBase; return tb != null && tb.CanUndo;
+        }
 
         // Beim Verlassen eines Eingabefelds ist die Aenderung abgeschlossen
         void HookLeave(Control c)
         {
-            if (c == this) leaveHooked.RemoveAll(delegate(Control x) { return x.IsDisposed; });   // Equipment-Zeilen werden bei jedem Bind neu gebaut
+            leaveHooked.RemoveAll(delegate(Control x) { return x.IsDisposed; });   // Equipment-Zeilen werden bei jedem Bind neu gebaut: Liste waechst nicht
+            HookLeaveIn(c);
+        }
+
+        void HookLeaveIn(Control c)
+        {
             foreach (Control k in c.Controls)
             {
                 if ((k is TextBoxBase || k is ComboBox || k is NumericUpDown || k is DateTimePicker) && !leaveHooked.Contains(k)) { leaveHooked.Add(k); k.Leave += delegate { CommitUndo(); }; }
-                HookLeave(k);
+                HookLeaveIn(k);
             }
         }
 
-        void ResetUndo() { HookLeave(this); snaps.Clear(); snapAt = -1; CommitUndo(); }
+        int savedAt = -1;   // Schnappschuss-Index des gespeicherten Stands (-2 = nicht mehr erreichbar)
+
+        void ResetUndo() { HookLeave(this); snaps.Clear(); snapAt = -1; savedAt = -1; CommitUndo(); savedAt = snapAt; }
+
+        // Nach dem Speichern: der aktuelle Stand gilt als gespeichert
+        void MarkSaved() { CommitUndo(); savedAt = snapAt; }
 
         Snap TakeSnap()
         {
@@ -70,9 +94,9 @@ namespace Arbeitsplan.Win
             Snap s = TakeSnap();
             if (s == null) return;
             if (snapAt >= 0 && snaps[snapAt].Same(s)) { snaps[snapAt] = s; return; }   // gleicher Stand: nur Auswahl/Scroll auffrischen
-            if (snapAt < snaps.Count - 1) snaps.RemoveRange(snapAt + 1, snaps.Count - snapAt - 1);
+            if (snapAt < snaps.Count - 1) { snaps.RemoveRange(snapAt + 1, snaps.Count - snapAt - 1); if (savedAt > snapAt) savedAt = -2; }
             snaps.Add(s);
-            if (snaps.Count > MaxUndo) snaps.RemoveAt(0);
+            if (snaps.Count > MaxUndo) { snaps.RemoveAt(0); if (savedAt >= 0) savedAt--; if (savedAt < 0) savedAt = -2; }
             snapAt = snaps.Count - 1;
             UpdateUndoButtons();
         }
@@ -93,6 +117,7 @@ namespace Arbeitsplan.Win
             {
                 if (!Restore(target)) return;
                 snapAt = to;
+                dirty = snapAt != savedAt;   // zurueck bis zum gespeicherten Stand = nicht mehr geaendert
             }
             finally { undoBusy = false; UpdateUndoButtons(); }
         }
