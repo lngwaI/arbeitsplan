@@ -27,6 +27,7 @@ namespace Arbeitsplan.Core
             string before = DaysKey() + "|" + Count + "|" + Repeat;
             Repeat = m.Repeat; WeekDays = m.WeekDays; DayList = m.DayList; Count = m.Count; Interval = m.Interval; Until = m.Until; Day = m.Day;
             Shift = new Dictionary<int, int>(m.Shift);
+            Move = new Dictionary<int, int>(m.Move);
             MoveAll(1);
             return before != DaysKey() + "|" + Count + "|" + Repeat;
         }

@@ -49,15 +49,37 @@ namespace Arbeitsplan.Core
             return r;
         }
 
-        // Tag je Lauf mit Versatz (nie vor Tag 1)
+        // Tag je Lauf mit Versatz (nie vor Tag 1): Move gilt ab dem Lauf fuer alle folgenden, Shift nur fuer den einen Lauf
         public List<int> Days(DayOfWeek day1 = DayOfWeek.Monday)
         {
             List<int> r = BaseDays(day1);
-            for (int i = 0; i < r.Count; i++) { int s; if (Shift.TryGetValue(i, out s)) r[i] = Math.Max(1, r[i] + s); }
+            int cum = 0;
+            for (int i = 0; i < r.Count; i++)
+            {
+                int m, s; if (Move.TryGetValue(i, out m)) cum += m;
+                Shift.TryGetValue(i, out s);
+                if (cum + s != 0) r[i] = Math.Max(1, r[i] + cum + s);
+            }
             return r;
         }
 
-        public int RunCount { get { return BaseDays(DayOfWeek.Monday).Count; } }
+        // Zahl der Wiederholungen; setzen = "nach n Laeufen" (Ende per Anzahl, kein "bis Tag"); Tagesliste wird gekuerzt/verlaengert
+        public int RunCount
+        {
+            get { return BaseDays(DayOfWeek.Monday).Count; }
+            set
+            {
+                value = Math.Max(1, Math.Min(MaxRuns, value));
+                Count = value; Until = 0;
+                if (Repeat != RepeatMode.DayList) return;
+                List<int> l = ParseDays(DayList);
+                if (l.Count == 0) return;
+                int gap = l.Count > 1 ? Math.Max(1, l[l.Count - 1] - l[l.Count - 2]) : 1;
+                while (l.Count < value) l.Add(l[l.Count - 1] + gap);
+                if (l.Count > value) l.RemoveRange(value, l.Count - value);
+                DayList = JoinDays(l);
+            }
+        }
         public int RunCountFor(DayOfWeek day1) { return BaseDays(day1).Count; }
         public int FirstDay { get { List<int> d = Days(); int m = d[0]; foreach (int x in d) m = Math.Min(m, x); return m; } }
 
@@ -73,7 +95,7 @@ namespace Arbeitsplan.Core
             return r;
         }
 
-        static string JoinDays(List<int> l) { List<string> s = new List<string>(); foreach (int d in l) s.Add(d.ToString(CultureInfo.InvariantCulture)); return string.Join(", ", s.ToArray()); }
+        internal static string JoinDays(List<int> l) { List<string> s = new List<string>(); foreach (int d in l) s.Add(d.ToString(CultureInfo.InvariantCulture)); return string.Join(", ", s.ToArray()); }
 
         // Ganzen Schritt um delta Tage verschieben (alle Laeufe, Ausnahmen bleiben relativ). false = wuerde vor Tag 1 fallen.
         public bool MoveAll(int delta, DayOfWeek day1 = DayOfWeek.Monday)
@@ -171,22 +193,27 @@ namespace Arbeitsplan.Core
             return m;
         }
 
-        public string ShiftText()
+        public string ShiftText() { return MapText(Shift); }
+
+        public void ParseShift(string s) { ParseMap(s, Shift); }
+
+        // "Lauf:Tage;Lauf:Tage" (Lauf 0-basiert), fuer Shift und Move
+        public static string MapText(Dictionary<int, int> map)
         {
-            List<int> keys = new List<int>(Shift.Keys); keys.Sort();
+            List<int> keys = new List<int>(map.Keys); keys.Sort();
             StringBuilder sb = new StringBuilder();
-            foreach (int k in keys) sb.Append(sb.Length > 0 ? ";" : "").Append(k.ToString(CultureInfo.InvariantCulture)).Append(':').Append(Shift[k].ToString(CultureInfo.InvariantCulture));
+            foreach (int k in keys) sb.Append(sb.Length > 0 ? ";" : "").Append(k.ToString(CultureInfo.InvariantCulture)).Append(':').Append(map[k].ToString(CultureInfo.InvariantCulture));
             return sb.ToString();
         }
 
-        public void ParseShift(string s)
+        public static void ParseMap(string s, Dictionary<int, int> map)
         {
-            Shift.Clear();
+            map.Clear();
             foreach (string t in (s ?? "").Split(';'))
             {
                 string[] kv = t.Split(':'); int k, v;
                 if (kv.Length == 2 && int.TryParse(kv[0], NumberStyles.Integer, CultureInfo.InvariantCulture, out k) && int.TryParse(kv[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out v)
-                    && k >= 0 && k < MaxRuns && v != 0 && Math.Abs(v) <= 366) Shift[k] = v;
+                    && k >= 0 && k < MaxRuns && v != 0 && Math.Abs(v) <= 366) map[k] = v;
             }
         }
     }

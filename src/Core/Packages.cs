@@ -64,15 +64,9 @@ namespace Arbeitsplan.Core
         public string SubNos = "";          // nur SubRun: Unterlauf-Nummern je Lauf, Komma-getrennt; mehrere je Lauf mit "/"
         public string Text = "";
         public string Note = "";
-        public string Ident = "";           // Kennung je Lauf, Komma-getrennt (z. B. "PA 40010001, PA 40010017"); ganz unten rot, gross, fett
+        public string Ident = "";           // alte Kennung je Lauf, Komma-getrennt (z. B. "PA 40010001, PA 40010017"); neu: IdentStart/IdentOver (Packages.Bind.cs); ganz unten rot, gross, fett
         public string Variant = "";         // Puffer-Schritt: Typ(en) der erzeugten Puffer (VariantSet, z. B. "mobil"), "" = kein Puffer
         public List<EquipAssign> Equipment = new List<EquipAssign>();
-
-        public string IdentFor(int run)
-        {
-            string[] per = Ident.Split(',');
-            return run < per.Length ? per[run].Trim() : "";
-        }
 
         // Format der Kennungszeile (rot, gross, fett).
         public static FormatSpan IdentSpan(int start, int length)
@@ -85,6 +79,7 @@ namespace Arbeitsplan.Core
         {
             PackageStep s = (PackageStep)MemberwiseClone();
             s.Shift = new Dictionary<int, int>(Shift);
+            s.CopyBind(this);
             s.Equipment = new List<EquipAssign>();
             foreach (EquipAssign a in Equipment) s.Equipment.Add(a.Clone());
             return s;
@@ -94,13 +89,13 @@ namespace Arbeitsplan.Core
         {
             get
             {
-                if (Title.Length > 0 || Text.Length > 0 || Note.Length > 0 || Ident.Trim().Length > 0 || Kind == StepKind.SubRun) return false;
+                if (Title.Length > 0 || Text.Length > 0 || Note.Length > 0 || Ident.Trim().Length > 0 || IdentStart.Length > 0 || IdentOver.Count > 0 || ManualNo.Length > 0 || Kind == StepKind.SubRun) return false;
                 foreach (EquipAssign a in Equipment) if (a.Line(0).Length > 0) return false;
                 return true;
             }
         }
 
-        public bool Numbered { get { return Kind != StepKind.Normal || RunCount > 1; } }
+        public bool Numbered { get { return Kind != StepKind.Normal || (Bind == StepBind.JeLauf ? NumberRuns : RunCount > 1); } }
 
         // Laufnummer: mit Laufnummern-Praefix (XXYY, Package.Prefix) 8-stellig XXYYZZZZ (z. B. 13570030), sonst wie bisher "3".
         public string RunNo(string prefix, int run)
@@ -152,7 +147,9 @@ namespace Arbeitsplan.Core
                 }
                 if (!any) lines.Add("Unterlauf (aus " + main + ")");
             }
-            else if (Title.Length > 0) lines.Add(Numbered ? Title + " " + RunNo(product, run) : Title);
+            else if (Numbered && Title.Length > 0) lines.Add(Title + " " + RunNo(product, run));
+            else if (ManualNo.Length > 0) lines.Add((Title.Length > 0 ? Title + " " : "") + "(Nr. " + ManualNo + ")");   // Klammer: zaehlt nicht als Kampagnenlauf (RunNumbers)
+            else if (Title.Length > 0) lines.Add(Title);
             if (Text.Length > 0) lines.Add(Text);
             if (AnsatzLine().Length > 0) lines.Add(AnsatzLine());   // z. B. "Gebinde: Flasche 5 L"
             foreach (EquipAssign a in Equipment) { string l = a.Line(run); if (l.Length > 0) lines.Add(l); }
@@ -186,18 +183,6 @@ namespace Arbeitsplan.Core
             }
             if (idt.Length > 0) e.Spans.Add(IdentSpan(e.Content.Length - idt.Length, idt.Length));
             return e;
-        }
-
-        // Tag (1-basiert, Paket-Rhythmus) der Wiederholung run (0-basiert); Tag 1 = Montag (Editor), sonst Days(day1).
-        public int DayOf(int run) { List<int> d = Days(); return run < d.Count ? d[run] : Day + run * Math.Max(1, Interval); }
-
-        // Alle Laeufe: Tag (1-basiert, Paket-Rhythmus) und Block (Text mit Notizen/Kennung); day1 = Wochentag des Starttags (Wiederholung an Wochentagen).
-        public List<KeyValuePair<int, Entry>> Runs(string prefix, DayOfWeek day1 = DayOfWeek.Monday)
-        {
-            List<KeyValuePair<int, Entry>> res = new List<KeyValuePair<int, Entry>>();
-            List<int> days = Days(day1);
-            for (int i = 0; i < days.Count; i++) res.Add(new KeyValuePair<int, Entry>(days[i], EntryFor(i, prefix)));
-            return res;
         }
     }
 
@@ -252,8 +237,6 @@ namespace Arbeitsplan.Core
 
         List<Target> BuildTargets(List<RowInfo> rows, DateTime start, List<RunDate> schedule, out int unknownRow)
         {
-            Dictionary<long, RunDate> over = new Dictionary<long, RunDate>();   // (Schritt, Lauf) -> Tag/Block aus dem Kampagnenstart-Dialog
-            if (schedule != null) foreach (RunDate d in schedule) over[d.Key()] = d;
             unknownRow = 0;
             Dictionary<string, Target> map = new Dictionary<string, Target>();
             List<Target> order = new List<Target>();
@@ -267,25 +250,20 @@ namespace Arbeitsplan.Core
                 if (!map.ContainsKey(k)) order.Add(t); else order[order.FindIndex(delegate(Target x) { return x == map[k]; })] = t;
                 map[k] = t;
             }
-            for (int si = 0; si < Steps.Count; si++)
+            List<RunDate> plan = schedule != null ? new List<RunDate>(schedule) : Schedule(null, start.DayOfWeek);   // Schedule() ist die einzige Rechenquelle
+            plan.Sort(delegate(RunDate a, RunDate b) { return a.Step != b.Step ? a.Step.CompareTo(b.Step) : a.Run.CompareTo(b.Run); });
+            foreach (RunDate rd in plan)
             {
-                PackageStep s = Steps[si];
-                if (s.IsEmpty) continue;
-                List<KeyValuePair<int, Entry>> runs = s.Runs(Prefix, start.DayOfWeek);
-                for (int ri = 0; ri < runs.Count; ri++)
-                {
-                    KeyValuePair<int, Entry> run = runs[ri];
-                    RunDate rd;
-                    bool has = over.TryGetValue(RunDate.KeyOf(si, ri), out rd);
-                    int id = RowId(rows, has && rd.Row.Length > 0 ? rd.Row : s.Row);   // Raumwechsel je Lauf; Equipment bleibt
-                    if (id < 0) { unknownRow++; continue; }
-                    DateTime day = start.AddDays((has ? rd.Day : run.Key) - 1);
-                    string k = day.ToString("yyyyMMdd", CultureInfo.InvariantCulture) + "|" + id;
-                    Target t;
-                    if (!map.TryGetValue(k, out t)) { t = new Target(); t.Day = day; t.RowId = id; t.Data = new Entry(); map[k] = t; order.Add(t); }
-                    if (s.IsBuffer) { BufferSet.AddRange(t.Data.Buffers, s.BuffersFor(ri, Prefix)); continue; }   // mehrere Puffer am Tag: anhaengen
-                    AppendText(t.Data, run.Value);   // Notizzeilen und Kennung (Format) kommen mit
-                }
+                if (rd.Step < 0 || rd.Step >= Steps.Count || Steps[rd.Step].IsEmpty) continue;
+                PackageStep s = Steps[rd.Step];
+                int id = RowId(rows, rd.Row.Length > 0 ? rd.Row : s.Row);   // Raumwechsel je Lauf; Equipment bleibt
+                if (id < 0) { unknownRow++; continue; }
+                DateTime day = start.AddDays(rd.Day - 1);
+                string k = day.ToString("yyyyMMdd", CultureInfo.InvariantCulture) + "|" + id;
+                Target t;
+                if (!map.TryGetValue(k, out t)) { t = new Target(); t.Day = day; t.RowId = id; t.Data = new Entry(); map[k] = t; order.Add(t); }
+                if (s.IsBuffer) { BufferSet.AddRange(t.Data.Buffers, s.BuffersFor(rd.Run, Prefix)); continue; }   // mehrere Puffer am Tag: anhaengen
+                AppendText(t.Data, s.EntryFor(rd.Run, Prefix));   // Notizzeilen und Kennung (Format) kommen mit
             }
             return order;
         }
@@ -409,6 +387,7 @@ namespace Arbeitsplan.Core
             Eq(mi, "MT", "H2-T-0210"); Eq(mi, "ST1", "H2-T-0211"); Eq(mi, "ST2", "H2-T-0212"); Eq(mi, "MS", "H2-X-0210"); Eq(mi, "EV", "H2-X-0201"); Eq(mi, "Pumpe", "H1-P-0102-05");
             Step(p, "Backfill", "Backfill", 6, StepKind.Run, 4).Text = "Tag 1 von 2";
             Step(p, "Backfill", "Backfill", 7, StepKind.Run, 4).Text = "Tag 2 von 2";
+            Seen.Add(p);
             return p;
         }
 

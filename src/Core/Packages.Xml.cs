@@ -12,6 +12,8 @@ namespace Arbeitsplan.Core
     // (wochentage|tage, fehlt = alle x Tage), "wochentage" (Mo,Mi,Fr), "tage" (1, 4, 9), "bis", "versatz" (Lauf:Tage;…),
     // "ansatz" (gebinde|ohne) mit "gebinde"/"menge"/"einheit"; "variante" mit Anzahl (mobil:2|stationaer).
     // Version 6: Schritt "backup" (= Source des Packen-Schritts; Back-Up folgt ihm, Packages.Backup.cs).
+    // Version 7 (Zeitmodell, Packages.Xml7.cs): Paket "typ"/"lauf1", Schritt "bezug"/"laufversatz"/"jelaeufe"/"nr"/"ausfall"/"versatzab"/"kennungstart"/"kennungje";
+    // tag/anzahl/abstand/wiederholung/versatz/kennung stehen zusaetzlich aufgeloest da (aeltere exe). Laden: keine Versionspruefung, <= 6 wird migriert.
     public partial class Package
     {
         // ---------- Datei (XML, UTF-8: Umlaute und Sonderzeichen bleiben erhalten) ----------
@@ -21,25 +23,28 @@ namespace Arbeitsplan.Core
             XmlWriterSettings st = new XmlWriterSettings(); st.Indent = true; st.Encoding = new UTF8Encoding(false);
             using (XmlWriter w = XmlWriter.Create(path, st))
             {
-                w.WriteStartElement("Paket"); w.WriteAttributeString("name", Name); w.WriteAttributeString("version", "6");
+                w.WriteStartElement("Paket"); w.WriteAttributeString("name", Name); w.WriteAttributeString("version", "7");
                 if (ProductCode.Length > 0) w.WriteAttributeString("produkt", ProductCode);
                 if (Prefix.Length > 0) w.WriteAttributeString("praefix", Prefix);
-                foreach (PackageStep s in Steps)
+                WritePackage7(w);
+                List<RunDate> plan = Schedule(null);
+                for (int si = 0; si < Steps.Count; si++)
                 {
+                    PackageStep o = Steps[si], s = Resolved(o, si, plan);   // s: Raster fuer aeltere exe aufgeloest, o: das Original (neue Felder)
                     w.WriteStartElement("Schritt");
                     w.WriteAttributeString("titel", s.Title); w.WriteAttributeString("quelle", s.Source); w.WriteAttributeString("block", s.Row);
                     w.WriteAttributeString("tag", I(s.Day)); w.WriteAttributeString("anzahl", I(s.Count)); w.WriteAttributeString("abstand", I(s.Interval)); w.WriteAttributeString("startnr", I(s.StartNo));
                     if (s.Kind != StepKind.Normal) w.WriteAttributeString("art", s.Kind == StepKind.Run ? "lauf" : "unterlauf");
                     if (s.SubNos.Length > 0) w.WriteAttributeString("unterlaeufe", s.SubNos);
                     w.WriteAttributeString("text", s.Text); w.WriteAttributeString("notiz", s.Note);
-                    if (s.Ident.Length > 0) w.WriteAttributeString("kennung", s.Ident);   // fehlt bei aelteren Paketen
+                    WriteStep7(w, o, si, plan);
                     if (s.Variant.Length > 0) w.WriteAttributeString("variante", s.Variant);
                     if (s.BackupOf.Length > 0) w.WriteAttributeString("backup", s.BackupOf);
                     if (s.Repeat != RepeatMode.Interval) w.WriteAttributeString("wiederholung", s.Repeat == RepeatMode.Weekdays ? "wochentage" : "tage");
                     if (s.WeekDays != 0) w.WriteAttributeString("wochentage", PackageStep.WeekDayText(s.WeekDays));
                     if (s.DayList.Length > 0) w.WriteAttributeString("tage", s.DayList);
                     if (s.Until > 0) w.WriteAttributeString("bis", I(s.Until));
-                    if (s.Shift.Count > 0) w.WriteAttributeString("versatz", s.ShiftText());
+                    if (s.Shift.Count > 0) w.WriteAttributeString("versatz", s.ShiftText());   // bei Move: Move eingerechnet, die reinen Werte stehen in "versatznur"
                     if (s.Ansatz.Length > 0)
                     {
                         w.WriteAttributeString("ansatz", s.Ansatz); w.WriteAttributeString("gebinde", s.Gebinde);
@@ -110,6 +115,8 @@ namespace Arbeitsplan.Core
             p.Name = root.GetAttribute("name");
             p.ProductCode = IsProductCode(root.GetAttribute("produkt")) ? root.GetAttribute("produkt") : "";   // fehlt bei aelteren Paketen
             p.RunPrefix = IsCode4(root.GetAttribute("praefix")) ? root.GetAttribute("praefix") : "";        // fehlt bis Version 3: Prefix = Produktcode
+            int version = ToInt(root.GetAttribute("version"), 0);
+            ReadPackage7(root, p);
             foreach (XmlElement e in Elements(root))
             {
                 if (e.Name == "Schritt")
@@ -121,12 +128,13 @@ namespace Arbeitsplan.Core
                     string art = e.GetAttribute("art");
                     s.Kind = art == "lauf" ? StepKind.Run : (art == "unterlauf" ? StepKind.SubRun : StepKind.Normal);
                     s.SubNos = e.GetAttribute("unterlaeufe");
-                    s.Text = e.GetAttribute("text"); s.Note = e.GetAttribute("notiz"); s.Ident = e.GetAttribute("kennung");
+                    s.Text = e.GetAttribute("text"); s.Note = e.GetAttribute("notiz");
                     s.Variant = e.GetAttribute("variante"); s.BackupOf = e.GetAttribute("backup");   // fehlt bis Version 5
                     string wh = e.GetAttribute("wiederholung");   // fehlt bis Version 4: alle x Tage
                     s.Repeat = wh == "wochentage" ? RepeatMode.Weekdays : (wh == "tage" ? RepeatMode.DayList : RepeatMode.Interval);
                     s.WeekDays = PackageStep.ParseWeekDays(e.GetAttribute("wochentage")); s.DayList = e.GetAttribute("tage");
-                    s.Until = Clamp(ToInt(e.GetAttribute("bis"), 0), 0, 999); s.ParseShift(e.GetAttribute("versatz"));
+                    s.Until = Clamp(ToInt(e.GetAttribute("bis"), 0), 0, 999);
+                    ReadStep7(e, s);
                     string an = e.GetAttribute("ansatz");
                     s.Ansatz = Array.IndexOf(PackageStep.AnsatzKeys, an) > 0 ? an : "";
                     s.Gebinde = e.GetAttribute("gebinde"); s.Menge = e.GetAttribute("menge"); s.Einheit = e.GetAttribute("einheit");
@@ -180,6 +188,10 @@ namespace Arbeitsplan.Core
             }
             string bp = BackupProblem(p.Steps);
             if (bp != null) throw new InvalidDataException(bp);
+            if (version < 7) p.Migrate();
+#if TESTHOOKS
+            Seen.Add(p);
+#endif
             return p;
         }
     }

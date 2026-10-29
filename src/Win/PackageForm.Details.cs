@@ -112,7 +112,7 @@ namespace Arbeitsplan.Win
             };
             tSubNos.TextChanged += delegate { if (Edit()) { cur.SubNos = tSubNos.Text.Trim(); Changed(); } };
             cbRow.SelectedIndexChanged += delegate { if (Edit()) { cur.Row = cbRow.Text; loading = true; FillVariants(cur); loading = false; Changed(); } };
-            tIdent.TextChanged += delegate { if (Edit()) { cur.Ident = tIdent.Text.Trim(); Changed(); } };
+            tIdent.TextChanged += delegate { if (Edit()) { cur.SetIdentList(tIdent.Text); Changed(); } };
             tNote.TextChanged += delegate { if (Edit()) { cur.Note = tNote.Text.Trim(); Changed(); } };
             return wrap;
         }
@@ -145,7 +145,7 @@ namespace Arbeitsplan.Win
                 if (s.Row.Length > 0 && !cbRow.Items.Contains(s.Row)) cbRow.Items.Add(s.Row);   // unbekannter Block bleibt sichtbar
                 cbRow.SelectedIndex = cbRow.Items.IndexOf(s.Row);
                 FillVariants(s); BindAnsatz(s); BindWhen(s);
-                tNote.Text = s.Note; tIdent.Text = s.Ident;
+                tNote.Text = s.Note; tIdent.Text = s.IdentList(s.RunCount);
             }
             body.Visible = s != null;
             body.ResumeLayout();
@@ -202,7 +202,7 @@ namespace Arbeitsplan.Win
             List<string> p = new List<string>();
             if (s.Equipment.Exists(delegate(EquipAssign a) { return a.Alternate; })) p.Add("abwechselnd");
             if (s.Equipment.Exists(delegate(EquipAssign a) { return a.Fallback.Length > 0; })) p.Add("Ausweich");
-            if (s.Ident.Length > 0) p.Add("Kennung");
+            if (s.IdentList(s.RunCount).Length > 0) p.Add("Kennung");
             if (s.Note.Length > 0) p.Add("Notiz");
             return p.Count > 0 ? "  –  gesetzt: " + string.Join(", ", p.ToArray()) : "";
         }

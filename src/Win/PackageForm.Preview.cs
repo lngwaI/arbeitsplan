@@ -144,7 +144,7 @@ namespace Arbeitsplan.Win
                 if (s.Kind == StepKind.SubRun && s.SubNos.Trim().Length == 0) h.Add(new Hint(n + ": Unterlauf-Nummern fehlen.", s, tSubNos));
                 else if (s.Kind == StepKind.SubRun && s.SubNos.Split(',').Length != nRuns)
                     h.Add(new Hint(n + ": Unterlauf-Nummern für " + s.SubNos.Split(',').Length + " Lauf/Läufe, aber " + nRuns + " Wiederholung(en) (Komma = nächster Lauf).", s, tSubNos));
-                int idents = s.Ident.Trim().Length == 0 ? 0 : s.Ident.Split(',').Length;
+                int idents = s.IdentCount(nRuns);
                 if (idents > 0 && idents != nRuns) h.Add(new Hint(n + ": " + idents + " Kennung(en), aber " + nRuns + " Wiederholung(en) (Komma = nächster Lauf).", s, tIdent));
                 if (s.Numbered && s.StartNo + nRuns - 1 > 9999) h.Add(new Hint(n + ": Laufnummer über 9999 – kleinere erste Laufnummer wählen.", s, s.Kind != StepKind.Normal ? (Control)tFirst : nStartNo));
                 if (s.Repeat == RepeatMode.Weekdays && (s.WeekDays & 127) == 0) h.Add(new Hint(n + ": Wiederholung an Wochentagen, aber kein Wochentag gewählt.", s, cbRepeat));
