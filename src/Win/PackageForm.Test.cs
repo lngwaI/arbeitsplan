@@ -177,10 +177,11 @@ namespace Arbeitsplan.Win
                 int n0 = f.steps.Count;
                 foreach (PackageStep s in f.Ordered()) { f.Bind(s); Application.DoEvents(); }
                 PackageStep e = new PackageStep(); e.Day = f.NextDay(); f.AddStep(e); Application.DoEvents();
-                f.tTitle.Text = "Test äöü"; f.cbKind.SelectedIndex = 2; f.nCount.Value = 3; f.tSubNos.Text = "1/2, 3"; f.tIdent.Text = "PA 1"; Application.DoEvents();
+                f.tTitle.Text = "Test äöü"; f.cbKind.SelectedIndex = 2; f.tSubNos.Text = "1/2, 3"; f.tIdent.Text = "PA 1"; Application.DoEvents();
                 bool hints = f.hintList.Exists(delegate(Hint h) { return h.Text.Contains("Unterlauf-Nummern für 2") && h.Field == f.tSubNos; })
-                    && f.hintList.Exists(delegate(Hint h) { return h.Text.Contains("1 Kennung(en), aber 3"); });
+                    && f.hintList.Exists(delegate(Hint h) { return h.Text.Contains("1 Kennung(en), aber 4"); });
                 f.nStartNo.Value = 9998; Application.DoEvents();
+                string hintDump = string.Join(" | ", f.hintList.ConvertAll<string>(delegate(Hint h) { return h.Text; }).ToArray());
                 hints &= f.hintList.Exists(delegate(Hint h) { return h.Text.Contains("über 9999"); });
                 f.nStartNo.Value = 1; f.tIdent.Text = ""; Application.DoEvents();
                 f.Duplicate(); Application.DoEvents();
@@ -196,7 +197,7 @@ namespace Arbeitsplan.Win
                 f.LoadPackage(null); Application.DoEvents();
                 bool fresh = f.steps.Count > 0 && f.cur != null && !f.dirty;
                 return "Paket-Editor Ablauf: Schritte " + n0 + " -> +2 = " + n1 + " -> -2 = " + n2 + (n1 == n0 + 2 && n2 == n0 ? " ok" : " FEHLER")
-                    + ", leeres Paket " + (empty ? "ok" : "FEHLER") + ", neues Paket " + (fresh ? "ok" : "FEHLER") + ", Prüfhinweise " + (hints ? "ok" : "FEHLER") + ", Ziehen " + (drag ? "ok" : "FEHLER");
+                    + ", leeres Paket " + (empty ? "ok" : "FEHLER") + ", neues Paket " + (fresh ? "ok" : "FEHLER") + ", Prüfhinweise " + (hints ? "ok" : "FEHLER [" + hintDump + "]") + ", Ziehen " + (drag ? "ok" : "FEHLER");
             }
             catch (Exception ex) { return "Paket-Editor Ablauf: FEHLER " + ex.GetType().Name + ": " + ex.Message; }
             finally { f.dirty = false; f.Close(); f.Dispose(); }

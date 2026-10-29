@@ -25,6 +25,7 @@ namespace Arbeitsplan.Win
             try { SelfTestPaket3Run(sb); }
             catch (Exception ex) { sb.AppendLine("Paket3: FEHLER Ausnahme " + ex.GetType().Name + ": " + ex.Message); }
             sb.AppendLine(PackageForm.TestPaket3(store, equip, start));
+            sb.AppendLine(PackageForm.TestE1b(store, equip, start));
         }
 
         void SelfTestPaket3Run(StringBuilder sb)

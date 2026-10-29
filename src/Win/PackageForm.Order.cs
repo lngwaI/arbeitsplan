@@ -86,8 +86,39 @@ namespace Arbeitsplan.Win
         // Gewaehlten Schritt an Position "to" der Ablaufliste bringen
         void DropAt(int to)
         {
-            if (cur == null || !StepOrder.MoveTo(steps, cur, to)) return;
+            if (cur == null || !MoveTo(cur, to)) return;
             AfterMove(cur);
+        }
+
+        // Schritt s an Position "to" der Ablaufliste bringen; ueber eine Tagesgrenze uebernimmt er den Termin des Nachbarn. false = nichts geaendert.
+        bool MoveTo(PackageStep s, int to)
+        {
+            List<PackageStep> o = Ordered();
+            int from = o.IndexOf(s);
+            if (from < 0 || o.Count < 2) return false;
+            to = Math.Max(0, Math.Min(o.Count - 1, to));
+            if (to == from) return false;
+            PackageStep n = o[to];
+            List<RunDate> plan = Plan();
+            int delta = FirstOf(n, plan) - FirstOf(s, plan);
+            if (delta != 0 && !MoveBy(s, delta)) return false;
+            steps.Remove(s);
+            int k = steps.IndexOf(n);
+            steps.Insert(from < to ? k + 1 : k, s);
+            return true;
+        }
+
+        // Schritt um delta Tage verschieben: "zu jedem Lauf" ueber den Versatz zum Lauf (RunOffset), sonst ueber sein Raster; vor dem
+        // ersten Termin schiebt sich der Ursprung mit (alle anderen wandern nach hinten). false = nicht moeglich (Versatz > 30 Tage).
+        bool MoveBy(PackageStep s, int delta)
+        {
+            Package p = StepsView();
+            if (delta == 0) return false;
+            if (IsJe(s)) return p.MoveStep(s, delta);
+            List<int> d = s.Days(p.Day1); int first = d[0];
+            foreach (int x in d) first = Math.Min(first, x);
+            if (first + delta < 1) p.ShiftOrigin(1 - (first + delta));
+            return s.MoveAll(delta, p.Day1);
         }
 
         // Nach dem Verschieben: nur die Wann?-Felder, Liste (Texte in place), Kalender und Hinweise nachziehen; Equipment bleibt stehen
@@ -104,10 +135,11 @@ namespace Arbeitsplan.Win
         // Block im Kalender auf toDay gezogen: ganzer Schritt oder (onlyRun) nur dieser Lauf
         void MoveInCalendar(PackageStep s, int run, int toDay, bool onlyRun)
         {
-            List<int> d = s.Days();
-            if (run < 0 || run >= d.Count) return;
-            int delta = toDay - d[run];
-            if (onlyRun ? s.MoveRun(run, delta) : s.MoveAll(delta)) AfterMove(s);
+            int si = steps.IndexOf(s), at = -1;
+            foreach (RunDate d in Plan()) if (d.Step == si && d.Run == run) at = d.Day;
+            if (at < 0) return;
+            int delta = toDay - at;
+            if (onlyRun ? (!IsJe(s) && s.MoveRun(run, delta, pk.Day1)) : MoveBy(s, delta)) AfterMove(s);
         }
 
         void StripMenu(PlanStrip.Item it, Point at)
@@ -115,15 +147,15 @@ namespace Arbeitsplan.Win
             PackageStep s = it.Step; int run = it.Run, day = it.Day;
             if (s != cur) Bind(s);
             stripMenu.Items.Clear();
-            bool many = s.RunCount > 1;
-            stripMenu.Items.Add("Ganzen Schritt 1 Tag früher", null, delegate { MoveInCalendar(s, run, day - 1, false); }).Enabled = s.FirstDay > 1;
+            bool many = StepsView().RunCountOf(s) > 1, je = IsJe(s);
+            stripMenu.Items.Add("Ganzen Schritt 1 Tag früher", null, delegate { MoveInCalendar(s, run, day - 1, false); });
             stripMenu.Items.Add("Ganzen Schritt 1 Tag später", null, delegate { MoveInCalendar(s, run, day + 1, false); });
             if (many)
             {
                 stripMenu.Items.Add(new ToolStripSeparator());
-                stripMenu.Items.Add("Nur diesen Lauf 1 Tag früher", null, delegate { MoveInCalendar(s, run, day - 1, true); }).Enabled = day > 1;
-                stripMenu.Items.Add("Nur diesen Lauf 1 Tag später", null, delegate { MoveInCalendar(s, run, day + 1, true); });
-                if (s.Shifted(run)) stripMenu.Items.Add("Ausnahme dieses Laufs zurücksetzen", null, delegate { s.Shift.Remove(run); AfterMove(s); });
+                stripMenu.Items.Add("Nur diesen Lauf 1 Tag früher", null, delegate { MoveInCalendar(s, run, day - 1, true); }).Enabled = day > 1 && !je;
+                stripMenu.Items.Add("Nur diesen Lauf 1 Tag später", null, delegate { MoveInCalendar(s, run, day + 1, true); }).Enabled = !je;
+                if (!je && s.Shifted(run)) stripMenu.Items.Add("Ausnahme dieses Laufs zurücksetzen", null, delegate { s.Shift.Remove(run); AfterMove(s); });
             }
             stripMenu.Show(strip, at);
         }

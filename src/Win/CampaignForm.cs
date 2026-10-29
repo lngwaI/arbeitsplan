@@ -61,6 +61,7 @@ namespace Arbeitsplan.Win
         public CampaignForm(Package p, IDataStore store, DateTime start, ApplyMode mode)
         {
             pkg = p;
+            if (p.Lauf1.HasValue) start = p.StartFor(p.Lauf1.Value);   // im Paket gespeicherte Vorgabe "Lauf 1 am" -> Startdatum (Tag 1) passend dazu
             Text = "Kampagne starten – " + (p.Name.Length > 0 ? p.Name : "Paket");
             Ui.Dialog(this, 720, 540, false);
 

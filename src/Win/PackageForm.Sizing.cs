@@ -44,16 +44,14 @@ namespace Arbeitsplan.Win
             RewrapHints();
         }
 
-        // Kopfzeile: Kampagne aus dem Hauptlauf (wie Package.Schedule: Lauf-Schritt mit den meisten Wiederholungen) aus
-        // Startnummer, Wiederholen und Abstand: "Lauf 12340001 bis 12340005 · alle 3 Tage"; null = kein Lauf im Ablauf
+        // Kopfzeile: Kampagne aus dem Hauptlauf (Package.Head) aus Startnummer, Laufanzahl und Rhythmus:
+        // "Lauf 12340001 bis 12340005 · alle 3 Tage"; null = kein Lauf im Ablauf
         string CampaignText()
         {
-            PackageStep m = null;
-            foreach (PackageStep s in Ordered()) if (s.Kind == StepKind.Run && (m == null || s.RunCount > m.RunCount)) m = s;
+            PackageStep m = StepsView().Head;
             if (m == null) return null;
-            int iv = Math.Max(1, m.Interval), n = m.RunCount;
-            string rhythm = m.Repeat == RepeatMode.Interval ? "alle " + iv + (iv == 1 ? " Tag" : " Tage") : m.RepeatText();
-            return "Lauf " + m.RunNo(prefix, 0) + (n > 1 ? " bis " + m.RunNo(prefix, n - 1) + " · " + rhythm : "");
+            int n = pk.RunCount;
+            return "Lauf " + m.RunNo(prefix, 0) + (n > 1 ? " bis " + m.RunNo(prefix, n - 1) + " · " + RepeatPlain(m) : "");
         }
 
 #if TESTHOOKS

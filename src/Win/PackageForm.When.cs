@@ -6,26 +6,33 @@ using Arbeitsplan.Core;
 
 namespace Arbeitsplan.Win
 {
-    // Paket-Editor, Schritt-Details "Wann?": Tag und "Wiederholt sich" (einmalig / alle x Tage / an Wochentagen / an Tagen der
-    // Kampagne) mit Ende nach Anzahl oder "bis Tag n"; darunter die Termine (sofort aktualisiert). In "Was? Wo im Plan?":
-    // Herstellung mit Anzahl je Variante (Varianten der Zeile, RowInfo.Variants) und Ansatz (Tank / Flasche-Gebinde / ohne).
+    // Paket-Editor, Schritt-Details "Wann?". Standard: Bezug "zu jedem Lauf" (Bind = JeLauf): "[1] Tag(e) vor/am Tag/nach jedem Lauf"; die
+    // Anzahl folgt der Laufanzahl im Kopf, kein eigenes "nach Anzahl". Mehr Optionen (nur Puffer): "reicht fuer [n] Laeufe" (RunEvery).
+    // Sonderfall "eigenes Datum" (Bind = Frei): "[3] Tage vor/nach Lauf 1" statt Tagesnummer; Wiederholung wie bisher, Ende "fuer alle
+    // Laeufe" / "genau n-mal" / "bis Lauf k". Der Hauptlauf behaelt sein Wiederholungsmuster (alle x Tage / Wochentage / bestimmte Tage),
+    // seine Anzahl ist die Laufanzahl aus dem Kopf. Termine: DatesText (Datum bzw. "3 Tage vor Lauf 1"), nie "Tag n".
     partial class PackageForm
     {
-        readonly ComboBox cbRepeat = new ComboBox(), cbEnd = new ComboBox(), cbAnsatz = new ComboBox(), cbUnit = new ComboBox();
-        readonly NumericUpDown nUntil = new NumericUpDown();
+        readonly ComboBox cbRepeat = new ComboBox(), cbEnd = new ComboBox(), cbBind = new ComboBox(), cbDir = new ComboBox();
+        readonly NumericUpDown nUntil = new NumericUpDown(), nEvery = new NumericUpDown();
         readonly CheckBox[] chkDays = new CheckBox[7];
-        readonly TextBox tDays = new TextBox(), tGebinde = new TextBox(), tMenge = new TextBox();
-        readonly Panel pVar = new Panel();
-        Label lDay, lRepeat, lInterval, lIntervalUnit, lEndUnit, lDaysList, lDaysHelp, lDates, lStartNo, lNoEx, lAnsatz, lGebinde, lMenge;
-        static readonly string[] RepeatNames = { "einmalig", "alle x Tage", "an Wochentagen", "an Tagen der Kampagne" };
+        readonly TextBox tDays = new TextBox();
+        Label lFollow, lDateNow, lRepeat, lInterval, lIntervalUnit, lEndUnit, lDaysList, lDaysHelp, lDates, lStartNo, lNoEx, lEvery, lEveryUnit;
+        int[] repKinds = new int[0], endKinds = new int[0], dirKinds = new int[0];   // Art je Eintrag der Auswahllisten
+        string dirMode = "", repMode = "", endMode = "";
+        static readonly string[] RepeatNames = { "einmalig", "alle x Tage", "an Wochentagen", "an bestimmten Tagen" };
 
         void BuildWhen()
         {
-            gWhen = Group("Wann?", "Tag 1 = Startdatum der Kampagne", 270);
-            int lw = LabelW("Tag der Kampagne:", "Wiederholt sich:", "Abstand:", "Laufnummer ab:", "Tage:"), x = 8 + lw, w = 270 - 8 - x;
-            lDay = Lbl(gWhen, "Tag der Kampagne:", 8, lw); Num(nDay, 1, 366, x, 60, gWhen);
-            lRepeat = Lbl(gWhen, "Wiederholt sich:", 8, lw); cbRepeat.SetBounds(x, 0, w, IH); cbRepeat.DropDownStyle = ComboBoxStyle.DropDownList;
-            cbRepeat.Items.AddRange(RepeatNames); gWhen.Controls.Add(cbRepeat);
+            gWhen = Group("Wann?", "Bezug zu den Läufen, Termine siehe unten", 270);
+            int lw = LabelW("Wiederholt sich:", "Laufnummer ab:", "reicht für:", "Abstand:", "Tage:"), x = 8 + lw, w = 270 - 8 - x;
+            cbBind.SetBounds(8, 0, 254, IH); cbBind.DropDownStyle = ComboBoxStyle.DropDownList;
+            cbBind.Items.AddRange(new object[] { "zu jedem Lauf (Standard)", "eigenes Datum (Sonderfall)" }); gWhen.Controls.Add(cbBind);
+            lFollow = Lbl(gWhen, "", 8, 254); lFollow.Height = 2 * Font.Height + 2; lFollow.TextAlign = ContentAlignment.TopLeft;
+            Num(nDay, 1, 366, 8, 52, gWhen); cbDir.SetBounds(66, 0, 196, IH); cbDir.DropDownStyle = ComboBoxStyle.DropDownList; gWhen.Controls.Add(cbDir);
+            lDateNow = Lbl(gWhen, "", 8, 254);
+            lEvery = Lbl(gWhen, "reicht für:", 8, lw); Num(nEvery, 1, 99, x, 52, gWhen); lEveryUnit = Lbl(gWhen, "Läufe", x + 58, w - 58);
+            lRepeat = Lbl(gWhen, "Wiederholt sich:", 8, lw); cbRepeat.SetBounds(x, 0, w, IH); cbRepeat.DropDownStyle = ComboBoxStyle.DropDownList; gWhen.Controls.Add(cbRepeat);
             lInterval = Lbl(gWhen, "Abstand:", 8, lw); Num(nInterval, 1, 30, x, 60, gWhen); lIntervalUnit = Lbl(gWhen, "Tage", x + 66, w - 66);
             for (int i = 0; i < 7; i++)
             {
@@ -35,199 +42,249 @@ namespace Arbeitsplan.Win
                 chkDays[i] = c; gWhen.Controls.Add(c);
             }
             lDaysList = Lbl(gWhen, "Tage:", 8, lw); tDays.SetBounds(x, 0, w, IH); gWhen.Controls.Add(tDays); Ui.SimpleMenu(tDays);
-            lDaysHelp = Lbl(gWhen, "Komma-getrennt, z. B. 1, 4, 9", x, w);
-            cbEnd.SetBounds(8, 0, lw - 4, IH); cbEnd.DropDownStyle = ComboBoxStyle.DropDownList; cbEnd.Items.AddRange(new object[] { "nach Anzahl", "bis Tag" });
-            Num(nCount, 1, PackageStep.MaxRuns, x, 60, gWhen); Num(nUntil, 1, 999, x, 60, gWhen); lEndUnit = Lbl(gWhen, "mal", x + 66, w - 66);
-            gWhen.Controls.Add(cbEnd);
-            lDates = Lbl(gWhen, "", 8, 254); lDates.Height = 2 * Font.Height + 2; lDates.TextAlign = ContentAlignment.TopLeft; lDates.AutoEllipsis = true;
+            lDaysHelp = Lbl(gWhen, "Komma-getrennt, 1 = erster Tag des Ablaufs (z. B. 1, 4, 9)", x, w); lDaysHelp.Height = 2 * Font.Height + 2; lDaysHelp.TextAlign = ContentAlignment.TopLeft;
+            int ex = 8 + lw + 22;
+            cbEnd.SetBounds(8, 0, lw + 14, IH); cbEnd.DropDownStyle = ComboBoxStyle.DropDownList; gWhen.Controls.Add(cbEnd);
+            Num(nCount, 1, PackageStep.MaxRuns, ex, 56, gWhen); Num(nUntil, 1, PackageStep.MaxRuns, ex, 56, gWhen); lEndUnit = Lbl(gWhen, "mal", ex + 62, 60);
+            lDates = Lbl(gWhen, "", 8, 254); lDates.TextAlign = ContentAlignment.TopLeft;
             lStartNo = Lbl(gWhen, "Laufnummer ab:", 8, lw); Num(nStartNo, 0, 99999, x, 66, gWhen); lNoEx = Lbl(gWhen, "", x + 72, w - 72);
             lNoEx.AutoEllipsis = true;
-            Grow(cbRepeat, tDays, lDaysHelp, lIntervalUnit, lEndUnit, lDates, lNoEx); Gray(lDaysHelp, lDates, lNoEx);
+            Grow(cbBind, lFollow, cbDir, lDateNow, cbRepeat, tDays, lDaysHelp, lIntervalUnit, lEndUnit, lDates, lNoEx, lEveryUnit); Gray(lFollow, lDateNow, lDaysHelp, lDates, lNoEx);
+            tip.SetToolTip(cbBind, "Zu jedem Lauf: der Schritt folgt jedem Lauf des Hauptlaufs (Anzahl = Laufanzahl im Kopf). Eigenes Datum: fester Termin, z. B. einmalig vor Lauf 1.");
+            tip.SetToolTip(cbDir, "Abstand zum Lauf (nicht zum Start): vor, am selben Tag oder nach dem Lauf");
+            tip.SetToolTip(nEvery, "Ein Ansatz reicht für mehrere Läufe: 2 = Läufe 1, 3, 5 … (nur Puffer)");
             tip.SetToolTip(nStartNo, "Hintere 4 Stellen (ZZZZ) des ersten Laufs dieses Schritts; normalerweise wie „Erste Laufnummer“ oben.");
             tip.SetToolTip(cbRepeat, "Wann sich der Schritt wiederholt; die Termine stehen darunter und im Kalender unten.");
-            tip.SetToolTip(cbEnd, "Ende der Wiederholung: nach einer Anzahl Läufe oder bis zu einem Tag der Kampagne");
-            tip.SetToolTip(tDays,"Tage der Kampagne, an denen der Schritt stattfindet (Tag 1 = Startdatum)");
+            tip.SetToolTip(cbEnd, "Ende der Wiederholung: für alle Läufe der Kampagne, genau n-mal oder bis zu einem Lauf");
+            tip.SetToolTip(tDays, "Tage des Ablaufs, an denen der Schritt stattfindet (1 = erster Tag des Ablaufs); die Termine stehen darunter");
 
-            nDay.ValueChanged += delegate { if (Edit()) { cur.Day = (int)nDay.Value; Changed(); } };
+            nDay.ValueChanged += delegate { OffsetEdited(); };
+            cbDir.SelectedIndexChanged += delegate { OffsetEdited(); };
+            cbBind.SelectedIndexChanged += delegate { BindEdited(); };
+            nEvery.ValueChanged += delegate { if (Edit()) { cur.RunEvery = (int)nEvery.Value; Changed(); } };
             nCount.ValueChanged += delegate { if (Edit()) { cur.Count = (int)nCount.Value; Changed(); } };
-            nUntil.ValueChanged += delegate { if (Edit()) { cur.Until = (int)nUntil.Value; Changed(); } };
+            nUntil.ValueChanged += delegate
+            {
+                PackageStep h = StepsView().Head;
+                if (!Edit() || h == null) return;
+                List<int> hd = h.Days(pk.Day1);
+                cur.Until = hd[Math.Max(0, Math.Min(hd.Count, (int)nUntil.Value) - 1)]; Changed();
+            };
             nInterval.ValueChanged += delegate { if (Edit()) { cur.Interval = (int)nInterval.Value; Changed(); } };
             nStartNo.ValueChanged += delegate { if (Edit()) { cur.StartNo = (int)nStartNo.Value; Changed(); } };
             tDays.TextChanged += delegate { if (Edit()) { cur.DayList = tDays.Text.Trim(); Changed(); } };
-            cbRepeat.SelectedIndexChanged += delegate { if (Edit() && cbRepeat.SelectedIndex >= 0) SetRepeat(cur, cbRepeat.SelectedIndex); };
-            cbEnd.SelectedIndexChanged += delegate
-            {
-                if (!Edit() || cbEnd.SelectedIndex < 0 || (cbEnd.SelectedIndex == 1) == (cur.Until > 0)) return;
-                List<int> d = cur.Days();
-                cur.Until = cbEnd.SelectedIndex == 1 ? Math.Max(cur.Day, d[d.Count - 1]) : 0;
-                if (cur.Until == 0) cur.Count = Math.Max(cur.Count, d.Count);
-                Rebind();
-            };
-        }
-
-        static int RepeatIndex(PackageStep s)
-        {
-            if (s.Repeat == RepeatMode.Weekdays) return 2;
-            if (s.Repeat == RepeatMode.DayList) return 3;
-            return s.RunCount > 1 || s.Until > 0 ? 1 : 0;
-        }
-
-        // Wiederholmodus wechseln: Termine bleiben moeglichst erhalten (Tagesliste = bisherige Tage, Wochentag = Tag 1)
-        void SetRepeat(PackageStep s, int i)
-        {
-            if (i == RepeatIndex(s)) return;
-            List<int> old = s.Days();
-            if (i == 0) { s.Repeat = RepeatMode.Interval; s.Count = 1; s.Until = 0; s.Shift.Clear(); }
-            else if (i == 1) { s.Repeat = RepeatMode.Interval; if (s.Until == 0) s.Count = Math.Max(2, old.Count); }
-            else if (i == 2)
-            {
-                s.Repeat = RepeatMode.Weekdays;
-                if ((s.WeekDays & 127) == 0) s.WeekDays = 1 << (((int)weekStart.AddDays(s.Day - 1).DayOfWeek + 6) % 7);
-                if (s.Until == 0) s.Count = Math.Max(2, old.Count);
-            }
-            else
-            {
-                s.Repeat = RepeatMode.DayList; s.Shift.Clear();
-                List<string> l = new List<string>(); foreach (int d in old) l.Add(d.ToString());
-                if (PackageStep.ParseDays(s.DayList).Count == 0) s.DayList = string.Join(", ", l.ToArray());
-            }
-            Rebind();
+            cbRepeat.SelectedIndexChanged += delegate { if (Edit() && cbRepeat.SelectedIndex >= 0 && cbRepeat.SelectedIndex < repKinds.Length) SetRepeat(cur, repKinds[cbRepeat.SelectedIndex]); };
+            cbEnd.SelectedIndexChanged += delegate { if (Edit() && cbEnd.SelectedIndex >= 0 && cbEnd.SelectedIndex < endKinds.Length) SetEnd(cur, endKinds[cbEnd.SelectedIndex]); };
         }
 
         // Nur die Wann?-Felder neu fuellen und alles nachziehen (kein Neuaufbau der Equipment-Zeilen)
         void Rebind() { BindWhen(cur); dirty = true; UpdateView(false); }
 
+        static int MonIdx(DayOfWeek d) { return ((int)d + 6) % 7; }
+
+        bool IsPuffer(PackageStep s) { return s.IsBuffer || s.UsesAnsatz; }
+
+        // Tage zum Bezug: JeLauf = RunOffset, sonst erster Termin minus Lauf 1 (ohne Hauptlauf: minus Beginn)
+        int OffOf(PackageStep s)
+        {
+            if (IsJe(s)) return s.RunOffset;
+            return FirstOf(s, Plan()) - (StepsView().Head != null ? pk.Lauf1Day : 1);
+        }
+
+        // 0 einmalig, 1 alle x Tage, 2 Wochentage, 3 bestimmte Tage; der Hauptlauf hat kein "einmalig"
+        int RepeatKindOf(PackageStep s)
+        {
+            int k = s.Repeat == RepeatMode.Weekdays ? 2 : s.Repeat == RepeatMode.DayList ? 3 : (s.RunCountFor(pk.Day1) > 1 || s.Until > 0 ? 1 : 0);
+            return s == StepsView().Head ? Math.Max(1, k) : k;
+        }
+
+        // 0 fuer alle Laeufe, 1 genau n-mal, 2 bis Lauf k
+        int EndKindOf(PackageStep s)
+        {
+            PackageStep h = StepsView().Head;
+            if (s.Until > 0) return 2;
+            return h != null && pk.RunCount > 1 && s.Count == pk.RunCount ? 0 : 1;
+        }
+
+        int RunOfDay(int day)
+        {
+            PackageStep h = StepsView().Head; int k = 1;
+            if (h == null) return 1;
+            List<int> hd = h.Days(pk.Day1);
+            for (int i = 0; i < hd.Count; i++) if (hd[i] <= day) k = i + 1;
+            return k;
+        }
+
+        // ---------- Aenderungen ----------
+
+        // "[n] Tage vor/nach Lauf" bzw. "jedem Lauf" geaendert
+        void OffsetEdited()
+        {
+            if (!Edit() || cur.IsBackup || cur == StepsView().Head || cbDir.SelectedIndex < 0 || cbDir.SelectedIndex >= dirKinds.Length) return;
+            int want = dirKinds[cbDir.SelectedIndex] * (int)nDay.Value, delta = want - OffOf(cur);
+            if (delta == 0) { BindWhen(cur); LayoutDetails(); return; }
+            if (!MoveBy(cur, delta)) { BindWhen(cur); return; }
+            AfterMove(cur);
+        }
+
+        void BindEdited()
+        {
+            if (!Edit() || cbBind.SelectedIndex < 0) return;
+            bool je = cbBind.SelectedIndex == 0;
+            if (je == IsJe(cur) || StepsView().Head == null) return;
+            if (je) SetJe(cur); else SetFrei(cur);
+            AfterMove(cur);
+        }
+
+        // Bezug "zu jedem Lauf": Versatz = bisheriger Abstand zu Lauf 1
+        void SetJe(PackageStep s)
+        {
+            Package p = StepsView();
+            int off = Math.Max(-PackageStep.MaxOffset, Math.Min(PackageStep.MaxOffset, FirstOf(s, Plan()) - p.Lauf1Day));
+            bool numbered = s.Kind == StepKind.Normal && p.RunCountOf(s) > 1;
+            s.Bind = StepBind.JeLauf; s.RunOffset = off; s.RunEvery = 1; s.NumberRuns = numbered;
+            s.Repeat = RepeatMode.Interval; s.Count = 1; s.Until = 0; s.WeekDays = 0; s.DayList = ""; s.Shift.Clear(); s.Move.Clear();
+        }
+
+        // Eigenes Datum: die bisherigen Termine bleiben (eine Tagesliste)
+        void SetFrei(PackageStep s)
+        {
+            int si = steps.IndexOf(s);
+            List<int> days = new List<int>();
+            foreach (RunDate d in Plan()) if (d.Step == si) days.Add(d.Day);
+            days.Sort();
+            s.Bind = StepBind.Frei; s.RunOffset = 0; s.RunEvery = 1; s.Shift.Clear(); s.Move.Clear(); s.Until = 0;
+            if (days.Count <= 1) { s.Repeat = RepeatMode.Interval; s.Count = 1; if (days.Count == 1) s.Day = days[0]; }
+            else { s.Repeat = RepeatMode.DayList; s.DayList = PackageStep.JoinDays(days); s.Count = days.Count; s.Day = days[0]; }
+        }
+
+        // Wiederholmodus wechseln: Termine bleiben moeglichst erhalten (Tagesliste = bisherige Tage, Wochentag = Wochentag des ersten Termins)
+        void SetRepeat(PackageStep s, int kind)
+        {
+            if (kind == RepeatKindOf(s)) return;
+            bool head = s == StepsView().Head;
+            List<int> old = s.Days(pk.Day1);
+            int first = old[0]; foreach (int d in old) first = Math.Min(first, d);
+            if (s.Repeat == RepeatMode.DayList && kind != 3) s.Day = first;   // Tagesliste kennt den Starttag nicht
+            if (kind == 0) { s.Repeat = RepeatMode.Interval; s.Count = 1; s.Until = 0; s.Shift.Clear(); }
+            else if (kind == 1) { s.Repeat = RepeatMode.Interval; if (head) { s.Count = old.Count; s.Until = 0; } else if (s.Until == 0) s.Count = Math.Max(2, old.Count); }
+            else if (kind == 2)
+            {
+                s.Repeat = RepeatMode.Weekdays;
+                if ((s.WeekDays & 127) == 0) s.WeekDays = 1 << ((MonIdx(pk.Day1) + first - 1) % 7);
+                if (head) { s.Count = old.Count; s.Until = 0; } else if (s.Until == 0) s.Count = Math.Max(2, old.Count);
+            }
+            else
+            {
+                s.Repeat = RepeatMode.DayList; s.Shift.Clear();
+                if (PackageStep.ParseDays(s.DayList).Count == 0) s.DayList = PackageStep.JoinDays(new List<int>(old));
+            }
+            Rebind();
+        }
+
+        // Ende der Wiederholung: fuer alle Laeufe (Anzahl = Laufanzahl), genau n-mal, bis Lauf k
+        void SetEnd(PackageStep s, int kind)
+        {
+            PackageStep h = StepsView().Head;
+            if (kind == EndKindOf(s)) return;
+            int runs = Math.Max(1, h != null ? pk.RunCount : s.Count);
+            if (kind == 0) { s.Until = 0; s.Count = runs; }
+            else if (kind == 1) { if (s.Until > 0) s.Count = Math.Max(1, s.Days(pk.Day1).Count); s.Until = 0; }
+            else if (h != null) { List<int> hd = h.Days(pk.Day1); s.Until = hd[Math.Min(hd.Count, runs) - 1]; }
+            Rebind();
+        }
+
+        // ---------- anzeigen ----------
+
+        void FillCombo(ComboBox c, ref string mode, string key, string[] names, int[] kinds, ref int[] map)
+        {
+            if (mode == key) return;
+            mode = key; map = kinds;
+            c.Items.Clear(); c.Items.AddRange(names);
+        }
+
         void BindWhen(PackageStep s)
         {
             bool was = loading; loading = true;
-            nDay.Value = Math.Max(nDay.Minimum, Math.Min(nDay.Maximum, s.Day));
-            cbRepeat.SelectedIndex = RepeatIndex(s);
+            Package p = StepsView(); PackageStep head = p.Head;
+            bool isHead = s == head, je = IsJe(s);
+            cbBind.SelectedIndex = je ? 0 : 1;
+            if (isHead) FillCombo(cbDir, ref dirMode, "head", new string[0], new int[0], ref dirKinds);
+            else if (je) FillCombo(cbDir, ref dirMode, "je", new[] { "Tag(e) vor jedem Lauf", "am Tag jedes Laufs", "Tag(e) nach jedem Lauf" }, new[] { -1, 0, 1 }, ref dirKinds);
+            else if (head != null) FillCombo(cbDir, ref dirMode, "lauf", new[] { "Tag(e) vor Lauf 1", "am Tag von Lauf 1", "Tag(e) nach Lauf 1" }, new[] { -1, 0, 1 }, ref dirKinds);
+            else FillCombo(cbDir, ref dirMode, "beginn", new[] { "am Beginn", "Tag(e) nach Beginn" }, new[] { 0, 1 }, ref dirKinds);
+            int off = isHead || s.IsBackup ? 0 : OffOf(s);
+            int di = Array.IndexOf(dirKinds, off < 0 ? -1 : off > 0 ? 1 : 0);
+            if (cbDir.Items.Count > 0) cbDir.SelectedIndex = di < 0 ? 0 : di;
+            nDay.Value = Math.Max(nDay.Minimum, Math.Min(nDay.Maximum, Math.Abs(off)));
+
+            if (isHead) FillCombo(cbRepeat, ref repMode, "head", new[] { RepeatNames[1], RepeatNames[2], RepeatNames[3] }, new[] { 1, 2, 3 }, ref repKinds);
+            else FillCombo(cbRepeat, ref repMode, "frei", RepeatNames, new[] { 0, 1, 2, 3 }, ref repKinds);
+            cbRepeat.SelectedIndex = Math.Max(0, Array.IndexOf(repKinds, RepeatKindOf(s)));
+            if (head != null) FillCombo(cbEnd, ref endMode, "lauf", new[] { "für alle Läufe", "genau", "bis Lauf" }, new[] { 0, 1, 2 }, ref endKinds);
+            else FillCombo(cbEnd, ref endMode, "ohne", new[] { "genau" }, new[] { 1 }, ref endKinds);
+            cbEnd.SelectedIndex = Math.Max(0, Array.IndexOf(endKinds, EndKindOf(s)));
             nCount.Value = Math.Max(1, Math.Min(PackageStep.MaxRuns, s.Count)); nInterval.Value = Math.Max(1, Math.Min(30, s.Interval));
-            nUntil.Value = Math.Max(1, Math.Min(999, s.Until > 0 ? s.Until : s.Day));
-            cbEnd.SelectedIndex = s.Until > 0 ? 1 : 0;
+            nUntil.Value = Math.Max(1, Math.Min(PackageStep.MaxRuns, RunOfDay(s.Until)));
+            nEvery.Value = Math.Max(1, Math.Min(99, s.RunEvery));
             for (int i = 0; i < 7; i++) chkDays[i].Checked = (s.WeekDays & (1 << i)) != 0;
             if (tDays.Text.Trim() != s.DayList) tDays.Text = s.DayList;
             nStartNo.Value = Math.Max(0, Math.Min(nStartNo.Maximum, s.StartNo));
             loading = was;
         }
 
-        // Termine des Schritts mit Wochentag (Vorschau-Start = Montag der Woche)
+        // Termine des Schritts: Laeufe, die ersten Termine mit Datum bzw. Bezug zu Lauf 1, "*" = einzeln verschoben
         string DatesText(PackageStep s)
         {
-            List<int> d = s.Days();
+            int si = steps.IndexOf(s);
+            List<RunDate> mine = Plan().FindAll(delegate(RunDate d) { return d.Step == si; });
+            mine.Sort(delegate(RunDate a, RunDate b) { return a.Day.CompareTo(b.Day); });
+            if (mine.Count == 0) return "Kein Termin";
             List<string> l = new List<string>();
-            for (int i = 0; i < d.Count && i < 14; i++) l.Add(d[i] + " " + weekStart.AddDays(d[i] - 1).ToString("ddd", Ui.De) + (s.Shifted(i) ? "*" : ""));
-            return (d.Count == 1 ? "Termin: Tag " : "Termine (" + d.Count + "): Tag ") + string.Join(", ", l.ToArray()) + (d.Count > 14 ? " …" : "")
-                + (s.Shift.Count > 0 ? "  (* = einzeln verschoben)" : "");
+            l.Add(StepsView().RunsText(s));
+            bool je = IsJe(s);
+            for (int i = 0; i < mine.Count && i < 3; i++) l.Add(RelOf(s, mine[i]) + (!je && s.Shifted(mine[i].Run) ? "*" : ""));
+            if (mine.Count > 3) l.Add("… " + (mine.Count - 3) + " weitere (siehe Kalender)");
+            if (!je && s.Shift.Count > 0) l.Add("* = einzeln verschoben");
+            return string.Join("\n", l.ToArray());
         }
 
         int LayoutWhen(PackageStep s)
         {
-            int ri = RepeatIndex(s), y = gWhen.ContentTop;
-            bool end = ri == 1 || ri == 2, num = s.Numbered;
-            y = Row(y, ri != 3, lDay, nDay);
-            y = Row(y, true, lRepeat, cbRepeat);
-            y = Row(y, ri == 1, lInterval, nInterval, lIntervalUnit);
-            y = Row(y, ri == 2, chkDays);
-            y = Row(y, ri == 3, lDaysList, tDays); y = Row(y, ri == 3, lDaysHelp) - (ri == 3 ? 4 : 0);
+            Package p = StepsView(); PackageStep head = p.Head;
+            bool isHead = s == head, je = IsJe(s), bk = s.IsBackup, locked = bk || Package.HasBackup(steps, s);
+            int rk = RepeatKindOf(s);
+            bool own = !je && !bk;                       // eigenes Raster: Hauptlauf oder eigenes Datum
+            bool offs = !isHead && !bk;
+            bool end = own && !isHead && (rk == 1 || rk == 2);
+            int y = gWhen.ContentTop;
+            y = Row(y, head != null && !isHead && !locked, cbBind);
+            lFollow.Text = bk ? "Der Back-Up folgt dem Packen (1 Tag danach)." : (isHead ? "Hauptlauf: gibt den Takt vor. Läufe und Datum von Lauf 1 stehen oben im Kopf." : "");
+            y = Row(y, lFollow.Text.Length > 0, lFollow);
+            int dk = cbDir.SelectedIndex >= 0 && cbDir.SelectedIndex < dirKinds.Length ? dirKinds[cbDir.SelectedIndex] : 0;
+            y = Row(y, offs, nDay, cbDir);
+            nDay.Visible = offs && dk != 0;
+            cbDir.Left = nDay.Visible ? 66 : 8; cbDir.Width = Math.Max(60, gWhen.Width - 8 - cbDir.Left);
+            DateTime? first = p.DateOf(FirstOf(s, Plan()));
+            lDateNow.Text = !je && first.HasValue ? "→ " + DText(first.Value) : "";
+            y = Row(y, offs && !je && first.HasValue, lDateNow);
+            y = Row(y, je && more && IsPuffer(s), lEvery, nEvery, lEveryUnit);
+            y = Row(y, own, lRepeat, cbRepeat);
+            y = Row(y, own && rk == 1, lInterval, nInterval, lIntervalUnit);
+            y = Row(y, own && rk == 2, chkDays);
+            y = Row(y, own && rk == 3, lDaysList, tDays); y = Row(y, own && rk == 3, lDaysHelp) - (own && rk == 3 ? 4 : 0);
             y = Row(y, end, cbEnd, nCount, nUntil, lEndUnit);
-            nCount.Visible = end && s.Until == 0; nUntil.Visible = end && s.Until > 0;
-            lEndUnit.Text = s.Until > 0 ? "" : "mal";
-            lDates.Text = DatesText(s); tip.SetToolTip(lDates, lDates.Text);
+            int ek = cbEnd.SelectedIndex >= 0 && cbEnd.SelectedIndex < endKinds.Length ? endKinds[cbEnd.SelectedIndex] : 1;
+            nCount.Visible = end && ek == 1; nUntil.Visible = end && ek == 2; lEndUnit.Visible = end && ek != 0;
+            lEndUnit.Text = ek == 2 ? "" : "mal";
+            string dt = DatesText(s);
+            lDates.Text = dt; lDates.Height = (dt.Split('\n').Length) * Font.Height + 2; tip.SetToolTip(lDates, dt);
             y = Row(y, true, lDates);
-            y = Row(y, more && num, lStartNo, nStartNo, lNoEx);
+            y = Row(y, more && s.Numbered, lStartNo, nStartNo, lNoEx);
             lStartNo.Text = s.Kind != StepKind.Normal ? "Laufnummer ab:" : "Erste Nummer:";
-            lNoEx.Text = num ? "→ " + s.RunNo(prefix, 0) : "";
+            lNoEx.Text = s.Numbered ? "→ " + s.RunNo(prefix, 0) : "";
             tip.SetToolTip(lNoEx, lNoEx.Text);
             return y + 2;
-        }
-
-        // ---------- Herstellung (Anzahl je Variante) und Ansatz ----------
-
-        void BuildAnsatz(int lw, int x, int w)
-        {
-            pVar.Tag = "keep"; gWhat.Controls.Add(pVar);
-            lAnsatz = Lbl(gWhat, "Ansatz:", 8, lw); cbAnsatz.SetBounds(x, 0, w, IH); cbAnsatz.DropDownStyle = ComboBoxStyle.DropDownList; cbAnsatz.Items.AddRange(PackageStep.AnsatzNames);
-            lGebinde = Lbl(gWhat, "Gebinde:", 8, lw); tGebinde.SetBounds(x, 0, w, IH);
-            lMenge = Lbl(gWhat, "Menge:", 8, lw); tMenge.SetBounds(x, 0, 60, IH); cbUnit.SetBounds(x + 66, 0, 70, IH); cbUnit.Items.AddRange(new object[] { "L", "mL", "kg", "g", "Stk" });
-            gWhat.Controls.AddRange(new Control[] { cbAnsatz, tGebinde, tMenge, cbUnit });
-            Grow(cbAnsatz, tGebinde); Ui.SimpleMenu(tGebinde); Ui.SimpleMenu(tMenge);
-            tip.SetToolTip(cbAnsatz, "Tank: Vorlagetank/WFI-Tank als Equipment. Flasche/Gebinde oder ohne Gebinde: kein Tank nötig, Menge angeben.");
-            tip.SetToolTip(tGebinde, "Bezeichnung, z. B. Flasche, Kanister, Tween-Gebinde");
-            cbAnsatz.SelectedIndexChanged += delegate { if (Edit() && cbAnsatz.SelectedIndex >= 0) SetAnsatz(cur, PackageStep.AnsatzKeys[cbAnsatz.SelectedIndex]); };
-            tGebinde.TextChanged += delegate { if (Edit()) { cur.Gebinde = tGebinde.Text.Trim(); Changed(); } };
-            tMenge.TextChanged += delegate { if (Edit()) { cur.Menge = tMenge.Text.Trim(); Changed(); } };
-            cbUnit.TextChanged += delegate { if (Edit()) { cur.Einheit = cbUnit.Text.Trim(); Changed(); } };
-        }
-
-        // Ohne Tank: leere Tank-Zeilen fallen weg (keine Hinweise); zurueck auf Tank: Tank-Positionen des Bausteins wieder anbieten
-        void SetAnsatz(PackageStep s, string key)
-        {
-            if (s.Ansatz == key) return;
-            s.Ansatz = key;
-            if (key.Length > 0) s.Equipment.RemoveAll(delegate(EquipAssign a) { return PackageStep.IsTank(cat, a.Short) && a.Line(0).Length == 0; });
-            else
-            {
-                Baustein b = cat.Baustein_(s.Source);
-                if (b != null)
-                    foreach (string p in b.Positions)
-                        if (PackageStep.IsTank(cat, p) && !s.Equipment.Exists(delegate(EquipAssign a) { return a.Short == p; })) { EquipAssign a = new EquipAssign(); a.Short = p; s.Equipment.Add(a); }
-            }
-            dirty = true;
-            Bind(s);
-        }
-
-        void BindAnsatz(PackageStep s)
-        {
-            cbAnsatz.SelectedIndex = Math.Max(0, Array.IndexOf(PackageStep.AnsatzKeys, s.Ansatz));
-            tGebinde.Text = s.Gebinde; tMenge.Text = s.Menge; cbUnit.Text = s.Einheit;
-        }
-
-        int LayoutAnsatz(int y, PackageStep s)
-        {
-            bool show = s.UsesAnsatz;
-            y = Row(y, show, lAnsatz, cbAnsatz);
-            y = Row(y, show && s.Ansatz == "gebinde", lGebinde, tGebinde);
-            return Row(y, show && s.Ansatz.Length > 0, lMenge, tMenge, cbUnit);
-        }
-
-        // Herstellung: je Variante der Zeile ein Feld "Anzahl" (0 = nicht); gesetzte, an der Zeile unbekannte Varianten bleiben sichtbar
-        void FillVariants(PackageStep s)
-        {
-            string[] vs; if (!rowVars.TryGetValue(s.Row, out vs)) vs = new string[0];
-            List<string> names = new List<string>(vs);
-            foreach (string v in VariantSet.Of(s.Variant)) if (!names.Contains(v)) names.Add(v);
-            pVar.SuspendLayout();
-            while (pVar.Controls.Count > 0) { Control c = pVar.Controls[0]; pVar.Controls.RemoveAt(0); c.Dispose(); }
-            foreach (string v in names)
-            {
-                string name = v;
-                NumericUpDown n = new NumericUpDown(); n.Minimum = 0; n.Maximum = VariantSet.Max; n.Width = 44; n.Height = IH; n.TextAlign = HorizontalAlignment.Right;
-                n.Value = VariantSet.Count(s.Variant, v); n.Tag = v;
-                n.ValueChanged += delegate { if (Edit()) { cur.Variant = VariantSet.With(cur.Variant, name, (int)n.Value); Changed(); } };
-                Label l = new Label(); l.Text = "× " + VarText(v); l.AutoSize = true; l.UseMnemonic = false;
-                tip.SetToolTip(n, "Wie oft „" + VarText(v) + "“ an diesem Tag hergestellt wird (0 = nicht)");
-                pVar.Controls.Add(n); pVar.Controls.Add(l);
-            }
-            pVar.ResumeLayout();
-        }
-
-        // Felder nebeneinander, bei Platzmangel umbrechen; liefert die naechste y-Position
-        int LayoutVariants(int y, bool show)
-        {
-            lVar.Visible = pVar.Visible = show;
-            if (!show) return y;
-            int x = tTitle.Left, w = Math.Max(80, tTitle.Width), px = 0, py = 0;
-            for (int i = 0; i + 1 < pVar.Controls.Count; i += 2)
-            {
-                Control n = pVar.Controls[i], l = pVar.Controls[i + 1];
-                int pw = n.Width + 4 + l.PreferredSize.Width + 10;
-                if (px > 0 && px + pw > w) { px = 0; py += IH + 4; }
-                n.Location = new Point(px, py); l.Location = new Point(px + n.Width + 4, py + (IH - l.PreferredSize.Height) / 2);
-                px += pw;
-            }
-            lVar.Top = y; pVar.SetBounds(x, y, w, py + IH + 1);
-            return y + py + IH + 6;
         }
     }
 }

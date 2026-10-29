@@ -6,19 +6,20 @@ using Arbeitsplan.Core;
 
 namespace Arbeitsplan.Win
 {
-    // Kalenderleiste der Kampagne: je Tag eine Spalte mit Raum und Schritt (Tage ohne Schritt schmal, am Ende einige freie Tage
+    // Kalenderleiste der Kampagne: je Tag eine Spalte (Kopf: Datum bzw. "3 Tage vor Lauf 1") mit Raum und Schritt (Tage ohne Schritt schmal, am Ende einige freie Tage
     // als Ziel); der gewaehlte Schritt ist hervorgehoben, Klick waehlt ihn. Ziehen auf einen anderen Tag verschiebt den Schritt
     // (Umschalt = nur diesen Lauf); waehrend des Ziehens ist der Zieltag markiert. Rechtsklick = Menue (PackageForm.Order.cs).
     class PlanStrip : Control
     {
         public class Item { public int Day, Run; public string Title = "", Sub = ""; public bool Missing, Shifted; public PackageStep Step; }
-        const int DayW = 118, EmptyW = 24, MaxDays = 370, Spare = 3;
+        const int DayW = 132, EmptyW = 24, MaxDays = 370, Spare = 3;
         List<Item> items = new List<Item>();
         readonly List<KeyValuePair<Rectangle, Item>> hit = new List<KeyValuePair<Rectangle, Item>>();
         PackageStep selected;
         Item press;            // Eintrag unter der gedrueckten Maustaste
         Point pressAt;
         int dropDay = -1;      // Zieltag beim Ziehen, -1 = es wird nicht gezogen
+        public Func<int, bool, string> HeadText;           // Kopf je Tag (Tag, breite Spalte): Datum bzw. Bezug zu Lauf 1, nie "Tag n"
         public event Action<PackageStep> StepClicked;
         public event Action<Item, int, bool> ItemMoved;    // Eintrag, Zieltag, nur dieser Lauf
         public event Action<Item, Point> ItemMenu;
@@ -81,7 +82,7 @@ namespace Arbeitsplan.Win
                     Rectangle head = new Rectangle(x, 0, w, HeadH);
                     if (isDrop) g.FillRectangle(target, x, 0, w, Height);
                     else if (any) t.FillHead(g, head, t.DayHead); else g.FillRectangle(back, x, 0, w, Height);
-                    TextRenderer.DrawText(g, any || isDrop ? "Tag " + d : d.ToString(), any ? bold : Font, head, any || isDrop ? t.HeadText : Section.HelpColor,
+                    TextRenderer.DrawText(g, HeadText != null ? HeadText(d, any || isDrop) : "", any ? bold : Font, head, any || isDrop ? t.HeadText : Section.HelpColor,
                         ff | TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
                     int y = HeadH + 3;
                     foreach (Item i in items)

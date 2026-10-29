@@ -75,7 +75,7 @@ namespace Arbeitsplan.Win
 
         protected override void OnResize(EventArgs e)
         {
-            left.Width = Math.Max(330, Math.Min(400, ClientSize.Width * 34 / 100));
+            left.Width = Math.Max(360, Math.Min(600, ClientSize.Width * 46 / 100));
             base.OnResize(e);
         }
 
@@ -91,12 +91,12 @@ namespace Arbeitsplan.Win
 
         void BuildLeft()
         {
-            left.Dock = DockStyle.Left; left.Width = 400; left.Padding = new Padding(8, 8, 0, 8); left.Tag = "keep";
-            int w = 360;
-            Section flow = new Section("1   Ablauf", "Nach Tag sortiert; gleicher Tag: deine Reihenfolge (▲▼).", true, w);
+            left.Dock = DockStyle.Left; left.Width = 520; left.Padding = new Padding(8, 8, 0, 8); left.Tag = "keep";
+            int w = 480;
+            Section flow = new Section("1   Ablauf", "Nach Datum sortiert (wie im Plan); gleicher Tag: deine Reihenfolge (▲▼).", true, w);
             lv.View = View.Details; lv.FullRowSelect = true; lv.HideSelection = false; lv.MultiSelect = false; lv.ShowItemToolTips = true;
             lv.HeaderStyle = ColumnHeaderStyle.Nonclickable; lv.Dock = DockStyle.Fill;
-            lv.Columns.Add("Nr", 30); lv.Columns.Add("Tag", 46); lv.Columns.Add("Raum", 76); lv.Columns.Add("Schritt", 110); lv.Columns.Add("Wiederholung", 96);
+            lv.Columns.Add("Nr", 26); lv.Columns.Add("Wann", 140); lv.Columns.Add("Raum", 56); lv.Columns.Add("Schritt", 90); lv.Columns.Add("Läufe/Termine", 112); lv.Columns.Add("Wiederholung", 92);
             lv.SelectedIndexChanged += delegate { if (!loading && lv.SelectedItems.Count > 0 && lv.SelectedItems[0].Tag != cur) Bind((PackageStep)lv.SelectedItems[0].Tag); };
             lv.MouseUp += delegate { if (lv.SelectedItems.Count == 0) FillList(); };   // Klick ins Leere: Auswahl bleibt beim aktuellen Schritt
             lv.Resize += delegate { FitColumns(); };
@@ -124,13 +124,6 @@ namespace Arbeitsplan.Win
             left.Controls.Add(flow);
         }
 
-        void FitColumns()
-        {
-            int rest = lv.ClientSize.Width;
-            for (int i = 0; i < lv.Columns.Count; i++) if (i != 3) rest -= lv.Columns[i].Width;
-            lv.Columns[3].Width = Math.Max(40, rest);
-        }
-
         Panel BuildBar()
         {
             Panel bar = new Panel(); bar.Dock = DockStyle.Bottom; bar.Height = Theme.Current.ButtonH + 14;
@@ -154,52 +147,6 @@ namespace Arbeitsplan.Win
         }
 
         // ---------- Schritte ----------
-
-        // Schritte nach erstem Tag (bei gleichem Tag in der vom Nutzer gesetzten Reihenfolge); Nummer im Editor = Position in dieser Liste.
-        List<PackageStep> Ordered() { return StepOrder.Sorted(steps); }
-
-        int No(PackageStep s) { return Ordered().IndexOf(s) + 1; }
-        static string TitleOf(PackageStep s) { return s.Title.Length > 0 ? s.Title : "(ohne Titel)"; }
-        static string DaysOf(PackageStep s)
-        {
-            List<int> d = s.Days(); int a = d[0], b = d[0];
-            foreach (int x in d) { a = Math.Min(a, x); b = Math.Max(b, x); }
-            return a != b ? a + "–" + b : a.ToString();
-        }
-        static string RepeatOf(PackageStep s) { return s.RepeatText(); }
-
-        void FillList()
-        {
-            bool was = loading; loading = true;
-            List<PackageStep> o = Ordered();
-            lv.BeginUpdate();
-            while (lv.Items.Count > o.Count) lv.Items.RemoveAt(lv.Items.Count - 1);
-            for (int i = 0; i < o.Count; i++)
-            {
-                PackageStep s = o[i];
-                string[] t = { (i + 1).ToString(), DaysOf(s), s.Row.Length > 0 ? s.Row : "– fehlt –", TitleOf(s), RepeatOf(s) };
-                if (i >= lv.Items.Count) { ListViewItem n = new ListViewItem(t); n.UseItemStyleForSubItems = false; lv.Items.Add(n); }
-                ListViewItem it = lv.Items[i];
-                for (int k = 0; k < t.Length; k++) if (it.SubItems[k].Text != t[k]) it.SubItems[k].Text = t[k];
-                it.SubItems[2].ForeColor = s.Row.Length > 0 ? SystemColors.WindowText : Color.Firebrick;
-                it.Tag = s;
-                it.ToolTipText = "Tag " + DaysOf(s) + " · " + (s.Row.Length > 0 ? s.Row : "Raum fehlt") + " · " + TitleOf(s) + " · " + RepeatOf(s);
-                if (it.Selected != (s == cur)) it.Selected = s == cur;
-                if (s == cur) it.EnsureVisible();
-            }
-            lv.EndUpdate();
-            FitColumns();
-            loading = was;
-        }
-
-        public void SelectStep(int i) { List<PackageStep> o = Ordered(); if (i >= 0 && i < o.Count) Bind(o[i]); }
-
-        int NextDay()
-        {
-            int d = 0;
-            foreach (PackageStep s in steps) foreach (int x in s.Days()) d = Math.Max(d, x);
-            return d + 1;
-        }
 
         // "Packen" o. Ae. ist nur einmal je Kampagne vorgesehen; ein weiterer braucht PackageAdmin.
         bool UniqueBlocked(string source)
@@ -241,17 +188,26 @@ namespace Arbeitsplan.Win
                 else if (p.Result == null) { s = new PackageStep(); s.Title = p.TitleText; s.Day = steps.Count == 0 ? 1 : NextDay(); }
                 else s = FromBaustein(p.Result);
                 if (!s.IsBackup) s.Row = p.Room;   // Back-Up bleibt im Raum des Packens
+                if (!s.IsBackup) DefaultBind(s, p.Result);
                 AddStep(s);
             }
         }
 
-        void AddStep(PackageStep s) { steps.Add(s); dirty = true; Bind(s); }
+        // Neue Schritte folgen standardmaessig jedem Lauf des Hauptlaufs ("zu jedem Lauf"; Puffer 1 Tag davor); Packen, Sonderereignisse
+        // und der erste Lauf (= Hauptlauf) bekommen ein eigenes Datum.
+        void DefaultBind(PackageStep s, Baustein b)
+        {
+            if (StepsView().Head == null || s.Source == Package.PackenName || (b != null && b.Special)) return;
+            s.Bind = StepBind.JeLauf; s.RunOffset = s.IsBuffer || s.UsesAnsatz ? -1 : 0; s.RunEvery = 1; s.NumberRuns = false;
+        }
+
+        void AddStep(PackageStep s) { steps.Add(s); StepsView().Normalize(); dirty = true; Bind(s); }   // Normalize: ein Puffer "1 Tag vor Lauf 1" darf nicht vor Tag 1 landen
 
         void Duplicate()
         {
             if (cur == null || cur.IsBackup || UniqueBlocked(cur.Source)) return;   // Back-Up gibt es nur einmal je Packen
             PackageStep c = cur.Clone();
-            c.MoveAll(NextDay() - c.FirstDay);   // auch Tagesliste/Wochentage wandern mit
+            if (!IsJe(c)) { List<int> d = c.Days(pk.Day1); int first = d[0]; foreach (int x in d) first = Math.Min(first, x); c.MoveAll(NextDay() - first, pk.Day1); }   // auch Tagesliste/Wochentage wandern mit
             AddStep(c);
         }
 
@@ -273,7 +229,7 @@ namespace Arbeitsplan.Win
                 MessageBox.Show(this, "\"" + b.Name + "\" ist ein Standard-Schritt der Kampagne. Entfernen braucht das Recht \"Pakete einrichten\".", "Paket-Editor", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
-            if (ask && MessageBox.Show(this, "Schritt " + No(cur) + " \"" + TitleOf(cur) + "\" (Tag " + DaysOf(cur) + ") aus dem Ablauf entfernen?", "Schritt entfernen",
+            if (ask && MessageBox.Show(this, "Schritt " + No(cur) + " \"" + TitleOf(cur) + "\" (" + WhenText(cur) + ") aus dem Ablauf entfernen?", "Schritt entfernen",
                 MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button2) != DialogResult.Yes) return;
             List<PackageStep> o = Ordered();
             int i = o.IndexOf(cur);
@@ -329,6 +285,9 @@ namespace Arbeitsplan.Win
         {
             loading = true;
             steps.Clear(); cur = null;
+            if (p != null) { p = p.Clone(); p.Migrate(); }   // Pakete, die nicht aus einer Datei kommen (Testpaket, Assistent): Schritte folgen dem Hauptlauf (Kopie, das Original bleibt)
+            pk = new Package(); pk.Steps = steps;   // Kopf: Lauf 1 am, Typ, Wochentag von Tag 1
+            if (p != null) { pk.Day1 = p.Day1; pk.Lauf1 = p.Lauf1; if (p.TypeIsSet) pk.Type = p.Type; }
             blocks = p != null ? p.Blocks : new List<PackageBlock>();
             tName.Text = p != null ? p.Name : ""; tProduct.Text = p != null ? p.ProductCode : "";
             prefix = p != null ? p.Prefix : "";   // alte Pakete: Produktcode (4 Ziffern) = Praefix
@@ -338,12 +297,13 @@ namespace Arbeitsplan.Win
             if (fresh)
             {
                 foreach (Baustein b in cat.Bausteine) if (b.DefaultInCampaign) steps.Add(FromBaustein(b));   // z. B. "Packen" ist standardmaessig dabei
-                PackageStep pk = steps.Find(delegate(PackageStep x) { return x.Source == Package.PackenName; });
-                if (pk != null && cat.Baustein_(Package.BackupName) != null) steps.Add(Package.MakeBackup(pk, cat.Baustein_(Package.BackupName)));   // mit Back-Up
+                PackageStep pack = steps.Find(delegate(PackageStep x) { return x.Source == Package.PackenName; });
+                if (pack != null && cat.Baustein_(Package.BackupName) != null) steps.Add(Package.MakeBackup(pack, cat.Baustein_(Package.BackupName)));   // mit Back-Up
             }
             else steps.AddRange(p.Steps);
             lBlocks.Text = blocks.Count > 0 ? "Enthält zusätzlich " + blocks.Count + " fertige Blöcke aus einem Wochen-Export (werden mit übernommen)." : "";
             lBlocks.Visible = blocks.Count > 0;
+            LoadHead();   // Typ, Lauf 1 am (PackageForm.Head.cs)
             loading = false;
             dirty = false;
             List<PackageStep> o = Ordered();
@@ -363,6 +323,8 @@ namespace Arbeitsplan.Win
             Package p = new Package(); p.Name = tName.Text.Trim(); p.ProductCode = Product; p.RunPrefix = prefix;
             foreach (PackageStep s in steps) if (!s.IsEmpty) p.Steps.Add(s.Clone());
             p.Blocks = blocks;
+            p.Lauf1 = pk.Lauf1; p.Day1 = pk.Day1;
+            if (pk.TypeIsSet) p.Type = pk.Type;
             return p;
         }
 

@@ -1,55 +1,159 @@
 using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.Windows.Forms;
 using Arbeitsplan.Core;
 
 namespace Arbeitsplan.Win
 {
-    // Paket-Editor, Kopfzeile oben (gross, fett): "Produkt [Name] · Code [AB1] · Erste Laufnummer [13570030]".
+    // Paket-Editor, Kopfzeile oben (gross, fett): "Kampagne · Produkt [Name] · Code · Erste Laufnummer · Läufe [n] · Lauf 1 am [Datum]".
     // Der Produktcode ist frei (Package.IsProductCode); die 8-stellige erste Laufnummer ist davon unabhaengig: ihre ersten 4 Stellen
     // merkt sich das Paket als Praefix (Package.RunPrefix), die letzten 4 zaehlen die Folgelaeufe hoch (Ueberlauf > 9999 wird gemeldet).
+    // "Laeufe" setzt die Laufanzahl des Hauptlaufs EINMAL (Package.RunCount); alle anderen Schritte beziehen sich darauf.
+    // "Lauf 1 am" ist optional (Package.Lauf1): mit Datum zeigen Tabelle, Kalender und Vorschau echte Daten, sonst nur "3 Tage vor Lauf 1".
     partial class PackageForm
     {
         readonly TextBox tName = new TextBox(), tProduct = new TextBox(), tFirst = new TextBox();
+        readonly ComboBox cbType = new ComboBox();
+        readonly NumericUpDown nRuns = new NumericUpDown();
+        readonly DateTimePicker dtLauf1 = new DateTimePicker();
         readonly Label lRuns = new Label();
+        readonly List<Control[]> headItems = new List<Control[]>();   // Beschriftung + Feld je Eintrag (Umbruch bei schmalem Fenster)
+        Panel headPanel;
+        int headH;
         string prefix = "";     // Laufnummern-Praefix XXYY aus "Erste Laufnummer" ("" = Laeufe ohne 8-stellige Nummer)
 
         string Product { get { return tProduct.Text.Trim(); } }
 
         Panel BuildHead()
         {
-            Panel head = new Panel(); head.Dock = DockStyle.Top; head.Tag = "keep"; head.BackColor = Color.White;
-            Font big = new Font(Font.FontFamily, Font.SizeInPoints + 2f, FontStyle.Bold);
-            int h = big.Height + 10, y = 8, x = 10;
-            head.Height = h + 16;
-            foreach (object[] c in new[] {
-                new object[] { "Produkt:", tName, 190 }, new object[] { "Code:", tProduct, 100 }, new object[] { "Erste Laufnummer:", tFirst, 120 } })
+            Panel head = headPanel = new Panel(); head.Dock = DockStyle.Top; head.Tag = "keep"; head.BackColor = Color.White;
+            Font big = new Font(Font.FontFamily, Font.SizeInPoints + 1f, FontStyle.Bold);
+            int h = headH = big.Height + 10;
+            cbType.DropDownStyle = ComboBoxStyle.DropDownList; cbType.Font = big; cbType.Items.AddRange(new object[] { "Kampagne", "Einzelpaket", "Ereignis" });
+            cbType.Width = TextRenderer.MeasureText("Einzelpaket", big).Width + 36;
+            nRuns.Font = big; nRuns.Minimum = 1; nRuns.Maximum = PackageStep.MaxRuns; nRuns.TextAlign = HorizontalAlignment.Right; nRuns.Width = 58;
+            dtLauf1.Font = big; dtLauf1.Format = DateTimePickerFormat.Custom; dtLauf1.CustomFormat = "dd.MM.yyyy"; dtLauf1.ShowCheckBox = true; dtLauf1.Checked = false;
+            dtLauf1.Width = TextRenderer.MeasureText("00.00.0000", big).Width + 44;
+            tName.Width = 150; tProduct.Width = 80; tFirst.Width = 104;
+            headItems.Add(new Control[] { null, cbType });
+            headItems.Add(new Control[] { Head_("Produkt:", big, h), tName });
+            headItems.Add(new Control[] { Head_("Code:", big, h), tProduct });
+            headItems.Add(new Control[] { Head_("Erste Laufnummer:", big, h), tFirst });
+            headItems.Add(new Control[] { Head_("Läufe:", big, h), nRuns });
+            headItems.Add(new Control[] { Head_("Lauf 1 am:", big, h), dtLauf1 });
+            foreach (Control[] c in headItems)
             {
-                Label l = new Label(); l.Text = (string)c[0]; l.Font = big; l.AutoSize = false; l.UseMnemonic = false; l.TextAlign = ContentAlignment.MiddleLeft;
-                l.SetBounds(x, y, TextRenderer.MeasureText(l.Text, big).Width + 4, h);
-                TextBox t = (TextBox)c[1]; t.Font = big; t.SetBounds(l.Right + 2, y + (h - t.PreferredHeight) / 2, (int)c[2], t.PreferredHeight);
-                head.Controls.Add(l); head.Controls.Add(t);
-                x = t.Right + 14;
-                Ui.SimpleMenu(t);
+                if (c[0] != null) head.Controls.Add(c[0]);
+                c[1].Font = big; head.Controls.Add(c[1]);
+                TextBox t = c[1] as TextBox; if (t != null) Ui.SimpleMenu(t);
             }
             tProduct.MaxLength = 12; tFirst.MaxLength = 8;
-            lRuns.SetBounds(x, y + (h - Font.Height - 4) / 2, 200, Font.Height + 4);   // einzeilig, sonst "…"; Breite bis zum rechten Rand
-            head.Resize += delegate { lRuns.Width = Math.Max(40, head.ClientSize.Width - lRuns.Left - 10); };
             lRuns.TextAlign = ContentAlignment.MiddleLeft; lRuns.AutoEllipsis = true; lRuns.UseMnemonic = false;
             head.Controls.Add(lRuns);
+            head.Resize += delegate { LayoutHead(h); };
+            LayoutHead(h);
+            tip.SetToolTip(cbType, "Kampagne: Hauptlauf mit mehreren Läufen. Einzelpaket: eigene Laufnummer (z. B. anderer Raum). Ereignis: Sonderereignis ohne Läufe (z. B. TFF Flush).");
             tip.SetToolTip(tProduct, "Produktcode, frei wählbar: 2–12 Zeichen aus Buchstaben, Ziffern und - _ . / + (z. B. AB1, AB12345678-). Leer = ohne Produkt.");
             tip.SetToolTip(tFirst, "Komplette 8-stellige Laufnummer des ersten Laufs (z. B. 13570030). Folgeläufe zählen die letzten 4 Stellen hoch. Beim Kampagnenstart anpassbar.");
+            tip.SetToolTip(nRuns, "Anzahl der Läufe der Kampagne – gilt einmal für alle Schritte (Puffer, Unterläufe, Kennung …). Beim Kampagnenstart änderbar.");
+            tip.SetToolTip(dtLauf1, "Optional: Datum von Lauf 1. Dann zeigen Tabelle, Kalender und Vorschau echte Daten; sonst nur „3 Tage vor Lauf 1“. Beim Kampagnenstart anpassbar.");
             tName.TextChanged += delegate { Changed(); };
+            cbType.SelectedIndexChanged += delegate { if (!loading && cbType.SelectedIndex >= 0 && (int)pk.Type != cbType.SelectedIndex) { pk.Type = (PackageType)cbType.SelectedIndex; Changed(); } };
             tProduct.TextChanged += delegate   // anderes Produkt: Geraetelisten der Zeilen neu fuellen (Produktprofil)
             {
                 if (!loading && cur != null && (Product.Length == 0 || Package.IsProductCode(Product))) { dirty = true; Bind(cur); } else Changed();
             };
             tFirst.TextChanged += delegate { FirstRunTyped(); };
+            nRuns.ValueChanged += delegate { RunsChanged(); };
+            dtLauf1.ValueChanged += delegate { Lauf1Changed(); };
             return head;
         }
 
-        // Alle Schritte als Paket-Sicht (gleiche Schritt-Objekte, z. B. fuer Umnummerieren und Ueberlauf-Pruefung)
-        Package StepsView() { Package p = new Package(); p.Steps = steps; p.RunPrefix = prefix; return p; }
+        Label Head_(string text, Font big, int h)
+        {
+            Label l = new Label(); l.Text = text; l.Font = big; l.AutoSize = false; l.UseMnemonic = false; l.TextAlign = ContentAlignment.MiddleLeft;
+            l.Size = new Size(TextRenderer.MeasureText(text, big).Width + 4, h);
+            return l;
+        }
+
+        // Eintraege von links nach rechts; passt einer nicht mehr in die Zeile, beginnt eine neue (schmales Fenster)
+        void LayoutHead(int h)
+        {
+            int w = headPanel.ClientSize.Width, x = 10, y = 8, gap = 12;
+            foreach (Control[] c in headItems)
+            {
+                Label l = (Label)c[0];
+                int need = (l != null ? l.Width + 2 : 0) + c[1].Width;
+                if (x > 10 && x + need > w - 10) { x = 10; y += h + 4; }
+                if (l != null) { l.Location = new Point(x, y); x = l.Right + 2; }
+                c[1].Location = new Point(x, y + (h - c[1].Height) / 2);
+                x = c[1].Right + gap;
+            }
+            int avail = w - x - 10;
+            bool err = lRuns.ForeColor == Color.Firebrick && lRuns.Text.Length > 0;
+            if (avail < 200 && err) { x = 10; y += h + 4; avail = w - 20; }   // Fehlermeldung bekommt eine eigene Zeile, der Hinweis "→ Laufnummern" entfaellt bei Platzmangel
+            lRuns.Visible = avail >= 200;
+            lRuns.SetBounds(x, y, Math.Max(40, avail), h);
+            int nh = y + h + 8;
+            if (headPanel.Height != nh) headPanel.Height = nh;
+        }
+
+        // Typ und "Lauf 1 am" aus dem Paket in die Felder uebernehmen (beim Laden)
+        void LoadHead()
+        {
+            bool was = loading; loading = true;
+            cbType.SelectedIndex = (int)pk.Type;
+            dtLauf1.Checked = pk.Lauf1.HasValue;
+            if (pk.Lauf1.HasValue) dtLauf1.Value = pk.Lauf1.Value;
+            SyncRuns();
+            loading = was;
+        }
+
+        // Laeufe-Feld und Typ an das Paket angleichen (nach jeder Aenderung)
+        void SyncRuns()
+        {
+            bool was = loading; loading = true;
+            PackageStep h = StepsView().Head;
+            nRuns.Enabled = h != null && pk.Type == PackageType.Kampagne;
+            int n = h != null ? pk.RunCount : 1;
+            nRuns.Value = Math.Max(nRuns.Minimum, Math.Min(nRuns.Maximum, n));
+            if (!pk.TypeIsSet && cbType.SelectedIndex != (int)pk.Type) cbType.SelectedIndex = (int)pk.Type;
+            loading = was;
+        }
+
+        // Laufanzahl im Kopf geaendert: der Hauptlauf bekommt n Laeufe, Schritte "zu jedem Lauf" folgen; eigene Wiederholungen
+        // "fuer alle Laeufe" ebenfalls (gleiche Anzahl wie bisher).
+        void RunsChanged()
+        {
+            PackageStep h = StepsView().Head;
+            if (loading || h == null) return;
+            int old = pk.RunCount, n = (int)nRuns.Value;
+            if (n == old) return;
+            pk.RunCount = n;
+            foreach (PackageStep s in steps)
+                if (s != h && s.Bind == StepBind.Frei && s.Until == 0 && s.Repeat != RepeatMode.DayList && old > 1 && s.Count == old && !s.IsBackup) s.Count = n;
+            if (cur != null) { bool was = loading; loading = true; BindWhen(cur); loading = was; }
+            Changed();
+        }
+
+        // "Lauf 1 am" geaendert: Wochentag von Tag 1 so setzen, dass Wochentags-Wiederholungen auf echten Wochentagen liegen
+        void Lauf1Changed()
+        {
+            if (loading) return;
+            pk.Lauf1 = dtLauf1.Checked ? dtLauf1.Value.Date : (DateTime?)null;
+            if (pk.Lauf1.HasValue)
+                for (int i = 0; i < 7; i++)
+                {
+                    DayOfWeek d1 = pk.StartFor(pk.Lauf1.Value).DayOfWeek;
+                    if (pk.Day1 == d1) break;
+                    pk.Day1 = d1;
+                }
+            if (cur != null) { bool was = loading; loading = true; BindWhen(cur); loading = was; }
+            Changed();
+        }
+
+        // Alle Schritte als Paket-Sicht: PackageForm.Table.cs (StepsView)
 
         void FirstRunTyped()
         {
@@ -95,6 +199,8 @@ namespace Arbeitsplan.Win
             }
             lRuns.ForeColor = err != null ? Color.Firebrick : Section.HelpColor;
             tip.SetToolTip(lRuns, lRuns.Text);
+            LayoutHead(headH);
+            SyncRuns();
         }
 
         // Klick auf einen Pruefhinweis: erst nach der Mausverarbeitung der Liste ausfuehren (Bind baut die Hinweisliste neu auf,
@@ -111,7 +217,7 @@ namespace Arbeitsplan.Win
             if (h.Step != null && steps.Contains(h.Step) && h.Step != cur) Bind(h.Step);
             Control f = h.Field;
             if (f == null || f.IsDisposed) return;
-            if (!more && (f == nStartNo || f == tIdent || f == tNote)) SetMore(true);
+            if (!more && (f == nStartNo || f == tIdent || f == tNote || f == nEvery)) SetMore(true);
             if (f.CanFocus) f.Focus();
         }
     }
