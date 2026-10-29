@@ -69,7 +69,7 @@ namespace Arbeitsplan.Win
                     demo.Steps.Add(s);
                 }
             }
-            if (which == "package3" || which == "package4" || which == "campaign2" || which == "campaign3") demo = Package.SampleCampaign("Testpaket");
+            if (which == "package3" || which == "package4" || which == "package7" || which == "campaign2" || which == "campaign3") demo = Package.SampleCampaign("Testpaket");
             if (which == "campaign4")   // Einzelpaket: einfacher Modus
             {
                 demo = new Package(); demo.Name = "Einzelpaket"; demo.Type = PackageType.Einzel;
@@ -150,6 +150,7 @@ namespace Arbeitsplan.Win
             if (pf != null && which == "package3") pf.SelectStep(2);
             if (pf != null && which == "package4") { pf.SelectStep(2); pf.TestMore(); }
             if (pf != null && which == "package5") pf.SelectStep(3);
+            if (pf != null && which == "package7") { pf.SelectStep(3); pf.TestMore(); pf.TestScrollEnd(); }   // Hauptlauf, Zusaetze (Kennungstabelle) im Blick
             if (pf != null && which == "package6") pf.SelectStep(2);
             return f;
         }
@@ -332,6 +333,7 @@ namespace Arbeitsplan.Win
             SelfTestPaket3(sb);   // Wiederholmodi, Verschieben, Varianten mit Anzahl, Ansatz, alte Pakete (MainForm.SelfTestPaket3.cs)
             SelfTestTakeOver(sb);   // Soft-Lock: Uebernahme, Nachrichten, Sperrenwechsel (MainForm.SelfTestTakeOver.cs)
             SelfTestE1(sb);   // Zeitmodell des Pakets: Golden-Test, JeLauf, Ausfall, Kennung, Normalize, Paketformat 7 (MainForm.SelfTestE1*.cs)
+            SelfTestE2(sb);   // Kennungstabelle, Notizen aus Paketen, Materialvorlage (MainForm.SelfTestE2.cs)
             quiet = false;
             return sb.ToString();
         }

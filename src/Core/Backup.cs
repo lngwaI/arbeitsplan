@@ -323,6 +323,7 @@ namespace Arbeitsplan.Core
             foreach (Baustein b in c.Bausteine)
             {
                 w.WriteStartElement("Baustein"); w.WriteAttributeString("name", b.Name); w.WriteAttributeString("block", b.Row); w.WriteAttributeString("text", b.Text);
+                if (b.NoteTemplate.Length > 0) w.WriteAttributeString("notizvorlage", b.NoteTemplate);
                 w.WriteAttributeString("einmal", B(b.Unique)); w.WriteAttributeString("standard", B(b.DefaultInCampaign)); w.WriteAttributeString("sonder", B(b.Special));
                 foreach (string s in b.Positions) { w.WriteStartElement("P"); w.WriteAttributeString("v", s); w.WriteEndElement(); }
                 w.WriteEndElement();
@@ -514,7 +515,7 @@ namespace Arbeitsplan.Core
             }
             foreach (XmlElement e in Kids(k, "Baustein"))
             {
-                Baustein b = new Baustein(); b.Name = e.GetAttribute("name"); b.Row = e.GetAttribute("block"); b.Text = e.GetAttribute("text");
+                Baustein b = new Baustein(); b.Name = e.GetAttribute("name"); b.Row = e.GetAttribute("block"); b.Text = e.GetAttribute("text"); b.NoteTemplate = e.GetAttribute("notizvorlage");
                 b.Unique = Bool(e, "einmal"); b.DefaultInCampaign = Bool(e, "standard"); b.Special = Bool(e, "sonder");
                 foreach (XmlElement x in Kids(e, "P")) b.Positions.Add(x.GetAttribute("v"));
                 d.Catalog.Bausteine.Add(b);

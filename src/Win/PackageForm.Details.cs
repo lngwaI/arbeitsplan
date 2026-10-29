@@ -82,16 +82,17 @@ namespace Arbeitsplan.Win
 
             // Zusaetze
             gExtra = Group("Zusätze", "Optional; erscheinen im Plan unter dem Equipment", 500);
-            lw = LabelW("Kennung je Lauf:", "Notiz:"); x = 8 + lw; w = 500 - 8 - x;
+            lw = LabelW("Kennung Start:", "Notiz:"); x = 8 + lw; w = 500 - 8 - x;
             tNote.Multiline = true; tNote.AcceptsReturn = true; tNote.ScrollBars = ScrollBars.Vertical; tNote.WordWrap = true; tNote.Font = new Font(Font, FontStyle.Italic);
-            lIdent = Lbl(gExtra, "Kennung je Lauf:", 8, lw); tIdent.SetBounds(x, 0, w, IH);
-            lIdentHelp = Lbl(gExtra, "z. B. PA 40010001, PA 40010017 – Komma = nächster Lauf; im Plan rot, groß und fett als letzte Zeile", x, w);
+            lIdent = Lbl(gExtra, "Kennung Start:", 8, lw); tIdent.SetBounds(x, 0, w, IH);
+            lIdentHelp = Lbl(gExtra, "z. B. PA 40010001 (+1 je Lauf); im Plan rot, groß, fett als letzte Zeile", x, w);
             lIdentHelp.AutoEllipsis = true; lIdentHelp.Height = Font.Height + 2;
             lNote = Lbl(gExtra, "Notizen – stehen bei jedem Lauf (je Zeile eine Notiz)", 8, 480); tNote.SetBounds(8, 0, 480, 3 * Font.Height + 10);
             gExtra.Controls.AddRange(new Control[] { tIdent, tNote });
             Grow(tIdent, tNote, lIdentHelp, lNote); Gray(lIdentHelp);
             tip.SetToolTip(tNote, "Enter = nächste Notiz. Jede Zeile steht im Plan als eigene Notiz (kursiv, zählt nicht als Inhalt) bei jedem Lauf.");
             tip.SetToolTip(lIdentHelp, lIdentHelp.Text);
+            BuildIdents();   // Kennungstabelle + Materialvorlage (PackageForm.Idents.cs)
 
             // Equipment
             gEquip = Group("Equipment", "Gerät aus der validierten Liste wählen oder eintippen (orange = nicht validiert).", 500);
@@ -122,7 +123,7 @@ namespace Arbeitsplan.Win
             tManualNo.TextChanged += delegate { if (Edit()) { cur.ManualNo = PackageStep.IsManualNo(tManualNo.Text.Trim()) ? tManualNo.Text.Trim() : ""; tManualNo.ForeColor = tManualNo.Text.Trim().Length == 0 || cur.ManualNo.Length > 0 ? SystemColors.WindowText : Color.Firebrick; Changed(); } };
             tSubNos.TextChanged += delegate { if (Edit()) { cur.SubNos = tSubNos.Text.Trim(); Changed(); } };
             cbRow.SelectedIndexChanged += delegate { if (Edit()) { cur.Row = cbRow.Text; loading = true; FillVariants(cur); loading = false; Changed(); } };
-            tIdent.TextChanged += delegate { if (Edit()) { cur.SetIdentList(tIdent.Text); Changed(); } };
+            tIdent.TextChanged += delegate { if (Edit()) { cur.Ident = ""; cur.IdentStart = tIdent.Text.Trim(); Changed(); } };
             tNote.TextChanged += delegate { if (Edit()) { cur.Note = tNote.Text.Replace("\r", "").Trim(); Changed(); } };
             return wrap;
         }
@@ -157,7 +158,8 @@ namespace Arbeitsplan.Win
                 if (s.Row.Length > 0 && !cbRow.Items.Contains(s.Row)) cbRow.Items.Add(s.Row);   // unbekannter Block bleibt sichtbar
                 cbRow.SelectedIndex = cbRow.Items.IndexOf(s.Row);
                 FillVariants(s); BindAnsatz(s); BindWhen(s);
-                tNote.Text = s.Note.Replace("\r", "").Replace("\n", "\r\n"); tIdent.Text = s.IdentList(StepsView().RunCountOf(s));
+                s.IdentToStart(StepsView().RunCountOf(s));   // alte Kommaliste -> Start + Ueberschreibungen (gleiches Ergebnis)
+                tNote.Text = s.Note.Replace("\r", "").Replace("\n", "\r\n"); tIdent.Text = s.IdentStart;
             }
             body.Visible = s != null;
             body.ResumeLayout();
@@ -183,6 +185,7 @@ namespace Arbeitsplan.Win
         {
             if (Package.SyncBackups(steps) && cur != null && cur.IsBackup) { bool was = loading; loading = true; BindWhen(cur); loading = was; }   // Back-Up folgt dem Packen
             FillList();
+            FillIdents();
             LayoutDetails();
             UpdateHeader();
             int n = cur != null ? No(cur) : 0;
@@ -243,8 +246,12 @@ namespace Arbeitsplan.Win
             y = Row(y, sub, lSub, tSubNos); y = Row(y, sub, lSubHelp);
             int hWhat = y + 2, hWhen = LayoutWhen(s);   // Wann?: PackageForm.When.cs
 
+            gExtra.Width = w;   // vor dem Anordnen, damit die Anker-Breiten (Tabelle) stimmen
             y = gExtra.ContentTop;
-            y = Row(y, true, lIdent, tIdent); y = Row(y, true, lIdentHelp) - 2; y = Row(y, true, lNote); y = Row(y, true, tNote) - 2;
+            y = Row(y, true, lIdent, tIdent); y = Row(y, true, lIdentHelp) - 2;
+            gridId.SetBounds(8, gridId.Top, w - 16, gridId.Height); y = Row(y, showIdents, gridId);
+            y = Row(y, true, lNote); y = Row(y, true, tNote) - 2;
+            y = Row(y, cat.NoteTemplateFor(s).Length > 0, bTemplate);
             int hExtra = y + 2;
 
             int h = Math.Max(hWhat, hWhen);

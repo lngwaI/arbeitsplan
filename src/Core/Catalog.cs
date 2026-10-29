@@ -58,6 +58,7 @@ namespace Arbeitsplan.Core
     public class Baustein
     {
         public string Name = "", Row = "", Text = "";
+        public string NoteTemplate = "";                       // mehrzeilige Notiz-Vorlage (z. B. Puffer-Material), je Zeile eine Notiz
         public List<string> Positions = new List<string>();   // Kurzformen der Equipment-Positionen, die der Schritt abfragt
         public bool Unique;                                    // nur einmal je Kampagne (z. B. Packen); weiteres Einfuegen/Entfernen nur mit Recht
         public bool DefaultInCampaign;                         // in jeder neuen Kampagne vorhanden
@@ -95,6 +96,17 @@ namespace Arbeitsplan.Core
         {
             foreach (Baustein b in Bausteine) if (b.Name == name) return b;
             return null;
+        }
+
+        // Notiz-Vorlage fuer einen Puffer-Schritt: die seines Bausteins, sonst die des ersten "Puffer…"-Bausteins mit Vorlage; sonst ""
+        public string NoteTemplateFor(PackageStep s)
+        {
+            if (s == null || !s.IsBuffer) return "";
+            Baustein b = Baustein_(s.Source);
+            if (b != null && b.NoteTemplate.Length > 0) return b.NoteTemplate;
+            foreach (Baustein x in Bausteine)
+                if (x.NoteTemplate.Length > 0 && x.Name.StartsWith("Puffer", StringComparison.OrdinalIgnoreCase)) return x.NoteTemplate;
+            return "";
         }
 
         // Alle Geraete, die statt der Position eingesetzt werden koennen: eigene validierte Geraete plus die der Positionen

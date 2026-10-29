@@ -177,9 +177,9 @@ namespace Arbeitsplan.Win
                 int n0 = f.steps.Count;
                 foreach (PackageStep s in f.Ordered()) { f.Bind(s); Application.DoEvents(); }
                 PackageStep e = new PackageStep(); e.Day = f.NextDay(); f.AddStep(e); Application.DoEvents();
-                f.tTitle.Text = "Test äöü"; f.cbKind.SelectedIndex = 2; f.tSubNos.Text = "1/2, 3"; f.tIdent.Text = "PA 1"; Application.DoEvents();
+                f.tTitle.Text = "Test äöü"; f.cbKind.SelectedIndex = 2; f.tSubNos.Text = "1/2, 3"; f.tIdent.Text = "PA X"; Application.DoEvents();
                 bool hints = f.hintList.Exists(delegate(Hint h) { return h.Text.Contains("Unterlauf-Nummern für 2") && h.Field == f.tSubNos; })
-                    && f.hintList.Exists(delegate(Hint h) { return h.Text.Contains("1 Kennung(en), aber 4"); });
+                    && f.hintList.Exists(delegate(Hint h) { return h.Text.Contains("keine Endziffern"); });
                 f.nStartNo.Value = 9998; Application.DoEvents();
                 string hintDump = string.Join(" | ", f.hintList.ConvertAll<string>(delegate(Hint h) { return h.Text; }).ToArray());
                 hints &= f.hintList.Exists(delegate(Hint h) { return h.Text.Contains("über 9999"); });

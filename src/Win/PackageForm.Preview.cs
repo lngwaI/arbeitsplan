@@ -148,8 +148,7 @@ namespace Arbeitsplan.Win
                 if (s.Kind == StepKind.SubRun && s.SubNos.Trim().Length == 0) h.Add(new Hint(n + ": Unterlauf-Nummern fehlen.", s, tSubNos));
                 else if (s.Kind == StepKind.SubRun && s.SubNos.Split(',').Length != nRuns)
                     h.Add(new Hint(n + ": Unterlauf-Nummern für " + s.SubNos.Split(',').Length + " Lauf/Läufe, aber " + nRuns + " Wiederholung(en) (Komma = nächster Lauf).", s, tSubNos));
-                int idents = s.IdentCount(nRuns);
-                if (idents > 0 && idents != nRuns) h.Add(new Hint(n + ": " + idents + " Kennung(en), aber " + nRuns + " Wiederholung(en) (Komma = nächster Lauf).", s, tIdent));
+                if (nRuns > 1 && s.IdentStart.Length > 0 && s.IdentStart == PackageStep.IdentAt(s.IdentStart, 1)) h.Add(new Hint(n + ": Kennung-Start „" + s.IdentStart + "“ hat keine Endziffern – ab Lauf 2 bleibt die Kennung gleich.", s, tIdent));
                 if (s.Numbered && s.StartNo + nRuns - 1 > 9999) h.Add(new Hint(n + ": Laufnummer über 9999 – kleinere erste Laufnummer wählen.", s, s.Kind != StepKind.Normal ? (Control)tFirst : nStartNo));
                 if (own && s.Repeat == RepeatMode.Weekdays && (s.WeekDays & 127) == 0) h.Add(new Hint(n + ": Wiederholung an Wochentagen, aber kein Wochentag gewählt.", s, cbRepeat));
                 if (own && s.Repeat == RepeatMode.DayList && PackageStep.ParseDays(s.DayList).Count == 0) h.Add(new Hint(n + ": Termine fehlen (Tage des Ablaufs, z. B. 1, 4, 9).", s, tDays));
@@ -215,6 +214,8 @@ namespace Arbeitsplan.Win
                 Font f = PlanView.SpanFont(sp, plain);
                 for (int i = sp.Start; i < sp.Start + sp.Length && i < text.Length; i++) { if (sp.Rgb != 0) fore[i] = Ui.Rgb(sp.Rgb); fnt[i] = f; }
             }
+            foreach (int[] nl in Notes.NoteLines(e))   // Notizzeilen kursiv, wie im Plan
+                for (int i = nl[1]; i < nl[1] + nl[2] && i < text.Length; i++) fnt[i] = FontCache.Get(fnt[i].Name, fnt[i].SizeInPoints, fnt[i].Style | FontStyle.Italic, fnt[i]);
             List<Piece> res = new List<Piece>();
             for (int s = 0, i = 1; i <= text.Length; i++)
                 if (i == text.Length || fore[i] != fore[s] || fnt[i] != fnt[s]) { res.Add(new Piece(text.Substring(s, i - s), fnt[s], fore[s], false, Color.Empty)); s = i; }

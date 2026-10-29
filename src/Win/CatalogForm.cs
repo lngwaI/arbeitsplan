@@ -19,7 +19,7 @@ namespace Arbeitsplan.Win
         readonly CheckBox pRot = new CheckBox();
         // Bausteine
         readonly ListBox lbBau = new ListBox();
-        readonly TextBox bName = new TextBox(), bText = new TextBox();
+        readonly TextBox bName = new TextBox(), bText = new TextBox(), bNote = new TextBox();
         readonly ComboBox bRow = new ComboBox();
         readonly CheckedListBox bPos = new CheckedListBox();
         readonly CheckBox bUnique = new CheckBox(), bDefault = new CheckBox(), bSpecial = new CheckBox();
@@ -122,7 +122,10 @@ namespace Arbeitsplan.Win
             bDefault.Text = "In jeder neuen Kampagne enthalten"; bDefault.SetBounds(500, 176, 230, 22);
             bSpecial.Text = "Sonderereignis (z. B. TFF Flush)"; bSpecial.SetBounds(500, 202, 230, 22);
             p.Controls.AddRange(new Control[] { bUnique, bDefault, bSpecial });
-            Label hint2 = L("Einmalige Schritte (Packen) dürfen nur Nutzer mit dem Recht \"Pakete einrichten\" löschen oder erneut einfügen.", 260, 300); hint2.AutoSize = false; hint2.SetBounds(260, 300, 460, 40); p.Controls.Add(hint2);
+            p.Controls.Add(L("Notiz-Vorlage (je Zeile eine Notiz, z. B. Puffer-Material):", 260, 292));
+            bNote.Multiline = true; bNote.AcceptsReturn = true; bNote.ScrollBars = ScrollBars.Vertical; bNote.SetBounds(260, 312, 460, 52); p.Controls.Add(bNote);
+            Label hint2 = L("Einmalige Schritte (Packen) dürfen nur Nutzer mit dem Recht \"Pakete einrichten\" löschen oder erneut einfügen.", 260, 372); hint2.AutoSize = false; hint2.SetBounds(260, 372, 460, 36); p.Controls.Add(hint2);
+            bNote.TextChanged += delegate { if (!loading && lbBau.SelectedItem != null) ((Baustein)lbBau.SelectedItem).NoteTemplate = bNote.Text.Replace("\r", "").Trim(); };
 
             bName.TextChanged += delegate { if (!loading && lbBau.SelectedItem != null) { ((Baustein)lbBau.SelectedItem).Name = bName.Text; Refresh(lbBau); } };
             bRow.SelectedIndexChanged += delegate { if (!loading && lbBau.SelectedItem != null) ((Baustein)lbBau.SelectedItem).Row = bRow.Text; };
@@ -157,6 +160,7 @@ namespace Arbeitsplan.Win
             bName.Text = b != null ? b.Name : "";
             bRow.SelectedIndex = b != null && b.Row.Length > 0 && bRow.Items.IndexOf(b.Row) >= 0 ? bRow.Items.IndexOf(b.Row) : 0;
             bText.Text = b != null ? b.Text : "";
+            bNote.Text = b != null ? b.NoteTemplate.Replace("\n", "\r\n") : "";
             bUnique.Checked = b != null && b.Unique; bDefault.Checked = b != null && b.DefaultInCampaign; bSpecial.Checked = b != null && b.Special;
             for (int i = 0; i < bPos.Items.Count; i++) bPos.SetItemChecked(i, b != null && b.Positions.Contains(cat.Positions[i].Short));
             loading = false;
