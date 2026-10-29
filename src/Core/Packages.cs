@@ -340,6 +340,8 @@ namespace Arbeitsplan.Core
             string bp = BackupProblem(Steps);   // Back-Up ohne Packen
             if (bp != null) throw new InvalidOperationException(bp);
             if (schedule == null) SyncBackups(Steps);   // Back-Up immer einen Tag nach dem Packen
+            List<PackageProblem> rules = Check(store, start, mode, schedule);   // Regeln (Packages.Rules.cs): Sperre gilt fuer alle, auch PackageAdmin
+            if (HasBlock(rules)) throw new InvalidOperationException("Gesperrt, Regel verletzt:\n" + DescribeBlocks(rules));
             List<RowInfo> rows = store.GetRows();
             int written = 0, skipped = 0, unknownRow, conflicts = 0;
             // Alle Bloecke in EINEM Schreibvorgang (Versionspruefung je Block)
@@ -383,10 +385,10 @@ namespace Arbeitsplan.Core
             Eq(lf, "Reds", "H1-T-0131"); Eq(lf, "EV", "H2-X-0201"); Eq(lf, "EVT", "H2-T-0201"); Eq(lf, "PT", "H1-T-0102");
             Eq(lf, "RT", "H1-T-0112"); Eq(lf, "VS", "H1-F-0103-04").Note = "(nur eins vorhanden)"; Eq(lf, "ST1", "H2-T-0211"); Eq(lf, "ST2", "H2-T-0212");
             lf.Ident = "PA 40010001, PA 40010017, PA 40010032, PA 40010048";
-            PackageStep mi = Step(p, "Mischen", "Mischen", 4, StepKind.Run, 4);
+            PackageStep mi = Step(p, "Mischen", "Mischen", 4, StepKind.Run, 4); mi.Bind = StepBind.JeLauf; mi.RunOffset = 1;   // folgt dem Hauptlauf (genau ein Hauptlauf-Schritt, Packages.Rules.cs)
             Eq(mi, "MT", "H2-T-0210"); Eq(mi, "ST1", "H2-T-0211"); Eq(mi, "ST2", "H2-T-0212"); Eq(mi, "MS", "H2-X-0210"); Eq(mi, "EV", "H2-X-0201"); Eq(mi, "Pumpe", "H1-P-0102-05");
-            Step(p, "Backfill", "Backfill", 6, StepKind.Run, 4).Text = "Tag 1 von 2";
-            Step(p, "Backfill", "Backfill", 7, StepKind.Run, 4).Text = "Tag 2 von 2";
+            PackageStep b1 = Step(p, "Backfill", "Backfill", 6, StepKind.Run, 4); b1.Text = "Tag 1 von 2"; b1.Bind = StepBind.JeLauf; b1.RunOffset = 3;
+            PackageStep b2 = Step(p, "Backfill", "Backfill", 7, StepKind.Run, 4); b2.Text = "Tag 2 von 2"; b2.Bind = StepBind.JeLauf; b2.RunOffset = 4;
             Seen.Add(p);
             return p;
         }

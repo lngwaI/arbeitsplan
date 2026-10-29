@@ -148,8 +148,6 @@ namespace Arbeitsplan.Win
                 if (s.Kind == StepKind.SubRun && s.SubNos.Trim().Length == 0) h.Add(new Hint(n + ": Unterlauf-Nummern fehlen.", s, tSubNos));
                 else if (s.Kind == StepKind.SubRun && s.SubNos.Split(',').Length != nRuns)
                     h.Add(new Hint(n + ": Unterlauf-Nummern für " + s.SubNos.Split(',').Length + " Lauf/Läufe, aber " + nRuns + " Wiederholung(en) (Komma = nächster Lauf).", s, tSubNos));
-                if (nRuns > 1 && s.IdentStart.Length > 0 && s.IdentStart == PackageStep.IdentAt(s.IdentStart, 1)) h.Add(new Hint(n + ": Kennung-Start „" + s.IdentStart + "“ hat keine Endziffern – ab Lauf 2 bleibt die Kennung gleich.", s, tIdent));
-                if (s.Numbered && s.StartNo + nRuns - 1 > 9999) h.Add(new Hint(n + ": Laufnummer über 9999 – kleinere erste Laufnummer wählen.", s, s.Kind != StepKind.Normal ? (Control)tFirst : nStartNo));
                 if (own && s.Repeat == RepeatMode.Weekdays && (s.WeekDays & 127) == 0) h.Add(new Hint(n + ": Wiederholung an Wochentagen, aber kein Wochentag gewählt.", s, cbRepeat));
                 if (own && s.Repeat == RepeatMode.DayList && PackageStep.ParseDays(s.DayList).Count == 0) h.Add(new Hint(n + ": Termine fehlen (Tage des Ablaufs, z. B. 1, 4, 9).", s, tDays));
                 if (s == cur && tManualNo.Text.Trim().Length > 0 && !PackageStep.IsManualNo(tManualNo.Text.Trim())) h.Add(new Hint(n + ": Laufnummer von Hand muss 8 Ziffern haben (z. B. 12340001).", s, tManualNo));
@@ -160,6 +158,13 @@ namespace Arbeitsplan.Win
                 Package one = new Package(); one.ProductCode = Product; one.RunPrefix = prefix; one.Steps.Add(s);   // Zugehoerigkeit: sperrt Speichern/Uebernehmen
                 foreach (string e in cat.CheckPackage(one)) h.Add(new Hint(n + " FEHLER: " + e, s, null));
                 foreach (string e in cat.CheckPackageWarn(one)) h.Add(new Hint(n + ": " + e, s, null));   // Stammdaten "Passt zu": nur Hinweis
+            }
+            foreach (PackageProblem p in StepsView().Check())   // Regeln aus Core/Packages.Rules.cs (Sperre = Übernehmen nicht möglich)
+            {
+                PackageStep ps = p.Step >= 0 && p.Step < steps.Count ? steps[p.Step] : null;
+                int ix = ps != null ? o.IndexOf(ps) : -1;
+                Control fld = p.Code == "ident" ? tIdent : (p.Code == "number" ? (ps != null && ps.Kind != StepKind.Normal ? (Control)tFirst : nStartNo) : null);
+                h.Add(new Hint((p.Blocks ? "SPERRE – " : "") + (ix >= 0 ? "Schritt " + (ix + 1) + ": " : "") + p.Text, ps, fld));
             }
             bool ok = h.Count == 0;
             if (ok) h.Add(new Hint("Keine Auffälligkeiten – das Muster kann übernommen werden.", null, null));

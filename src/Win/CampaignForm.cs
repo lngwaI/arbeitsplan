@@ -15,6 +15,7 @@ namespace Arbeitsplan.Win
     {
         public static bool Quiet;   // Selbsttest: keine Meldungen
         static readonly Color Orange = Color.FromArgb(255, 228, 190);   // abweichend vom Vorschlag
+        static readonly Color Rot = Color.FromArgb(255, 150, 150);       // Zeile verletzt eine Sperr-Regel
         static readonly Color Belegt = Color.FromArgb(255, 205, 205);   // Zeile vor Lauf 1 trifft einen belegten Block
         const int cLabel = 0, cRel = 1, cRoom = 2, cProp = 3, cWant = 4, cMinus = 5, cPlus = 6, cSkip = 7;
         readonly Package pkg;      // Kopie des Pakets: Laufanzahl, Nummern, Ausfaelle
@@ -24,7 +25,7 @@ namespace Arbeitsplan.Win
         readonly DateTimePicker dtLauf1 = new DateTimePicker();
         readonly NumericUpDown nRuns = new NumericUpDown();
         readonly TextBox tFirst = new TextBox(), tPack = new TextBox();   // tFirst: komplette 8-stellige erste Laufnummer; tPack: Nummer des Packens von Hand
-        readonly Label lFirst = new Label(), lPack = new Label(), info = new Label(), lSum = new Label();
+        readonly Label lFirst = new Label(), lPack = new Label(), info = new Label(), lSum = new Label(), lRule = new Label();
         readonly ComboBox cbRoom = new ComboBox(), cbMode = new ComboBox();
         readonly Button ok = new Button();
         readonly CheckBox chkShift = new CheckBox(), chkRooms = new CheckBox(), chkRhythm = new CheckBox();
@@ -44,6 +45,8 @@ namespace Arbeitsplan.Win
         public DateTime Start { get { return pkg.StartFor(dtLauf1.Value.Date); } }
         public string Warning { get; private set; }       // ungueltige erste Laufnummer oder Ueberlauf > 9999; null = ok
         public string PackWarning { get; private set; }   // Laufnummer Packen fehlt/ungueltig; null = ok. Beide sperren "In Plan übernehmen".
+        public List<PackageProblem> Problems { get; private set; }   // Regelpruefung (Package.Check) mit Plan; Sperre sperrt "In Plan übernehmen"
+        public string RuleText { get { return lRule.Text; } }
         public Package Result { get { return pkg; } }     // das Paket mit Laufanzahl, Nummern und Ausfaellen: damit uebernehmen (Package.Apply)
         public ApplyMode Mode { get { return (ApplyMode)cbMode.SelectedIndex; } }
 
@@ -133,7 +136,8 @@ namespace Arbeitsplan.Win
             Label lt = L("Datum als TT.MM.JJJJ eintippen oder − / +.", 405, y + 3); Controls.Add(lt);
             chkShift.Visible = chkRooms.Visible = lt.Visible = !simple;
 
-            grid.SetBounds(10, y + 26, 880, 546 - (y + 26));
+            grid.SetBounds(10, y + 26, 880, 526 - (y + 26));
+            lRule.SetBounds(10, 530, 880, 18); lRule.AutoEllipsis = true; Controls.Add(lRule);
             grid.AllowUserToAddRows = false; grid.AllowUserToDeleteRows = false; grid.AllowUserToResizeRows = false; grid.RowHeadersVisible = false;
             grid.SelectionMode = DataGridViewSelectionMode.CellSelect; grid.MultiSelect = false; grid.BackgroundColor = Color.White;
             Col(new DataGridViewTextBoxColumn(), "Schritt / Lauf", 245, true);
@@ -165,14 +169,14 @@ namespace Arbeitsplan.Win
                 grid.Visible = false;
                 Controls.Add(L("Raum:", 10, y + 4));
                 cbRoom.DropDownStyle = ComboBoxStyle.DropDownList; cbRoom.Items.AddRange(names.ToArray()); cbRoom.SetBounds(70, y, 200, 22); Controls.Add(cbRoom);
-                lSum.SetBounds(10, y + 36, 880, 546 - (y + 36)); Controls.Add(lSum);
+                lSum.SetBounds(10, y + 36, 880, 526 - (y + 36)); Controls.Add(lSum);
                 cbRoom.SelectedIndexChanged += delegate { if (!building) SimpleRoom(); };
             }
 
             Controls.Add(L("Vorhandene Einträge:", 10, 562));   // Uebernahme-Modus wird erst hier gewaehlt (nicht im Paket-Editor)
             cbMode.DropDownStyle = ComboBoxStyle.DropDownList; cbMode.SetBounds(135, 558, 250, 22);
             cbMode.Items.AddRange(new object[] { "Nur leere Blöcke füllen", "Vorhandenes überschreiben", "An vorhandenen Text anhängen" });
-            cbMode.SelectedIndex = (int)mode; cbMode.SelectionChangeCommitted += delegate { modeTouched = true; }; Controls.Add(cbMode);
+            cbMode.SelectedIndex = (int)mode; cbMode.SelectionChangeCommitted += delegate { modeTouched = true; if (!building) UpdateAll(); }; Controls.Add(cbMode);
             ok.Text = "In Plan übernehmen"; ok.SetBounds(640, 556, 135, 28);
             ok.Click += delegate { grid.EndEdit(); DialogResult = DialogResult.OK; };
             Button cancel = new Button(); cancel.Text = "Abbrechen"; cancel.SetBounds(785, 556, 105, 28); cancel.DialogResult = DialogResult.Cancel;
@@ -258,8 +262,27 @@ namespace Arbeitsplan.Win
             bool anyBusy = false;
             for (int i = 0; i < sched.Count; i++) { UpdateRow(i); anyBusy |= IsBusy(i); }
             if (!modeTouched) cbMode.SelectedIndex = anyBusy ? (int)ApplyMode.Append : (int)initialMode;   // Vorkampagne trifft belegte Bloecke: anhaengen
-            ok.Enabled = Warning == null && PackWarning == null;
+            Problems = pkg.Check(store, Start, Mode, Schedule);
+            ShowRules();
+            ok.Enabled = Warning == null && PackWarning == null && !Package.HasBlock(Problems);
             SimpleSummary();
+        }
+
+        // Regelverstoesse: betroffene Zeilen rot (Tooltip = Grund), erste Meldung unter der Tabelle
+        void ShowRules()
+        {
+            for (int i = 0; i < sched.Count && i < grid.Rows.Count; i++) { grid.Rows[i].Cells[cLabel].Style.BackColor = Color.Empty; grid.Rows[i].Cells[cLabel].ToolTipText = ""; }
+            List<PackageProblem> shown = Problems.FindAll(delegate(PackageProblem p) { return p.Code != "packen" && p.Code != "number"; });   // Packen-Nummer/Ueberlauf zeigen schon eigene Felder
+            foreach (PackageProblem p in shown)
+                for (int i = 0; i < sched.Count && i < grid.Rows.Count; i++)
+                    if (p.Run >= 0 && sched[i].Step == p.Step && sched[i].Run == p.Run)
+                    {
+                        grid.Rows[i].Cells[cLabel].Style.BackColor = p.Blocks ? Rot : Belegt;
+                        grid.Rows[i].Cells[cLabel].ToolTipText = pkg.Describe(p);
+                    }
+            PackageProblem first = shown.Find(delegate(PackageProblem p) { return p.Blocks; }) ?? (shown.Count > 0 ? shown[0] : null);
+            lRule.Text = first == null ? "" : (first.Blocks ? "Gesperrt: " : "Hinweis: ") + pkg.Describe(first) + (shown.Count > 1 ? "  (+" + (shown.Count - 1) + " weitere)" : "");
+            lRule.ForeColor = first != null && first.Blocks ? Color.Firebrick : Color.FromArgb(150, 60, 0);
         }
 
         // Zeile liegt vor Lauf 1 und der Block ist im Plan schon belegt (Vorkampagne: Packen/Puffer)
@@ -368,6 +391,7 @@ namespace Arbeitsplan.Win
         public string TestRoom { get { return cbRoom.Text; } set { cbRoom.SelectedItem = value; } }
         public int TestRowCount { get { return sched.Count; } }
         public bool TestSkipped(int i) { return skipped[i]; }
+        public bool TestRowRed(int i) { return grid.Rows[i].Cells[cLabel].Style.BackColor == Rot; }
         public string TestRel(int i) { return Convert.ToString(grid.Rows[i].Cells[cRel].Value); }
         public string TestLabel(int i) { return sched[i].Label; }
         public int TestIndexOf(int step, int run) { return sched.FindIndex(delegate(RunDate d) { return d.Step == step && d.Run == run; }); }

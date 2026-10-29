@@ -69,7 +69,7 @@ namespace Arbeitsplan.Win
                     demo.Steps.Add(s);
                 }
             }
-            if (which == "package3" || which == "package4" || which == "package7" || which == "campaign2" || which == "campaign3") demo = Package.SampleCampaign("Testpaket");
+            if (which == "package3" || which == "package4" || which == "package7" || which == "campaign2" || which == "campaign3" || which == "campaign5") demo = Package.SampleCampaign("Testpaket");
             if (which == "campaign4")   // Einzelpaket: einfacher Modus
             {
                 demo = new Package(); demo.Name = "Einzelpaket"; demo.Type = PackageType.Einzel;
@@ -98,6 +98,13 @@ namespace Arbeitsplan.Win
                 CampaignForm cf = new CampaignForm(demo, store, start, ApplyMode.FillEmpty);
                 cf.TestPackNo = "12340001";
                 if (which == "campaign3") { cf.TestRuns = 5; cf.SetSkip(cf.TestIndexOf(2, 2), true); }
+                f = cf;
+            }
+            else if (which == "campaign5")   // Regelverstoss: Lauf 2 auf den Tag von Lauf 1 geschoben = zwei Hauptlaeufe am selben Tag (rote Zeile, Uebernehmen gesperrt)
+            {
+                CampaignForm cf = new CampaignForm(demo, store, start, ApplyMode.FillEmpty);
+                cf.TestPackNo = "12340001"; cf.TestShiftFollowing = false;
+                cf.Shift(cf.TestIndexOf(2, 1), -6);
                 f = cf;
             }
             else if (which == "wizard" || which == "wizard3")   // Kampagnen-Assistent: Seite 1 bzw. Seite 3 mit Paketen eines Produkts
@@ -333,7 +340,7 @@ namespace Arbeitsplan.Win
             SelfTestPaket3(sb);   // Wiederholmodi, Verschieben, Varianten mit Anzahl, Ansatz, alte Pakete (MainForm.SelfTestPaket3.cs)
             SelfTestTakeOver(sb);   // Soft-Lock: Uebernahme, Nachrichten, Sperrenwechsel (MainForm.SelfTestTakeOver.cs)
             SelfTestE1(sb);   // Zeitmodell des Pakets: Golden-Test, JeLauf, Ausfall, Kennung, Normalize, Paketformat 7 (MainForm.SelfTestE1*.cs)
-            SelfTestE3(sb); SelfTestE2(sb);   // Kennungstabelle, Notizen aus Paketen, Materialvorlage (MainForm.SelfTestE2.cs)
+            SelfTestE3(sb); SelfTestE2(sb); SelfTestE4(sb);   // Kennungstabelle, Notizen aus Paketen, Materialvorlage (MainForm.SelfTestE2.cs)
             quiet = false;
             return sb.ToString();
         }
