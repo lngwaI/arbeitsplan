@@ -5,7 +5,7 @@ using System.Windows.Forms;
 
 namespace Arbeitsplan.Win
 {
-    // Maus im Kalender (PlanStrip): Klick waehlt, Ziehen auf einen anderen Tag verschiebt (Umschalt = nur dieser Lauf), Rechtsklick = Menue.
+    // Maus im Kalender (PlanStrip): Klick waehlt, Ziehen auf einen anderen Tag verschiebt diesen und alle folgenden Laeufe (Umschalt = nur dieser), Rechtsklick = Menue.
     partial class PlanStrip
     {
         Item press;            // Eintrag unter der gedrueckten Maustaste
@@ -26,6 +26,7 @@ namespace Arbeitsplan.Win
         {
             base.OnMouseDown(e);
             Item it = ItemAt(e.Location);
+            if (hover != null) { hover = null; tt.Hide(this); }
             if (e.Button == MouseButtons.Right) { if (it != null && ItemMenu != null) ItemMenu(it, e.Location); return; }
             if (e.Button != MouseButtons.Left) return;
             press = it; pressAt = e.Location; dropDay = -1;
@@ -34,8 +35,9 @@ namespace Arbeitsplan.Win
         protected override void OnMouseMove(MouseEventArgs e)
         {
             base.OnMouseMove(e);
-            if (press == null || (e.Button & MouseButtons.Left) == 0) return;
+            if (press == null || (e.Button & MouseButtons.Left) == 0) { if (press == null) TipMove(e.Location); return; }
             if (dropDay < 0 && Math.Abs(e.X - pressAt.X) < SystemInformation.DragSize.Width) return;
+            if (hover != null) { hover = null; tt.Hide(this); }
             Capture = true; Cursor = Cursors.SizeWE;
             if (e.X > ClientSize.Width - 20) SetX(sx + 30);   // am Rand weiterblaettern
             else if (e.X < rowW + 20) SetX(sx - 30);

@@ -78,7 +78,7 @@ namespace Arbeitsplan.Win
         }
 
         // Nur die Wann?-Felder neu fuellen und alles nachziehen (kein Neuaufbau der Equipment-Zeilen)
-        void Rebind() { BindWhen(cur); dirty = true; UpdateView(false); }
+        void Rebind() { BindWhen(cur); dirty = true; UpdateView(false); CommitUndo(); }
 
         static int MonIdx(DayOfWeek d) { return ((int)d + 6) % 7; }
 
@@ -205,6 +205,7 @@ namespace Arbeitsplan.Win
 
         void BindWhen(PackageStep s)
         {
+            Repin();
             bool was = loading; loading = true;
             Package p = StepsView(); PackageStep head = p.Head;
             bool isHead = s == head, je = IsJe(s);

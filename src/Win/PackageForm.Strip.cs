@@ -9,13 +9,14 @@ namespace Arbeitsplan.Win
     // Kalender der Kampagne als Mini-Arbeitsplan ohne Details: links je Raum eine Zeile (Reihenfolge wie im Plan, Raeume ohne Schritt
     // ausgeblendet), Spalten = Tage (Kopf: Datum bzw. "3 Tage vor Lauf 1"), je Schritt ein Kaestchen (Name + Laufnummer) in Raum und Tag.
     // Kopf und Raumnamen bleiben beim Scrollen stehen. Der gewaehlte Schritt ist blau (sein gewaehlter Lauf kraeftig umrandet), Klick waehlt,
-    // Ziehen auf einen anderen Tag verschiebt (Umschalt = nur dieser Lauf), Rechtsklick = Menue (Maus: PackageForm.StripMouse.cs).
+    // Ziehen auf einen anderen Tag verschiebt diesen und alle folgenden Laeufe (Umschalt = nur dieser Lauf), von Hand verschobene Laeufe
+    // tragen ein Schloss, Rechtsklick = Menue (Maus: PackageForm.StripMouse.cs; Zoom, "nur Auswahl", Tooltip: PackageForm.Zoom.cs).
     partial class PlanStrip : Control
     {
-        public class Item { public int Day, Run; public string Title = "", Sub = "", Row = ""; public bool Shifted; public PackageStep Step; }
+        public class Item { public int Day, Run; public string Title = "", Sub = "", Row = ""; public bool Shifted, Je; public PackageStep Step; }   // Shifted = fest verschoben (Schloss), Je = folgt dem Hauptlauf (Ziehen verschiebt alle)
         class RowL { public string Name = ""; public int Y, H; public bool Missing; }
-        const int DayW = 132, EmptyW = 24, MaxDays = 370, Spare = 3, Wheel = 40;
-        List<Item> items = new List<Item>();
+        const int EmptyW = 24, MaxDays = 370, Spare = 3, Wheel = 40;
+        List<Item> all = new List<Item>(), items = new List<Item>();   // all = alle Eintraege, items = angezeigte ("nur Auswahl")
         List<string> order = new List<string>();                  // Raeume des Plans in Planreihenfolge
         readonly List<RowL> rowsL = new List<RowL>();
         readonly List<KeyValuePair<Rectangle, Item>> cells = new List<KeyValuePair<Rectangle, Item>>();   // Kaestchen (Inhaltskoordinaten)
@@ -53,10 +54,10 @@ namespace Arbeitsplan.Win
 
         public void SetRows(List<string> planOrder) { order = planOrder; }
 
-        public void Set(List<Item> list, PackageStep sel, int run) { items = list; selected = sel; selRun = run; Rebuild(); Invalidate(); }
+        public void Set(List<Item> list, PackageStep sel, int run) { all = list; selected = sel; selRun = run; Rebuild(); Invalidate(); }
 
         // Nur die Auswahl wechseln (Blaettern, Klick): kein Neuaufbau
-        public void Select(PackageStep s, int run) { selected = s; selRun = run; ScrollTo(s, run); Invalidate(); }
+        public void Select(PackageStep s, int run) { selected = s; selRun = run; if (only) Rebuild(); ScrollTo(s, run); Invalidate(); }
 
         public int CountOf(PackageStep s) { return items.FindAll(delegate(Item i) { return i.Step == s; }).Count; }
         public int SelectedRun { get { return selRun; } }
@@ -68,15 +69,7 @@ namespace Arbeitsplan.Win
 
         void Rebuild()
         {
-            int nd = 0;
-            foreach (Item i in items) nd = Math.Max(nd, i.Day);
-            nd = Math.Min(nd + (nd > 0 ? Spare : 0), MaxDays);
-            widths = new int[nd]; xs = new int[nd]; contentW = 0;
-            for (int d = 1; d <= nd; d++)
-            {
-                widths[d - 1] = items.Exists(delegate(Item i) { return i.Day == d; }) ? DayW : EmptyW;
-                xs[d - 1] = contentW; contentW += widths[d - 1];
-            }
+            items = only && selected != null ? all.FindAll(delegate(Item i) { return i.Step == selected; }) : all;
             rowsL.Clear();
             foreach (string n in order) if (n.Length > 0 && items.Exists(delegate(Item i) { return i.Row == n; })) rowsL.Add(new RowL { Name = n });
             foreach (Item i in items) { string n = i.Row; if (!rowsL.Exists(delegate(RowL r) { return r.Name == n; })) rowsL.Add(new RowL { Name = n, Missing = true }); }   // unbekannter/fehlender Raum: ans Ende
@@ -84,6 +77,15 @@ namespace Arbeitsplan.Win
             using (Font bold = new Font(Font, FontStyle.Bold))
                 foreach (RowL r in rowsL) maxLabel = Math.Max(maxLabel, TextRenderer.MeasureText(LabelOf(r), bold).Width);
             rowW = Math.Max(64, Math.Min(150, maxLabel + 16));
+            int nd = 0;
+            foreach (Item i in items) nd = Math.Max(nd, i.Day);
+            nd = Math.Min(nd + (nd > 0 ? Spare : 0), MaxDays);
+            widths = new int[nd]; xs = new int[nd]; contentW = 0; dayW = CalcDayW();
+            for (int d = 1; d <= nd; d++)
+            {
+                widths[d - 1] = items.Exists(delegate(Item i) { return i.Day == d; }) ? dayW : EmptyW;
+                xs[d - 1] = contentW; contentW += widths[d - 1];
+            }
             cells.Clear(); contentH = 0;
             foreach (RowL r in rowsL)
             {
@@ -115,7 +117,7 @@ namespace Arbeitsplan.Win
             SetX(h ? sx : 0); SetY(v ? sy : 0);
         }
 
-        protected override void OnResize(EventArgs e) { base.OnResize(e); UpdateBars(); }
+        protected override void OnResize(EventArgs e) { base.OnResize(e); if (CalcDayW() != dayW) Rebuild(); else UpdateBars(); }
 
         protected override void OnMouseWheel(MouseEventArgs e)
         {
@@ -162,7 +164,7 @@ namespace Arbeitsplan.Win
                 {
                     int x = ox + xs[d - 1], w = widths[d - 1];
                     if (x + w < body.X || x > body.Right) continue;
-                    if (d == dropDay) g.FillRectangle(target, x, body.Y, w, vh); else if (w == EmptyW) g.FillRectangle(back, x, body.Y, w, vh);
+                    if (d == dropDay) g.FillRectangle(target, x, body.Y, w, vh); else if (w <= EmptyW) g.FillRectangle(back, x, body.Y, w, vh);
                     g.DrawLine(line, x + w - 1, body.Y, x + w - 1, body.Bottom);
                 }
                 foreach (RowL r in rowsL) g.DrawLine(line, body.X, oy + r.Y + r.H - 1, body.Right, oy + r.Y + r.H - 1);
@@ -170,11 +172,12 @@ namespace Arbeitsplan.Win
                 {
                     Item i = c.Value; Rectangle r = c.Key; r.Offset(ox, oy);
                     if (!r.IntersectsWith(body)) continue;
-                    bool on = i.Step == selected, cur = on && i.Run == selRun, moving = press != null && dropDay > 0 && (i == press || (!OnlyRun && i.Step == press.Step));
+                    bool on = i.Step == selected, cur = on && i.Run == selRun, moving = press != null && dropDay > 0 && (i == press || (!OnlyRun && i.Step == press.Step && (press.Je || i.Run >= press.Run)));   // wandert mit
                     if (on) g.FillRectangle(selBack, r);
                     if (cur) g.DrawRectangle(sel, r); else g.DrawRectangle(on ? t.Pen(t.BorderSel, 1) : line, r);
                     if (moving) { r.Inflate(-1, -1); using (Pen dash = new Pen(t.BorderEdit, 1f)) { dash.DashStyle = System.Drawing.Drawing2D.DashStyle.Dash; g.DrawRectangle(dash, r); } }
-                    TextRenderer.DrawText(g, (i.Shifted ? "↔ " : "") + i.Title, bold, new Rectangle(r.X + 4, r.Y + 2, r.Width - 6, Font.Height + 1), t.HeadText, ff);
+                    TextRenderer.DrawText(g, i.Title, bold, new Rectangle(r.X + 4, r.Y + 2, r.Width - (i.Shifted ? 20 : 6), Font.Height + 1), t.HeadText, ff);
+                    if (i.Shifted) DrawLock(g, r.Right - 14, r.Y + 4, t.BorderEdit);
                     TextRenderer.DrawText(g, i.Sub, Font, new Rectangle(r.X + 4, r.Y + 3 + Font.Height, r.Width - 6, Font.Height + 1), Section.HelpColor, ff);
                 }
                 if (dropDay > 0 && dropDay <= widths.Length) g.DrawLine(drop, ox + xs[dropDay - 1] + 1, body.Y, ox + xs[dropDay - 1] + 1, body.Bottom);   // Einrastmarke am Zieltag
@@ -184,7 +187,7 @@ namespace Arbeitsplan.Win
                 {
                     int x = ox + xs[d - 1], w = widths[d - 1];
                     if (x + w < body.X || x > body.Right) continue;
-                    bool any = w == DayW, isDrop = d == dropDay;
+                    bool any = w > EmptyW, isDrop = d == dropDay;
                     Rectangle head = new Rectangle(x, 0, w, HeadH);
                     if (isDrop) g.FillRectangle(target, head); else if (any) t.FillHead(g, head, t.DayHead); else g.FillRectangle(back, head);
                     TextRenderer.DrawText(g, HeadText != null ? HeadText(d, any || isDrop) : "", any ? bold : Font, head, any || isDrop ? t.HeadText : Section.HelpColor,

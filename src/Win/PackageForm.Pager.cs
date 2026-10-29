@@ -48,6 +48,7 @@ namespace Arbeitsplan.Win
         // Klick im Kalender: Schritt und Lauf waehlen (liegt der Lauf in einem anderen Schritt, wechselt der Editor dorthin)
         void StripClicked(PlanStrip.Item it)
         {
+            CommitUndo();
             if (it.Step != cur) { nextRun = it.Run; Bind(it.Step); return; }
             int ix = curDates.FindIndex(delegate(RunDate d) { return d.Run == it.Run; });
             if (ix >= 0) GoPage(ix);
@@ -63,7 +64,7 @@ namespace Arbeitsplan.Win
                 RunDate d = curDates[ix];
                 BlockPreview.Card c = new BlockPreview.Card();
                 c.Room = cur.Row.Length > 0 ? cur.Row : "Raum fehlt"; c.Missing = cur.Row.Length == 0;
-                c.Day = RelOf(cur, d) + (!IsJe(cur) && cur.Shifted(d.Run) ? " (verschoben)" : "");
+                c.Day = RelOf(cur, d) + (!IsJe(cur) && cur.Pinned(d.Run) ? " (verschoben)" : "");
                 c.Data = cur.EntryFor(d.Run, prefix);
                 if (c.Data.Buffers.Count > 0) c.Extra = string.Join("\n", BufferSet.DisplayLines(c.Data.Buffers, true).ToArray()).Replace("(stationaer)", "(stationär)");   // Puffer-Zeilen wie im Plan (Typ in Klammern)
                 cards.Add(c);

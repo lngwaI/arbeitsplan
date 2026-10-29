@@ -204,7 +204,7 @@ namespace Arbeitsplan.Win
             s.Bind = StepBind.JeLauf; s.RunOffset = s.IsBuffer || s.UsesAnsatz ? -1 : 0; s.RunEvery = 1; s.NumberRuns = false;
         }
 
-        void AddStep(PackageStep s) { steps.Add(s); StepsView().Normalize(); dirty = true; Bind(s); }   // Normalize: ein Puffer "1 Tag vor Lauf 1" darf nicht vor Tag 1 landen
+        void AddStep(PackageStep s) { steps.Add(s); StepsView().Normalize(); dirty = true; Bind(s); CommitUndo(); }   // Normalize: ein Puffer "1 Tag vor Lauf 1" darf nicht vor Tag 1 landen
 
         void Duplicate()
         {
@@ -239,6 +239,7 @@ namespace Arbeitsplan.Win
             o.RemoveAt(i); steps.Remove(cur);
             dirty = true;
             Bind(o.Count > 0 ? o[Math.Min(i, o.Count - 1)] : null);
+            CommitUndo();
         }
 
         // ---------- Kopfzeile, Titel, Tasten ----------
@@ -262,6 +263,8 @@ namespace Arbeitsplan.Win
         {
             if (keyData == (Keys.Control | Keys.S)) { SaveFile(false); return true; }
             if (keyData == (Keys.Control | Keys.D)) { Duplicate(); return true; }
+            bool redo = keyData == (Keys.Control | Keys.Y) || keyData == (Keys.Control | Keys.Shift | Keys.Z);
+            if ((redo || keyData == (Keys.Control | Keys.Z)) && !TextUndo()) { UndoStep(redo ? 1 : -1); return true; }
             if ((keyData == (Keys.Alt | Keys.Up) || keyData == (Keys.Alt | Keys.Down)) && (lv.Focused || bUp.Focused || bDown.Focused)) { MoveStep(keyData == (Keys.Alt | Keys.Up) ? -1 : 1); return true; }
             if (keyData == Keys.Delete && (lv.Focused || strip.Focused)) { RemoveStep(); return true; }
             return base.ProcessCmdKey(ref msg, keyData);
@@ -311,6 +314,7 @@ namespace Arbeitsplan.Win
             dirty = false;
             List<PackageStep> o = Ordered();
             Bind(o.Count > 0 ? o[0] : null);
+            ResetUndo();
         }
 
         // null = Kopfzeile ungueltig (Produktcode, erste Laufnummer, Ueberlauf; Meldung wurde gezeigt). Schritte als Kopie: der Kampagnenstart nummeriert um.

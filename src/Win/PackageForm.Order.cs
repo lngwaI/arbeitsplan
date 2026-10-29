@@ -8,7 +8,8 @@ namespace Arbeitsplan.Win
 {
     // Paket-Editor: Reihenfolge und Termine aendern, ohne die Ansicht neu aufzubauen. Ablaufliste: ▲/▼, Alt+Hoch/Runter und Ziehen
     // (Einfuegelinie, auch bis ans Ende); Auswahl bleibt auf dem verschobenen Schritt. Kalender (PlanStrip): Block auf einen anderen
-    // Tag ziehen = ganzer Schritt, mit Umschalt = nur dieser Lauf (Versatz je Lauf); Rechtsklick-Menue fuer dasselbe tageweise.
+    // Tag ziehen = dieser und alle folgenden Laeufe (Move), mit Umschalt = nur dieser Lauf (Shift); verschobene Laeufe sind fest (Schloss)
+    // und bleiben bei Regelaenderungen an ihrem Tag (Repin); Rechtsklick-Menue fuer dasselbe tageweise und zum Zuruecksetzen.
     partial class PackageForm
     {
         readonly Panel dropLine = new Panel();
@@ -125,21 +126,79 @@ namespace Arbeitsplan.Win
         void AfterMove(PackageStep s)
         {
             dirty = true;
-            if (s != cur) { Bind(s); return; }
-            BindWhen(s);
-            UpdateView(true);
+            RecordPins(s);   // bewusste Aenderung: die neuen Tage sind der Sollstand der festen Laeufe
+            if (s != cur) Bind(s);
+            else { BindWhen(s); UpdateView(true); }
+            CommitUndo();
+        }
+
+        // ---------- feste (von Hand verschobene) Laeufe ----------
+
+        PackageStep pinStep;                                   // Schritt, dessen feste Laeufe vermerkt sind
+        readonly Dictionary<int, int> pinDays = new Dictionary<int, int>();   // Lauf -> Tag des Pakets
+
+        void RecordPins(PackageStep s)
+        {
+            pinStep = s; pinDays.Clear();
+            if (s == null || IsJe(s)) return;
+            List<int> d = s.Days(pk.Day1);
+            for (int i = 0; i < d.Count; i++) if (s.Pinned(i)) pinDays[i] = d[i];
+        }
+
+        // Regel des gewaehlten Schritts geaendert (Anzahl, Abstand, Wochentage ...): feste Laeufe bleiben an ihrem Tag, der Versatz passt sich an
+        void Repin()
+        {
+            if (pinStep != cur || cur == null || pinDays.Count == 0) return;
+            if (IsJe(cur)) { pinDays.Clear(); return; }
+            List<int> keys = new List<int>(pinDays.Keys); keys.Sort();
+            foreach (int run in keys)
+            {
+                List<int> d = cur.Days(pk.Day1);
+                if (run >= d.Count || d[run] == pinDays[run]) continue;
+                Dictionary<int, int> map = cur.Shift.ContainsKey(run) || !cur.Move.ContainsKey(run) ? cur.Shift : cur.Move;
+                int v; map.TryGetValue(run, out v); v += pinDays[run] - d[run];
+                if (v == 0) map.Remove(run); else map[run] = v;
+            }
         }
 
         // ---------- Kalender ----------
 
-        // Block im Kalender auf toDay gezogen: ganzer Schritt oder (onlyRun) nur dieser Lauf
+        // Block im Kalender auf toDay gezogen: dieser und alle folgenden Laeufe (der erste Lauf = ganzer Schritt) oder (onlyRun) nur dieser Lauf.
+        // Vorher wird auf einer Kopie geprueft (Package.Check, Regel E4): entstuenden zwei Hauptlaeufe am selben Tag im selben Block, passiert nichts.
         void MoveInCalendar(PackageStep s, int run, int toDay, bool onlyRun)
         {
+            CommitUndo();
             int si = steps.IndexOf(s), at = -1;
             foreach (RunDate d in Plan()) if (d.Step == si && d.Run == run) at = d.Day;
-            if (at < 0) return;
+            if (at < 0 || toDay == at) return;
             int delta = toDay - at;
-            if (onlyRun ? (!IsJe(s) && s.MoveRun(run, delta, pk.Day1)) : MoveBy(s, delta)) { nextRun = run; AfterMove(s); }
+            Package trial = StepsView().Clone();
+            if (!trial.DragRun(trial.Steps[si], run, delta, onlyRun))
+            {
+                Say(onlyRun && IsJe(s) ? "Dieser Schritt folgt dem Hauptlauf – er lässt sich nur für alle Läufe verschieben." : "Nicht verschoben: Dort ist kein Termin möglich (vor dem ersten Tag oder Versatz zu groß).");
+                return;
+            }
+            string clash = NewClash(StepsView(), trial);
+            if (clash != null) { Say("Nicht verschoben: " + clash); return; }
+            if (!StepsView().DragRun(s, run, delta, onlyRun)) return;
+            Say(""); nextRun = run; AfterMove(s);
+        }
+
+        // Erste Sperre "Zwei Hauptläufe am selben Tag", die nur nach dem Verschieben besteht; null = keine neue
+        static string NewClash(Package before, Package after)
+        {
+            List<string> old = new List<string>();
+            foreach (PackageProblem p in before.Check()) if (p.Code == "gleichtag") old.Add(p.Text);
+            foreach (PackageProblem p in after.Check()) if (p.Code == "gleichtag" && !old.Contains(p.Text)) return p.Text;
+            return null;
+        }
+
+        // Verschiebung(en) entfernen: run >= 0 = nur dieser Lauf (Move und Shift), -1 = alle des Schritts
+        void ResetRun(PackageStep s, int run)
+        {
+            CommitUndo();
+            if (run >= 0 ? !s.ResetRun(run) : !s.ResetMoves()) return;
+            Say(""); nextRun = run; AfterMove(s);
         }
 
         void StripMenu(PlanStrip.Item it, Point at)
@@ -148,14 +207,20 @@ namespace Arbeitsplan.Win
             if (s != cur) { nextRun = run; Bind(s); }
             stripMenu.Items.Clear();
             bool many = StepsView().RunCountOf(s) > 1, je = IsJe(s);
-            stripMenu.Items.Add("Ganzen Schritt 1 Tag früher", null, delegate { MoveInCalendar(s, run, day - 1, false); });
-            stripMenu.Items.Add("Ganzen Schritt 1 Tag später", null, delegate { MoveInCalendar(s, run, day + 1, false); });
-            if (many)
+            string who = many && run > 0 && !je ? "Diesen und alle folgenden Läufe" : (je ? "Alle Läufe" : "Ganzen Schritt");
+            stripMenu.Items.Add(who + " 1 Tag früher", null, delegate { MoveInCalendar(s, run, day - 1, false); });
+            stripMenu.Items.Add(who + " 1 Tag später", null, delegate { MoveInCalendar(s, run, day + 1, false); });
+            if (many && !je)
             {
                 stripMenu.Items.Add(new ToolStripSeparator());
-                stripMenu.Items.Add("Nur diesen Lauf 1 Tag früher", null, delegate { MoveInCalendar(s, run, day - 1, true); }).Enabled = day > 1 && !je;
-                stripMenu.Items.Add("Nur diesen Lauf 1 Tag später", null, delegate { MoveInCalendar(s, run, day + 1, true); }).Enabled = !je;
-                if (!je && s.Shifted(run)) stripMenu.Items.Add("Ausnahme dieses Laufs zurücksetzen", null, delegate { s.Shift.Remove(run); AfterMove(s); });
+                stripMenu.Items.Add("Nur diesen Lauf 1 Tag früher", null, delegate { MoveInCalendar(s, run, day - 1, true); }).Enabled = day > 1;
+                stripMenu.Items.Add("Nur diesen Lauf 1 Tag später", null, delegate { MoveInCalendar(s, run, day + 1, true); });
+            }
+            if (!je && s.Shift.Count + s.Move.Count > 0)
+            {
+                stripMenu.Items.Add(new ToolStripSeparator());
+                stripMenu.Items.Add("Diesen Lauf auf Regel zurücksetzen", null, delegate { ResetRun(s, run); }).Enabled = s.Pinned(run);
+                stripMenu.Items.Add("Alle Verschiebungen dieses Schritts zurücksetzen", null, delegate { ResetRun(s, -1); });
             }
             stripMenu.Show(strip, at);
         }

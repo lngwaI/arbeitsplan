@@ -21,7 +21,20 @@ namespace Arbeitsplan.Core
         public void Save(string path)
         {
             XmlWriterSettings st = new XmlWriterSettings(); st.Indent = true; st.Encoding = new UTF8Encoding(false);
-            using (XmlWriter w = XmlWriter.Create(path, st))
+            using (XmlWriter w = XmlWriter.Create(path, st)) Write(w);
+        }
+
+        // Schnappschuss als Text (Rueckgaengig im Paket-Editor): gleicher Inhalt wie Save, ohne Datei
+        public string ToXml()
+        {
+            StringBuilder sb = new StringBuilder();
+            XmlWriterSettings st = new XmlWriterSettings(); st.OmitXmlDeclaration = true;
+            using (XmlWriter w = XmlWriter.Create(sb, st)) Write(w);
+            return sb.ToString();
+        }
+
+        void Write(XmlWriter w)
+        {
             {
                 w.WriteStartElement("Paket"); w.WriteAttributeString("name", Name); w.WriteAttributeString("version", "7");
                 if (ProductCode.Length > 0) w.WriteAttributeString("produkt", ProductCode);
@@ -109,6 +122,26 @@ namespace Arbeitsplan.Core
             XmlDocument doc = new XmlDocument();
             doc.XmlResolver = null;
             using (XmlReader xr = XmlReader.Create(path, rs)) doc.Load(xr);
+            return Parse(doc);
+        }
+
+        // Gegenstueck zu ToXml (Rueckgaengig); gleiche Haertung wie Load
+        public static Package FromXml(string xml)
+        {
+            XmlReaderSettings rs = new XmlReaderSettings();
+            rs.DtdProcessing = DtdProcessing.Prohibit; rs.XmlResolver = null; rs.MaxCharactersInDocument = 20 * 1000 * 1000;
+            XmlDocument doc = new XmlDocument();
+            doc.XmlResolver = null;
+            using (XmlReader xr = XmlReader.Create(new StringReader(xml), rs)) doc.Load(xr);
+            Package p = Parse(doc);
+#if TESTHOOKS
+            Seen.Remove(p);
+#endif
+            return p;
+        }
+
+        static Package Parse(XmlDocument doc)
+        {
             XmlElement root = doc.DocumentElement;
             if (root == null || root.Name != "Paket") throw new InvalidDataException("Keine gültige Paketdatei.");
             Package p = new Package();

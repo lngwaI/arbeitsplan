@@ -166,6 +166,7 @@ namespace Arbeitsplan.Win
             body.ResumeLayout();
             loading = false;
             UpdateView(true);
+            HookLeave(body);   // Feld verlassen = Rueckgaengig-Schnappschuss (PackageForm.Undo.cs)
         }
 
         void AddPosition(string shortName)
@@ -179,11 +180,12 @@ namespace Arbeitsplan.Win
 
         void RemoveAssign(EquipAssign a) { if (cur == null) return; cur.Equipment.Remove(a); dirty = true; Bind(cur); }
 
-        void Changed() { if (loading) return; dirty = true; UpdateView(false); }
+        void Changed() { if (loading) return; dirty = true; UpdateView(false); if (!(ActiveControl is TextBoxBase)) CommitUndo(); }   // Text: erst beim Verlassen des Felds
 
         // Alles nachziehen: Liste, Felder ein-/ausblenden, Kopfzeile, Vorschau, Pruefhinweise; scrollTo = Kalender zum Schritt scrollen.
         void UpdateView(bool scrollTo)
         {
+            Repin();   // feste Laeufe bleiben an ihrem Tag (PackageForm.Order.cs)
             if (Package.SyncBackups(steps) && cur != null && cur.IsBackup) { bool was = loading; loading = true; BindWhen(cur); loading = was; }   // Back-Up folgt dem Packen
             FillList();
             FillIdents();
@@ -199,6 +201,7 @@ namespace Arbeitsplan.Win
             bUp.Enabled = bDown.Enabled = bDup.Enabled = bDel.Enabled = cur != null;
             UpdatePreview(scrollTo);
             UpdateHints();
+            RecordPins(cur);
         }
 
         // Zeile in einer Gruppe: setzt Sichtbarkeit und Hoehe; liefert die naechste y-Position.

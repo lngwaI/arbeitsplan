@@ -69,7 +69,7 @@ namespace Arbeitsplan.Win
                     demo.Steps.Add(s);
                 }
             }
-            if (which == "package3" || which == "package4" || which == "package7" || which == "campaign2" || which == "campaign3" || which == "campaign5") demo = Package.SampleCampaign("Testpaket");
+            if (which == "package3" || which == "package4" || which == "package7" || which == "package8" || which == "package9" || which == "campaign2" || which == "campaign3" || which == "campaign5") demo = Package.SampleCampaign("Testpaket");
             if (which == "campaign4")   // Einzelpaket: einfacher Modus
             {
                 demo = new Package(); demo.Name = "Einzelpaket"; demo.Type = PackageType.Einzel;
@@ -159,6 +159,7 @@ namespace Arbeitsplan.Win
             if (pf != null && which == "package5") pf.SelectStep(3);
             if (pf != null && which == "package7") { pf.SelectStep(3); pf.TestMore(); pf.TestScrollEnd(); }   // Hauptlauf, Zusaetze (Kennungstabelle) im Blick
             if (pf != null && which == "package6") pf.SelectStep(2);
+            if (pf != null && (which == "package8" || which == "package9")) pf.TestE5Shot(which);   // E5/E6: verschobene Laeufe mit Schloss; Zoom Woche + nur Auswahl
             return f;
         }
 
@@ -340,7 +341,7 @@ namespace Arbeitsplan.Win
             SelfTestPaket3(sb);   // Wiederholmodi, Verschieben, Varianten mit Anzahl, Ansatz, alte Pakete (MainForm.SelfTestPaket3.cs)
             SelfTestTakeOver(sb);   // Soft-Lock: Uebernahme, Nachrichten, Sperrenwechsel (MainForm.SelfTestTakeOver.cs)
             SelfTestE1(sb);   // Zeitmodell des Pakets: Golden-Test, JeLauf, Ausfall, Kennung, Normalize, Paketformat 7 (MainForm.SelfTestE1*.cs)
-            SelfTestE3(sb); SelfTestE2(sb); SelfTestE4(sb); SelfTestV(sb);   // Kennungstabelle, Notizen aus Paketen, Materialvorlage (MainForm.SelfTestE2.cs)
+            SelfTestE3(sb); SelfTestE2(sb); SelfTestE4(sb); SelfTestV(sb); SelfTestE5(sb);   // Kennungstabelle, Notizen aus Paketen, Materialvorlage (MainForm.SelfTestE2.cs)
             quiet = false;
             return sb.ToString();
         }

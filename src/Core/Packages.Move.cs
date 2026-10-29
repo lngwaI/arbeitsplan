@@ -55,5 +55,47 @@ namespace Arbeitsplan.Core
             Normalize();
             return ok;
         }
+
+        // Kalender: Lauf "run" von s um delta Tage ziehen. Standard = dieser und alle folgenden Laeufe (Move ab diesem Lauf; beim ersten Lauf
+        // der ganze Schritt), onlyRun = nur dieser Lauf (Shift). JeLauf-Schritte folgen dem Hauptlauf: nur der Versatz zum Lauf, nie ein
+        // einzelner Lauf. false = nicht moeglich (vor Tag 1, Versatz zu gross).
+        public bool DragRun(PackageStep s, int run, int delta, bool onlyRun)
+        {
+            if (delta == 0) return false;
+            if (s.Bind == StepBind.JeLauf && Head != null && s != Head) return !onlyRun && MoveStep(s, delta);
+            List<int> d = s.Days(Day1);
+            if (run < 0 || run >= d.Count) return false;
+            if (onlyRun) return s.MoveRun(run, delta, Day1);
+            if (run > 0 && d.Count > 1) return s.MoveFrom(run, delta, Day1);
+            int first = d[0];
+            foreach (int x in d) first = Math.Min(first, x);
+            if (first + delta < 1) ShiftOrigin(1 - (first + delta));
+            return s.MoveAll(delta, Day1);
+        }
+    }
+
+    public partial class PackageStep
+    {
+        // Ab Lauf "run" (0-basiert) alle folgenden Laeufe um delta Tage verschieben (Move, XML "versatzab"); der erste Lauf = ganzer Schritt.
+        // Der Lauf gilt danach als fest (Pinned). false = vor Tag 1 oder Versatz zu gross.
+        public bool MoveFrom(int run, int delta, DayOfWeek day1 = DayOfWeek.Monday)
+        {
+            List<int> d = Days(day1);
+            if (delta == 0 || run < 0 || run >= d.Count) return false;
+            if (run == 0) return MoveAll(delta, day1);
+            for (int i = run; i < d.Count; i++) if (d[i] + delta < 1) return false;
+            int m; Move.TryGetValue(run, out m); m += delta;
+            if (Math.Abs(m) > 366) return false;
+            if (m == 0) Move.Remove(run); else Move[run] = m;
+            return true;
+        }
+
+        // Lauf ist von Hand verschoben (Ausnahme oder Move-Ansatz): im Kalender mit Schloss, bleibt bei Regelaenderungen an seinem Tag
+        public bool Pinned(int run) { return Shift.ContainsKey(run) || Move.ContainsKey(run); }
+
+        // Zurueck auf die Regel: Move/Shift dieses Laufs entfernen. false = war nicht verschoben.
+        public bool ResetRun(int run) { bool a = Shift.Remove(run), b = Move.Remove(run); return a || b; }
+
+        public bool ResetMoves() { bool any = Shift.Count + Move.Count > 0; Shift.Clear(); Move.Clear(); return any; }
     }
 }

@@ -28,7 +28,7 @@ namespace Arbeitsplan.Win
         {
             paneWrap.Tag = "keep"; paneWrap.Dock = DockStyle.Bottom; paneWrap.Padding = new Padding(8, 0, 8, 0);
             InitPane();   // Hoehe (gemerkt), Teiler zwischen Abschnitt 2 und 3 (PackageForm.Pane.cs)
-            Section sec = new Section("3   Vorschau & Prüfung", "Kalender wie im Plan; der gewählte Schritt ist blau. Klick wählt, Ziehen verschiebt (Umschalt = nur diesen Lauf).", true, 1000);
+            Section sec = new Section("3   Vorschau & Prüfung", "Kalender wie im Plan; der gewählte Schritt ist blau. Klick wählt, Ziehen verschiebt diesen und alle folgenden Läufe (Umschalt = nur diesen Lauf).", true, 1000);
             sec.Dock = DockStyle.Fill;
             previewScroll.AutoScroll = true; previewScroll.BackColor = Color.White; previewScroll.BorderStyle = BorderStyle.FixedSingle; previewScroll.Tag = "keep";
             blockPreview.Location = Point.Empty; blockPreview.Font = Font; previewScroll.Controls.Add(blockPreview);
@@ -60,8 +60,7 @@ namespace Arbeitsplan.Win
             strip.Dock = DockStyle.Fill; strip.SetRows(rowNames); strip.ItemClicked += StripClicked;
             strip.ItemMoved += delegate(PlanStrip.Item it, int day, bool onlyRun) { MoveInCalendar(it.Step, it.Run, day, onlyRun); };
             strip.ItemMenu += StripMenu;
-            tip.SetToolTip(strip, "Klick = Schritt wählen. Auf einen anderen Tag ziehen = Schritt verschieben (mit Umschalt nur diesen Lauf). Rechtsklick = Menü.");
-            stripScroll.Controls.Add(strip);
+            stripScroll.Controls.Add(strip); stripScroll.Controls.Add(BuildStripBar());   // Leiste (oben) zuletzt: wird zuerst angedockt
             sec.Controls.Add(stripScroll); sec.Controls.Add(Spacer()); sec.Controls.Add(hints); sec.Controls.Add(Spacer()); sec.Controls.Add(right);
             paneWrap.Controls.Add(sec);
             return paneWrap;
@@ -93,7 +92,7 @@ namespace Arbeitsplan.Win
                 foreach (RunDate d in plan)
                 {
                     if (d.Step != si) continue;
-                    PlanStrip.Item it = new PlanStrip.Item(); it.Step = s; it.Day = d.Day; it.Run = d.Run; it.Shifted = !je && s.Shifted(d.Run);
+                    PlanStrip.Item it = new PlanStrip.Item(); it.Step = s; it.Day = d.Day; it.Run = d.Run; it.Shifted = !je && s.Pinned(d.Run); it.Je = je;
                     it.Title = TitleOf(s); it.Row = s.Row;
                     it.Sub = s.Numbered ? s.RunNo(prefix, d.Run) : (many ? (je || s.Kind != StepKind.Normal ? "Lauf " : "Termin ") + (d.Run + 1) : "");
                     items.Add(it);
@@ -106,6 +105,7 @@ namespace Arbeitsplan.Win
             strip.HeadText = StripHead;
             strip.Set(items, cur, curRun);
             if (scrollTo) strip.ScrollTo(cur, curRun);
+            UpdateStripBar();
             lPreview.Text = "So erscheint der Schritt im Plan:";
             tip.SetToolTip(lPreview, pk.Lauf1.HasValue ? "Vorschau mit den Daten ab Lauf 1 am " + DText(pk.Lauf1.Value) + "." : "Vorschau relativ zu Lauf 1; das Datum steht fest, sobald „Lauf 1 am“ im Kopf gesetzt ist oder beim Kampagnenstart.");
             ShowCard();
