@@ -194,6 +194,13 @@ namespace Arbeitsplan.Win
             catch (Exception ex) { ExportFailed("Kopieren", ex); }
         }
 
+        void ExportEquipList()
+        {
+            if (!EndEdit(true)) return;
+            DateTime? sel = view.Selected != null ? (DateTime?)view.Selected.Day : null;
+            using (EquipExportForm f = new EquipExportForm(store, start, sel)) f.ShowDialog(this);
+        }
+
         void ExportPackage()
         {
             if (!EndEdit(true)) return;

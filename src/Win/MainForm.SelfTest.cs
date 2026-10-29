@@ -99,6 +99,11 @@ namespace Arbeitsplan.Win
             }
             else if (which == "structure") f = new StructureForm(store.GetRows(), true, true, true);
             else if (which == "duties") f = new DutiesForm(store.GetDuties(), store.GetRows());
+            else if (which == "equipexport")
+            {
+                SelfTestEquipExport(null);
+                f = new EquipExportForm(store, start, null);
+            }
             else if (which == "openduties") { DateTime mon = ShownWeek; f = new OpenDutiesForm("Offen in " + PlanView.WeekTitle(mon), delegate(int w) { return OpenDuties.List(store, store.GetDuties(), store.GetRows(), mon, w, DateTime.Today); }); }
             else if (which == "steppicker") { List<string> nm = new List<string>(); foreach (RowInfo r in store.GetRows()) nm.Add(r.Name); StepPicker sp = new StepPicker(store.GetCatalog(), new List<PackageStep>(), nm); sp.TestSelect("Puffer"); f = sp; }
             else if (which == "catalog") { List<string> nm = new List<string>(); foreach (RowInfo r in store.GetRows()) nm.Add(r.Name); f = new CatalogForm(store.GetCatalog(), nm); }
@@ -297,7 +302,8 @@ namespace Arbeitsplan.Win
             SelfTestPaket2(sb);   // Produktcode frei, Laufnummer 8-stellig, Hinweis-Klick, Puffer-Variante, Bausteine (MainForm.SelfTestPaket2.cs)
             SelfTestBackup(sb);   // Packen (Back-Up), Kampagnen-Assistent (MainForm.SelfTestBackup.cs)
             SelfTestEquip(sb);    // Equipment-Uebersicht (Tabelle, Matrix, Serie) und manueller Status (MainForm.SelfTestEquip.cs)
-            SelfTestEquipFile(sb);    // Status aus Datei, Vorrang manuell (MainForm.SelfTestEquipFile.cs)
+            SelfTestEquipExport(sb);
+            SelfTestEquipFile(sb);   // Status aus Datei, Vorrang manuell (MainForm.SelfTestEquipFile.cs)
             SelfTestEquipQuick(sb);   // Schnellerfassung, Nicht zugeordnet, Passt zu, Felder (MainForm.SelfTestEquipQuick.cs)
             SelfTestPaket3(sb);   // Wiederholmodi, Verschieben, Varianten mit Anzahl, Ansatz, alte Pakete (MainForm.SelfTestPaket3.cs)
             quiet = false;

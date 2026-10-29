@@ -178,6 +178,7 @@ namespace Arbeitsplan.Win
             file.DropDownItems.Add("Als PDF speichern…", null, delegate { ExportImage(true); }).Enabled = exp;
             file.DropDownItems.Add("In Zwischenablage kopieren", null, delegate { ExportClipboard(); }).Enabled = exp;
             file.DropDownItems.Add("Als Paket speichern (.apkg)…", null, delegate { ExportPackage(); }).Enabled = exp;
+            file.DropDownItems.Add("Equipment-Liste exportieren…", null, delegate { ExportEquipList(); }).Enabled = exp;
             file.DropDownItems.Add(new ToolStripSeparator());
             file.DropDownItems.Add("Als Plan-Datei speichern (.applan)…", null, delegate { SavePlanFile(); }).Enabled = exp;
             file.DropDownItems.Add("Plan-Datei ansehen…", null, delegate { OpenPlanFile(); });
