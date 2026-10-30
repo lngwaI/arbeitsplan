@@ -47,6 +47,27 @@ namespace Arbeitsplan.Core
             return true;
         }
 
+        // U4: Puffer from an die Stelle to verschieben (to = Index nach dem Verschieben). Geltungsbereiche gemeinsamer Zeilen ziehen mit (Bits
+        // werden umsortiert, Scope 0 = alle bleibt), unbenannte "Titel 2"-Nummern folgen der neuen Stelle. Plan-Ausgabe/XML folgen der Liste.
+        public bool MovePuffer(int from, int to)
+        {
+            int n = Puffers.Count;
+            if (from < 0 || from >= n || to < 0 || to >= n || from == to || n > 30) return false;
+            List<int> old = new List<int>(); for (int i = 0; i < n; i++) old.Add(i);
+            MoveItem(old, from, to); MoveItem(Puffers, from, to);   // old[neu] = alter Index
+            foreach (PufferShare g in PufferShared)
+            {
+                if (g.Scope == 0) continue;
+                int m = 0;
+                for (int i = 0; i < n; i++) if (((g.Scope >> old[i]) & 1) != 0) m |= 1 << i;
+                g.Scope = m;
+            }
+            if (Puffers.Exists(delegate(PufferSpec p) { return p.NameNo > 1; }))
+                for (int i = 0; i < n; i++) if (Puffers[i].Name.Length == 0) Puffers[i].NameNo = i == 0 ? 0 : i + 1;
+            SyncPuffers();
+            return true;
+        }
+
         // Zeile entfernen ("nicht benötigt"): eigene Zeile eines Puffers, gemeinsame Zeile oder Zeile des alten Modus
         public bool RemoveEquip(EquipAssign a)
         {

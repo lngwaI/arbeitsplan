@@ -7,7 +7,7 @@ using Arbeitsplan.Core;
 namespace Arbeitsplan.Win
 {
     // Zeile fuer eine Equipment-Position im Paket-Editor: Position | Geraet | abwechselnd | Ausweich-Geraet | Notiz | entfernen.
-    class EquipRow : Panel
+    partial class EquipRow : Panel
     {
         const int Gap = 6, AltW = 132, DelW = 24, ArrowW = 17, GripW = 12;
         public const int Lead = GripW + 2 * ArrowW + 4;   // linke Spalte: Griff, ▲, ▼ (UX-5b)
@@ -66,7 +66,7 @@ namespace Arbeitsplan.Win
             foreach (Button b in new[] { btnAlt, del, up, down }) Theme.Current.StyleButton(b);
             Enter += delegate { ShowArrows(); }; Leave += delegate { ShowArrows(); };
             tip.SetToolTip(btnAlt, "Geräte für den Wechsel auswählen");
-            tip.SetToolTip(cbFb, "Ausweich-Gerät (Backup), falls das geplante ausfällt.");
+            tip.SetToolTip(cbFb, "Ausweich-Gerät (Backup), falls das geplante ausfällt." + UndoTip);
             tip.SetToolTip(note, "Notiz/Bezeichnung zu diesem Gerät (steht im Plan hinter der Nummer).");
             tip.SetToolTip(grip, "Zeile verschieben: am Griff nach oben oder unten ziehen (oder ▲▼ nutzen). Die Reihenfolge steht so im Plan.");
             tip.SetToolTip(up, "Eine Zeile nach oben"); tip.SetToolTip(down, "Eine Zeile nach unten");
@@ -121,40 +121,14 @@ namespace Arbeitsplan.Win
             bool fix = cat.IsFixed(product, a.Short);          // festes Geraet je Kampagne: nur Abschalten einer vorhandenen Rotation erlaubt
             chkAlt.Enabled = !fix || a.Alternate;   // Sichtbarkeit von abwechselnd/Ausweich setzt Arrange (nur bei Mehr Optionen oder gesetztem Wert)
             tip.SetToolTip(name, name.Text);
-            tip.SetToolTip(cbId, "Gerät aus der validierten Liste wählen oder eigenes eintippen (nicht validierte Eingabe wird orange).");
+            tip.SetToolTip(cbId, "Gerät aus der validierten Liste wählen oder eigenes eintippen (nicht validierte Eingabe wird orange)." + UndoTip);
+            SetFlag(false);
             tip.SetToolTip(chkAlt, fix ? "Für dieses Produkt ist ein festes Gerät je Kampagne vorgegeben – kein Wechsel." : "Läufe wechseln reihum zwischen den gewählten Geräten (Lauf 1 → A, Lauf 2 → B, Lauf 3 → wieder A …). Zur Auswahl stehen alle Geräte, die laut Admin gleich eingesetzt werden können.");
             tip.SetToolTip(del, allowNone ? "Position entfernen (wie „" + NoneText + "“)" : "Position aus diesem Schritt entfernen");
             chkAlt.Checked = a.Alternate; cbFb.Text = a.Fallback; note.Text = a.Note;
             Refill();
             ShowInfo();
             loading = false;
-        }
-
-        // Platzhalter aus den erlaubten Geraeten (Produktprofil oder global), z. B. H1-X-010X
-        static string Placeholder(Catalog cat, string product, string sh) { EquipPosition t = new EquipPosition(); t.Ids = cat.Allowed(product, sh); return t.Placeholder(); }
-
-        // Ist das eingetragene Geraet fuer das Produkt erlaubt (oder leer/abwechselnd)? Fuer die Pruefhinweise.
-        public static bool Known(EquipAssign a, Catalog cat, string product)
-        {
-            if (a.Alternate || a.Choices.Count == 0) return true;
-            string t = a.Choices[0].Id;
-            return cat.Allowed(product, a.Short).Contains(t) || (t.Length > 0 && t == Placeholder(cat, product, a.Short));
-        }
-
-        // Frei eingetippte (nicht erlaubte/validierte) Geraete einer Zeile: Geraet, Wechselgeraete, Ausweich-Geraet (Austausch-Gruppe)
-        public static List<string> Unvalidated(EquipAssign a, Catalog cat, string product)
-        {
-            List<string> r = new List<string>();
-            if (!Known(a, cat, product)) r.Add(a.Choices[0].Id);
-            List<EquipChoice> grp = cat.Interchangeable(a.Short);
-            List<string> swaps = cat.SwapsFor(product, a.Short, ""), allowed = cat.Allowed(product, a.Short);
-            string ph = Placeholder(cat, product, a.Short);
-            List<string> more = new List<string>();
-            if (a.Alternate) foreach (EquipChoice c in a.Choices) more.Add(c.Id);
-            if (a.Fallback.Length > 0) more.Add(a.Fallback);
-            foreach (string id in more)
-                if (id.Length > 0 && !r.Contains(id) && id != ph && !allowed.Contains(id) && !swaps.Contains(id) && cat.Master.Device(id) == null && !grp.Exists(delegate(EquipChoice c) { return c.Id == id; })) r.Add(id);
-            return r;
         }
 
         public void Arrange(int w, bool wide)
@@ -275,10 +249,10 @@ namespace Arbeitsplan.Win
             foreach (EquipSubst s in cat.Master.SubstitutesFor(id)) if (!first.Contains(s.Id)) first.Add(s.Id);
             foreach (string c in cat.Master.CompatibleWith(id)) { EquipDevice d = cat.Master.Device(c); if (d != null && d.Class == (cat.Master.Device(id) != null ? cat.Master.Device(id).Class : d.Class) && !first.Contains(c)) first.Add(c); }
             if (first.Count == 0) return;
-            loading = true;
+            bool was = loading; loading = true;   // N7: vorherigen Zustand wiederherstellen (Aufruf auch waehrend Load)
             for (int i = cbFb.Items.Count - 1; i >= 0; i--) if (first.Contains(cbFb.Items[i].ToString())) cbFb.Items.RemoveAt(i);
             for (int i = first.Count - 1; i >= 0; i--) cbFb.Items.Insert(0, first[i]);
-            cbFb.Text = text; loading = false;
+            cbFb.Text = text; loading = was;
         }
 
         void ShowInfo()
@@ -287,7 +261,7 @@ namespace Arbeitsplan.Win
             foreach (EquipSubst s in id.Length > 0 ? cat.Master.SubstitutesFor(id) : new List<EquipSubst>())
                 info += (info.Length > 0 ? "\n" : "") + "Ersatz: " + s.Id + (s.Note.Length > 0 ? " (" + s.Note + ")" : "");
             if (!Known(a, cat, product)) info = "ACHTUNG: " + id + " ist " + (cat.Product(product) != null ? "für Produkt " + product + " nicht vorgesehen." : "nicht validiert.") + (info.Length > 0 ? "\n" + info : "");
-            tip.SetToolTip(cbId, "Gerät aus der validierten Liste wählen oder eigenes eintippen (nicht validierte Eingabe wird orange)." + (info.Length > 0 ? "\n\n" + info : ""));
+            tip.SetToolTip(cbId, "Gerät aus der validierten Liste wählen oder eigenes eintippen (nicht validierte Eingabe wird orange)." + UndoTip + (info.Length > 0 ? "\n\n" + info : ""));
         }
 
         void PickAlternatives()
@@ -298,19 +272,6 @@ namespace Arbeitsplan.Win
             using (AlternativesPicker p = new AlternativesPicker(offer, a.Choices, a.Short))
                 if (p.ShowDialog(this) == DialogResult.OK) a.Choices = p.Result;
             if (a.Choices.Count < 2) { a.Alternate = false; loading = true; chkAlt.Checked = false; loading = false; }
-        }
-    }
-
-    partial class PackageForm
-    {
-        // Harter Fehler vor Speichern/Uebernehmen: Zubehoer eines anderen Hauptgeraets im selben Lauf. true = in Ordnung.
-        static bool BelongsOk(IWin32Window owner, Package p, Catalog cat, string action)
-        {
-            List<string> e = cat.CheckPackage(p);
-            if (e.Count == 0) return true;
-            MessageBox.Show(owner, "Das Paket kann nicht " + action + " werden – Zubehör ist mit dem falschen Hauptgerät eingeplant:\n\n" + string.Join("\n", e.ToArray())
-                + "\n\nBitte das Zubehör oder das Hauptgerät anpassen.", "Equipment passt nicht zusammen", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-            return false;
         }
     }
 }

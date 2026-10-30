@@ -34,6 +34,7 @@ namespace Arbeitsplan.Core
                 case "puffer-produkt": return "Puffer verschiedener Produkte zu nah beieinander";
                 case "unterlauf": return "Unterlauf fehlt";
                 case "frueh": return "Termin sehr früh vor Lauf 1";
+                case "pufvor": return "Puffer vor dem Kampagnen-Start";
                 default: return "";   // ohne Titel: nie gruppiert
             }
         }
@@ -113,6 +114,7 @@ namespace Arbeitsplan.Core
             }
 
             CheckPufferDup(res, plan, start, store != null || Lauf1.HasValue);
+            CheckPufferBefore(res, plan, d1);   // N7: Puffer-Karte vor dem Kampagnen-Start (Packages.PufferDay.cs)
 
             if (head != null)
             {

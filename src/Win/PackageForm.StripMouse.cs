@@ -30,6 +30,22 @@ namespace Arbeitsplan.Win
             if (e.Button == MouseButtons.Right) { if (it != null && ItemMenu != null) ItemMenu(it, e.Location); return; }
             if (e.Button != MouseButtons.Left) return;
             press = it; pressAt = e.Location; dropDay = -1;
+            if (it != null && CanFocus) Focus();   // Esc bricht das Ziehen ab (ProcessCmdKey)
+        }
+
+        // N7: Ziehen abbrechen (Esc, Fokus-/Mausverlust): nichts wird verschoben
+        internal void CancelDrag()
+        {
+            bool was = press != null;
+            press = null; dropDay = -1; Cursor = Cursors.Default;
+            if (Capture) Capture = false;
+            if (was) Invalidate();
+        }
+
+        protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
+        {
+            if (keyData == Keys.Escape && press != null) { CancelDrag(); return true; }
+            return base.ProcessCmdKey(ref msg, keyData);
         }
 
         protected override void OnMouseMove(MouseEventArgs e)
@@ -56,10 +72,17 @@ namespace Arbeitsplan.Win
             else if (ItemClicked != null) ItemClicked(it);   // nur geklickt (oder auf denselben Tag gezogen)
         }
 
+#if TESTHOOKS
+        internal void TestDrag(Item it, int day) { press = it; dropDay = day; }
+        internal bool TestDragging { get { return press != null || dropDay > 0; } }
+        internal bool TestEsc() { Message m = new Message(); return ProcessCmdKey(ref m, Keys.Escape); }
+        internal List<Item> TestItems { get { return all; } }
+#endif
+
         protected override void OnMouseCaptureChanged(EventArgs e)
         {
             base.OnMouseCaptureChanged(e);
-            if (!Capture && dropDay > 0) { press = null; dropDay = -1; Cursor = Cursors.Default; Invalidate(); }   // z. B. Esc/Fensterwechsel: abbrechen
+            if (!Capture && dropDay > 0) CancelDrag();   // z. B. Esc/Fensterwechsel: abbrechen
         }
     }
 }

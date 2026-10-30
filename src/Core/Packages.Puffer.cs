@@ -155,6 +155,7 @@ namespace Arbeitsplan.Core
             {
                 EquipAssign a = pp.ToAssign();
                 if (!pp.Shared) { sp.Lines.Add(a); continue; }
+                if (s.PufferShared.Exists(delegate(PufferShare x) { return x.Scope == 0 && string.Equals(x.Eq.Short, pp.Short, StringComparison.OrdinalIgnoreCase); })) continue;   // N7: "alle Puffer" gilt schon fuer den neuen
                 PufferShare g = s.PufferShared.Find(delegate(PufferShare x) { return x.Scope != 0 && string.Equals(x.Eq.Short, pp.Short, StringComparison.OrdinalIgnoreCase); });
                 if (g == null) { g = new PufferShare(); g.Eq = a; s.PufferShared.Add(g); }
                 if (k < 31) g.Scope |= 1 << k;

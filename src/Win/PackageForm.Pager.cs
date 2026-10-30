@@ -72,7 +72,7 @@ namespace Arbeitsplan.Win
                     int lauf = pv.LaufOf(plan, d) + 1;
                     foreach (int dl in cur.CardDeltas())
                     {
-                        BlockPreview.Card cc = new BlockPreview.Card(); cc.Room = c.Room; cc.Missing = c.Missing;
+                        BlockPreview.Card cc = new BlockPreview.Card(); cc.Room = c.Room; cc.Missing = c.Missing || d.Day + dl < 1;   // N7: Karte vor dem Start rot
                         cc.Day = RelOf(cur, d, plan, dl); cc.Data = new Entry();
                         cc.Data.Buffers = cur.BuffersAt(d.Run, prefix, lauf, dl);
                         foreach (BufferItem bi in cc.Data.Buffers) bi.LaufRef = lauf;

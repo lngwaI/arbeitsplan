@@ -15,7 +15,9 @@ namespace Arbeitsplan.Win
         readonly Func<int, Rectangle> bounds;   // Bereich der Zeile i im Container (inkl. Zusatzzeilen darunter)
         readonly Action<int, int> move;
         readonly Panel line = new Panel();
-        readonly Timer poll = new Timer();
+        static Timer poll;                                          // N7: ein gemeinsamer Hover-Timer fuer alle Instanzen (bis zu 10 Karten + Liste)
+        static readonly List<RowReorder> live = new List<RowReorder>();
+        bool disposed;
         readonly List<EquipRow> rows = new List<EquipRow>();
         EquipRow dragging;
         int target = -1;
@@ -26,9 +28,15 @@ namespace Arbeitsplan.Win
             this.host = host; this.lineParent = lineParent ?? host; this.count = count; this.bounds = bounds; this.move = move;
             line.BackColor = Color.FromArgb(0, 120, 215); line.Height = 2; line.Visible = false; line.Enabled = false;
             this.lineParent.Controls.Add(line);
-            poll.Interval = 100; poll.Tick += delegate { Poll(); }; poll.Start();
+            if (poll == null) { poll = new Timer(); poll.Interval = 100; poll.Tick += delegate { foreach (RowReorder r in live.ToArray()) r.Poll(); }; }
+            live.Add(this); poll.Start();
             host.Disposed += delegate { Dispose(); };
         }
+
+#if TESTHOOKS
+        internal static int LiveCount { get { return live.Count; } }
+        internal static bool TimerRunning { get { return poll != null && poll.Enabled; } }
+#endif
 
         public void Add(EquipRow r) { rows.Add(r); r.Reorder = this; }
 
@@ -105,7 +113,12 @@ namespace Arbeitsplan.Win
         internal int TestTarget { get { return target; } }
 #endif
 
-        public void Dispose() { poll.Stop(); poll.Dispose(); }
+        public void Dispose()
+        {
+            if (disposed) return;
+            disposed = true; live.Remove(this);
+            if (live.Count == 0 && poll != null) poll.Stop();   // Timer bleibt fuer die naechste Instanz erhalten
+        }
     }
 
     // Griff zum Ziehen (zwei Spalten Punkte); erscheint nur, wenn die Zeile verschiebbar ist
@@ -127,7 +140,31 @@ namespace Arbeitsplan.Win
             base.OnMouseDown(e);
             if (e.Button != MouseButtons.Left || row.Reorder == null) return;
             pressed = true; moved = false; down = Cursor.Position; row.Reorder.DragStart(row);
+            if (CanFocus) Focus();   // Esc bricht ab (ProcessCmdKey)
         }
+
+        // N7: Ziehen abbrechen (Esc, Maus verloren): nichts wird verschoben
+        internal void Cancel()
+        {
+            if (!pressed) return;
+            pressed = false;
+            if (Capture) Capture = false;
+            if (row.Reorder != null) row.Reorder.DragEnd(row, false);
+        }
+
+        protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
+        {
+            if (keyData == Keys.Escape && pressed) { Cancel(); return true; }
+            return base.ProcessCmdKey(ref msg, keyData);
+        }
+
+        protected override void OnMouseCaptureChanged(EventArgs e) { base.OnMouseCaptureChanged(e); if (!Capture) Cancel(); }
+
+#if TESTHOOKS
+        internal void TestPress() { pressed = true; moved = true; row.Reorder.DragStart(row); }
+        internal bool TestPressed { get { return pressed; } }
+        internal bool TestEsc() { Message m = new Message(); return ProcessCmdKey(ref m, Keys.Escape); }
+#endif
 
         protected override void OnMouseMove(MouseEventArgs e)
         {

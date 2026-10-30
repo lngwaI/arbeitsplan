@@ -32,10 +32,19 @@ namespace Arbeitsplan.Win
             {
                 if (f.ShowDialog(owner) != DialogResult.OK || !admin) return false;
                 prod.Puffer = f.Result;
-                if (!cat.Products.Contains(prod)) cat.Products.Add(prod);
             }
-            try { store.SaveCatalog(cat); return true; }
+            try { store.SaveCatalog(Merged(store, prod)); return true; }
             catch (Exception ex) { MessageBox.Show(owner, "Konnte nicht gespeichert werden.\n" + ex.Message, Title, MessageBoxButtons.OK, MessageBoxIcon.Error); return false; }
+        }
+
+        // N7: Katalog unmittelbar vor dem Speichern neu laden und nur das Pufferpaket dieses Produkts einsetzen (Aenderungen anderer
+        // Admins am Katalog waehrend der Dialog offen war bleiben erhalten); neues Produkt wird angehaengt.
+        internal static Catalog Merged(IDataStore store, ProductProfile prod)
+        {
+            Catalog fresh = store.GetCatalog().Clone();
+            ProductProfile have = fresh.Product(prod.Code);
+            if (have != null) have.Puffer = prod.Puffer; else fresh.Products.Add(prod);
+            return fresh;
         }
     }
 

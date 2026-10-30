@@ -60,8 +60,16 @@ namespace Arbeitsplan.Win
         {
             if (loading) return;
             dirty = true;
-            if (ActiveControl is TextBoxBase) { ScheduleView(false); return; }
+            if (Typing()) { ScheduleView(false); return; }
             CancelView(); UpdateView(false); CommitUndo();
+        }
+
+        // N7: Tippen in einem Textfeld oder einem frei beschreibbaren Geraete-Feld (EquipRow): Ansicht nach Ruhe, Rueckgaengig-Schnappschuss beim Verlassen
+        bool Typing()
+        {
+            Control a = ActiveControl;   // ohne Abstieg in Container (NumericUpDown enthaelt ein Textfeld: Pfeile sollen sofort wirken)
+            ComboBox cb = a as ComboBox;
+            return a is TextBoxBase || (cb != null && cb.DropDownStyle != ComboBoxStyle.DropDownList && cb.Parent is EquipRow && !cb.DroppedDown);
         }
 
     }

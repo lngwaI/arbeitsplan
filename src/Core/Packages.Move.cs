@@ -47,7 +47,8 @@ namespace Arbeitsplan.Core
         public bool Normalize(bool closeGap = true)
         {
             int min = int.MaxValue;
-            foreach (RunDate d in Schedule(null)) min = Math.Min(min, d.Day);
+            foreach (RunDate d in Schedule(null))   // N7: Puffer-Karten mit eigenem Versatz liegen frueher als der Termin des Schritts
+                min = Math.Min(min, d.Day + (d.Step >= 0 && d.Step < Steps.Count ? MinCardDelta(Steps[d.Step], Day1) : 0));
             if (min == int.MaxValue || min == 1) return false;
             int k = 1 - min;
             if (k < 0 && !closeGap) return false;

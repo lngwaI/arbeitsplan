@@ -24,6 +24,7 @@ namespace Arbeitsplan.Win
         {
             eqBar.Main = BarMain; eqBar.Details = delegate { if (barTarget != null) AddToList(barTarget.Id, barTarget.Short); }; eqBar.Close = BarClose;
             doneTimer.Interval = 9000; doneTimer.Tick += delegate { EndDone(); };
+            Disposed += delegate { doneTimer.Stop(); doneTimer.Dispose(); };   // N7: kein Tick auf ein geschlossenes Fenster
         }
 
         // Von EquipHint aufgerufen: ID ist nirgends in der Equipment-Liste

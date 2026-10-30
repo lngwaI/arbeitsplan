@@ -220,6 +220,9 @@ namespace Arbeitsplan.Win
 
         void RemoveStep() { RemoveStep(true); }
 
+        // Anzahl Schritte "zu jedem Lauf", die am Hauptlauf s haengen (0 = s ist nicht der Hauptlauf)
+        internal int HeadDeps(PackageStep s) { return s == null || s != StepsView().Head ? 0 : steps.FindAll(delegate(PackageStep x) { return x != s && !x.IsEmpty && x.Bind == StepBind.JeLauf; }).Count; }
+
         void RemoveStep(bool ask)
         {
             if (cur == null) return;
@@ -234,7 +237,11 @@ namespace Arbeitsplan.Win
                 MessageBox.Show(this, "\"" + b.Name + "\" ist ein Standard-Schritt der Kampagne. Entfernen braucht das Recht \"Pakete einrichten\".", "Paket-Editor", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
-            if (ask && MessageBox.Show(this, "Schritt " + No(cur) + " \"" + TitleOf(cur) + "\" (" + WhenText(cur) + ") aus dem Ablauf entfernen?", "Schritt entfernen",
+            int deps = HeadDeps(cur);   // N7: Hauptlauf mit abhaengigen "zu jedem Lauf"-Schritten: eigene Rueckfrage, Standard Abbrechen
+            if (ask && deps > 0 && MessageBox.Show(this, "Schritt " + No(cur) + " \"" + TitleOf(cur) + "\" ist der Hauptlauf. " + deps + (deps == 1 ? " Schritt folgt" : " Schritte folgen")
+                + " ihm „zu jedem Lauf“ und " + (deps == 1 ? "verliert" : "verlieren") + " damit ihren Takt (ihre Termine ändern sich).\n\nHauptlauf trotzdem entfernen?", "Hauptlauf entfernen",
+                MessageBoxButtons.OKCancel, MessageBoxIcon.Warning, MessageBoxDefaultButton.Button2) != DialogResult.OK) return;
+            if (ask && deps == 0 && MessageBox.Show(this, "Schritt " + No(cur) + " \"" + TitleOf(cur) + "\" (" + WhenText(cur) + ") aus dem Ablauf entfernen?", "Schritt entfernen",
                 MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button2) != DialogResult.Yes) return;
             List<PackageStep> o = Ordered();
             int i = o.IndexOf(cur);

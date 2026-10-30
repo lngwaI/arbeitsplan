@@ -391,6 +391,7 @@ namespace Arbeitsplan.Win
             SelfTestFreeze(sb);   // F1: Freeze-Modul Core (Rechnung, XML, Merge, Rechte, SplitIndex, Suche) (MainForm.SelfTestFreeze.cs)
             SelfTestFreezeUi(sb);   // F2: Freeze-Oberflaeche (Dialog, Speichern, Anzeige, Struktur) (MainForm.SelfTestFreezeUi.cs)
             sb.Append(PackageForm.TestUx5f(equip, start));   // N5: Leiste "nicht in der Equipment-Liste", Vormerkung (PackageForm.TestUx5f.cs)
+            SelfTestN7(sb);   // N7: Review-Befunde Paket-Editor + Puffer (MainForm.SelfTestN7.cs)
             using (MainForm mx = new MainForm("ux4", true, null, null)) { mx.FitToCursorScreen(); sb.AppendLine("UX4 Hauptfenster startet maximiert: " + Ok(mx.WindowState == FormWindowState.Maximized)); }
             quiet = false;
             return sb.ToString();

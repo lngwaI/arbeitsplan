@@ -20,6 +20,8 @@ namespace Arbeitsplan.Win
 
         PackageStep step; Catalog cat; string product;
         readonly Action changed, rebuild, structure; readonly Action<int> toggled, removeMe;   // structure: Zeilen der Karte geaendert (Anzahl/Reihenfolge), ohne alles neu aufzubauen
+        readonly Action<int, int> moveMe;   // U4: Karte von Puffer from nach to (▲▼ im Kopf)
+        readonly Button bUp = new Button(), bDn = new Button();
         readonly RowPool pool;   // Zeilen dieser Karte: freie bleiben versteckt in der Karte
         public int Index;
         public bool Open, Bad;
@@ -40,9 +42,11 @@ namespace Arbeitsplan.Win
         PufferSpec Spec { get { return step.Puffers[Index]; } }
 
         // Die Karte wird einmal gebaut und mit Bind auf einen Puffer eines Schritts gesetzt (Fensterhandles anlegen ist teuer, UX-5e)
-        public PufferCard(Action changed, Action rebuild, Action structure, Action<int> toggled, Action<int> removeMe)
+        public PufferCard(Action changed, Action rebuild, Action structure, Action<int> toggled, Action<int> removeMe, Action<int, int> moveMe)
         {
-            this.changed = changed; this.rebuild = rebuild; this.structure = structure; this.toggled = toggled; this.removeMe = removeMe; pool = new RowPool(this);
+            this.changed = changed; this.rebuild = rebuild; this.structure = structure; this.toggled = toggled; this.removeMe = removeMe; this.moveMe = moveMe; pool = new RowPool(this);
+            bUp.Text = "▲"; bDn.Text = "▼"; bUp.Click += delegate { moveMe(Index, Index - 1); }; bDn.Click += delegate { moveMe(Index, Index + 1); };
+            Controls.Add(bUp); Controls.Add(bDn);
             reorder = new RowReorder(this, delegate { return rows.Count; }, SlotBounds, delegate(int f, int t) { MoveRow(f, t); });
             reorder.Lo = delegate(int f) { return f < Spec.Lines.Count ? 0 : Spec.Lines.Count; };   // eigene Zeilen bleiben oben, gemeinsame darunter
             reorder.Hi = delegate(int f) { return f < Spec.Lines.Count ? Spec.Lines.Count - 1 : rows.Count - 1; };
@@ -66,7 +70,8 @@ namespace Arbeitsplan.Win
             tip.SetToolTip(nTime, "Tage zum Lauf (1–" + PackageStep.MaxCardOffset + ")");
             string[] hd = { "Position", "Gerät", "abwechselnd", "Ausweich-Gerät", "Notiz" };
             for (int i = 0; i < 5; i++) { heads[i] = new Label(); heads[i].Text = hd[i]; heads[i].AutoEllipsis = true; heads[i].UseMnemonic = false; Controls.Add(heads[i]); }
-            foreach (Button b in new[] { bToggle, bRemove, bPos }) Theme.Current.StyleButton(b);
+            foreach (Button b in new[] { bToggle, bRemove, bPos, bUp, bDn }) Theme.Current.StyleButton(b);
+            tip.SetToolTip(bUp, "Puffer eine Stelle nach oben (Reihenfolge im Plan)"); tip.SetToolTip(bDn, "Puffer eine Stelle nach unten (Reihenfolge im Plan)");
             Ui.SimpleMenu(tName);
             tip.SetToolTip(bToggle, "Karte auf- oder zuklappen");
             tip.SetToolTip(tName, "Name des Puffers im Plan. Leer = Titel des Schritts (ab Puffer 2 mit Nummer).");
@@ -152,57 +157,6 @@ namespace Arbeitsplan.Win
             return string.Join(" · ", p.ToArray());
         }
 
-        // "nur dieser Puffer" / "gilt auch für Puffer 2" / "alle Puffer" (aus Sicht dieser Karte)
-        string ScopeText(EquipAssign a)
-        {
-            PufferShare g = step.ShareOf(a);
-            if (g == null) return "nur dieser Puffer";
-            int m = step.MaskOf(g);
-            if (m == step.AllMask && step.Puffers.Count > 2) return "alle Puffer";
-            List<string> o = new List<string>();
-            for (int k = 0; k < step.Puffers.Count; k++) if (k != Index && ((m >> k) & 1) != 0) o.Add((k + 1).ToString());
-            return o.Count == 0 ? "nur dieser Puffer" : "gilt auch für Puffer " + string.Join(", ", o.ToArray());
-        }
-
-        void ShowScope(EquipAssign a, Button anchor)
-        {
-            PufferShare g = step.ShareOf(a);
-            int mask = g != null ? step.MaskOf(g) : 1 << Index;
-            ContextMenuStrip m = new ContextMenuStrip();
-            for (int k = 0; k < step.Puffers.Count; k++)
-            {
-                ToolStripMenuItem it = new ToolStripMenuItem(PufferName(k) + (step.Puffers[k].Name.Length > 0 ? ": " + step.Puffers[k].Name : ""));
-                it.CheckOnClick = true; it.Checked = ((mask >> k) & 1) != 0; m.Items.Add(it);
-            }
-            m.Items.Add(new ToolStripSeparator());
-            m.Items.Add("Menü schließen = übernehmen").Enabled = false;
-            m.Closing += delegate(object o, ToolStripDropDownClosingEventArgs e) { if (e.CloseReason == ToolStripDropDownCloseReason.ItemClicked) e.Cancel = true; };
-            m.Closed += delegate
-            {
-                int nm = 0;
-                for (int k = 0; k < step.Puffers.Count; k++) if (((ToolStripMenuItem)m.Items[k]).Checked) nm |= 1 << k;
-                if (nm != 0 && nm != mask) BeginInvoke(new Action(delegate { SetScope(a, nm); }));
-            };
-            m.Show(anchor, new Point(0, anchor.Height));
-        }
-
-        public void SetScope(EquipAssign a, int mask) { if (step.SetScope(a, mask)) rebuild(); }
-
-        void ShowPosMenu()
-        {
-            ContextMenuStrip m = new ContextMenuStrip();
-            List<string> shorts = new List<string>();
-            Baustein b = cat.Baustein_(Catalog.StandardPufferName);
-            if (b != null) shorts.AddRange(b.Positions);
-            foreach (EquipAssign a in Spec.Lines) if (!shorts.Contains(a.Short)) shorts.Add(a.Short);
-            foreach (string sh in shorts)
-            {
-                string s = sh; EquipPosition ep = cat.Position(sh);
-                m.Items.Add((ep != null ? ep.Name + "  (" + sh + ")" : sh), null, delegate { AddLine(s); });
-            }
-            m.Show(bPos, new Point(0, bPos.Height));
-        }
-
         // Texte und Zustand aus dem Modell auffrischen und alles anordnen; liefert die Hoehe der Karte
         public int Arrange(int w, bool wide)
         {
@@ -216,15 +170,19 @@ namespace Arbeitsplan.Win
             }
             bToggle.Text = Open ? "▾" : "▸";
             bToggle.SetBounds(6, y, 26, ih);
-            int rw = 84;
+            int rw = 84, aw = 24;
             bRemove.SetBounds(w - 6 - rw, y, rw, ih);
+            bool many = step.Puffers.Count > 1;   // U4: ▲▼ nur bei mehreren Puffern, am Rand deaktiviert
+            bUp.Visible = bDn.Visible = many; bUp.Enabled = Index > 0; bDn.Enabled = Index < step.Puffers.Count - 1;
+            bDn.SetBounds(bRemove.Left - 4 - aw, y, aw, ih); bUp.SetBounds(bDn.Left - 2 - aw, y, aw, ih);
+            int right = many ? bUp.Left : bRemove.Left;
             lSum.Visible = !Open; lTitle.Visible = tName.Visible = cbTyp.Visible = Open;
             lSum.Text = Summary(); tip.SetToolTip(lSum, lSum.Text);
-            if (!Open) lSum.SetBounds(36, y, Math.Max(10, bRemove.Left - 6 - 36), ih);
+            if (!Open) lSum.SetBounds(36, y, Math.Max(10, right - 6 - 36), ih);
             else
             {
                 lTitle.SetBounds(36, y, TextRenderer.MeasureText(lTitle.Text, lTitle.Font).Width + 6, ih);
-                cbTyp.SetBounds(bRemove.Left - 6 - 96, y + (ih - cbTyp.Height) / 2, 96, cbTyp.Height);
+                cbTyp.SetBounds(right - 6 - 96, y + (ih - cbTyp.Height) / 2, 96, cbTyp.Height);
                 tName.SetBounds(lTitle.Right + 2, y + (ih - tName.Height) / 2, Math.Max(40, cbTyp.Left - 6 - lTitle.Right - 2), tName.Height);
             }
             y += ih + 4;
@@ -256,7 +214,7 @@ namespace Arbeitsplan.Win
                 }
                 if (r.ScopeBtn != null)
                 {
-                    r.ScopeBtn.Text = ScopeText(r.A) + " ▾";
+                    r.ScopeBtn.Text = ScopeText(r.A) + " …";
                     r.ScopeLbl.SetBounds(8, y, Math.Max(40, x[1] - 6), ih); r.ScopeBtn.SetBounds(8 + x[1], y, Math.Min(Math.Max(120, iw - x[1]), 230), ih);
                     y += ih + 4;
                 }
@@ -291,6 +249,9 @@ namespace Arbeitsplan.Win
         internal string TestSummary { get { return lSum.Text; } }
         internal Button TestRemove { get { return bRemove; } }
         internal Button TestToggle { get { return bToggle; } }
+        internal List<EquipAssign> TestAssigns { get { return rows.ConvertAll<EquipAssign>(delegate(Row r) { return r.A; }); } }
+        internal Button TestCardUp { get { return bUp; } }
+        internal Button TestCardDown { get { return bDn; } }
         internal string TestScopeOf(EquipAssign a) { return ScopeText(a); }
 #endif
     }

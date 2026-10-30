@@ -13,7 +13,7 @@ namespace Arbeitsplan.Win
     // tragen ein Schloss, Rechtsklick = Menue (Maus: PackageForm.StripMouse.cs; Zoom, "nur Auswahl", Tooltip: PackageForm.Zoom.cs).
     partial class PlanStrip : Control
     {
-        public class Item { public int Day, Run; public string Title = "", Sub = "", Row = ""; public bool Shifted, Je; public PackageStep Step; }   // Shifted = fest verschoben (Schloss), Je = folgt dem Hauptlauf (Ziehen verschiebt alle)
+        public class Item { public int Day, Run; public string Title = "", Sub = "", Row = ""; public bool Shifted, Je, Bad; public PackageStep Step; }   // Shifted = fest verschoben (Schloss), Je = folgt dem Hauptlauf (Ziehen verschiebt alle), Bad = Karte vor dem Start (rot, N7)
         class RowL { public string Name = ""; public int Y, H; public bool Missing; }
         const int EmptyW = 24, MaxDays = 370, Spare = 3, Wheel = 40;
         List<Item> all = new List<Item>(), items = new List<Item>();   // all = alle Eintraege, items = angezeigte ("nur Auswahl")
@@ -191,9 +191,9 @@ namespace Arbeitsplan.Win
                     bool on = i.Step == selected, cur = on && i.Run == selRun, moving = press != null && dropDay > 0 && (i == press || (!OnlyRun && i.Step == press.Step && (press.Je || i.Run >= press.Run)));   // wandert mit
                     if (on) g.FillRectangle(selBack, r);
                     if (cur) g.DrawRectangle(sel, r); else g.DrawRectangle(on ? t.Pen(t.BorderSel, 1) : line, r);
-                    if (markStep != null && i.Step == markStep && i.Run == markRun) using (Pen red = new Pen(Color.Firebrick, 2f)) g.DrawRectangle(red, r.X + 1, r.Y + 1, r.Width - 2, r.Height - 2);   // zweiter Beteiligter eines Problems
+                    if (i.Bad || (markStep != null && i.Step == markStep && i.Run == markRun)) using (Pen red = new Pen(Color.Firebrick, 2f)) g.DrawRectangle(red, r.X + 1, r.Y + 1, r.Width - 2, r.Height - 2);   // zweiter Beteiligter eines Problems
                     if (moving) { r.Inflate(-1, -1); using (Pen dash = new Pen(t.BorderEdit, 1f)) { dash.DashStyle = System.Drawing.Drawing2D.DashStyle.Dash; g.DrawRectangle(dash, r); } }
-                    TextRenderer.DrawText(g, i.Title, bold, new Rectangle(r.X + 4, r.Y + 2, r.Width - (i.Shifted ? 20 : 6), Font.Height + 1), t.HeadText, ff);
+                    TextRenderer.DrawText(g, i.Title, bold, new Rectangle(r.X + 4, r.Y + 2, r.Width - (i.Shifted ? 20 : 6), Font.Height + 1), i.Bad ? Color.Firebrick : t.HeadText, ff);
                     if (i.Shifted) DrawLock(g, r.Right - 14, r.Y + 4, t.BorderEdit);
                     TextRenderer.DrawText(g, i.Sub, Font, new Rectangle(r.X + 4, r.Y + 3 + Font.Height, r.Width - 6, Font.Height + 1), Section.HelpColor, ff);
                 }

@@ -53,6 +53,35 @@ namespace Arbeitsplan.Core
         // Der Schritt hat Karten an verschiedenen Tagen (und es gibt einen Hauptlauf, an dem er haengt)
         public bool CardsSplit(PackageStep s, DayOfWeek day1) { return s.IsBuffer && s.HasCardOffsets && HeadIndex(day1) >= 0; }
 
+        // N7: Tage, um die die frueheste Karte vor dem Termin des Schritts liegt (0 = keine davor). Eine Quelle fuer Normalize, Kalender,
+        // Kampagnen-Vorschau und Pruefung (frueheste Karte = Termin + MinCardDelta).
+        public int MinCardDelta(PackageStep s, DayOfWeek day1) { return CardsSplit(s, day1) ? Math.Min(0, s.CardDeltas()[0]) : 0; }
+
+        // Frueheste Karte eines Termins vor Tag 1 (= vor dem Kampagnen-Start)?
+        public bool CardBeforeStart(RunDate d, DayOfWeek day1)
+        {
+            return d.Step >= 0 && d.Step < Steps.Count && Steps[d.Step].IsBuffer && d.Day + MinCardDelta(Steps[d.Step], day1) < 1;
+        }
+
+        // Regel "pufvor" (Sperre): eine Puffer-Karte laege vor dem Kampagnen-Start; beim Uebernehmen wuerde ein Block ausserhalb
+        // des gezeigten Zeitraums geschrieben (bei "Überschreiben" sogar ersetzt). Je Schritt eine Meldung.
+        void CheckPufferBefore(List<PackageProblem> res, List<RunDate> plan, DayOfWeek day1)
+        {
+            HashSet<int> done = new HashSet<int>();
+            foreach (RunDate d in plan)
+            {
+                if (!CardBeforeStart(d, day1) || !done.Add(d.Step)) continue;
+                PackageStep s = Steps[d.Step];
+                List<string> who = new List<string>();
+                foreach (int dl in CardsSplit(s, day1) ? s.CardDeltas() : new List<int>(new[] { 0 }))
+                    if (d.Day + dl < 1) who.Add(CardsSplit(s, day1) ? CardNames(s, dl) : "alle Puffer");
+                int days = 1 - (d.Day + MinCardDelta(s, day1));
+                PackageProblem p = Add(res, Severity.Sperre, "pufvor", "Puffer „" + StepName(d.Step) + "“ (" + string.Join(", ", who.ToArray()) + ", Lauf " + (d.Run + 1) + ") läge "
+                    + days + (days == 1 ? " Tag" : " Tage") + " vor dem Kampagnen-Start – beim Übernehmen würde ein Block außerhalb des gezeigten Zeitraums geschrieben", d.Step, d.Run);
+                p.Action = "eigenen Versatz der Karte verkleinern oder Lauf 1 (Startdatum) entsprechend später legen";
+            }
+        }
+
         // Namen der Puffer (Karten) im Plantext fuer Tooltips: "Puffer 1, Puffer 2" je Tag-Abstand delta
         public string CardNames(PackageStep s, int delta)
         {

@@ -78,7 +78,7 @@ namespace Arbeitsplan.Core
             {
                 List<int> keys = new List<int>(s.IdentOver.Keys); keys.Sort();
                 List<string> parts = new List<string>();
-                foreach (int k in keys) parts.Add(I(k + 1) + "=" + s.IdentOver[k].Replace(';', ','));
+                foreach (int k in keys) parts.Add(I(k + 1) + "=" + s.IdentOver[k].Replace(";", ";;"));   // N7: ";" in der Kennung = ";;" (Kennung bleibt unveraendert)
                 w.WriteAttributeString("kennungje", string.Join(";", parts.ToArray()));
             }
             // alte Kommaliste (aufgeloest), fehlt bei aelteren Paketen
@@ -104,13 +104,28 @@ namespace Arbeitsplan.Core
             }
             bool neu = e.HasAttribute("kennungstart") || e.HasAttribute("kennungje");
             s.IdentStart = e.GetAttribute("kennungstart").Trim();
-            foreach (string part in e.GetAttribute("kennungje").Split(';'))
+            foreach (string part in SplitIdents(e.GetAttribute("kennungje")))
             {
                 int eq = part.IndexOf('='), r;
                 if (eq > 0 && int.TryParse(part.Substring(0, eq), NumberStyles.Integer, CultureInfo.InvariantCulture, out r) && r >= 1 && r <= PackageStep.MaxRuns && part.Length > eq + 1)
                     s.IdentOver[r - 1] = part.Substring(eq + 1).Trim();
             }
             s.Ident = neu ? "" : e.GetAttribute("kennung");
+        }
+
+        // "1=A;2=B;;C" -> "1=A", "2=B;C": ";;" = Semikolon in der Kennung, ";" trennt (folgt immer eine Laufnummer). Alte Dateien
+        // enthalten kein ";;" (dort wurde ";" zu ","), sie lesen sich wie bisher.
+        internal static List<string> SplitIdents(string v)
+        {
+            List<string> r = new List<string>(); StringBuilder sb = new StringBuilder();
+            for (int i = 0; i < v.Length; i++)
+            {
+                if (v[i] != ';') { sb.Append(v[i]); continue; }
+                if (i + 1 < v.Length && v[i + 1] == ';') { sb.Append(';'); i++; continue; }
+                r.Add(sb.ToString()); sb.Length = 0;
+            }
+            r.Add(sb.ToString());
+            return r;
         }
     }
 }

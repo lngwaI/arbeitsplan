@@ -66,6 +66,7 @@ namespace Arbeitsplan.Win
             if (from < 0 || from >= total) return;
             to = from < own ? Math.Max(0, Math.Min(own - 1, to)) : Math.Max(own, Math.Min(total - 1, to));
             if (to == from || !step.MoveEquip(Index, from, to)) return;
+            if (from >= own) { rebuild(); return; }   // N7: gemeinsame Zeile = globale Reihenfolge, andere Karten zeigen sie auch: alles neu binden
             Row x = rows[from]; rows.RemoveAt(from); rows.Insert(to, x);
             Resync(); structure();
         }

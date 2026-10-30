@@ -83,7 +83,8 @@ namespace Arbeitsplan.Win
         bool SaveFile(bool saveAs)
         {
             Package p = Collect();
-            if (p == null || !BelongsOk(this, p, cat, "gespeichert")) return false;
+            if (p == null) return false;
+            if (!BelongsOk(this, p, cat, "gespeichert")) { GoToBelongs(); return false; }   // U10: betroffene Karte/Zeile anspringen
             string f = file;
             if (saveAs || f == null)
                 using (SaveFileDialog d = new SaveFileDialog())
@@ -113,6 +114,7 @@ namespace Arbeitsplan.Win
                         + " Bitte unter \"Wo im Plan?\" einen Raum (Block) wählen.", "Paket-Editor", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     return;
                 }
+            if (!BelongsOk(this, p, store.GetCatalog(), "übernommen")) { GoToBelongs(); return; }   // U10
             DateTime st;
             if (StartCampaign(this, p, store, weekStart, By, out st)) { Applied = true; AppliedStart = st; }
         }
