@@ -22,6 +22,8 @@ namespace Arbeitsplan.Win
             return k < l.Count ? l[k].Name : "";
         }
 
+        protected override void OnFormClosed(FormClosedEventArgs e) { if (addMenu != null) { addMenu.Dispose(); addMenu = null; } base.OnFormClosed(e); }
+
         static string Amp(string s) { return s.Replace("&", "&&"); }
 
         void ShowAddMenu()
@@ -68,8 +70,7 @@ namespace Arbeitsplan.Win
                 foreach (EquipAssign a in cur.Puffers[cur.Puffers.Count - 1].Lines) { PufferTemplatePos p = new PufferTemplatePos(); p.Short = a.Short; t.Positions.Add(p); }
             }
             t.Typ = cur.Puffers[cur.Puffers.Count - 1].Typ;
-            PufferSpec sp = Package.ApplyPufferTemplate(cur, t);
-            sp.NameNo = cur.Puffers.Count;   // ohne eigenen Namen "Titel 2", "Titel 3" …
+            PufferSpec sp = Package.ApplyPufferTemplate(cur, t);   // Nummerierung "Titel 2", "Titel 3" … macht der Kern
             PufferAdded(sp, "Puffer " + cur.Puffers.Count + " angehängt");
         }
 
@@ -83,14 +84,15 @@ namespace Arbeitsplan.Win
             foreach (PufferShare g in cur.PufferShared) if (g.Scope != 0 && g.Covers(k) && nk < 31) g.Scope |= 1 << nk;
             if (sp.Name.Length == 0) sp.NameNo = cur.Puffers.Count;
             cur.SyncPuffers();
-            PufferAdded(sp, "Puffer " + cur.Puffers.Count + " als Kopie von Puffer " + (k + 1) + " angehängt");
+            bool named = sp.Name.Length > 0;
+            PufferAdded(sp, "Puffer " + cur.Puffers.Count + " als Kopie von Puffer " + (k + 1) + " angehängt" + (named ? " – Name ggf. in der Karte ändern" : ""));
+            if (named) foreach (PufferCard c in cards) if (c.Visible && c.Index == nk) { c.FocusName(); break; }   // Name der neuen Karte gleich änderbar
         }
 
         internal void AddPufferFromTemplate(PufferTemplate t)
         {
             if (!CanAddPuffer()) return;
             PufferSpec sp = Package.ApplyPufferTemplate(cur, t.Clone());
-            if (sp.Name.Length == 0) sp.NameNo = cur.Puffers.Count;
             PufferAdded(sp, "Puffer " + cur.Puffers.Count + " aus Vorlage „" + t.Label + "“ angehängt");
         }
 
@@ -108,7 +110,7 @@ namespace Arbeitsplan.Win
                     if (r == DialogResult.Retry)
                     {
                         pre = d.CreateFor; append = d.Append;
-                        if (PufferPackAdmin.Manage(this, store, pre, canAdmin)) { cat = store.GetCatalog(); cat.AddStandardBausteine(); BuildPosMenu(); }
+                        if (PufferPackAdmin.ManageProduct(this, store, pre, canAdmin)) { cat = store.GetCatalog(); cat.AddStandardBausteine(); BuildPosMenu(); Bind(cur); }   // direkt das Pufferpaket des Produkts (ohne Produktwahl)
                         continue;
                     }
                     if (r == DialogResult.OK) ApplyPicked(d.Result, d.ResultCode, d.Append);
@@ -134,7 +136,6 @@ namespace Arbeitsplan.Win
             for (int i = 0; i < n; i++)
             {
                 PufferSpec sp = Package.ApplyPufferTemplate(cur, list[i].Clone());
-                if (sp.Name.Length == 0) sp.NameNo = cur.Puffers.Count;
                 if (first == null) first = sp;
             }
             PufferAdded(first, n + " Puffer aus " + src + " übernommen (hinten angehängt)");
@@ -145,7 +146,6 @@ namespace Arbeitsplan.Win
             if (cur == null || !cur.IsBuffer || list.Count == 0) return;
             if (list.Count > PackageStep.MaxPuffer) list = list.GetRange(0, PackageStep.MaxPuffer);
             Package.ApplyPufferTemplates(cur, list);
-            for (int k = 1; k < cur.Puffers.Count; k++) if (cur.Puffers[k].Name.Length == 0) cur.Puffers[k].NameNo = k + 1;   // unbenannte: "Titel 2" …
             pufStep = null;   // Kartenzustand neu: die erste aufgeklappt
             dirty = true; Bind(cur); CommitUndo();
         }

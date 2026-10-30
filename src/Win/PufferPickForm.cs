@@ -31,6 +31,7 @@ namespace Arbeitsplan.Win
         internal readonly Button bOk = new Button(), bAll = new Button(), bNone = new Button();
         readonly ToolTip tip = new ToolTip();
         bool loading;
+        Source linkTo;   // Ziel des Links im Leerzustand (Standardpuffer fehlt: Quelle mit Vorlagen); null = Pufferpaket anlegen
         const string WarnText = "Nicht in der Equipment-Liste";
 
         public static string TypText(string typ) { return typ == "stationaer" ? "stationär" : typ; }
@@ -59,14 +60,14 @@ namespace Arbeitsplan.Win
             intro.Text = "Hake die Puffer an, die dieser Schritt bekommen soll. Geräte und Reihenfolge kannst du danach in den Karten ändern.";
             Label ls = new Label(); ls.Text = "Pufferpaket von:"; ls.SetBounds(12, 54, 112, 24); ls.TextAlign = ContentAlignment.MiddleLeft;
             cbSrc.DropDownStyle = ComboBoxStyle.DropDownList; cbSrc.SetBounds(128, 54, 520, 24);
-            lblHint.SetBounds(128, 82, 520, 18); lblHint.ForeColor = Color.DarkOrange; lblHint.UseMnemonic = false;
-            lblHint.Text = "Paket hat noch keinen Produktcode – Produkt hier wählen."; lblHint.Visible = packageProduct.Length == 0;
-            lv.SetBounds(12, 106, 636, 200); lv.View = View.Details; lv.CheckBoxes = true; lv.FullRowSelect = true; lv.HideSelection = false; lv.MultiSelect = false; lv.ShowItemToolTips = false;
+            lblHint.SetBounds(128, 78, 520, 34); lblHint.ForeColor = Color.DarkOrange; lblHint.UseMnemonic = false;
+            lblHint.Text = "Das Paket hat noch keinen Produktcode. Hier wählst du nur, woher die Puffer kommen; den Produktcode trägst du oben im Paket ein."; lblHint.Visible = packageProduct.Length == 0;
+            lv.SetBounds(12, 114, 636, 192); lv.View = View.Details; lv.CheckBoxes = true; lv.FullRowSelect = true; lv.HideSelection = false; lv.MultiSelect = false; lv.ShowItemToolTips = false;
             lv.Columns.Add("Bezeichnung", 190); lv.Columns.Add("Typ", 80); lv.Columns.Add("Positionen und Geräte", 340);
             lv.ItemChecked += delegate { if (!loading) Recount(); };
             lv.MouseMove += OnMove;
-            lblEmpty.SetBounds(20, 114, 620, 20); lblEmpty.ForeColor = SystemColors.GrayText; lblEmpty.UseMnemonic = false; lblEmpty.AutoEllipsis = true;
-            link.SetBounds(20, 138, 620, 20); link.UseMnemonic = false; link.LinkClicked += delegate { CreatePack(); };
+            lblEmpty.SetBounds(20, 122, 620, 38); lblEmpty.ForeColor = SystemColors.GrayText; lblEmpty.UseMnemonic = false;
+            link.SetBounds(20, 164, 620, 20); link.UseMnemonic = false; link.LinkClicked += delegate { if (linkTo != null) cbSrc.SelectedItem = linkTo; else CreatePack(); };
             lblCount.SetBounds(12, 312, 400, 20); lblCount.UseMnemonic = false;
             bAll.Text = "Alle"; bAll.SetBounds(482, 308, 80, 26); bAll.Click += delegate { CheckAll(true); };
             bNone.Text = "Keine"; bNone.SetBounds(568, 308, 80, 26); bNone.Click += delegate { CheckAll(false); };
@@ -84,6 +85,10 @@ namespace Arbeitsplan.Win
                 Source s = new Source(); s.Code = p.Code; s.List = p.Puffer;
                 s.Text = p.Code + (p.Name.Length > 0 ? " · " + p.Name : "") + (p.Puffer.Count > 0 ? " (" + p.Puffer.Count + " Puffer)" : " (kein Pufferpaket)");
                 cbSrc.Items.Add(s);
+            }
+            if (Package.IsProductCode(packageProduct) && cat.Product(packageProduct) == null)   // Code des Pakets ohne Produktprofil: als Quelle anbieten (Leerzustand mit "anlegen…")
+            {
+                Source u = new Source(); u.Code = packageProduct; u.Text = packageProduct + " (kein Pufferpaket)"; cbSrc.Items.Add(u);
             }
             Source std = new Source(); std.Text = "Standardpuffer (ohne Geräte)"; PufferTemplate st = cat.StandardPuffer(); if (st != null) std.List.Add(st);
             cbSrc.Items.Add(std);
@@ -104,7 +109,7 @@ namespace Arbeitsplan.Win
 
         void Fill()
         {
-            loading = true; lv.Items.Clear(); Source s = Cur;
+            loading = true; lv.Items.Clear(); Source s = Cur; linkTo = null;
             foreach (PufferTemplate t in s.List)
             {
                 ListViewItem it = new ListViewItem(t.Label); it.Checked = true; it.UseItemStyleForSubItems = false; it.Tag = t;
@@ -118,7 +123,11 @@ namespace Arbeitsplan.Win
             lv.Visible = !empty; bAll.Enabled = bNone.Enabled = !empty; lblEmpty.Visible = empty; link.Visible = false;
             if (empty)
             {
-                if (s.Code.Length == 0) lblEmpty.Text = "Der Standardpuffer ist noch nicht eingerichtet (Einstellungen → Equipment & Bausteine).";
+                if (s.Code.Length == 0)
+                {
+                    lblEmpty.Text = "Der Standardpuffer ist noch nicht eingerichtet" + (canAdmin ? " (Baustein „" + Catalog.StandardPufferName + "“ unter Einstellungen → Equipment & Bausteine)." : ". Der Admin richtet ihn ein.");
+                    foreach (object o in cbSrc.Items) { Source x = (Source)o; if (x.List.Count > 0) { linkTo = x; link.Text = "Stattdessen Pufferpaket von " + x.Code + " wählen"; link.Visible = true; break; } }
+                }
                 else if (canAdmin) { lblEmpty.Text = "Für " + s.Code + " ist kein Pufferpaket hinterlegt."; link.Text = "Pufferpaket für " + s.Code + " anlegen…"; link.Visible = true; }
                 else lblEmpty.Text = "Für " + s.Code + " ist kein Pufferpaket hinterlegt. Der Admin legt Pufferpakete an.";
             }
@@ -144,6 +153,8 @@ namespace Arbeitsplan.Win
             string t = h.Item != null && h.SubItem != null && h.SubItem.Text.StartsWith("⚠") ? WarnText : "";
             if (tip.GetToolTip(lv) != t) tip.SetToolTip(lv, t);
         }
+
+        protected override void Dispose(bool disposing) { if (disposing) tip.Dispose(); base.Dispose(disposing); }
 
         void CreatePack() { CreateFor = Cur.Code; Append = rbAppend.Checked; DialogResult = DialogResult.Retry; }
 

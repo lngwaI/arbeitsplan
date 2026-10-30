@@ -23,6 +23,9 @@ namespace Arbeitsplan.Win
         {
             bool okName = Package.PlanBufferName("PRD-1", "Puffer-1") == "PRD-1 - Puffer-1" && Package.PlanBufferName("PRD-1", "PRD-1 - Puffer-1") == "PRD-1 - Puffer-1"
                 && Package.PlanBufferName("", "Puffer-1") == "Puffer-1" && Package.PlanBufferName("PRD-1", "") == "";
+            okName &= Package.PlanBufferName("PRD-1", "PRD-1 Lösung A") == "PRD-1 Lösung A" && Package.PlanBufferName("PRD-1", "PRD-1: Lösung A") == "PRD-1: Lösung A"   // alte Namen: kein doppelter Präfix
+                && Package.PlanBufferName("PRD-1", "prd-1 - x") == "prd-1 - x" && Package.PlanBufferName("PRD-1", "PRD-1") == "PRD-1" && Package.PlanBufferName("PRD-1", "PRD-10 x") == "PRD-1 - PRD-10 x"
+                && Package.PlanBufferName("PRD-1", "Lösung PRD-1") == "PRD-1 - Lösung PRD-1";
             PufferTemplate t = new PufferTemplate(); t.Name = "Puffer-1"; t.Art = "mobiler Puffer 1";
             bool okArt = t.Label == "mobiler Puffer 1" && t.Clone().Art == "mobiler Puffer 1";
             t.Art = ""; okArt &= t.Label == "Puffer-1";

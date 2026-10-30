@@ -163,11 +163,13 @@ namespace Arbeitsplan.Core
         public static string PlanBufferName(string code, string name)
         {
             code = (code ?? "").Trim();
-            if (code.Length == 0 || string.IsNullOrEmpty(name) || name.StartsWith(code + " - ", StringComparison.Ordinal)) return name ?? "";
+            if (code.Length == 0 || string.IsNullOrEmpty(name)) return name ?? "";
+            if (name.StartsWith(code, StringComparison.OrdinalIgnoreCase) && (name.Length == code.Length || " -:".IndexOf(name[code.Length]) >= 0)) return name;   // Code schon vorne (auch "PRD-1 Loesung", "prd-1: x")
             return code + " - " + name;
         }
 
-        List<BufferItem> WithCode(List<BufferItem> l) { foreach (BufferItem b in l) b.Name = PlanBufferName(ProductCode, b.Name); return l; }
+        // Puffernamen mit Produktcode wie im Plan; auch die Vorschau im Paket-Editor nutzt es (Vorschau = Plan)
+        public List<BufferItem> WithCode(List<BufferItem> l) { foreach (BufferItem b in l) b.Name = PlanBufferName(ProductCode, b.Name); return l; }
 
 #if TESTHOOKS
         // Testpaket (erfundene Daten, Produkt 1234, Typ Kampagne, Lauf 1 ohne festes Datum): Packen, Packen Backup, Hauptlauf 4x im Rhythmus, Mischen und

@@ -14,7 +14,7 @@ namespace Arbeitsplan.Win
     {
         Package pk = new Package();   // Sicht auf steps + Kopf (Lauf 1 am, Typ, Wochentag von Tag 1); gleiche Schritt-Objekte
 
-        Package StepsView() { pk.Steps = steps; pk.RunPrefix = prefix; return pk; }
+        Package StepsView() { pk.Steps = steps; pk.RunPrefix = prefix; pk.ProductCode = Package.IsProductCode(Product) ? Product : ""; return pk; }
 
         List<RunDate> Plan() { return StepsView().Schedule(); }
 
