@@ -43,7 +43,7 @@ namespace Arbeitsplan.Core
                 for (int ri = 0; ri < rows.Count; ri++)
                     foreach (CheckDef d in DefsFor(rows[ri], cfg))
                     {
-                        string name = d.Name.Length > 0 ? d.Name : d.Short;
+                        string name = MadeRules.Display(d, cfg.BufMade).Name; if (name.Length == 0) name = d.Short;
                         if (d.Rule == CheckRule.WeeklyOnce)
                         {
                             DayState ws = CheckEval.Week(s, d, mon, today, cfg);
@@ -63,7 +63,7 @@ namespace Arbeitsplan.Core
                 foreach (RoundDef r in cfg.Rounds)
                 {
                     if (!r.Active || marks.Exists(delegate(WeekMark m) { return m.Key == r.Key && m.Done; })) continue;
-                    OpenDuty o = new OpenDuty(); o.Day = mon; o.Week = true; o.Order = -1; o.Where = "Rundgang"; o.What = r.Name;
+                    OpenDuty o = new OpenDuty(); o.Day = mon; o.Week = true; o.Order = -1; o.Where = "Rundgang"; o.What = MadeRules.Display(r, cfg.BufMade).Name;
                     o.Overdue = mon.AddDays(6) < today; o.State = o.Overdue ? "fehlt" : "offen";
                     res.Add(o);
                 }

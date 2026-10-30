@@ -81,6 +81,7 @@ namespace Arbeitsplan.Core
         public static string Summary(AuditEntry a)
         {
             string c = NoteChange(a);
+            if (c.Length == 0) c = BufferSet.MadeChange(a.Before ?? new Entry(), a.After ?? new Entry());
             return c.Length > 0 ? c + ": " + Preview(a.After) : Preview(a.After);
         }
 

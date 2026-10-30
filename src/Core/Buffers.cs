@@ -11,10 +11,12 @@ namespace Arbeitsplan.Core
     {
         public string Id = "", Name = "", Typ = "", Text = "";
         public int LaufRef;   // Nummer des Laufs, den dieser Puffer bedient (UX-5b, setzt Package.Apply; 0 = unbekannt, alte Daten)
+        public bool Made;     // hergestellt (N2, nur mit DutyConfig.BufMade sichtbar/wirksam; XML fertig="1", alte Daten = false)
 
         public BufferItem Clone() { return (BufferItem)MemberwiseClone(); }
-        public bool SameValue(BufferItem o) { return o != null && Name == o.Name && Typ == o.Typ && Text == o.Text && LaufRef == o.LaufRef; }
-        public string Key() { return Id + "|" + Typ + "|" + Name + "|" + Text + (LaufRef > 0 ? "|L" + LaufRef : "") + ";"; }
+        public bool SameCore(BufferItem o) { return o != null && Name == o.Name && Typ == o.Typ && Text == o.Text && LaufRef == o.LaufRef; }   // ohne Made
+        public bool SameValue(BufferItem o) { return SameCore(o) && Made == o.Made; }
+        public string Key() { return Id + "|" + Typ + "|" + Name + "|" + Text + (LaufRef > 0 ? "|L" + LaufRef : "") + (Made ? "|M" : "") + ";"; }
 
         // Kopfzeile wie im Plan: "Puffer 2: Name · Lauf 3" (ohne Namen "–", ohne Lauf-Angabe nur "Puffer 2: Name")
         public string HeadText(int n) { return "Puffer " + n + ": " + (Name.Length > 0 ? Name : "–") + LaufText; }
@@ -132,6 +134,7 @@ namespace Arbeitsplan.Core
                 w.WriteStartElement("puffer");
                 w.WriteAttributeString("id", b.Id); w.WriteAttributeString("typ", b.Typ); w.WriteAttributeString("name", b.Name);
                 if (b.LaufRef > 0) w.WriteAttributeString("lauf", b.LaufRef.ToString(CultureInfo.InvariantCulture));
+                if (b.Made) w.WriteAttributeString("fertig", "1");
                 w.WriteString(b.Text);
                 w.WriteEndElement();
             }
@@ -148,6 +151,7 @@ namespace Arbeitsplan.Core
                 BufferItem b = new BufferItem();
                 b.Id = c.GetAttribute("id"); b.Typ = c.GetAttribute("typ"); b.Name = c.GetAttribute("name"); b.Text = c.InnerText.Replace("\r\n", "\n");
                 int lr; if (int.TryParse(c.GetAttribute("lauf"), NumberStyles.Integer, CultureInfo.InvariantCulture, out lr) && lr > 0 && lr < 100000) b.LaufRef = lr;
+                b.Made = c.GetAttribute("fertig") == "1";
                 l.Add(b);
             }
             if (l.Count == 0) return FromVariant(e.GetAttribute("variante"));
@@ -164,7 +168,7 @@ namespace Arbeitsplan.Core
             for (int i = 0; i < l.Count; i++)
             {
                 BufferItem b = l[i];
-                r.Add("Puffer " + (i + 1) + ": " + (b.Name.Length > 0 ? b.Name : "–") + (b.Typ.Length > 0 ? " (" + b.Typ + ")" : ""));
+                r.Add("Puffer " + (i + 1) + ": " + (b.Name.Length > 0 ? b.Name : "–") + (b.Typ.Length > 0 ? " (" + b.Typ + ")" : "") + (b.Made ? " – hergestellt" : ""));
                 if (withText && b.Text.Length > 0) foreach (string t in Plain(b.Text).Split('\n')) r.Add("    " + t);
             }
             return r;
@@ -190,6 +194,25 @@ namespace Arbeitsplan.Core
                 for (int i = 0; i < n.Count && i < old.Count; i++) if (n[i].Id != old[i].Id) changed = true;
         }
 
+        static BufferItem WithMade(BufferItem core, BufferItem bb, BufferItem mm, BufferItem t)
+        {
+            BufferItem x = core.Clone(); x.Made = mm.Made != bb.Made ? mm.Made : t.Made; return x;
+        }
+
+        // Nur "hergestellt" geaendert (Rest des Blocks gleich)? "Puffer 2 hergestellt" / "Puffer 2: hergestellt zurückgenommen", sonst "".
+        public static string MadeChange(Entry b, Entry n)
+        {
+            if (b.Content != n.Content || b.Lkz != n.Lkz || b.Buffers.Count != n.Buffers.Count) return "";
+            string r = "";
+            for (int i = 0; i < n.Buffers.Count; i++)
+            {
+                BufferItem o = ById(b.Buffers, n.Buffers[i].Id);
+                if (o == null || !o.SameCore(n.Buffers[i])) return "";
+                if (o.Made != n.Buffers[i].Made) r += (r.Length > 0 ? ", " : "") + "Puffer " + (i + 1) + (n.Buffers[i].Made ? " hergestellt" : ": hergestellt zurückgenommen");
+            }
+            return r;
+        }
+
         // Dreiwege je Id. Basis b, eigene Fassung mine, gespeicherter Stand theirs.
         // Neu = dazu, einseitig geloescht = weg (hat die andere Seite denselben Puffer geaendert, bleibt er), einseitig geaendert = diese.
         // Beide aendern denselben Puffer unterschiedlich (clash): gespeicherte Fassung bleibt, die eigene kommt als weiterer Puffer dazu
@@ -213,10 +236,11 @@ namespace Arbeitsplan.Core
                     if (!t.SameValue(bb)) r.Add(t.Clone());
                     continue;
                 }
-                if (mm.SameValue(bb) || mm.SameValue(t)) { r.Add(t.Clone()); continue; }
-                if (t.SameValue(bb)) { r.Add(mm.Clone()); continue; }
+                // "hergestellt" wird getrennt gemerged (einseitig geaendert gewinnt, beide gleich = gleich); der uebrige Inhalt wie bisher
+                if (mm.SameCore(bb) || mm.SameCore(t)) { r.Add(WithMade(t, bb, mm, t)); continue; }
+                if (t.SameCore(bb)) { r.Add(WithMade(mm, bb, mm, t)); continue; }
                 clash = true;   // beide haben denselben Puffer unterschiedlich geaendert
-                if (preferMine) r.Add(mm.Clone());
+                if (preferMine) r.Add(WithMade(mm, bb, mm, t));
                 else { r.Add(t.Clone()); extra.Add(mm.Clone()); }
             }
             foreach (BufferItem m in mine)

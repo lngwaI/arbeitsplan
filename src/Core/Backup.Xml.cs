@@ -125,6 +125,7 @@ namespace Arbeitsplan.Core
         static void WriteDuties(XmlWriter w, DutyConfig c)
         {
             w.WriteStartElement("Pflichten"); w.WriteAttributeString("land", c.Land);
+            if (c.BufMade) w.WriteAttributeString("puffer-fertig", "1");
             foreach (CheckDef d in c.Defs)
             {
                 w.WriteStartElement("Def"); w.WriteAttributeString("k", d.Key); w.WriteAttributeString("name", d.Name); w.WriteAttributeString("kurz", d.Short);
@@ -145,6 +146,7 @@ namespace Arbeitsplan.Core
         {
             DutyConfig c = new DutyConfig();
             if (p.GetAttribute("land").Length > 0) c.Land = p.GetAttribute("land");
+            c.BufMade = p.GetAttribute("puffer-fertig") == "1";
             foreach (XmlElement e in Kids(p, "Def"))
             {
                 CheckDef d = new CheckDef(); d.Key = e.GetAttribute("k"); d.Name = e.GetAttribute("name"); d.Short = e.GetAttribute("kurz");

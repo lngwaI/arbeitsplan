@@ -188,6 +188,7 @@ namespace Arbeitsplan.Win
             if (edit != null) f.TestEdit(int.Parse(edit.Split(',')[0]), int.Parse(edit.Split(',')[1]));
             if (Arg(args, "--applypkg") != null) f.TestApply(Arg(args, "--applypkg"), Arg(args, "--runs") != null ? int.Parse(Arg(args, "--runs")) : 0);   // --runs n: Laufanzahl wie im Kampagnenstart aendern
             if (Arg(args, "--go") != null) f.TestGo(int.Parse(Arg(args, "--go")));   // Fenster um n Tage verschieben (z. B. -2 = ab Samstag)
+            if (Array.IndexOf(args, "--made") >= 0) f.TestMade();   // Einstellung "Puffer hergestellt" an, ein Puffer hergestellt (Wochenansicht-Shot)
             if (Arg(args, "--status") != null) f.TestStatusArg(Arg(args, "--status"));   // "H1-X-0102=Quarantaene,H1-T-0102=" (leer = entfernen)
             if (Arg(args, "--search") != null) f.TestSearch(Arg(args, "--search"));
             if (Arg(args, "--bench") != null) System.IO.File.WriteAllText(Arg(args, "--bench"), f.Bench(20).ToString("0.0") + " ms je Wechsel");

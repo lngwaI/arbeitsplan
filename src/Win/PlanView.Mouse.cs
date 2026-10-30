@@ -29,9 +29,9 @@ namespace Arbeitsplan.Win
             base.OnMouseMove(e);
             CellData c = CellAt(e.Location);
             CheckSlot s = c != null ? SlotAt(c, e.Location) : null;
-            int bi = c != null && s == null ? BufAt(c, e.Location) : -1;
+            int bi = c != null && s == null ? BufAt(c, e.Location) : -1, mi = c != null && s == null ? MadeAt(c, e.Location) : -1;
             Cursor = bi >= 0 ? Cursors.Hand : Cursors.Default;
-            string t = c == null ? RoundTip(e.Location) : s != null ? CheckTip(c, s) : bi >= 0 ? c.BufParts[bi].Tip
+            string t = c == null ? RoundTip(e.Location) : s != null ? CheckTip(c, s) : mi >= 0 ? c.BufParts[mi].MadeTip : bi >= 0 ? c.BufParts[bi].Tip
                 : c.RHead.Contains(e.Location) ? (c.Runs.Count > 0 ? RunNumbers.Describe(c.Runs) : c.Note) : "";
             if (t != tipText) { tipText = t; tip.SetToolTip(this, t.Length > 0 ? t : null); }
         }
@@ -54,6 +54,8 @@ namespace Arbeitsplan.Win
             if (head) { if (RowToggled != null) RowToggled(c.RowIndex); return; }
             if (s == null)
             {
+                int mi = MadeAt(c, e.Location);
+                if (mi >= 0) { if (MadeClicked != null) MadeClicked(c, mi); return; }
                 int bi = BufAt(c, e.Location);
                 if (bi >= 0 && BufferClicked != null) BufferClicked(c, bi);
                 return;

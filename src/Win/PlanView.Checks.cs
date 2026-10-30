@@ -28,6 +28,12 @@ namespace Arbeitsplan.Win
         {
             CheckDef d = DefsOf(c.RowIndex)[i];
             if (On(c, d)) return d.Short;
+            if (BufMade && (d.Key == MadeRules.DayKey || d.Key == MadeRules.WeekKey))   // Probe folgt aus "hergestellt": gezogen / offen
+            {
+                DayState ms = StateOf(c, i);
+                if (ms == DayState.Auto) return d.Short + " ✓ gezogen";
+                if (ms == DayState.WeekOpen) return d.Short + " offen";
+            }
             switch (StateOf(c, i))
             {
                 case DayState.Auto: return d.Rule == CheckRule.WeeklyOnce ? d.Short + " ✓ stationär" : d.Short + " auto";
@@ -164,6 +170,8 @@ namespace Arbeitsplan.Win
             if (s.Add) return "Puffer hinzufügen (Name, Typ, Text)";
             CheckDef d = DefsOf(c.RowIndex)[s.Def];
             DayState st = StateOf(c, s.Def);
+            string mt = BufMade ? MadeRules.Tip(d, st, On(c, d)) : "";
+            if (mt.Length > 0) return d.Name + ": " + (On(c, d) ? "erledigt" : st == DayState.Auto ? "gezogen" : StateText(st)) + "\n" + mt;
             if (d.Rule == CheckRule.WeeklyOnce && st == DayState.Auto) return d.Name + ": erledigt durch stationäre Herstellung" + FirstDayText(c, d) + " – kein offener Punkt";
             string t = d.Name + ": " + (On(c, d) ? "erledigt" : StateText(st));
             if (d.Rule == CheckRule.WeeklyOnce && !On(c, d) && st != DayState.Done) t += " (manuell, 1× pro Woche abhaken)";

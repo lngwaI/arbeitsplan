@@ -39,11 +39,12 @@ namespace Arbeitsplan.Core
         public List<CheckDef> Defs = new List<CheckDef>();
         public List<RoundDef> Rounds = new List<RoundDef>();
         public string Land = "BW";                                  // "BW" oder "BY"
+        public bool BufMade;                                        // N2: Puffer "hergestellt" abhaken; Tages-/Wochenprobe folgt daraus (Standard aus, XML puffer-fertig)
         public List<DateTime> ExtraHolidays = new List<DateTime>(), RemovedHolidays = new List<DateTime>();
 
         public DutyConfig Clone()
         {
-            DutyConfig c = new DutyConfig(); c.Land = Land;
+            DutyConfig c = new DutyConfig(); c.Land = Land; c.BufMade = BufMade;
             foreach (CheckDef d in Defs) c.Defs.Add(d.Clone());
             foreach (RoundDef r in Rounds) c.Rounds.Add(r.Clone());
             c.ExtraHolidays.AddRange(ExtraHolidays); c.RemovedHolidays.AddRange(RemovedHolidays);
@@ -189,6 +190,17 @@ namespace Arbeitsplan.Core
             return true;
         }
 
+        // "+": automatisch erfuellt; mit BufMade nur, wenn ein Puffer dieses Typs hergestellt ist (EIN mobiler genuegt, auch neben stationaeren)
+        static bool AutoNow(CheckDef d, Entry e, bool made) { return made ? MadeRules.AnyMade(e, d, '+') : Auto(d, e.Types); }
+
+        // Wochenprobe ("!"): erledigt durch Variante in der KW; mit BufMade nur durch einen hergestellten Puffer
+        static bool WeekSkip(Entry[] w, CheckDef d, bool made)
+        {
+            if (!made) return AnyNA(w, d);
+            foreach (Entry e in w) if (MadeRules.AnyMade(e, d, '!')) return true;
+            return false;
+        }
+
         static Entry[] LoadWeek(IDataStore s, CheckDef d, DateTime monday)
         {
             Entry[] w = new Entry[7];
@@ -207,10 +219,11 @@ namespace Arbeitsplan.Core
             Entry e = w[(day - mon).Days];
             bool set = IsSet(e, d);
             DayState open = day <= today ? DayState.Missing : DayState.Due;
+            bool made = cfg != null && cfg.BufMade;
             switch (d.Rule)
             {
                 case CheckRule.WeeklyOnce:
-                    if (AnyNA(w, d)) return DayState.Auto;   // Variante mit "!" (stationaer) in der KW = Wochenprobe damit erledigt
+                    if (WeekSkip(w, d, made)) return DayState.Auto;   // Variante mit "!" (stationaer) in der KW = Wochenprobe damit erledigt (mit BufMade: hergestellt)
                     if (set) return DayState.Done;
                     return AnySet(w, d) ? DayState.NotNeeded : DayState.WeekOpen;
                 case CheckRule.Workdays:
@@ -219,14 +232,14 @@ namespace Arbeitsplan.Core
                     {   // Wochenende/Feiertag: nur faellig, wenn dort hergestellt wird und nicht alles automatisch ist (z. B. stationaer)
                         if (set) return DayState.Done;
                         if (e.Types.Length == 0) return DayState.NA;
-                        return Auto(d, e.Types) ? DayState.Auto : open;
+                        return AutoNow(d, e, made) ? DayState.Auto : open;
                     }
-                    if (Auto(d, e.Types)) return DayState.Auto;
+                    if (AutoNow(d, e, made)) return DayState.Auto;
                     return set ? DayState.Done : open;
                 default:   // IfOccupied
                     if (Has(d, '!', e.Types)) return DayState.NA;
                     if (set) return DayState.Done;
-                    if (Auto(d, e.Types)) return DayState.Auto;
+                    if (AutoNow(d, e, made)) return DayState.Auto;
                     if (e.HasText) return open;
                     if (!d.Weekly) return DayState.NotNeeded;
                     return AnySet(w, d) ? DayState.NotNeeded : DayState.WeekOpen;
@@ -250,7 +263,7 @@ namespace Arbeitsplan.Core
             if (d.Rule == CheckRule.WeeklyOnce)
             {
                 Entry[] w = LoadWeek(s, d, mon);
-                if (AnyNA(w, d)) return DayState.Done;
+                if (WeekSkip(w, d, cfg != null && cfg.BufMade)) return DayState.Done;
                 if (AnySet(w, d)) return DayState.Done;
                 return mon.AddDays(6) <= today.Date ? DayState.Missing : DayState.WeekOpen;
             }

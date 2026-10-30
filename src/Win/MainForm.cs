@@ -115,6 +115,7 @@ namespace Arbeitsplan.Win
             view.CellActivated = BeginEdit;
             view.MarkClicked = ClickMark;
             view.BufferClicked = EditBuffer;
+            view.MadeClicked = ToggleMade;
             view.RoundClicked = ToggleRound;
             view.RoundToggled = ToggleRoundFold;
             view.RowToggled = ToggleRow;
@@ -203,7 +204,7 @@ namespace Arbeitsplan.Win
 
             if (fstore != null) viewGen = fstore.Generation;
             rowInfo.Clear(); rowInfo.AddRange(store.GetRows());
-            duties = store.GetDuties();
+            duties = store.GetDuties(); view.BufMade = duties.BufMade;
             view.LoadCells(store, start);
             MarkChanged();   // Hervorhebung von Aenderungen anderer PCs bleibt ueber Neuaufbau erhalten (MainForm.Changes.cs)
             foreach (CellData d in view.Cells) if (rowInfo[d.RowIndex].Id == selRow && d.Day == selDay) view.Selected = d;

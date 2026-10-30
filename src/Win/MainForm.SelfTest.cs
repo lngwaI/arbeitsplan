@@ -385,6 +385,7 @@ namespace Arbeitsplan.Win
             SelfTestUX5b(sb);   // UX-5b: Reihenfolge der Positionen, Lauf-Angabe je Puffer, Darstellung (MainForm.SelfTestUX5b.cs)
             SelfTestUX5c(sb);   // UX-5c: Puffer-Rhythmus (eigener Rhythmus, Lauf-Zuordnung, Zeitpunkt je Karte, Regeln) (MainForm.SelfTestUX5c.cs)
             SelfTestUX5e(sb);   // UX-5e: Leistung/Flackern im Paket-Editor und in der Wochenansicht (MainForm.SelfTestUX5e.cs)
+            SelfTestN23(sb);   // N2: Puffer "hergestellt"; N3: Equipment-Liste mit Anzahl, Kampagne mit Puffern (MainForm.SelfTestN23.cs)
             SelfTestUX5f(sb);   // UX-5f: Equipment-Notiz kursiv (Plan, Puffer) (MainForm.SelfTestUX5f.cs)
             sb.Append(PackageForm.TestUx5f(equip, start));   // N5: Leiste "nicht in der Equipment-Liste", Vormerkung (PackageForm.TestUx5f.cs)
             using (MainForm mx = new MainForm("ux4", true, null, null)) { mx.FitToCursorScreen(); sb.AppendLine("UX4 Hauptfenster startet maximiert: " + Ok(mx.WindowState == FormWindowState.Maximized)); }

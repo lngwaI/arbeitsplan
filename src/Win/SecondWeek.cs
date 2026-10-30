@@ -27,6 +27,12 @@ namespace Arbeitsplan.Win
                 Action<CellData, int> edit = first.BufferClicked;
                 View.BufferClicked = delegate(CellData c, int i) { edit(c, i); View.Relayout(); };
             }
+            View.BufMade = first.BufMade;
+            if (first.MadeClicked != null)
+            {
+                Action<CellData, int> made = first.MadeClicked;
+                View.MadeClicked = delegate(CellData c, int i) { made(c, i); View.Relayout(); };
+            }
             title.SetBounds(0, 0, 900, 20); title.Font = new Font(font, FontStyle.Bold);
             head.Height = 48; head.Controls.Add(title);
             for (int i = 0; i < 7; i++) { days[i] = new DayLabel(font); head.Controls.Add(days[i]); }

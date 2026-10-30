@@ -77,6 +77,18 @@ namespace Arbeitsplan.Win
             if (n.Length > 0 && !l.Exists(delegate(string x) { return string.Equals(x, n, StringComparison.OrdinalIgnoreCase); })) l.Add(n);
         }
 
+        // Haken "hergestellt" (N2): speichert sofort wie der LKZ-Haken (Change: Konfliktweg, Protokoll); Recht wie LKZ-Haken (CanEdit = Text ändern).
+        void ToggleMade(CellData c, int index)
+        {
+            if (!c.Editing) FreshCur(c);
+            if (index < 0 || index >= c.Buffers.Count) return;
+            string id = c.Buffers[index].Id; bool want = !c.Buffers[index].Made;
+            Action<List<BufferItem>> set = delegate(List<BufferItem> l) { BufferItem b = l.Find(delegate(BufferItem x) { return x.Id == id; }); if (b != null) b.Made = want; };
+            Change(c, delegate(CellData x) { set(x.Buffers); x.Dirty = true; },
+                delegate(Entry e) { BufferItem b = e.Buffers.Find(delegate(BufferItem x) { return x.Id == id; }); return b == null || b.Made == want; },
+                delegate(Entry e) { set(e.Buffers); });
+        }
+
         // Rechte fuer die Puffer-Liste: Hinzufuegen AddText (oder EditText), Entfernen DeleteText, Aendern EditText. null = erlaubt, sonst fehlendes Recht.
         string BufferRightMissing(Entry old, List<BufferItem> now)
         {

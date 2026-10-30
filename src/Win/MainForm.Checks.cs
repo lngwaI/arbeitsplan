@@ -26,14 +26,18 @@ namespace Arbeitsplan.Win
         List<CheckDef>[] DefsByRow()
         {
             List<CheckDef>[] a = new List<CheckDef>[rowInfo.Count];
-            for (int r = 0; r < rowInfo.Count; r++) a[r] = OpenDuties.DefsFor(rowInfo[r], duties);
+            for (int r = 0; r < rowInfo.Count; r++)
+            {
+                a[r] = OpenDuties.DefsFor(rowInfo[r], duties);
+                if (duties.BufMade) for (int i = 0; i < a[r].Count; i++) a[r][i] = MadeRules.Display(a[r][i], true);   // klare Namen: Tagesprobe / Wochenprobe (nur Anzeige)
+            }
             return a;
         }
 
         void ComputeChecks(PlanView v, DateTime from)
         {
             DateTime today = DateTime.Today;
-            v.Defs = DefsByRow();
+            v.Defs = DefsByRow(); v.BufMade = duties.BufMade;
             Dictionary<string, bool> open = new Dictionary<string, bool>(), late = new Dictionary<string, bool>();   // Zeile|Pflichtpunkt|Montag -> KW offen / dringend
             foreach (CellData c in v.Cells)
             {
@@ -78,7 +82,7 @@ namespace Arbeitsplan.Win
                 DateTime mon = IsoWeek.Monday(from.AddDays(c));
                 RoundGroup g = v.Rounds.Count > 0 ? v.Rounds[v.Rounds.Count - 1] : null;
                 if (g != null && g.Monday == mon) { g.Last = c; continue; }
-                g = new RoundGroup(); g.Monday = mon; g.First = g.Last = c; g.Defs = act;
+                g = new RoundGroup(); g.Monday = mon; g.First = g.Last = c; g.Defs = duties.BufMade ? act.ConvertAll(delegate(RoundDef x) { return MadeRules.Display(x, true); }) : act;
                 bool old = false;
                 foreach (WeekMark m in store.GetWeekMarks(mon)) if (m.Done) { g.Done.Add(m.Key); g.Marks[m.Key] = m; old |= m.At == DateTime.MinValue; }
                 if (old) StampsFromAudit(g);

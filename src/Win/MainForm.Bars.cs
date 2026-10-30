@@ -11,6 +11,8 @@ namespace Arbeitsplan.Win
 {
     partial class MainForm : Form
     {
+        readonly Button eqBtn = new Button();   // sichtbarer Knopf "Equipment-Liste" (N3), rechts in der unteren Leiste
+
         // ---------- Aufbau der Leisten ----------
 
         MenuStrip BuildMenu()
@@ -107,6 +109,11 @@ namespace Arbeitsplan.Win
             AddNav("Tag  ›", delegate { Go(1); });
             AddNav("Woche  »", delegate { Go(7); });
             bar.Controls.Add(nav);
+            eqBtn.Text = "Equipment-Liste"; eqBtn.AutoSize = true; eqBtn.MinimumSize = new Size(110, Theme.Current.ButtonH + 4); eqBtn.Enabled = me.Has(Perm.Export);
+            eqBtn.Click += delegate { ExportEquipList(); };
+            Theme.Current.StyleButton(eqBtn);
+            ToolTip eqTip = new ToolTip(); eqTip.SetToolTip(eqBtn, "Equipment-Nummern eines Tags, Zeitraums oder einer Kampagne auflisten (kopieren / als .txt), optional mit Anzahl");
+            bar.Controls.Add(eqBtn);
             bar.Resize += delegate { CenterBar(); };
             Shown += delegate { CenterBar(); };
 
@@ -132,6 +139,6 @@ namespace Arbeitsplan.Win
             nav.Controls.Add(b);
         }
 
-        void CenterBar() { nav.Left = Math.Max(10, (bar.ClientSize.Width - nav.Width) / 2); }
+        void CenterBar() { nav.Left = Math.Max(10, (bar.ClientSize.Width - nav.Width) / 2); eqBtn.Top = nav.Top; eqBtn.Left = Math.Max(nav.Right + 10, bar.ClientSize.Width - eqBtn.Width - 12); }
     }
 }

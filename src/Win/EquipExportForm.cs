@@ -19,6 +19,9 @@ namespace Arbeitsplan.Win
         readonly NumericUpDown before = new NumericUpDown(), after = new NumericUpDown();
         readonly TextBox preview = new TextBox();
         readonly Label count = new Label();
+        readonly CheckBox withCount = new CheckBox();   // mit Anzahl: "ID<TAB>Anzahl" je Zeile
+        readonly ToolTip tips = new ToolTip();
+        DateTime ra, rb;                                // gerade gezeigter Zeitraum (Kampagne: inkl. Puffer mit Lauf-Angabe)
         readonly DateTime weekStart;
         string text = "";
         readonly Timer campTimer = new Timer();   // Produktfeld entprellt (300 ms)
@@ -29,7 +32,7 @@ namespace Arbeitsplan.Win
         {
             this.store = store; this.weekStart = weekStart.Date;
             Text = "Equipment-Liste exportieren";
-            Ui.Dialog(this, 460, 500, false);
+            Ui.Dialog(this, 460, 528, false);
             Theme th = Theme.Current;
 
             rDay.Text = "Tag"; rDay.AutoSize = true; rDay.Location = new Point(14, 14);
@@ -60,23 +63,26 @@ namespace Arbeitsplan.Win
 
             count.AutoSize = true; count.Location = new Point(14, 160); bold = new Font(Font, FontStyle.Bold); count.Font = bold;
             preview.Multiline = true; preview.ReadOnly = true; preview.ScrollBars = ScrollBars.Vertical; preview.BackColor = th.Window;
-            preview.SetBounds(14, 184, 430, 238);
+            withCount.Text = "mit Anzahl (Nummer, Tab, Anzahl)"; withCount.AutoSize = true; withCount.Location = new Point(14, 182);
+            tips.SetToolTip(withCount, "Aus: jede Nummer einmal, durch Leerzeilen getrennt.\nAn: eine Zeile je Nummer \"Nummer<Tab>Anzahl\"; Anzahl = Blöcke (Tag/Zeile), in denen die Nummer vorkommt.");
+            withCount.CheckedChanged += upd;
+            preview.SetBounds(14, 208, 430, 238);
 
-            Button clip = new Button(); clip.Text = "In Zwischenablage"; clip.SetBounds(14, 430, 130, 28);
-            Button save = new Button(); save.Text = "Als .txt speichern…"; save.SetBounds(150, 430, 130, 28);
-            Button close = new Button(); close.Text = "Schließen"; close.SetBounds(344, 430, 100, 28); close.DialogResult = DialogResult.Cancel;
+            Button clip = new Button(); clip.Text = "In Zwischenablage"; clip.SetBounds(14, 458, 130, 28);
+            Button save = new Button(); save.Text = "Als .txt speichern…"; save.SetBounds(150, 458, 130, 28);
+            Button close = new Button(); close.Text = "Schließen"; close.SetBounds(344, 458, 100, 28); close.DialogResult = DialogResult.Cancel;
             CancelButton = close;
             clip.Click += delegate { Copy(); };
             save.Click += delegate { Save(); };
             th.StyleButton(clip); th.StyleButton(save); th.StyleButton(close);
-            Controls.AddRange(new Control[] { rDay, rWeek, rRange, rCamp, camps, lp, prefix, lv, before, ln, after, bis, dDay, wk, dFrom, dTo, count, preview, clip, save, close });
+            Controls.AddRange(new Control[] { rDay, rWeek, rRange, rCamp, camps, lp, prefix, lv, before, ln, after, bis, dDay, wk, dFrom, dTo, count, withCount, preview, clip, save, close });
             LoadCamps();
             Update_();
         }
 
         protected override void Dispose(bool disposing)
         {
-            if (disposing) { campTimer.Stop(); campTimer.Dispose(); if (bold != null) bold.Dispose(); }
+            if (disposing) { campTimer.Stop(); campTimer.Dispose(); tips.Dispose(); if (bold != null) bold.Dispose(); }
             base.Dispose(disposing);
         }
 
@@ -99,16 +105,19 @@ namespace Arbeitsplan.Win
 
         EquipExport.CampaignSpan Camp { get { return camps.SelectedItem as EquipExport.CampaignSpan; } }
 
-        void Range(out DateTime from, out DateTime to)
+        // Zeitraum und Nummern (mit Anzahl) der aktuellen Auswahl; Kampagne: Puffer mit Lauf-Angabe vor dem Vorlauf zaehlen mit (from = frueheste Stelle)
+        List<KeyValuePair<string, int>> Compute(out DateTime from, out DateTime to)
         {
             if (rDay.Checked) { from = to = dDay.Value.Date; }
             else if (rCamp.Checked)
             {
                 EquipExport.CampaignSpan c = Camp;
-                from = c == null ? weekStart : c.First.AddDays(-(int)before.Value); to = c == null ? weekStart.AddDays(-1) : c.Last.AddDays((int)after.Value);
+                if (c != null) return EquipExport.CountCampaign(store, c, (int)before.Value, (int)after.Value, out from, out to);
+                from = weekStart; to = weekStart.AddDays(-1);
             }
             else if (rWeek.Checked) { from = weekStart; to = weekStart.AddDays(6); }
             else { from = dFrom.Value.Date; to = dTo.Value.Date; }
+            return to < from ? new List<KeyValuePair<string, int>>() : EquipExport.Count(store, from, to);
         }
 
         void Update_()
@@ -116,9 +125,9 @@ namespace Arbeitsplan.Win
             if (loading) return;   // Neubefuellen der Kampagnenliste: Aufrufer aktualisiert danach einmal
             dDay.Enabled = rDay.Checked; dFrom.Enabled = dTo.Enabled = rRange.Checked;
             camps.Enabled = prefix.Enabled = before.Enabled = after.Enabled = rCamp.Checked;
-            DateTime a, b; Range(out a, out b);
-            List<string> ids = b < a ? new List<string>() : EquipExport.Collect(store, a, b);
-            text = EquipExport.Format(ids);
+            List<KeyValuePair<string, int>> ids = Compute(out ra, out rb);
+            DateTime a = ra, b = rb;
+            text = withCount.Checked ? EquipExport.FormatCounts(ids) : EquipExport.Format(EquipExport.Ids(ids));
             preview.Text = text;
             count.Text = ids.Count + " Equipment-Nummern" + (rCamp.Checked && Camp == null ? " (keine Kampagne im Plan gefunden)" : b < a ? " (Zeitraum: „von“ liegt nach „bis“)" : "")
                 + (rCamp.Checked && Camp != null ? " · " + a.ToString("dd.MM.") + " – " + b.ToString("dd.MM.yyyy") : "");
@@ -135,7 +144,7 @@ namespace Arbeitsplan.Win
         {
             using (SaveFileDialog d = new SaveFileDialog())
             {
-                DateTime a, b; Range(out a, out b);
+                DateTime a = ra, b = rb;
                 d.Filter = "Textdatei (*.txt)|*.txt"; d.FileName = "Equipment_" + a.ToString("yyyy-MM-dd") + (b > a ? "_bis_" + b.ToString("yyyy-MM-dd") : "");
                 if (d.ShowDialog(this) != DialogResult.OK) return;
                 try { File.WriteAllText(d.FileName, text, new UTF8Encoding(false)); }

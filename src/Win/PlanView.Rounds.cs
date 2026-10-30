@@ -132,7 +132,7 @@ namespace Arbeitsplan.Win
                     WeekMark m;
                     if (gr.Done.Contains(k))
                         st = gr.Marks.TryGetValue(k, out m) && m.At != DateTime.MinValue ? "erledigt am " + m.At.ToString("ddd dd.MM.yyyy HH:mm", Ui.De) + (m.By.Length > 0 ? " von " + m.By : "") : "erledigt";
-                    return gr.Defs[i].Name + " KW" + IsoWeek.Number(gr.Monday) + ": " + st + " (Rechtsklick = Verlauf)";
+                    return gr.Defs[i].Name + " KW" + IsoWeek.Number(gr.Monday) + ": " + st + " (Rechtsklick = Verlauf)" + (BufMade && k == MadeRules.RoundKey ? "\n" + MadeRules.RoundTipText : "");
                 }
                 return gr.Collapsed ? "Klick = Rundgänge anzeigen" : "Klick auf die Überschrift = zuklappen (nur an diesem PC)";
             }

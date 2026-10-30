@@ -15,6 +15,7 @@ namespace Arbeitsplan.Win
         static readonly string[] RuleNames = { "wenn belegt", "einmal je KW", "werktags" };
         readonly DataGridView defs = new DataGridView(), rounds = new DataGridView();
         readonly ComboBox land = new ComboBox();
+        readonly CheckBox madeBox = new CheckBox();   // N2: Puffer "hergestellt" (DutyConfig.BufMade)
         readonly TextBox extra = new TextBox(), removed = new TextBox();
         readonly List<string> rowNames = new List<string>();
         readonly List<int> rowIds = new List<int>();
@@ -66,11 +67,13 @@ namespace Arbeitsplan.Win
             extra.SetBounds(400, 318, 180, 136); removed.SetBounds(590, 318, 180, 136);
             extra.Text = Dates(cfg.ExtraHolidays); removed.Text = Dates(cfg.RemovedHolidays);
 
+            madeBox.Text = "Puffer als hergestellt abhaken (Tages-/Wochenprobe folgt daraus)"; madeBox.SetBounds(10, 456, 760, 20); madeBox.Checked = cfg.BufMade;
+            Label mh = L("Mobiler Puffer hergestellt: Tagesprobe gezogen; stationärer: Wochenprobe der KW. Der WFI-Rundgang bleibt davon unabhängig.", 28, 476, 742);
             Button bOk = B("Speichern", 570, 498, 95), bCancel = B("Abbrechen", 675, 498, 95), bPuffer = B("Standard Puffer einrichten", 10, 498, 200);
             bOk.Click += delegate { Commit(); };
             bPuffer.Click += delegate { AddPuffer(PufferSetup.Row(rows)); };
             bCancel.DialogResult = DialogResult.Cancel; CancelButton = bCancel;
-            Controls.AddRange(new Control[] { l1, defs, bAdd, bDel, hint, l2, rounds, l3, ll, land, le, lr, extra, removed, bPuffer, bOk, bCancel });
+            Controls.AddRange(new Control[] { l1, defs, bAdd, bDel, hint, l2, rounds, l3, ll, land, le, lr, extra, removed, madeBox, mh, bPuffer, bOk, bCancel });
         }
 
         public bool PufferVariants;   // beim Speichern: Varianten mobil/stationaer an der Zeile Puffer setzen, falls noch keine
@@ -150,7 +153,7 @@ namespace Arbeitsplan.Win
         {
             defs.EndEdit(); rounds.EndEdit();
             DutyConfig c = new DutyConfig();
-            c.Land = S(land.SelectedItem) == "BY" ? "BY" : "BW";
+            c.Land = S(land.SelectedItem) == "BY" ? "BY" : "BW"; c.BufMade = madeBox.Checked;
             List<string> keys = new List<string>();
             foreach (DataGridViewRow r in defs.Rows) { CheckDef o = (CheckDef)r.Tag; if (o.Key.Length > 0) keys.Add(o.Key); }
             foreach (DataGridViewRow r in defs.Rows)
