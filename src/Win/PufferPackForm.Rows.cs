@@ -42,14 +42,17 @@ namespace Arbeitsplan.Win
 
         void ClearRows()
         {
-            foreach (PRow r in rowList) foreach (Control c in r.All) { rows.Controls.Remove(c); c.Dispose(); }
+            foreach (PRow r in rowList) Drop(r);
             rowList.Clear();
         }
+
+        void Drop(PRow r) { foreach (Control c in r.All) { tip.SetToolTip(c, null); rows.Controls.Remove(c); c.Dispose(); } }
 
         void LayoutRows()
         {
             int off = rows.AutoScrollPosition.Y;   // negativ, wenn gescrollt
-            for (int i = 0; i < rowList.Count; i++) foreach (Control c in rowList[i].All) c.Top = 4 + i * RowH + off;
+            int ti = 0;
+            for (int i = 0; i < rowList.Count; i++) foreach (Control c in rowList[i].All) { c.Top = 4 + i * RowH + off; c.TabIndex = ti++; }   // Tab-Reihenfolge = sichtbare Reihenfolge
         }
 
         // ---------- Prüfung und Auswahl ----------
@@ -167,9 +170,9 @@ namespace Arbeitsplan.Win
             r.No = new TextBox(); r.No.Text = p.Note; r.No.SetBounds(ColNote, 0, ColBtn - ColNote - 4, 22); Ui.SimpleMenu(r.No);
             r.Up = RowBtn("▲", ColBtn, "Zeile nach oben (Alt+↑)"); r.Dn = RowBtn("▼", ColBtn + 24, "Zeile nach unten (Alt+↓)"); r.X = RowBtn("✕", ColBtn + 48, "Zeile entfernen");
             tip.SetToolTip(r.S, "Das Gerät gilt für mehrere Puffer gemeinsam (z. B. WFI-Anschluss)");
-            r.D.TextChanged += delegate { if (loading || p.Ids.Count > 1) return; p.Ids.Clear(); if (r.D.Text.Trim().Length > 0) p.Ids.Add(r.D.Text.Trim()); Mark(r); Preview(); UpdateStatus(); };
-            r.S.CheckedChanged += delegate { if (!loading) { p.Shared = r.S.Checked; Preview(); } };
-            r.No.TextChanged += delegate { if (!loading) { p.Note = r.No.Text.Trim(); Preview(); } };
+            r.D.TextChanged += delegate { if (loading || p.Ids.Count > 1) return; p.Ids.Clear(); if (r.D.Text.Trim().Length > 0) p.Ids.Add(r.D.Text.Trim()); Mark(r); Chg("Gerät geändert"); UpdateStatus(); };
+            r.S.CheckedChanged += delegate { if (!loading) { p.Shared = r.S.Checked; Chg("„gemeinsam“ geändert"); } };
+            r.No.TextChanged += delegate { if (!loading) { p.Note = r.No.Text.Trim(); Chg("Notiz geändert"); } };
             r.Up.Click += delegate { MoveRow(r, -1); }; r.Dn.Click += delegate { MoveRow(r, 1); }; r.X.Click += delegate { RemoveRow(r); };
             if (readOnly) { r.D.Enabled = r.S.Enabled = r.No.Enabled = false; r.Up.Visible = r.Dn.Visible = r.X.Visible = false; }
             rowList.Add(r); rows.Controls.AddRange(r.All);
@@ -188,7 +191,7 @@ namespace Arbeitsplan.Win
             if (cur == null) return;
             PufferTemplatePos p = new PufferTemplatePos(); p.Short = shortName; cur.Positions.Add(p);
             loading = true; AddRow(p); loading = false;
-            LayoutRows(); RefreshItem(); UpdateStatus(); Preview();
+            LayoutRows(); RefreshItem(); UpdateStatus(); Chg("Position " + shortName + " hinzugefügt");
             rows.ScrollControlIntoView(rowList[rowList.Count - 1].D);
         }
 
@@ -196,8 +199,8 @@ namespace Arbeitsplan.Win
         {
             if (cur == null) return;
             cur.Positions.Remove(r.P); rowList.Remove(r);
-            foreach (Control c in r.All) { rows.Controls.Remove(c); c.Dispose(); }
-            LayoutRows(); RefreshItem(); UpdateStatus(); Preview();
+            Drop(r);
+            LayoutRows(); RefreshItem(); UpdateStatus(); Chg("Position " + r.P.Short + " entfernt");
         }
 
         // Zeile um d (-1/+1) verschieben: Reihenfolge im Plantext; Fokus bleibt im Feld
@@ -208,7 +211,7 @@ namespace Arbeitsplan.Win
             if (i < 0 || j < 0 || j >= rowList.Count) return;
             cur.Positions.RemoveAt(i); cur.Positions.Insert(j, r.P);
             rowList.RemoveAt(i); rowList.Insert(j, r);
-            LayoutRows(); Preview();
+            LayoutRows(); Chg("Reihenfolge der Zeilen geändert");
             Control f = ActiveControl; if (f != null && f.Parent == rows) rows.ScrollControlIntoView(f);
         }
 
@@ -230,6 +233,7 @@ namespace Arbeitsplan.Win
 #if TESTHOOKS
         public void TestSetDevice(int row, string id) { rowList[row].D.Text = id; }
         public void TestShared(int row, bool on) { rowList[row].S.Checked = on; }
+        public int TestTab(int row) { return rowList[row].N.TabIndex; }
         public int TestRows { get { return rowList.Count; } }
         public void TestMove(int row, int d) { MoveRow(rowList[row], d); }
         public void TestKey(int row, Keys k) { ActiveControl = rowList[row].No; Message m = new Message(); ProcessCmdKey(ref m, k); }

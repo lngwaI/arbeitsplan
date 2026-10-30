@@ -15,7 +15,11 @@ namespace Arbeitsplan.Win
         public static string Check(Catalog cat, string code, string keepCode)
         {
             if (!Package.IsProductCode(code)) return "Der Produktcode ist ungültig (Regel siehe oben).";
-            if (code != keepCode && cat.Product(code) != null) return "Produkt " + code + " gibt es schon.";
+            foreach (ProductProfile p in cat.Products)   // auch "prd-1" neben "PRD-1" wuerde verwechselt: ohne Gross/Klein pruefen
+            {
+                if (keepCode != null && p.Code == keepCode) continue;
+                if (string.Equals(p.Code, code, StringComparison.OrdinalIgnoreCase)) return "Produkt " + p.Code + " gibt es schon" + (p.Code != code ? " (Groß-/Kleinschreibung zählt nicht)." : ".");
+            }
             return "";
         }
 

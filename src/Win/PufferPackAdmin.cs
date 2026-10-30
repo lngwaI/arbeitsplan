@@ -13,7 +13,8 @@ namespace Arbeitsplan.Win
     //  - "Speichern" im Pufferpaket-Dialog: neue Produkte + im Dialog aufgenommene Geraete + das Pufferpaket des Produkts (auch ein leeres).
     //  - "Abbrechen" im Pufferpaket-Dialog: das Pufferpaket bleibt unveraendert, aber bewusst angelegte Produkte und aufgenommene Geraete
     //    werden trotzdem gespeichert (sie wurden mit eigener Bestaetigung angelegt; sonst waere die Rueckmeldung "angelegt" falsch).
-    //  - Abbrechen schon in der Produktwahl: nichts wird gespeichert.
+    //  - Abbrechen schon in der Produktwahl: bewusst angelegte Produkte werden trotzdem gespeichert (sonst waere "angelegt" falsch), sonst nichts.
+    //  - Wurde das Pufferpaket des Produkts inzwischen von jemand anderem geaendert, fragt der Dialog vor dem Ueberschreiben (Nein = Pufferpaket nicht speichern).
     static class PufferPackAdmin
     {
         public const string Title = "Pufferpakete";
@@ -25,9 +26,31 @@ namespace Arbeitsplan.Win
             ProductProfile prod; List<ProductProfile> created;
             using (ProductPickForm d = new ProductPickForm(cat, code, admin))
             {
-                if (d.ShowDialog(owner) != DialogResult.OK || d.Result == null) return false;
-                prod = d.Result; created = d.NewProducts;
+                bool picked = d.ShowDialog(owner) == DialogResult.OK && d.Result != null;
+                created = d.NewProducts;
+                if (!picked) return admin && created.Count > 0 && Save(owner, store, null, created, null);   // angelegte Produkte bleiben
+                prod = d.Result;
             }
+            return Edit(owner, store, cat, prod, created, admin);
+        }
+
+        // Direkt zum Pufferpaket eines Produkts (ohne Produktwahl). Unbekanntes Produkt: mit Recht neu anlegen (wird beim Speichern angehaengt).
+        public static bool ManageProduct(IWin32Window owner, IDataStore store, string code, bool admin)
+        {
+            if (!Package.IsProductCode(code ?? "")) return false;
+            Catalog cat = store.GetCatalog().Clone();
+            ProductProfile prod = cat.Product(code);
+            if (prod == null)
+            {
+                if (!admin) { MessageBox.Show(owner, "Für " + code + " gibt es noch kein Produkt. Der Admin legt Pufferpakete an.", Title, MessageBoxButtons.OK, MessageBoxIcon.Information); return false; }
+                prod = new ProductProfile(); prod.Code = code;
+            }
+            return Edit(owner, store, cat, prod, new List<ProductProfile>(), admin);
+        }
+
+        static bool Edit(IWin32Window owner, IDataStore store, Catalog cat, ProductProfile prod, List<ProductProfile> created, bool admin)
+        {
+            string before = Sig(prod.Puffer);   // Stand beim Oeffnen (fuer die Pruefung auf Aenderungen anderer)
             List<DevAdd> adds;
             using (PufferPackForm f = new PufferPackForm(cat, prod, !admin))
             {
@@ -36,9 +59,29 @@ namespace Arbeitsplan.Win
                 adds = f.Added;
                 if (ok) prod.Puffer = f.Result; else prod = null;   // Abbruch: Pufferpaket bleibt, Produkte/Geraete werden trotzdem uebernommen
             }
-            if (prod == null && created.Count == 0 && adds.Count == 0) return false;
+            if (prod != null)
+            {
+                ProductProfile have = store.GetCatalog().Product(prod.Code);
+                if (have != null && Sig(have.Puffer) != before && MessageBox.Show(owner, "Das Pufferpaket von " + prod.Code + " wurde inzwischen geändert.\nTrotzdem deine Fassung speichern?", Title,
+                    MessageBoxButtons.YesNo, MessageBoxIcon.Warning, MessageBoxDefaultButton.Button2) != DialogResult.Yes) prod = null;
+            }
+            return Save(owner, store, prod, created, adds);
+        }
+
+        static bool Save(IWin32Window owner, IDataStore store, ProductProfile prod, List<ProductProfile> created, List<DevAdd> adds)
+        {
+            if (prod == null && (created == null || created.Count == 0) && (adds == null || adds.Count == 0)) return false;
             try { store.SaveCatalog(Merged(store, prod, created, adds)); return true; }
             catch (Exception ex) { MessageBox.Show(owner, "Konnte nicht gespeichert werden.\n" + ex.Message, Title, MessageBoxButtons.OK, MessageBoxIcon.Error); return false; }
+        }
+
+        // Pufferpaket als XML-Text (zum Vergleichen zweier Staende)
+        internal static string Sig(List<PufferTemplate> l)
+        {
+            System.IO.StringWriter sw = new System.IO.StringWriter();
+            System.Xml.XmlWriterSettings st = new System.Xml.XmlWriterSettings(); st.OmitXmlDeclaration = true; st.ConformanceLevel = System.Xml.ConformanceLevel.Fragment;
+            using (System.Xml.XmlWriter w = System.Xml.XmlWriter.Create(sw, st)) ProductXml.WritePuffer(w, l);
+            return sw.ToString();
         }
 
         internal static Catalog Merged(IDataStore store, ProductProfile prod) { return Merged(store, prod, null, null); }
@@ -79,7 +122,7 @@ namespace Arbeitsplan.Win
             help.SetBounds(10, 10, 500, 18); help.UseMnemonic = false; Controls.Add(help);
             lv.SetBounds(10, 34, 500, 264); lv.View = View.Details; lv.FullRowSelect = true; lv.HideSelection = false; lv.MultiSelect = false;
             lv.Columns.Add("Code", 90); lv.Columns.Add("Name", 200); lv.Columns.Add("Pufferpaket", 186); Controls.Add(lv);
-            empty.Text = admin ? "Noch keine Produkte angelegt." : "Noch keine Produkte angelegt. Der Admin legt Produkte an.";
+            empty.Text = admin ? "Noch keine Produkte angelegt – mit „Neues Produkt…“ unten links anlegen." :"Noch keine Produkte angelegt. Der Admin legt Produkte an.";
             empty.SetBounds(10, 59, 500, 239); empty.ForeColor = SystemColors.GrayText; empty.BackColor = SystemColors.Window; empty.BorderStyle = BorderStyle.FixedSingle;
             empty.Padding = new Padding(8, 8, 8, 0); empty.UseMnemonic = false; Controls.Add(empty);
             status.SetBounds(10, 304, 500, 34); status.ForeColor = SystemColors.GrayText; status.UseMnemonic = false; Controls.Add(status);

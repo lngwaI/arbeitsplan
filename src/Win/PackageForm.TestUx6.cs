@@ -96,6 +96,9 @@ namespace Arbeitsplan.Win
                     okPlan = names.Contains("PRD-1 - Lösung A") && names.Contains("PRD-1 - Lösung B") && !names.Contains("Lösung A");
                 }
                 catch (Exception) { okPlan = false; }
+                bool okPrev;   // Vorschau im Editor = Plan: Name mit Produktcode
+                try { f.ShowCard(); BlockPreview.Card pcd = f.blockPreview.TestCard(0); okPrev = pcd.Data.Buffers.Count > 0 && pcd.Data.Buffers[0].Name == "PRD-1 - Lösung A"; }
+                catch (Exception) { okPrev = false; }
                 f.tProduct.Text = ""; Application.DoEvents();
 
                 // (3) Anhängen: Reihenfolge erhalten, Maximum 9
@@ -118,7 +121,7 @@ namespace Arbeitsplan.Win
                 f.ApplyPicked(picked, "PRD-1", false); Application.DoEvents();
                 int snaps = f.UndoCount; f.AddPufferCopy(0); Application.DoEvents();
                 bool okCopy = ps.Puffers.Count == 3 && f.UndoCount == snaps + 1 && ps.Puffers[2].Name == "Lösung A" && f.Id6(2, 0) == "AT-1" && ps.PufferShared[0].Covers(2) && ps.PufferShared[0].Scope == 7
-                    && ps.Puffers[2].Lines[0] != ps.Puffers[0].Lines[0] && f.Card(2).Open && f.stripMsg.Text == "Puffer 3 als Kopie von Puffer 1 angehängt – Rückgängig mit Strg+Z";
+                    && ps.Puffers[2].Lines[0] != ps.Puffers[0].Lines[0] && f.Card(2).Open && f.stripMsg.Text == "Puffer 3 als Kopie von Puffer 1 angehängt – Name ggf. in der Karte ändern – Rückgängig mit Strg+Z" && f.Card(2).TestName.Focused;
                 f.Card(2).TestRows[0].TestIdBox.Text = "AT-2"; Application.DoEvents(); Application.DoEvents();
                 okCopy &= f.Id6(0, 0) == "AT-1" && ps.Puffers[0].Lines[0].ChoiceFor(0).Id == "AT-1" && ps.Puffers[2].Lines[0].ChoiceFor(0).Id == "AT-2";
                 ps.Puffers[1].Name = ""; ps.Puffers[1].NameNo = 2; f.AddPufferCopy(1); Application.DoEvents();
@@ -168,8 +171,26 @@ namespace Arbeitsplan.Win
                     d.Show(); Application.DoEvents();
                     okEmpty &= d.TestSourceText.StartsWith("PRD-1") && d.lblHint.Visible;
                 }
+                // (7) Code des Pakets ohne Produktprofil: als Quelle "PRD-9 (kein Pufferpaket)" vorgewählt, Leerzustand mit "anlegen…" (Retry)
+                using (PufferPickForm d = new PufferPickForm(f.cat, "PRD-9", 1, true, false, null))
+                {
+                    d.Show(); Application.DoEvents();
+                    okEmpty &= d.TestSourceText == "PRD-9 (kein Pufferpaket)" && d.TestSourceCount == 4 && !d.lblHint.Visible && d.link.Text == "Pufferpaket für PRD-9 anlegen…" && d.link.Visible;
+                    d.TestCreate(); okEmpty &= d.DialogResult == DialogResult.Retry && d.CreateFor == "PRD-9";
+                }
+                using (PufferPickForm d = new PufferPickForm(f.cat, "", 1, true, false, null))   // Hinweistext ohne Produktcode (Punkt 7)
+                {
+                    d.Show(); Application.DoEvents();
+                    okEmpty &= d.lblHint.Text == "Das Paket hat noch keinen Produktcode. Hier wählst du nur, woher die Puffer kommen; den Produktcode trägst du oben im Paket ein.";
+                }
+                Catalog nostd = new Catalog(); nostd.Products.Add(pr.Clone());   // Standardpuffer fehlt, Produkt hat Pufferpaket: Aktion statt Verweis
+                using (PufferPickForm d = new PufferPickForm(nostd, "", 1, true, false, ""))
+                {
+                    d.Show(); Application.DoEvents();
+                    okEmpty &= d.TestSourceText.StartsWith("Standardpuffer") && d.lblEmpty.Text.StartsWith("Der Standardpuffer ist noch nicht eingerichtet") && d.link.Visible && d.link.Text == "Stattdessen Pufferpaket von PRD-1 wählen";
+                }
                 f.dirty = false;
-                return "UX6 Editor: Knöpfe " + T(okBtn) + " Dialog " + T(okPick) + " Ersetzen " + T(okRep) + " Plan-Name " + T(okPlan) + " Anhängen " + T(okApp) + " Maximum " + T(okMax) + " Kopie " + T(okCopy)
+                return "UX6 Editor: Knöpfe " + T(okBtn) + " Dialog " + T(okPick) + " Ersetzen " + T(okRep) + " Plan-Name " + T(okPlan) + " Vorschau " + T(okPrev) +" Anhängen " + T(okApp) + " Maximum " + T(okMax) + " Kopie " + T(okCopy)
                     + " Menü " + T(okMenu) + " Vorlage " + T(okTpl) + " Leerzustand " + T(okEmpty);
             }
             catch (Exception ex) { return "UX6 Editor: FEHLER Ausnahme " + ex.GetType().Name + ": " + ex.Message + " " + ex.StackTrace; }

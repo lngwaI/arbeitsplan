@@ -24,6 +24,13 @@ namespace Arbeitsplan.Win
             return t;
         }
 
+        // Geräte-IDs von Puffer k (eigene, dann gemeinsame Zeilen) als "AT-1,W-1"
+        static string Ux6Ids(PackageStep s, int k)
+        {
+            List<string> r = new List<string>(); foreach (EquipChoice c in s.PufferChoices(k, 0)) r.Add(c.Id);
+            return string.Join(",", r.ToArray());
+        }
+
         static Catalog Ux6PackCat()
         {
             Catalog c = Catalog.Default();
@@ -61,11 +68,12 @@ namespace Arbeitsplan.Win
             }
             using (ProductPickForm d = new ProductPickForm(new Catalog(), "", true))
             {
-                okPick &= d.TestCount == 0 && d.TestEmptyText == "Noch keine Produkte angelegt." && d.TestAccept != null && d.TestAccept.Text == "Neues Produkt…" && !d.TestOkVisible && d.Result == null;
+                okPick &= d.TestCount == 0 && d.TestEmptyText == "Noch keine Produkte angelegt – mit „Neues Produkt…“ unten links anlegen." && d.TestAccept != null && d.TestAccept.Text == "Neues Produkt…" && !d.TestOkVisible && d.Result == null;
                 okPick &= d.TestNew("PRD-1", "") && d.TestCount == 1 && d.TestEmptyText == "" && d.TestOkVisible && d.TestAccept.Text.StartsWith("Pufferpaket");
             }
             using (ProductPickForm d = new ProductPickForm(new Catalog(), "", false)) okPick &= d.TestEmptyText.Contains("Der Admin legt Produkte an.") && d.TestAccept == null && !d.TestOkVisible;
             okPick &= ProductAsk.Check(c, "A", null).Length > 0 && ProductAsk.Check(c, "PRD-1", null).Contains("gibt es schon") && ProductAsk.Check(c, "PRD-4", null) == "" && ProductAsk.Check(c, "PRD-1", "PRD-1") == "";
+            okPick &= ProductAsk.Check(c, "prd-1", null).Contains("gibt es schon") && ProductAsk.Check(c, "prd-1", "PRD-1") == "" && ProductAsk.Check(c, "prd-2", "PRD-1").Contains("gibt es schon");   // ohne Groß/Klein
 
             // (2) Speichern mit Merged: neues Produkt (auch bei leerem Pufferpaket), aufgenommenes Gerät, Änderungen anderer Admins bleiben
             MemoryStore cs = new MemoryStore(); cs.SaveCatalog(Ux6PackCat());
@@ -127,9 +135,48 @@ namespace Arbeitsplan.Win
                 okFrom &= d.TestCommit() && d.Result.Count == d.TestList.Count;
             }
             using (PufferPackForm v = new PufferPackForm(pc, prod, true)) okFrom &= v.Text.Contains("nur ansehen") && !v.TestLinkVisible;
+            // Ungespeichert-Hinweis, Rückmeldung nach Entfernen/Kopieren, Tab-Reihenfolge, Vorschau mit Nummer
+            bool okDirty;
+            using (PufferPackForm d = new PufferPackForm(Ux6PackCat(), Ux6PackCat().Product("PRD-1")))
+            {
+                okDirty = !d.TestDirty && d.TestMsg == "";
+                d.TestSelect(2); d.TestRemove();
+                okDirty &= d.TestDirty && d.TestList.Count == 2 && d.TestMsg == "Nicht gespeichert: Vorlage „stationärer Puffer“ entfernt – Abbrechen verwirft die Änderungen";
+                d.TestSelect(0); d.TestCopy();
+                okDirty &= d.TestMsg.StartsWith("Nicht gespeichert: Vorlage „mobiler Puffer 1“ kopiert") && d.TestList.Count == 3;
+                d.TestSelect(0); d.TestMove(0, 1);
+                okDirty &= d.TestTab(1) == 7 && d.TestTab(0) == 0 && d.TestMsg.Contains("Reihenfolge der Zeilen");   // Tab-Reihenfolge = sichtbare Reihenfolge
+            }
+            using (PufferPackForm d = new PufferPackForm(Ux6PackCat(), Ux6PackCat().Product("PRD-1")))
+            {
+                d.TestName("X"); okDirty &= d.TestDirty && d.TestMsg.StartsWith("Nicht gespeichert: Name im Plan geändert");
+                d.TestName("Lösung A"); okDirty &= !d.TestDirty && d.TestMsg == "";   // zurückgesetzt = nicht mehr ungespeichert
+                okDirty &= d.TestPreview.Contains("Puffer 2: PRD-1 - Lösung B") && d.TestPreview.Contains("Puffer 3: PRD-1 - ") ;
+            }
+            // Vorschau: unbenannter Puffer an Stelle 3 heißt "Titel 3" (Nummerierung im Kern)
+            using (PufferPackForm d = new PufferPackForm(Ux6PackCat(), Ux6PackCat().Product("PRD-1"))) okDirty &= d.TestPreview.Contains("Puffer 3: PRD-1 - Puffer 3");
+
+            // Kern: gemeinsame Zeilen beim Übernehmen (Gerät der Vorlage geht nicht verloren) und Nummerierung unbenannter Puffer
+            PufferTemplate ta = Ux6Tpl("", "Lösung A", "mobil", "Ansatztank", "AT-1", "WFI", "W-1"), tb = Ux6Tpl("", "Lösung B", "mobil", "Ansatztank", "AT-2", "WFI", "W-1");
+            ta.Positions[1].Shared = tb.Positions[1].Shared = true;
+            PufferTemplate tc = Ux6Tpl("", "", "mobil", "Ansatztank", "AT-3", "WFI", "W-7"); tc.Positions[1].Shared = true;
+            PackageStep cs1 = new PackageStep(); cs1.Title = "Puffer"; cs1.Source = "Puffer"; cs1.Row = "Puffer"; cs1.Day = 1;
+            Package.ApplyPufferTemplates(cs1, new List<PufferTemplate>(new[] { ta.Clone(), tb.Clone() }));
+            bool okCore = cs1.PufferShared.Count == 1 && cs1.PufferShared[0].Scope == 3;
+            PackageStep cs2 = cs1.Clone(); cs2.PufferShared[0].Scope = 0;   // "alle Puffer" mit W-1
+            PufferSpec spc = Package.ApplyPufferTemplate(cs1, tc.Clone());
+            okCore &= cs1.PufferShared.Count == 2 && cs1.PufferShared[0].Scope == 3 && cs1.PufferShared[1].Scope == 4 && Ux6Ids(cs1, 2) == "AT-3,W-7" && Ux6Ids(cs1, 0) == "AT-1,W-1" && spc.NameNo == 3 && cs1.Puffers[0].NameNo == 0;
+            Package.ApplyPufferTemplate(cs1, ta.Clone());   // gleiche Zeile W-1 (Puffer 4): zusammengelegt
+            okCore &= cs1.PufferShared.Count == 2 && cs1.PufferShared[0].Scope == 11 && Ux6Ids(cs1, 3) == "AT-1,W-1" && cs1.Puffers[3].NameNo == 0;
+            Package.ApplyPufferTemplate(cs2, tc.Clone());   // "alle" mit anderem Gerät: alte Zeile nur für die bisherigen Puffer
+            okCore &= cs2.PufferShared.Count == 2 && cs2.PufferShared[0].Scope == 3 && cs2.PufferShared[1].Scope == 4 && Ux6Ids(cs2, 2) == "AT-3,W-7" && Ux6Ids(cs2, 1) == "AT-2,W-1";
+            PackageStep cs3 = cs2.Clone(); cs3.PufferShared[0].Scope = 0; cs3.PufferShared[1].Scope = 4;
+            Package.ApplyPufferTemplate(cs3, tb.Clone());   // "alle" mit gleichem Gerät: gilt schon, keine neue Zeile
+            okCore &= cs3.PufferShared.Count == 2 && cs3.PufferShared[0].Scope == 0 && Ux6Ids(cs3, 3) == "AT-2,W-1";
             // Merged mit aufgenommenem Gerät: anderer Admin ändert parallel einen anderen Teil des Katalogs
             Catalog m3 = PufferPackAdmin.Merged(cs, null, null, new List<DevAdd>(new[] { da }));
             okMerge &= m3.Product("PRD-2").Name == "Geändert" && m3.Position("Ansatztank").Ids.Contains("H1-T-0199");
+            sb.AppendLine("UX6 Pufferpakete Nachbesserung: gemeinsame Zeilen/Nummer im Kern " + Ok(okCore) + " Ungespeichert/Tab/Vorschau " + Ok(okDirty));
             sb.AppendLine("UX6 Pufferpakete: Produktwahl " + Ok(okPick) + " Speichern/Merged " + Ok(okMerge) + " Vorlagenliste " + Ok(okList) + " Bezeichnung/Name " + Ok(okName)
                 + " Reihenfolge " + Ok(okOrder) + " Geräte/Status " + Ok(okDev) + " Kopie/Aus Produkt " + Ok(okFrom));
         }

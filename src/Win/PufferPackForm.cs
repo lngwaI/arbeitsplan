@@ -39,11 +39,15 @@ namespace Arbeitsplan.Win
         readonly Button bPos = new Button(), bTpl = new Button();
         readonly ToolTip tip = new ToolTip();
         readonly ContextMenuStrip posMenu = new ContextMenuStrip(), tplMenu = new ContextMenuStrip();
+        readonly string initSig;                 // Pufferpaket beim Oeffnen (XML-Text): Abweichung = ungespeicherte Aenderung
+        bool dirty; string lastWhat = "";
+        readonly Label stMsg = new Label();      // "Nicht gespeichert: …"
 
         public PufferPackForm(Catalog cat, ProductProfile prod, bool readOnly = false)
         {
             this.cat = cat; this.prod = prod; this.readOnly = readOnly;
             foreach (PufferTemplate t in prod.Puffer) list.Add(t.Clone());
+            initSig = PufferPackAdmin.Sig(list);
             Text = "Pufferpaket für Produkt " + prod.Code;
             Ui.Dialog(this, 860, 560);
             Label info = L("Vorlagen, die der Paket-Editor unter „Pufferpaket übernehmen“ und „+ Puffer ▾“ anbietet. Ohne Vorlagen gilt der Standardpuffer.", 8, 6);
@@ -60,10 +64,11 @@ namespace Arbeitsplan.Win
             Controls.Add(L("Name im Plan:", 512, 30)); tName.SetBounds(512, 48, 220, 22); Ui.SimpleMenu(tName); Controls.Add(tName);
             Label help = L("leer = Titel des Schritts · im Plan: " + prod.Code + " - <Name>", 512, 72); help.ForeColor = SystemColors.GrayText; Controls.Add(help);
             Controls.Add(L("Typ:", 742, 30)); cbTyp.SetBounds(742, 48, 110, 22); cbTyp.DropDownStyle = ComboBoxStyle.DropDownList; cbTyp.Items.AddRange(new object[] { "mobil", "stationär" }); Controls.Add(cbTyp);
-            tArt.TextChanged += delegate { if (!loading && cur != null) { cur.Art = tArt.Text.Trim(); RefreshItem(); } };
-            tName.TextChanged += delegate { if (!loading && cur != null) { cur.Name = tName.Text.Replace('|', '/').Trim(); RefreshItem(); Preview(); } };
-            cbTyp.SelectedIndexChanged += delegate { if (!loading && cur != null) { cur.Typ = cbTyp.SelectedIndex == 1 ? "stationaer" : "mobil"; RefreshItem(); Preview(); } };
+            tArt.TextChanged += delegate { if (!loading && cur != null) { cur.Art = tArt.Text.Trim(); RefreshItem(); Chg("Bezeichnung geändert"); } };
+            tName.TextChanged += delegate { if (!loading && cur != null) { cur.Name = tName.Text.Replace('|', '/').Trim(); RefreshItem(); Chg("Name im Plan geändert"); } };
+            cbTyp.SelectedIndexChanged += delegate { if (!loading && cur != null) { cur.Typ = cbTyp.SelectedIndex == 1 ? "stationaer" : "mobil"; RefreshItem(); Chg("Typ geändert"); } };
             BuildRows();
+            stMsg.SetBounds(400, 299, 452, 18); stMsg.AutoEllipsis = true; stMsg.UseMnemonic = false; stMsg.ForeColor = SystemColors.GrayText; Controls.Add(stMsg);
             BuildMenus();
             Controls.Add(L("So erscheint der Puffer im Plan:", 8, 372));
             tPreview.SetBounds(8, 390, 844, 118); tPreview.Multiline = true; tPreview.ReadOnly = true; tPreview.ScrollBars = ScrollBars.Vertical; Controls.Add(tPreview);
@@ -150,7 +155,7 @@ namespace Arbeitsplan.Win
             PufferTemplate t = cat.StandardPuffer();
             if (t == null) { t = new PufferTemplate(); t.Positions.Add(new PufferTemplatePos()); t.Positions[0].Short = "Ansatztank"; }
             if (list.Count > 0) t.Typ = list[list.Count - 1].Typ;
-            list.Add(t); Fill(t);
+            list.Add(t); lastWhat = "Vorlage " + list.Count + " hinzugefügt"; Fill(t);
         }
 
         // Kopie der markierten Vorlage direkt dahinter; Bezeichnung bekommt "(Kopie)", damit beide in der Liste unterscheidbar sind
@@ -160,16 +165,16 @@ namespace Arbeitsplan.Win
             PufferTemplate t = cur.Clone();
             string l = cur.Art.Length > 0 ? cur.Art : cur.Name;
             t.Art = l.Length > 0 ? l + " (Kopie)" : "Kopie";
-            list.Insert(list.IndexOf(cur) + 1, t); Fill(t);
+            list.Insert(list.IndexOf(cur) + 1, t); lastWhat = "Vorlage „" + cur.Label + "“ kopiert (neu: „" + t.Label + "“)"; Fill(t);
         }
 
         // Vorlage eines anderen Produkts als unabhaengige Kopie hinten anhaengen
-        void AddFromProduct(PufferTemplate src) { PufferTemplate t = src.Clone(); list.Add(t); Fill(t); }
+        void AddFromProduct(PufferTemplate src) { PufferTemplate t = src.Clone(); list.Add(t); lastWhat = "Vorlage „" + t.Label + "“ aus anderem Produkt kopiert"; Fill(t); }
 
         void RemoveTemplate()
         {
             if (cur == null) return;
-            int i = list.IndexOf(cur); list.Remove(cur);
+            int i = list.IndexOf(cur); lastWhat = "Vorlage „" + cur.Label + "“ entfernt"; list.Remove(cur);
             Fill(list.Count > 0 ? list[Math.Min(i, list.Count - 1)] : null);
         }
 
@@ -178,13 +183,33 @@ namespace Arbeitsplan.Win
             if (cur == null) return;
             int i = list.IndexOf(cur), j = i + d;
             if (j < 0 || j >= list.Count) return;
-            list.RemoveAt(i); list.Insert(j, cur); Fill(cur);
+            list.RemoveAt(i); list.Insert(j, cur); lastWhat = "Reihenfolge der Vorlagen geändert"; Fill(cur);
             lb.Focus();
         }
 
         // Vorschau: die Vorlagen als Puffer-Schritt (Plan-Ausgabe des Kerns), Namen mit Produktcode wie im Plan (Package.PlanBufferName)
+        // Aenderung mit Text fuer die Statuszeile ("Nicht gespeichert: …"), danach Vorschau
+        internal void Chg(string what) { lastWhat = what; Preview(); }
+
+        void Touched()
+        {
+            dirty = PufferPackAdmin.Sig(list) != initSig;
+            stMsg.Text = dirty ? "Nicht gespeichert: " + lastWhat + " – Abbrechen verwirft die Änderungen" : "";
+        }
+
+        // Abbrechen/Esc/Schliessen mit ungespeicherten Aenderungen am Pufferpaket: erst fragen (Standard Nein)
+        protected override void OnFormClosing(FormClosingEventArgs e)
+        {
+            if (!readOnly && dirty && DialogResult != DialogResult.OK
+                && MessageBox.Show(this, "Änderungen am Pufferpaket verwerfen?", Text, MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button2) != DialogResult.Yes) e.Cancel = true;
+            base.OnFormClosing(e);
+        }
+
+        protected override void Dispose(bool disposing) { if (disposing) { tip.Dispose(); posMenu.Dispose(); tplMenu.Dispose(); } base.Dispose(disposing); }
+
         void Preview()
         {
+            Touched();
             PackageStep s = new PackageStep(); s.Title = "Puffer"; s.Source = "Puffer"; s.Row = "Puffer"; s.Day = 1;
             List<PufferTemplate> copy = new List<PufferTemplate>(); foreach (PufferTemplate t in list) copy.Add(t.Clone());
             if (copy.Count > 0) Package.ApplyPufferTemplates(s, copy);
@@ -209,6 +234,9 @@ namespace Arbeitsplan.Win
         public void TestCopy() { CopyTemplate(); }
         public void TestFromProduct(PufferTemplate src) { AddFromProduct(src); }
         public void TestSelect(int i) { Fill(list[i]); }
+        public void TestRemove() { RemoveTemplate(); }
+        public bool TestDirty { get { return dirty; } }
+        public string TestMsg { get { return stMsg.Text; } }
         public bool TestCommit() { Commit(); return Result.Count == list.Count; }
         public void TestName(string n) { tName.Text = n; }
         public void TestArt(string a) { tArt.Text = a; }

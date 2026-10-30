@@ -223,6 +223,8 @@ namespace Arbeitsplan.Win
             return Height = y;
         }
 
+        public void FocusName() { if (tName.Visible) { tName.Focus(); tName.SelectAll(); } }
+
         string ShareName(EquipAssign a) { EquipPosition ep = cat.Position(a.Short); return ep != null ? ep.Name : a.Short; }
 
         protected override void Dispose(bool disposing) { if (disposing) { reorder.Dispose(); tip.Dispose(); if (bold != null) bold.Dispose(); } base.Dispose(disposing); }

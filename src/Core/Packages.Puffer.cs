@@ -155,14 +155,30 @@ namespace Arbeitsplan.Core
             {
                 EquipAssign a = pp.ToAssign();
                 if (!pp.Shared) { sp.Lines.Add(a); continue; }
-                if (s.PufferShared.Exists(delegate(PufferShare x) { return x.Scope == 0 && string.Equals(x.Eq.Short, pp.Short, StringComparison.OrdinalIgnoreCase); })) continue;   // N7: "alle Puffer" gilt schon fuer den neuen
-                PufferShare g = s.PufferShared.Find(delegate(PufferShare x) { return x.Scope != 0 && string.Equals(x.Eq.Short, pp.Short, StringComparison.OrdinalIgnoreCase); });
+                // Zusammenlegen nur mit gleicher Zeile (Position, Geraete in Reihenfolge, Wechsel, Notiz); sonst eigene Zeile fuer den neuen Puffer
+                foreach (PufferShare x in s.PufferShared)   // "alle Puffer" mit anderem Geraet darf den neuen nicht mehr abdecken
+                    if (k > 0 && x.Scope == 0 && SameShort(x.Eq, a) && !SameLine(x.Eq, a)) x.Scope = k < 31 ? (1 << k) - 1 : int.MaxValue;
+                PufferShare g = s.PufferShared.Find(delegate(PufferShare x) { return SameLine(x.Eq, a); });
+                if (g != null && g.Scope == 0) continue;   // N7: "alle Puffer" gilt schon fuer den neuen
                 if (g == null) { g = new PufferShare(); g.Eq = a; s.PufferShared.Add(g); }
                 if (k < 31) g.Scope |= 1 << k;
             }
+            if (sp.Name.Length == 0 && k > 0 && sp.NameNo == 0) sp.NameNo = k + 1;   // unbenannt: "Titel 2", "Titel 3" … (zentral)
             s.Puffers.Add(sp);
             s.SyncPuffers();
             return sp;
+        }
+
+        static bool SameShort(EquipAssign x, EquipAssign y) { return string.Equals(x.Short, y.Short, StringComparison.OrdinalIgnoreCase); }
+
+        // Gleiche gemeinsame Zeile: Position, Geraete (Ids in Reihenfolge), Wechsel, Ausweich und Notiz; y (aus der Vorlage) ohne Geraet/Notiz bringt nichts
+        // Eigenes mit und passt deshalb zu jeder Zeile der Position (nichts geht verloren)
+        static bool SameLine(EquipAssign x, EquipAssign y)
+        {
+            if (SameShort(x, y) && y.Choices.Count == 0 && y.Note.Length == 0 && y.Fallback.Length == 0 && !y.Alternate) return true;
+            if (!SameShort(x, y) || x.Alternate != y.Alternate || x.Choices.Count != y.Choices.Count || x.Note != y.Note || x.Fallback != y.Fallback) return false;
+            for (int i = 0; i < x.Choices.Count; i++) if (x.Choices[i].Id != y.Choices[i].Id) return false;
+            return true;
         }
 
         // Voreinstellung eines Produkts uebernehmen: die bisherigen Puffer des Schritts werden durch die Vorlagen ersetzt.

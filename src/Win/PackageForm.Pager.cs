@@ -65,8 +65,8 @@ namespace Arbeitsplan.Win
                 BlockPreview.Card c = new BlockPreview.Card();
                 c.Room = cur.Row.Length > 0 ? cur.Row : "Raum fehlt"; c.Missing = cur.Row.Length == 0;
                 c.Day = RelOf(cur, d) + (!IsJe(cur) && cur.Pinned(d.Run) ? " (verschoben)" : "");
-                c.Data = cur.EntryFor(d.Run, prefix);
                 Package pv = StepsView(); List<RunDate> plan = Plan();
+                c.Data = cur.EntryFor(d.Run, prefix); pv.WithCode(c.Data.Buffers);   // Puffernamen mit Produktcode wie im Plan
                 if (pv.CardsSplit(cur, pv.Day1))   // UX-5c: Karten mit eigenem Versatz, je Tag ein Block
                 {
                     int lauf = pv.LaufOf(plan, d) + 1;
@@ -74,7 +74,7 @@ namespace Arbeitsplan.Win
                     {
                         BlockPreview.Card cc = new BlockPreview.Card(); cc.Room = c.Room; cc.Missing = c.Missing || d.Day + dl < 1;   // N7: Karte vor dem Start rot
                         cc.Day = RelOf(cur, d, plan, dl); cc.Data = new Entry();
-                        cc.Data.Buffers = cur.BuffersAt(d.Run, prefix, lauf, dl);
+                        cc.Data.Buffers = pv.WithCode(cur.BuffersAt(d.Run, prefix, lauf, dl));
                         foreach (BufferItem bi in cc.Data.Buffers) bi.LaufRef = lauf;
                         cards.Add(cc);
                     }
