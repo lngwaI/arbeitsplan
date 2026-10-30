@@ -23,10 +23,13 @@ namespace Arbeitsplan.Core
         }
     }
 
-    // Vorlage fuer einen Puffer: Name (leer = aus dem Schritt-Titel), Typ (mobil/stationaer), Positionen.
+    // Vorlage fuer einen Puffer: Name im Plan (leer = aus dem Schritt-Titel), Typ (mobil/stationaer), Positionen.
+    // Art (UX-6): Bezeichnung nur zur Auswahl ("mobiler Puffer 1"), erscheint nicht im Plan; leer = wie Name.
     public class PufferTemplate
     {
-        public string Name = "", Typ = "mobil";
+        public string Name = "", Typ = "mobil", Art = "";
+
+        public string Label { get { return Art.Length > 0 ? Art : Name.Length > 0 ? Name : "(Name aus Titel)"; } }
         public List<PufferTemplatePos> Positions = new List<PufferTemplatePos>();
 
         public PufferTemplate Clone()
@@ -94,6 +97,7 @@ namespace Arbeitsplan.Core
             foreach (PufferTemplate t in list)
             {
                 w.WriteStartElement("Puffer"); w.WriteAttributeString("name", t.Name); w.WriteAttributeString("typ", t.Typ);
+                if (t.Art.Length > 0) w.WriteAttributeString("art", t.Art);
                 foreach (PufferTemplatePos x in t.Positions)
                 {
                     w.WriteStartElement("P"); w.WriteAttributeString("kurz", x.Short); w.WriteAttributeString("notiz", x.Note);
@@ -109,7 +113,7 @@ namespace Arbeitsplan.Core
         {
             foreach (XmlElement e in Kids(produkt, "Puffer"))
             {
-                PufferTemplate t = new PufferTemplate(); t.Name = e.GetAttribute("name"); t.Typ = e.GetAttribute("typ");
+                PufferTemplate t = new PufferTemplate(); t.Name = e.GetAttribute("name"); t.Typ = e.GetAttribute("typ"); t.Art = e.GetAttribute("art");
                 foreach (XmlElement x in Kids(e, "P"))
                 {
                     PufferTemplatePos p = new PufferTemplatePos(); p.Short = x.GetAttribute("kurz"); p.Note = x.GetAttribute("notiz");

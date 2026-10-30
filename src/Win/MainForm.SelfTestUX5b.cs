@@ -1,4 +1,4 @@
-#if TESTHOOKS
+﻿#if TESTHOOKS
 using System;
 using System.Collections.Generic;
 using System.Drawing;
@@ -139,7 +139,7 @@ namespace Arbeitsplan.Win
                 CellData c = CellOf(pr, 3);   // Donnerstag = Hauptlauf (Mittwoch) + 1
                 bool okShow = c != null && c.BufParts.Count == 3 && c.Buffers[0].LaufRef == 1 && c.Buffers[2].LaufRef == 1;
                 string h0 = okShow ? UxHead(c.BufParts[0]) : "", h1 = okShow ? UxHead(c.BufParts[1]) : "", h2 = okShow ? UxHead(c.BufParts[2]) : "";
-                bool okHead = h0.StartsWith("Puffer 1: Lösung A") && h0.EndsWith("Lauf 1") && h1.StartsWith("Puffer 2: Lösung B") && h1.EndsWith("Lauf 1") && h2.StartsWith("Puffer 3: Lösung C") && h2.EndsWith("Lauf 1");
+                bool okHead = h0.StartsWith("Puffer 1: " + Package.PlanBufferName(p.ProductCode, "Lösung A")) && h0.EndsWith("Lauf 1") && h1.StartsWith("Puffer 2: " + Package.PlanBufferName(p.ProductCode, "Lösung B")) && h1.EndsWith("Lauf 1") && h2.StartsWith("Puffer 3: " + Package.PlanBufferName(p.ProductCode, "Lösung C")) && h2.EndsWith("Lauf 1");
                 bool okGap = okShow, okOver = okShow;
                 if (okShow)
                     for (int i = 0; i + 1 < c.BufParts.Count; i++)
@@ -161,7 +161,7 @@ namespace Arbeitsplan.Win
                 store.Save(wk.AddDays(3), rowInfo[pr].Id, oc);
                 Rebuild(true); Expand(pr);
                 CellData c2 = CellOf(pr, 3);
-                bool okOld = c2 != null && c2.BufParts.Count == 3 && UxHead(c2.BufParts[0]).StartsWith("Puffer 1: Lösung A") && !UxHead(c2.BufParts[0]).Contains("Lauf");
+                bool okOld = c2 != null && c2.BufParts.Count == 3 && UxHead(c2.BufParts[0]).StartsWith("Puffer 1: " + Package.PlanBufferName(p.ProductCode, "Lösung A")) && !UxHead(c2.BufParts[0]).Contains("Lauf");
                 return "UX5b Wochenansicht: 3 Puffer " + Ok(okShow) + " Kopf mit Lauf " + Ok(okHead) + " Abstand " + Ok(okGap) + " keine Überlappung " + Ok(okOver) + " Farbwechsel " + Ok(okTint)
                     + " Zeilenhöhe synchron " + Ok(okRow) + " alter Bestand ohne Lauf " + Ok(okOld) + (res != null && res.StartsWith("Ausnahme") ? " " + res : "");
             }

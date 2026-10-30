@@ -152,12 +152,22 @@ namespace Arbeitsplan.Core
                     string k = day.ToString("yyyyMMdd", CultureInfo.InvariantCulture) + "|" + id;
                     Target t;
                     if (!map.TryGetValue(k, out t)) { t = new Target(); t.Day = day; t.RowId = id; t.Data = new Entry(); map[k] = t; order.Add(t); }
-                    if (s.IsBuffer) { int lauf = LaufOf(plan, rd, start.DayOfWeek) + 1; BufferSet.AddRange(t.Data.Buffers, split ? s.BuffersAt(rd.Run, Prefix, lauf, dl) : s.BuffersFor(rd.Run, Prefix, lauf)); }   // mehrere Puffer am Tag: anhaengen
+                    if (s.IsBuffer) { int lauf = LaufOf(plan, rd, start.DayOfWeek) + 1; BufferSet.AddRange(t.Data.Buffers, WithCode(split ? s.BuffersAt(rd.Run, Prefix, lauf, dl) : s.BuffersFor(rd.Run, Prefix, lauf))); }   // mehrere Puffer am Tag: anhaengen
                     else AppendText(t.Data, s.EntryFor(rd.Run, Prefix));   // Notizzeilen und Kennung (Format) kommen mit
                 }
             }
             return order;
         }
+
+        // UX-6: Puffer heissen im Plan "<Produktcode> - <Name>" (einzige Stelle; ohne Code oder Namen unveraendert, kein doppelter Praefix)
+        public static string PlanBufferName(string code, string name)
+        {
+            code = (code ?? "").Trim();
+            if (code.Length == 0 || string.IsNullOrEmpty(name) || name.StartsWith(code + " - ", StringComparison.Ordinal)) return name ?? "";
+            return code + " - " + name;
+        }
+
+        List<BufferItem> WithCode(List<BufferItem> l) { foreach (BufferItem b in l) b.Name = PlanBufferName(ProductCode, b.Name); return l; }
 
 #if TESTHOOKS
         // Testpaket (erfundene Daten, Produkt 1234, Typ Kampagne, Lauf 1 ohne festes Datum): Packen, Packen Backup, Hauptlauf 4x im Rhythmus, Mischen und
