@@ -50,7 +50,7 @@ namespace Arbeitsplan.Win
             Package sample = Ux5bSample("UX5b");
             PackageForm f = new PackageForm(store, equip, start, sample, true, true);
             f.StartPosition = FormStartPosition.Manual; f.Location = new Point(0, 0);
-            int stage = 0;
+            int stage = 0; string dbg = "";
             try
             {
                 f.Show(); Application.DoEvents();
@@ -71,15 +71,15 @@ namespace Arbeitsplan.Win
                 int snaps = f.UndoCount;
                 rows[1].PinHot = true; rows[1].SetHot(true);
                 rows[1].TestDown.PerformClick(); Application.DoEvents();
-                ps = f.cur;
+                ps = f.cur; dbg = "nach Klick: " + (ps != null ? ps.Title + " puffer=" + ps.Puffers.Count : "null") + " karten=" + f.cards.Count + " undo=" + f.UndoCount + "/" + snaps;
                 bool okBtn = Shorts(ps.Puffers[0].Lines) == "Ansatztank,Tween,VT" && ShortsOf(ps, 0) == "Ansatztank,Tween,VT,WFI" && ShortsOf(ps, 1) == "Ansatztank,VT,WFI" && f.dirty
                     && f.UndoCount == snaps + 1 && f.Card(0).TestRows[1].TestIdBox.Text == "TW-1" && f.Card(0).TestRows[2].TestIdBox.Text == "VT-1";
-                f.TestUndo(-1); Application.DoEvents();
-                ps = f.cur;
+                f.TestUndo(-1); f.TestSelectBuffer(); Application.DoEvents();   // Rueckgaengig stellt auch die Auswahl des Schnappschusses her
+                ps = f.cur; dbg += "; nach Undo: " + (ps != null ? ps.Title + " puffer=" + ps.Puffers.Count : "null");
                 bool okUndo = Shorts(ps.Puffers[0].Lines) == "Ansatztank,VT,Tween" && ShortsOf(ps, 0) == "Ansatztank,VT,Tween,WFI" && f.cards.Count == 3;
-                f.TestUndo(1); Application.DoEvents();
+                f.TestUndo(1); f.TestSelectBuffer(); Application.DoEvents();
                 okUndo &= Shorts(f.cur.Puffers[0].Lines) == "Ansatztank,Tween,VT";
-                f.TestUndo(-1); Application.DoEvents();
+                f.TestUndo(-1); f.TestSelectBuffer(); Application.DoEvents();
 
                 stage = 3; // (3) Ziehen: nach unten (Einfuegelinie am Ziel), nicht ueber die Gruppengrenze (WFI bleibt unten), Abbrechen, nach oben
                 PufferCard c = f.Card(0); RowReorder ro = c.TestReorder; EquipRow r0 = c.TestRows[0];
@@ -116,7 +116,7 @@ namespace Arbeitsplan.Win
                 e1.TestUp.PerformClick(); Application.DoEvents();   // Zeile 2 nach oben: Reihenfolge wie vorher mit getauschten ersten beiden
                 lf = f.cur;
                 okEq &= Shorts(lf.Equipment).StartsWith(bs[2] + "," + bs[1] + "," + bs[0] + ",");
-                f.TestUndo(-1); Application.DoEvents(); f.TestUndo(-1); Application.DoEvents();
+                f.TestUndo(-1); Application.DoEvents(); f.TestUndo(-1); f.SelectStep(2); Application.DoEvents();
                 okEq &= Shorts(f.cur.Equipment) == before && f.cur.Compose(0, f.prefix) == planBefore;
 
                 stage = 5; // (5) Vorschau: Kopf nennt den Lauf, Abstand und Farbwechsel am Bild, zweiter Lauf = Lauf 2
@@ -150,7 +150,7 @@ namespace Arbeitsplan.Win
                 return "UX5b Editor: Knöpfe nur bei Hover/Fokus " + T(okArrows) + " ▼ Knopf " + T(okBtn) + " Rückgängig " + T(okUndo) + " Ziehen/Einfügelinie/Gruppe " + T(okDrag) + " nach oben " + T(okUp)
                     + " normaler Schritt " + T(okEq) + " Vorschau Lauf " + T(okLauf) + " Abstand " + T(okBands) + " Farbwechsel " + T(okTint);
             }
-            catch (Exception ex) { return "UX5b Editor: FEHLER Ausnahme (Abschnitt " + stage + ") " + ex.GetType().Name + ": " + ex.Message + " " + ex.StackTrace.Replace("\r", "").Replace("\n", " / "); }
+            catch (Exception ex) { return "UX5b Editor: FEHLER Ausnahme (Abschnitt " + stage + ", " + dbg + ") " + ex.GetType().Name + ": " + ex.Message + " " + ex.StackTrace.Replace("\r", "").Replace("\n", " / "); }
             finally { f.dirty = false; f.Close(); f.Dispose(); Package.Seen.Remove(sample); }
         }
     }

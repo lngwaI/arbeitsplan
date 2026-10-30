@@ -179,7 +179,7 @@ namespace Arbeitsplan.Win
             if (pf != null && which == "package7") { pf.SelectStep(3); pf.TestMore(); pf.TestScrollEnd(); }   // Hauptlauf, Zusaetze (Kennungstabelle) im Blick
             if (pf != null && which == "package6") pf.SelectStep(2);
             if (pf != null && which == "package10") pf.TestSelectBuffer();
-            if (pf != null && (which == "package11" || which == "package12" || which == "package15")) { pf.TestSelectBuffer(); if (which == "package12") pf.TestOpenCard(1); if (which == "package15") pf.TestOpenCard(1); pf.TestHotRow(0, 1); pf.TestScrollEnd(); }
+            if (pf != null && (which == "package11" || which == "package12" || which == "package15")) { if (which == "package15") pf.Size = ClientSize.Width < 1190 ? ClientSize : new Size(1190, 980); pf.TestSelectBuffer(); if (which == "package12") pf.TestOpenCard(1); if (which == "package15") { pf.TestOpenCard(1); pf.TestShrinkPane(); } pf.TestHotRow(0, 1); if (which != "package15") pf.TestScrollEnd(); }
             if (pf != null && (which == "package13" || which == "package14")) { pf.Size = ClientSize.Width < 1190 ? ClientSize : new Size(1190, 980); if (which == "package13") pf.TestSelectBuffer(); else pf.SelectStep(2); pf.TestMore(); pf.TestShrinkPane(); }   // UX-5a: hohes Fenster, "Mehr Optionen" offen (13 Puffer, 14 Lauf)
             if (pf != null && (which == "package8" || which == "package9")) pf.TestE5Shot(which);   // E5/E6: verschobene Laeufe mit Schloss; Zoom Woche + nur Auswahl
             return f;

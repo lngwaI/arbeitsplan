@@ -286,8 +286,8 @@ namespace Arbeitsplan.Win
                         Rectangle band = bands[k];
                         using (Brush tb = new SolidBrush(BufStyle.Tint(k))) g.FillRectangle(tb, band);   // eigener Hintergrundton je Puffer (wechselt), Seitenstrich = Typ
                         using (Brush sb = new SolidBrush(t.BufColors[p.Typ == "stationaer" ? 1 : 0])) g.FillRectangle(sb, band.X, band.Y, StripeW, band.Height);
-                        p.Head.Draw(g, band.X + StripeW + 4, ty + BufStyle.Pad);
-                        if (p.Body != null) p.Body.Draw(g, band.X + StripeW + 4 + BufIndent, ty + BufStyle.Pad + p.Head.Height);
+                        p.Head.Draw(g, band.X + StripeW + 4, band.Y + BufStyle.Pad);
+                        if (p.Body != null) p.Body.Draw(g, band.X + StripeW + 4 + BufIndent, band.Y + BufStyle.Pad + p.Head.Height);
                         if (k < parts.Count - 1) { int ly = band.Bottom + BufStyle.Gap / 2; g.DrawLine(t.Pen(BufStyle.Line, 1), band.X + 2, ly, band.Right - 3, ly); }
                     }
                     if (parts.Count > 0) ty = bands[parts.Count - 1].Bottom + Pad;
