@@ -56,6 +56,37 @@ namespace Arbeitsplan.Core
             return g != null && PufferShared.Remove(g);
         }
 
+        // Element von from nach to verschieben (to = Index nach dem Verschieben); false = nichts zu tun
+        public static bool MoveItem<T>(List<T> l, int from, int to)
+        {
+            if (from < 0 || from >= l.Count || to < 0 || to >= l.Count || from == to) return false;
+            T x = l[from]; l.RemoveAt(from); l.Insert(to, x);
+            return true;
+        }
+
+        // Anzahl eigener Zeilen und gemeinsamer Zeilen im Geltungsbereich von Puffer k (Anzeigereihenfolge der Karte: erst eigene, dann gemeinsame)
+        public int OwnLines(int k) { return k >= 0 && k < Puffers.Count ? Puffers[k].Lines.Count : 0; }
+
+        public int SharedLines(int k) { int n = 0; foreach (PufferShare g in PufferShared) if (g.Covers(k)) n++; return n; }
+
+        // UX-5b: Zeile in der Karte von Puffer k verschieben (from/to = Index in der Anzeige: eigene Zeilen, dann gemeinsame). Eigene Zeilen bleiben
+        // unter den eigenen, gemeinsame unter den gemeinsamen (to wird in die Gruppe geklemmt). Gemeinsame Zeilen aendern die Reihenfolge in PufferShared
+        // nur zwischen den Zeilen, die den Puffer betreffen; Geltungsbereich und Gerate bleiben unveraendert. Gibt true zurueck, wenn sich etwas geaendert hat.
+        public bool MoveEquip(int k, int from, int to)
+        {
+            if (k < 0 || k >= Puffers.Count) return false;
+            int own = Puffers[k].Lines.Count, total = own + SharedLines(k);
+            if (from < 0 || from >= total) return false;
+            if (from < own) return MoveItem(Puffers[k].Lines, from, Math.Max(0, Math.Min(own - 1, to)));
+            int fr = from - own, tr = Math.Max(own, Math.Min(total - 1, to)) - own;
+            if (fr == tr) return false;
+            List<int> slots = new List<int>(); List<PufferShare> cov = new List<PufferShare>();
+            for (int i = 0; i < PufferShared.Count; i++) if (PufferShared[i].Covers(k)) { slots.Add(i); cov.Add(PufferShared[i]); }
+            MoveItem(cov, fr, tr);
+            for (int i = 0; i < slots.Count; i++) PufferShared[slots[i]] = cov[i];
+            return true;
+        }
+
         // Geltungsbereich einer Zeile setzen (mask: Bit k = Puffer k+1). Ein Puffer = eigene Zeile dieses Puffers, mehrere = gemeinsame Zeile.
         public bool SetScope(EquipAssign a, int mask)
         {

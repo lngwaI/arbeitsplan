@@ -3,11 +3,18 @@ on:
   push:
     branches-ignore: ['bilder/**']
   workflow_dispatch:
+# Ein Lauf je Branch; neuere Pushes brechen aeltere ab (weniger Laeufe, weniger Mails)
+concurrency:
+  group: selftest-${{ github.ref }}
+  cancel-in-progress: true
 permissions:
   contents: write   # nur fuer den Bilder-Branch bilder/<branch> (Testbilder mit erfundenen Testdaten)
 jobs:
   test:
     runs-on: windows-latest
+    # Ein roter Test soll keine Fehler-Mail ausloesen: der Lauf gilt als erfolgreich, das Ergebnis steht in den
+    # Annotationen und in selftest.txt (Abruf: scripts/ci-ergebnis.sh). Auswertung deshalb ueber die Annotationen, nicht ueber die Lauffarbe.
+    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
       - name: Bauen (csc, wie lokal)

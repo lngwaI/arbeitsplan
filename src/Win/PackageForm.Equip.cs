@@ -9,7 +9,8 @@ namespace Arbeitsplan.Win
     // Zeile fuer eine Equipment-Position im Paket-Editor: Position | Geraet | abwechselnd | Ausweich-Geraet | Notiz | entfernen.
     class EquipRow : Panel
     {
-        const int Gap = 6, AltW = 132, DelW = 24;
+        const int Gap = 6, AltW = 132, DelW = 24, ArrowW = 17, GripW = 12;
+        public const int Lead = GripW + 2 * ArrowW + 4;   // linke Spalte: Griff, ▲, ▼ (UX-5b)
         readonly EquipAssign a;
         readonly EquipPosition pos;
         readonly Catalog cat;
@@ -18,7 +19,11 @@ namespace Arbeitsplan.Win
         readonly Label name = new Label();
         readonly ComboBox cbId = new ComboBox(), cbFb = new ComboBox();
         readonly CheckBox chkAlt = new CheckBox();
-        readonly Button btnAlt = new Button(), del = new Button();
+        readonly Button btnAlt = new Button(), del = new Button(), up = new Button(), down = new Button();
+        readonly RowGrip grip;
+        bool hot, canUp, canDown;
+        internal RowReorder Reorder;   // Umsortieren (Container setzt es; null = Zeile nicht verschiebbar)
+        public int Slot = -1;          // Platz der Zeile im Container (Reihenfolge im Modell)
         readonly TextBox note = new TextBox();
         bool loading;
 
@@ -27,10 +32,10 @@ namespace Arbeitsplan.Win
         public static int[] Cols(int w, bool wide)
         {
             int alt = wide ? AltW : 0, gaps = wide ? 5 * Gap : 3 * Gap;
-            int rest = Math.Max(wide ? 420 : 300, w - alt - DelW - gaps);
+            int rest = Math.Max(wide ? 420 : 300, w - Lead - alt - DelW - gaps);
             int p = rest * (wide ? 27 : 34) / 100, id = rest * (wide ? 25 : 33) / 100, fb = wide ? rest * 23 / 100 : 0, nt = rest - p - id - fb;
             int[] x = new int[7];
-            x[1] = p + Gap; x[2] = x[1] + id + Gap; x[3] = x[2] + alt + (wide ? Gap : 0); x[4] = x[3] + fb + (wide ? Gap : 0); x[5] = x[4] + nt + Gap; x[6] = x[5] + DelW;
+            x[0] = Lead; x[1] = Lead + p + Gap; x[2] = x[1] + id + Gap; x[3] = x[2] + alt + (wide ? Gap : 0); x[4] = x[3] + fb + (wide ? Gap : 0); x[5] = x[4] + nt + Gap; x[6] = x[5] + DelW;
             return x;
         }
 
@@ -59,8 +64,11 @@ namespace Arbeitsplan.Win
             btnAlt.Text = "…";
             Ui.SimpleMenu(note);
             del.Text = "x"; del.Click += delegate { remove(a); };
-            Controls.AddRange(new Control[] { name, cbId, chkAlt, btnAlt, cbFb, note, del });
-            foreach (Button b in new[] { btnAlt, del }) Theme.Current.StyleButton(b);
+            grip = new RowGrip(this); up.Text = "▲"; down.Text = "▼"; up.Visible = down.Visible = false;
+            up.Click += delegate { if (Reorder != null) Reorder.Step(this, -1); }; down.Click += delegate { if (Reorder != null) Reorder.Step(this, 1); };
+            Controls.AddRange(new Control[] { name, cbId, chkAlt, btnAlt, cbFb, note, del, grip, up, down });
+            foreach (Button b in new[] { btnAlt, del, up, down }) Theme.Current.StyleButton(b);
+            Enter += delegate { ShowArrows(); }; Leave += delegate { ShowArrows(); };
             ToolTip tip = new ToolTip();
             tip.SetToolTip(name, name.Text);
             tip.SetToolTip(cbId, "Gerät aus der validierten Liste wählen oder eigenes eintippen (nicht validierte Eingabe wird orange).");
@@ -68,6 +76,8 @@ namespace Arbeitsplan.Win
             tip.SetToolTip(btnAlt, "Geräte für den Wechsel auswählen");
             tip.SetToolTip(cbFb, "Ausweich-Gerät (Backup), falls das geplante ausfällt.");
             tip.SetToolTip(note, "Notiz/Bezeichnung zu diesem Gerät (steht im Plan hinter der Nummer).");
+            tip.SetToolTip(grip, "Zeile verschieben: am Griff nach oben oder unten ziehen (oder ▲▼ nutzen). Die Reihenfolge steht so im Plan.");
+            tip.SetToolTip(up, "Eine Zeile nach oben"); tip.SetToolTip(down, "Eine Zeile nach unten");
             tip.SetToolTip(del, allowNone ? "Position entfernen (wie „" + NoneText + "“)" : "Position aus diesem Schritt entfernen");
 
             loading = true;
@@ -136,7 +146,11 @@ namespace Arbeitsplan.Win
             int[] x = Cols(w, wide);
             int h = cbId.Height;
             Size = new Size(x[6], h + 6);
-            name.SetBounds(2, 3, x[1] - Gap - 2, h);
+            grip.SetBounds(0, 3, GripW, h);
+            Font small = FontCache.Get(Font.Name, Math.Max(6.5f, Font.SizeInPoints - 2f), FontStyle.Regular, Font);
+            up.Font = down.Font = small; up.Padding = down.Padding = Padding.Empty;
+            up.SetBounds(GripW + 2, 3, ArrowW, h); down.SetBounds(GripW + 2 + ArrowW, 3, ArrowW, h);
+            name.SetBounds(x[0] + 2, 3, x[1] - Gap - x[0] - 2, h);
             name.TextAlign = ContentAlignment.MiddleLeft;
             cbId.SetBounds(x[1], 3, x[2] - x[1] - Gap, h);
             bool rot = (pos != null && pos.AllowRotation) || a.Alternate;
@@ -149,7 +163,24 @@ namespace Arbeitsplan.Win
             foreach (ComboBox c in new[] { cbId, cbFb }) if (!c.Focused) c.SelectionLength = 0;   // Groessenaenderung markiert sonst den ganzen Text
         }
 
+        // Knoepfe nur bei Hover/Fokus und nur, wenn es etwas zu verschieben gibt (Rand der Gruppe: der Knopf ist deaktiviert)
+        public void SetOrder(int slot, bool canUp, bool canDown)
+        {
+            Slot = slot; this.canUp = canUp; this.canDown = canDown;
+            grip.Visible = Reorder != null && (canUp || canDown);
+            up.Enabled = canUp; down.Enabled = canDown;
+            ShowArrows();
+        }
+
+        internal void SetHot(bool on) { if (hot == on) return; hot = on; grip.Hot = on; grip.Invalidate(); ShowArrows(); }
+
+        void ShowArrows() { up.Visible = down.Visible = Reorder != null && (canUp || canDown) && (hot || ContainsFocus); }
+
 #if TESTHOOKS
+        internal bool PinHot;
+        internal Button TestUp { get { return up; } }
+        internal Button TestDown { get { return down; } }
+        internal Control TestGrip { get { return grip; } }
         internal ComboBox TestIdBox { get { return cbId; } }
         internal CheckBox TestAltBox { get { return chkAlt; } }
 #endif

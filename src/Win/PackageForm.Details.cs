@@ -13,6 +13,7 @@ namespace Arbeitsplan.Win
     {
         readonly EditMarker marker = new EditMarker();
         readonly Panel scroll = new Panel(), body = new Panel(), equipRows = new Panel();
+        RowReorder equipOrder;   // Reihenfolge der Equipment-Zeilen normaler Schritte (UX-5b)
         Section gWhat, gWhen, gExtra, gEquip;
         readonly TextBox tTitle = new TextBox(), tSubNos = new TextBox(), tIdent = new TextBox(), tNote = new TextBox(), tManualNo = new TextBox();
         readonly ComboBox cbKind = new ComboBox(), cbRow = new ComboBox();
@@ -101,6 +102,8 @@ namespace Arbeitsplan.Win
             string[] heads = { "Position", "Gerät", "abwechselnd", "Ausweich-Gerät", "Notiz" };
             for (int i = 0; i < 5; i++) { equipHead[i] = Lbl(gEquip, heads[i], 0, 80); equipHead[i].Height = Font.Height + 4; equipHead[i].Font = new Font(Font, FontStyle.Bold); equipHead[i].AutoEllipsis = true; }
             equipRows.Tag = "keep"; gEquip.Controls.Add(equipRows);
+            equipOrder = new RowReorder(equipRows, delegate { return equipRows.Controls.Count; }, delegate(int i) { return equipRows.Controls[i].Bounds; },
+                delegate(int f, int t) { if (cur != null && PackageStep.MoveItem(cur.Equipment, f, t)) { dirty = true; Bind(cur); CommitUndo(); } }, gEquip);
             lNoEquip = Lbl(gEquip, "Keine Equipment-Positionen – mit „+ Position hinzufügen“ ergänzen.", 8, 480); Gray(lNoEquip); Grow(lNoEquip);
             Btn(bPos, "+ Position hinzufügen ▾", 8, 0, 190, delegate { menuPos.Show(bPos, new Point(0, bPos.Height)); });
             gEquip.Controls.Add(bPos);
@@ -159,12 +162,13 @@ namespace Arbeitsplan.Win
             cur = s;
             loading = true;
             body.SuspendLayout();
+            equipOrder.Clear();
             while (equipRows.Controls.Count > 0) { Control c = equipRows.Controls[0]; equipRows.Controls.RemoveAt(0); c.Dispose(); }
             if (s != null && s.IsBuffer) s.MigratePuffers();   // alter Modus -> eigene Puffer (verlustfrei, gleicher Plantext, kein "geändert")
             BindPuffer(s);   // Karten je Puffer (PackageForm.PufferCards.cs)
             if (s != null)
             {
-                foreach (EquipAssign a in s.Equipment) equipRows.Controls.Add(new EquipRow(a, cat, Product, delegate { Changed(); }, RemoveAssign));
+                foreach (EquipAssign a in s.Equipment) { EquipRow er = new EquipRow(a, cat, Product, delegate { Changed(); }, RemoveAssign); equipRows.Controls.Add(er); equipOrder.Add(er); }
                 tTitle.Text = s.Title;
                 cbKind.Items[1] = s == StepsView().Head ? "Hauptlauf" : "Lauf-Schritt mit Laufnummer";
                 cbKind.SelectedIndex = (int)s.Kind; tSubNos.Text = s.SubNos;
@@ -296,7 +300,8 @@ namespace Arbeitsplan.Win
             y = Row(y, any, equipHead) - 2;
             equipHead[2].Visible = equipHead[3].Visible = any && wide;
             int ry = 0;
-            foreach (Control c in equipRows.Controls) { EquipRow r = (EquipRow)c; r.Arrange(iw, wide); r.Location = new Point(0, ry); ry += r.Height; }
+            int n = equipRows.Controls.Count, si = 0;
+            foreach (Control c in equipRows.Controls) { EquipRow r = (EquipRow)c; r.SetOrder(si, si > 0, si < n - 1); si++; r.Arrange(iw, wide); r.Location = new Point(0, ry); ry += r.Height; }
             equipRows.SetBounds(8, y, x[6], ry);
             y += ry + 4;
             y = Row(y, !any, lNoEquip);

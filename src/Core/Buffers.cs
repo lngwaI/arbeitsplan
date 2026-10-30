@@ -10,10 +10,15 @@ namespace Arbeitsplan.Core
     public class BufferItem
     {
         public string Id = "", Name = "", Typ = "", Text = "";
+        public int LaufRef;   // Nummer des Laufs, den dieser Puffer bedient (UX-5b, setzt Package.Apply; 0 = unbekannt, alte Daten)
 
         public BufferItem Clone() { return (BufferItem)MemberwiseClone(); }
-        public bool SameValue(BufferItem o) { return o != null && Name == o.Name && Typ == o.Typ && Text == o.Text; }
-        public string Key() { return Id + "|" + Typ + "|" + Name + "|" + Text + ";"; }
+        public bool SameValue(BufferItem o) { return o != null && Name == o.Name && Typ == o.Typ && Text == o.Text && LaufRef == o.LaufRef; }
+        public string Key() { return Id + "|" + Typ + "|" + Name + "|" + Text + (LaufRef > 0 ? "|L" + LaufRef : "") + ";"; }
+
+        // Kopfzeile wie im Plan: "Puffer 2: Name · Lauf 3" (ohne Namen "–", ohne Lauf-Angabe nur "Puffer 2: Name")
+        public string HeadText(int n) { return "Puffer " + n + ": " + (Name.Length > 0 ? Name : "–") + LaufText; }
+        public string LaufText { get { return LaufRef > 0 ? " · Lauf " + LaufRef : ""; } }
     }
 
     // Hilfsfunktionen fuer Entry.Buffers: Typen (VariantSet), Migration alter Daten, Rechte, Anzeige, Dreiwege-Merge.
@@ -105,6 +110,7 @@ namespace Arbeitsplan.Core
             {
                 w.WriteStartElement("puffer");
                 w.WriteAttributeString("id", b.Id); w.WriteAttributeString("typ", b.Typ); w.WriteAttributeString("name", b.Name);
+                if (b.LaufRef > 0) w.WriteAttributeString("lauf", b.LaufRef.ToString(CultureInfo.InvariantCulture));
                 w.WriteString(b.Text);
                 w.WriteEndElement();
             }
@@ -120,6 +126,7 @@ namespace Arbeitsplan.Core
                 if (c == null || c.Name != "puffer") continue;
                 BufferItem b = new BufferItem();
                 b.Id = c.GetAttribute("id"); b.Typ = c.GetAttribute("typ"); b.Name = c.GetAttribute("name"); b.Text = c.InnerText.Replace("\r\n", "\n");
+                int lr; if (int.TryParse(c.GetAttribute("lauf"), NumberStyles.Integer, CultureInfo.InvariantCulture, out lr) && lr > 0 && lr < 100000) b.LaufRef = lr;
                 l.Add(b);
             }
             if (l.Count == 0) return FromVariant(e.GetAttribute("variante"));

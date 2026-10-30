@@ -29,6 +29,7 @@ namespace Arbeitsplan.Win
         readonly Label[] heads = new Label[5];
         readonly List<Row> rows = new List<Row>();
         readonly ToolTip tip = new ToolTip();
+        readonly RowReorder reorder;   // Zeilen umsortieren (UX-5b): Griff, ▲▼
         bool loading;
         Font bold, boldFor;
 
@@ -38,6 +39,9 @@ namespace Arbeitsplan.Win
         {
             this.step = step; this.Index = index; this.cat = cat; this.product = product;
             this.changed = changed; this.rebuild = rebuild; this.toggled = toggled; this.removeMe = removeMe;
+            reorder = new RowReorder(this, delegate { return rows.Count; }, SlotBounds, delegate(int f, int t) { step.MoveEquip(Index, f, t); rebuild(); });
+            reorder.Lo = delegate(int f) { return f < Spec.Lines.Count ? 0 : Spec.Lines.Count; };   // eigene Zeilen bleiben oben, gemeinsame darunter
+            reorder.Hi = delegate(int f) { return f < Spec.Lines.Count ? Spec.Lines.Count - 1 : rows.Count - 1; };
             SetStyle(ControlStyles.ResizeRedraw | ControlStyles.OptimizedDoubleBuffer | ControlStyles.AllPaintingInWmPaint | ControlStyles.UserPaint, true);
             BackColor = Color.FromArgb(247, 248, 250);
             bToggle.Text = "▸"; bToggle.Click += delegate { toggled(); };
@@ -76,7 +80,7 @@ namespace Arbeitsplan.Win
                 Controls.Add(r.Info); rows.Add(r); return;
             }
             r.R = new EquipRow(a, cat, product, changed, RemoveLine, true);
-            Controls.Add(r.R);
+            Controls.Add(r.R); reorder.Add(r.R);
             if (a.Short.Equals(ShareShort, StringComparison.OrdinalIgnoreCase) || g != null)
             {
                 r.ScopeLbl = new Label(); r.ScopeLbl.Text = "gilt für:"; r.ScopeLbl.TextAlign = ContentAlignment.MiddleRight; r.ScopeLbl.UseMnemonic = false;
@@ -87,6 +91,13 @@ namespace Arbeitsplan.Win
                 Controls.Add(r.ScopeLbl); Controls.Add(r.ScopeBtn);
             }
             rows.Add(r);
+        }
+
+        // Bereich einer Zeile samt "gilt für"-Zeile darunter (fuer die Einfuegelinie beim Ziehen)
+        Rectangle SlotBounds(int i)
+        {
+            Row r = rows[i]; Control c = r.R != null ? (Control)r.R : r.Info;
+            return new Rectangle(c.Left, c.Top, c.Width, (r.ScopeBtn != null ? r.ScopeBtn.Bottom : c.Bottom) - c.Top);
         }
 
         void RemoveLine(EquipAssign a) { step.RemoveEquip(a); rebuild(); }
@@ -200,9 +211,10 @@ namespace Arbeitsplan.Win
                 y += Font.Height + 4;
             }
             else { lNone.SetBounds(8, y, iw, ih); lNone.Visible = true; y += ih + 2; }
-            foreach (Row r in rows)
+            for (int ri = 0; ri < rows.Count; ri++)
             {
-                if (r.R != null) { r.R.Arrange(iw, wide); r.R.Location = new Point(8, y); r.R.Visible = true; y += r.R.Height; }
+                Row r = rows[ri];
+                if (r.R != null) { r.R.SetOrder(ri, reorder.CanStep(ri, -1), reorder.CanStep(ri, 1)); r.R.Arrange(iw, wide); r.R.Location = new Point(8, y); r.R.Visible = true; y += r.R.Height; }
                 else
                 {
                     PufferShare g = step.ShareOf(r.A); EquipChoice ch = r.A.ChoiceFor(0);
@@ -223,7 +235,7 @@ namespace Arbeitsplan.Win
 
         string ShareName(EquipAssign a) { EquipPosition ep = cat.Position(a.Short); return ep != null ? ep.Name : a.Short; }
 
-        protected override void Dispose(bool disposing) { if (disposing) { tip.Dispose(); if (bold != null) bold.Dispose(); } base.Dispose(disposing); }
+        protected override void Dispose(bool disposing) { if (disposing) { reorder.Dispose(); tip.Dispose(); if (bold != null) bold.Dispose(); } base.Dispose(disposing); }
 
         protected override void OnPaint(PaintEventArgs e)
         {
@@ -239,6 +251,8 @@ namespace Arbeitsplan.Win
         internal ComboBox TestTyp { get { return cbTyp; } }
         internal List<EquipRow> TestRows { get { List<EquipRow> l = new List<EquipRow>(); foreach (Row r in rows) if (r.R != null) l.Add(r.R); return l; } }
         internal int TestInfoRows { get { int n = 0; foreach (Row r in rows) if (r.Info != null) n++; return n; } }
+        internal RowReorder TestReorder { get { return reorder; } }
+        internal Rectangle TestSlot(int i) { return SlotBounds(i); }
         internal string TestSummary { get { return lSum.Text; } }
         internal Button TestRemove { get { return bRemove; } }
         internal Button TestToggle { get { return bToggle; } }

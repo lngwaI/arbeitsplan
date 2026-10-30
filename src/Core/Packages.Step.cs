@@ -80,7 +80,10 @@ namespace Arbeitsplan.Core
         // uebrigen Zeilen (Ansatz, EIGENE Equipment-Zeilen + gemeinsame im Geltungsbereich, Notiz). Name: PufferSpec.Name, sonst Titelzeile (+ NameNo).
         // Alter Modus (Puffers leer): LegacyPuffers() = PufferCount je Typ ("mobil|stationaer" = zwei, "mobil:2" = zwei mobile), PufferNames,
         // alle Zeilen in jedem Puffer, "abwechselnd" reihum (Puffer k im Lauf r nimmt Geraet r*n+k); ab dem 2. Puffer "Titel 2" ("Titel 1 (2)" bei Nummern).
-        public List<BufferItem> BuffersFor(int run, string prefix)
+        public List<BufferItem> BuffersFor(int run, string prefix) { return BuffersFor(run, prefix, 0); }
+
+        // lauf: Nummer des bedienten Laufs (BufferItem.LaufRef), 0 = ohne Angabe
+        public List<BufferItem> BuffersFor(int run, string prefix, int lauf)
         {
             List<PufferSpec> specs = Puffers.Count > 0 ? Puffers : LegacyPuffers();
             List<BufferItem> res = new List<BufferItem>();
@@ -92,7 +95,7 @@ namespace Arbeitsplan.Core
                 if (Title.Length > 0 && lines.Count > 0) { name = lines[0]; lines.RemoveAt(0); }
                 if (sp.Name.Length > 0) name = sp.Name;
                 else if (sp.NameNo > 1 && name.Length > 0) name += Numbered ? " (" + sp.NameNo + ")" : " " + sp.NameNo;
-                BufferSet.Add(res, name, sp.Typ, string.Join("\n", lines.ToArray()));
+                BufferSet.Add(res, name, sp.Typ, string.Join("\n", lines.ToArray())).LaufRef = Math.Max(0, lauf);
             }
             return res;
         }

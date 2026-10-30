@@ -146,7 +146,7 @@ namespace Arbeitsplan.Core
                 string k = day.ToString("yyyyMMdd", CultureInfo.InvariantCulture) + "|" + id;
                 Target t;
                 if (!map.TryGetValue(k, out t)) { t = new Target(); t.Day = day; t.RowId = id; t.Data = new Entry(); map[k] = t; order.Add(t); }
-                if (s.IsBuffer) { BufferSet.AddRange(t.Data.Buffers, s.BuffersFor(rd.Run, Prefix)); continue; }   // mehrere Puffer am Tag: anhaengen
+                if (s.IsBuffer) { BufferSet.AddRange(t.Data.Buffers, s.BuffersFor(rd.Run, Prefix, LaufOf(plan, rd, start.DayOfWeek) + 1)); continue; }   // mehrere Puffer am Tag: anhaengen
                 AppendText(t.Data, s.EntryFor(rd.Run, Prefix));   // Notizzeilen und Kennung (Format) kommen mit
             }
             return order;

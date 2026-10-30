@@ -15,7 +15,7 @@ namespace Arbeitsplan.Win
     partial class PlanView
     {
         public Action<CellData, int> BufferClicked;   // Klick auf Puffer (Index) bzw. auf "+ Puffer" (-1)
-        const int StripeW = 3, BufIndent = 10, BufGap = 3;
+        const int StripeW = 3, BufIndent = 10, BufGap = BufStyle.Gap, BufPad = BufStyle.Pad;
 
         Font SmallFont { get { return FontCache.Get(Font.Name, Math.Max(7f, Font.SizeInPoints - 1f), FontStyle.Regular, Font); } }
 
@@ -50,18 +50,18 @@ namespace Arbeitsplan.Win
             return Group(text, fore, fnt, mode);
         }
 
-        // Kopfzeile "Puffer n: Name" (Nummer fett; ohne Namen "–" grau), Suchtreffer nur im Namen
-        List<Piece> BufferHead(int n, string name, bool search, out int hits)
+        // Kopfzeile "Puffer n: Name · Lauf m" ganz fett (ohne Namen "–" grau, Lauf-Angabe grau), Suchtreffer nur im Namen
+        List<Piece> BufferHead(int n, BufferItem b, bool search, out int hits)
         {
-            string lead = "Puffer " + n + ":", text = lead + " " + (name.Length > 0 ? name : "–");
+            string name = b.Name, lead = "Puffer " + n + ":", text = b.HeadText(n);
+            int laufAt = text.Length - b.LaufText.Length;
             Color[] fore = new Color[text.Length];
             Font[] fnt = new Font[text.Length];
             int[] mode = new int[text.Length];
-            Font plain = FontCache.Get(Font.Name, Font.SizeInPoints, FontStyle.Regular, Font);
             for (int i = 0; i < text.Length; i++)
             {
-                fore[i] = i > lead.Length && name.Length == 0 ? Theme.Current.Muted : Color.Black;
-                fnt[i] = i < lead.Length ? bold : plain;
+                fore[i] = i >= laufAt || (i > lead.Length && name.Length == 0) ? Theme.Current.Muted : Color.Black;
+                fnt[i] = bold;
             }
             hits = 0;
             if (search && name.Length > 0 && Query.Length > 0)
@@ -82,10 +82,10 @@ namespace Arbeitsplan.Win
             for (int i = 0; i < c.Buffers.Count; i++)
             {
                 BufferItem b = c.Buffers[i];
-                BufPart p = new BufPart(); p.Typ = b.Typ; p.Tip = TypTip(b.Typ) + "\nKlick: Puffer bearbeiten";
-                p.Head = TextBlock.Build(BufferHead(i + 1, b.Name, !c.Editing, out h2), Font, aw); hits += h2;
-                if (b.Text.Length > 0) { p.Body = TextBlock.Build(BufferPieces(b.Text, !c.Editing, out h2), Font, aw - BufIndent); hits += h2; }
-                p.Y = y; p.H = p.Head.Height + (p.Body != null ? p.Body.Height : 0);
+                BufPart p = new BufPart(); p.Typ = b.Typ; p.Tip = TypTip(b.Typ) + (b.LaufRef > 0 ? "\nbedient Lauf " + b.LaufRef : "") + "\nKlick: Puffer bearbeiten";
+                p.Head = TextBlock.Build(BufferHead(i + 1, b, !c.Editing, out h2), Font, aw - 2); hits += h2;
+                if (b.Text.Length > 0) { p.Body = TextBlock.Build(BufferPieces(b.Text, !c.Editing, out h2), Font, aw - BufIndent - 2); hits += h2; }
+                p.Y = y; p.H = BufPad + p.Head.Height + (p.Body != null ? p.Body.Height : 0) + BufPad;
                 c.BufParts.Add(p);
                 y += p.H + BufGap;
             }
@@ -99,12 +99,15 @@ namespace Arbeitsplan.Win
             Theme th = Theme.Current;
             Fill(g, back, c.RBuf);
             int x = c.RBuf.X + StripeW + 3;
-            foreach (BufPart p in c.BufParts)
+            for (int i = 0; i < c.BufParts.Count; i++)
             {
+                BufPart p = c.BufParts[i];
                 int y = c.RBuf.Y + p.Y;
+                Fill(g, BufStyle.Tint(i), new Rectangle(c.RBuf.X, y, c.RBuf.Width, p.H));   // eigener Hintergrundton je Puffer (wechselt)
                 Fill(g, TypColor(c.RowIndex, p.Typ), new Rectangle(c.RBuf.X, y, StripeW, p.H));
-                p.Head.Draw(g, x, y);
-                if (p.Body != null) p.Body.Draw(g, x + BufIndent, y + p.Head.Height);
+                p.Head.Draw(g, x, y + BufPad);
+                if (p.Body != null) p.Body.Draw(g, x + BufIndent, y + BufPad + p.Head.Height);
+                if (i < c.BufParts.Count - 1) g.DrawLine(th.Pen(BufStyle.Line, 1), c.RBuf.X + 2, y + p.H + BufGap / 2, c.RBuf.Right - 3, y + p.H + BufGap / 2);   // Trennlinie in der Luecke
             }
             if (c.Editing && c.BufParts.Count > 0)
             {
