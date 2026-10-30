@@ -12,6 +12,8 @@ namespace Arbeitsplan.Win
     // Panel, das beim Fokuswechsel nicht selbst scrollt (sonst springt die Ansicht nach oben).
     class QuietPanel : Panel
     {
+        public QuietPanel() { DoubleBuffered = true; }   // Wochenansicht: Hintergrund und Bildlauf ohne Flackern beim Vergroessern (UX-5e)
+
         protected override Point ScrollToControl(Control activeControl) { return DisplayRectangle.Location; }
     }
 

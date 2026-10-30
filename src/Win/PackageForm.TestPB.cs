@@ -27,7 +27,7 @@ namespace Arbeitsplan.Win
 
                 f.AddStep(ps); Application.DoEvents();
                 bool okUi = ps.Puffers.Count == 1 && ps.Equipment.Count == 0 && ps.Puffers[0].Lines.Count == 5 && f.cards.Count == 1 && f.gPuf.Visible && !f.gEquip.Visible
-                    && f.cards[0].TestRows.Count == 5 && f.equipRows.Controls.Count == 0;   // Umstellung beim Oeffnen, eine Karte mit den 5 Zeilen
+                    && f.cards[0].TestRows.Count == 5 && f.eqRows.Count == 0;   // Umstellung beim Oeffnen, eine Karte mit den 5 Zeilen
                 f.AddPuffer(); Application.DoEvents();
                 okUi &= ps.Puffers.Count == 2 && f.cards.Count == 2 && ps.BuffersFor(0, f.prefix)[1].Name == "Puffer mobil 2";
                 f.cards[0].TestName.Text = "Lösung A"; Application.DoEvents();

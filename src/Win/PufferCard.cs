@@ -9,7 +9,7 @@ namespace Arbeitsplan.Win
     // Karte eines Puffers im Paket-Editor (UX-1b): zugeklappt eine Zeile ("Puffer 2: Name · mobil · Ansatztank X"), aufgeklappt Name, Typ
     // und die Equipment-Zeilen dieses Puffers (Gerät aus der nach Produkt gefilterten Liste oder "nicht benötigt"). Gemeinsame Zeilen
     // (z. B. WFI-Tank) stehen in der Karte des ersten betroffenen Puffers mit "gilt für"; die übrigen zeigen sie nur an.
-    class PufferCard : Panel
+    partial class PufferCard : Panel
     {
         public const string ShareShort = "WFI";   // Position, die als gemeinsame Zeile für mehrere Puffer gelten kann
 
@@ -18,9 +18,10 @@ namespace Arbeitsplan.Win
             public EquipAssign A; public EquipRow R; public Label Info, ScopeLbl; public Button ScopeBtn;
         }
 
-        readonly PackageStep step; readonly Catalog cat; readonly string product;
-        readonly Action changed, rebuild, toggled; readonly Action<int> removeMe;
-        public readonly int Index;
+        PackageStep step; Catalog cat; string product;
+        readonly Action changed, rebuild, structure; readonly Action<int> toggled, removeMe;   // structure: Zeilen der Karte geaendert (Anzahl/Reihenfolge), ohne alles neu aufzubauen
+        readonly RowPool pool;   // Zeilen dieser Karte: freie bleiben versteckt in der Karte
+        public int Index;
         public bool Open, Bad;
         public bool ShowTiming;   // UX-5c: Zeile "Zeitpunkt" (nur Schritt "zu jedem Lauf")
         readonly Button bToggle = new Button(), bRemove = new Button(), bPos = new Button();
@@ -38,21 +39,20 @@ namespace Arbeitsplan.Win
 
         PufferSpec Spec { get { return step.Puffers[Index]; } }
 
-        public PufferCard(PackageStep step, int index, Catalog cat, string product, Action changed, Action rebuild, Action toggled, Action<int> removeMe)
+        // Die Karte wird einmal gebaut und mit Bind auf einen Puffer eines Schritts gesetzt (Fensterhandles anlegen ist teuer, UX-5e)
+        public PufferCard(Action changed, Action rebuild, Action structure, Action<int> toggled, Action<int> removeMe)
         {
-            this.step = step; this.Index = index; this.cat = cat; this.product = product;
-            this.changed = changed; this.rebuild = rebuild; this.toggled = toggled; this.removeMe = removeMe;
-            reorder = new RowReorder(this, delegate { return rows.Count; }, SlotBounds, delegate(int f, int t) { step.MoveEquip(Index, f, t); rebuild(); });
+            this.changed = changed; this.rebuild = rebuild; this.structure = structure; this.toggled = toggled; this.removeMe = removeMe; pool = new RowPool(this);
+            reorder = new RowReorder(this, delegate { return rows.Count; }, SlotBounds, delegate(int f, int t) { MoveRow(f, t); });
             reorder.Lo = delegate(int f) { return f < Spec.Lines.Count ? 0 : Spec.Lines.Count; };   // eigene Zeilen bleiben oben, gemeinsame darunter
             reorder.Hi = delegate(int f) { return f < Spec.Lines.Count ? Spec.Lines.Count - 1 : rows.Count - 1; };
             SetStyle(ControlStyles.ResizeRedraw | ControlStyles.OptimizedDoubleBuffer | ControlStyles.AllPaintingInWmPaint | ControlStyles.UserPaint, true);
             BackColor = Color.FromArgb(247, 248, 250);
-            bToggle.Text = "▸"; bToggle.Click += delegate { toggled(); };
-            lSum.AutoEllipsis = true; lSum.TextAlign = ContentAlignment.MiddleLeft; lSum.UseMnemonic = false; lSum.Cursor = Cursors.Hand; lSum.Click += delegate { toggled(); };
-            lTitle.Text = "Puffer " + (index + 1) + ":"; lTitle.TextAlign = ContentAlignment.MiddleLeft; lTitle.UseMnemonic = false;
+            bToggle.Text = "▸"; bToggle.Click += delegate { toggled(Index); };
+            lSum.AutoEllipsis = true; lSum.TextAlign = ContentAlignment.MiddleLeft; lSum.UseMnemonic = false; lSum.Cursor = Cursors.Hand; lSum.Click += delegate { toggled(Index); };
+            lTitle.TextAlign = ContentAlignment.MiddleLeft; lTitle.UseMnemonic = false;
             cbTyp.DropDownStyle = ComboBoxStyle.DropDownList; cbTyp.Items.AddRange(new object[] { "mobil", "stationär" });
             bRemove.Text = "Entfernen"; bRemove.Click += delegate { removeMe(Index); };
-            bRemove.Enabled = step.Puffers.Count > 1;
             bPos.Text = "+ Position ▾"; bPos.Click += delegate { ShowPosMenu(); };
             lNone.Text = "Keine Position – mit „+ Position“ ergänzen."; lNone.ForeColor = Section.HelpColor; lNone.TextAlign = ContentAlignment.MiddleLeft; lNone.AutoEllipsis = true;
             Controls.AddRange(new Control[] { bToggle, lSum, lTitle, tName, cbTyp, bRemove, bPos, lNone });
@@ -70,22 +70,35 @@ namespace Arbeitsplan.Win
             Ui.SimpleMenu(tName);
             tip.SetToolTip(bToggle, "Karte auf- oder zuklappen");
             tip.SetToolTip(tName, "Name des Puffers im Plan. Leer = Titel des Schritts (ab Puffer 2 mit Nummer).");
-            tip.SetToolTip(bRemove, step.Puffers.Count > 1 ? "Diesen Puffer entfernen (gemeinsame Zeilen werden angepasst)" : "Ein Puffer-Schritt braucht mindestens einen Puffer – sonst den Schritt entfernen");
             tip.SetToolTip(bPos, "Weitere Position (z. B. zweiter Tank) zu diesem Puffer");
-
-            loading = true;
-            tName.Text = Spec.Name; cbTyp.SelectedIndex = Spec.Typ == "stationaer" ? 1 : 0;
-            int off = Spec.OffsetDays.HasValue ? Spec.OffsetDays.Value : 0;
-            cbTime.SelectedIndex = Spec.OffsetDays.HasValue ? 1 : 0; cbTimeDir.SelectedIndex = off < 0 ? 0 : off == 0 ? 1 : 2; nTime.Value = Math.Max(1, Math.Min(PackageStep.MaxCardOffset, Math.Abs(off)));
-            foreach (EquipAssign a in Spec.Lines) AddRow(a, null);
-            foreach (PufferShare g in step.PufferShared) if (g.Covers(Index)) AddRow(g.Eq, g);
-            loading = false;
             tName.TextChanged += delegate { if (!loading) { Spec.Name = tName.Text.Replace('|', '/').Trim(); changed(); } };
             cbTyp.SelectedIndexChanged += delegate { if (!loading) { Spec.Typ = cbTyp.SelectedIndex == 1 ? "stationaer" : "mobil"; changed(); } };
             cbTime.SelectedIndexChanged += delegate { TimeChanged(); };
             cbTimeDir.SelectedIndexChanged += delegate { TimeChanged(); };
             nTime.ValueChanged += delegate { TimeChanged(); };
         }
+
+        // Karte auf Puffer index von step setzen: Felder und Zeilen aus dem Modell (Zeilen kommen aus dem Pool), Steuerelemente bleiben
+        public void Bind(PackageStep step, int index, Catalog cat, string product)
+        {
+            ReleaseRows();
+            this.step = step; Index = index; this.cat = cat; this.product = product;
+            Bad = false; Open = false; ShowTiming = false;
+            loading = true;
+            lTitle.Text = "Puffer " + (index + 1) + ":";
+            bRemove.Enabled = step.Puffers.Count > 1;
+            tip.SetToolTip(bRemove, step.Puffers.Count > 1 ? "Diesen Puffer entfernen (gemeinsame Zeilen werden angepasst)" : "Ein Puffer-Schritt braucht mindestens einen Puffer – sonst den Schritt entfernen");
+            tName.Text = Spec.Name; cbTyp.SelectedIndex = Spec.Typ == "stationaer" ? 1 : 0;
+            int off = Spec.OffsetDays.HasValue ? Spec.OffsetDays.Value : 0;
+            cbTime.SelectedIndex = Spec.OffsetDays.HasValue ? 1 : 0; cbTimeDir.SelectedIndex = off < 0 ? 0 : off == 0 ? 1 : 2; nTime.Value = Math.Max(1, Math.Min(PackageStep.MaxCardOffset, Math.Abs(off)));
+            foreach (EquipAssign a in Spec.Lines) AddRow(a, null);
+            foreach (PufferShare g in step.PufferShared) if (g.Covers(Index)) AddRow(g.Eq, g);
+            loading = false;
+            Invalidate();
+        }
+
+        // Alle Zeilen zurueck in den Pool (Karte wird freigegeben oder neu gebunden)
+        public void ReleaseRows() { foreach (Row r in rows) DropRow(r); rows.Clear(); reorder.Clear(); }
 
         // "2 Tage vor dem Lauf", "am Tag des Laufs", "1 Tag nach dem Lauf"
         public static string OffText(int off) { return off == 0 ? "am Tag des Laufs" : Math.Abs(off) + (Math.Abs(off) == 1 ? " Tag" : " Tage") + (off < 0 ? " vor" : " nach") + " dem Lauf"; }
@@ -122,37 +135,6 @@ namespace Arbeitsplan.Win
             lTimeInfo.SetBounds(x, timeY, Math.Max(10, timeW - x + 8), ih);
             lTimeInfo.Text = "(= " + OffText(step.RunOffset) + ")"; tip.SetToolTip(lTimeInfo, lTimeInfo.Text);
         }
-
-        void AddRow(EquipAssign a, PufferShare g)
-        {
-            Row r = new Row(); r.A = a;
-            if (g != null && step.OwnerOf(g) != Index)
-            {   // gemeinsame Zeile, die in einer anderen Karte bearbeitet wird: nur anzeigen
-                r.Info = new Label(); r.Info.AutoEllipsis = true; r.Info.TextAlign = ContentAlignment.MiddleLeft; r.Info.UseMnemonic = false; r.Info.ForeColor = Section.HelpColor;
-                Controls.Add(r.Info); rows.Add(r); return;
-            }
-            r.R = new EquipRow(a, cat, product, changed, RemoveLine, true);
-            Controls.Add(r.R); reorder.Add(r.R);
-            if (a.Short.Equals(ShareShort, StringComparison.OrdinalIgnoreCase) || g != null)
-            {
-                r.ScopeLbl = new Label(); r.ScopeLbl.Text = "gilt für:"; r.ScopeLbl.TextAlign = ContentAlignment.MiddleRight; r.ScopeLbl.UseMnemonic = false;
-                r.ScopeBtn = new Button(); r.ScopeBtn.TextAlign = ContentAlignment.MiddleLeft; Theme.Current.StyleButton(r.ScopeBtn);
-                tip.SetToolTip(r.ScopeBtn, "Für welche Puffer dieses Gerät gilt (z. B. ein gemeinsamer WFI-Tank für beide Puffer). Mehrere Puffer = eine gemeinsame Zeile.");
-                EquipAssign ca = a; Button cb = r.ScopeBtn;
-                r.ScopeBtn.Click += delegate { ShowScope(ca, cb); };
-                Controls.Add(r.ScopeLbl); Controls.Add(r.ScopeBtn);
-            }
-            rows.Add(r);
-        }
-
-        // Bereich einer Zeile samt "gilt für"-Zeile darunter (fuer die Einfuegelinie beim Ziehen)
-        Rectangle SlotBounds(int i)
-        {
-            Row r = rows[i]; Control c = r.R != null ? (Control)r.R : r.Info;
-            return new Rectangle(c.Left, c.Top, c.Width, (r.ScopeBtn != null ? r.ScopeBtn.Bottom : c.Bottom) - c.Top);
-        }
-
-        void RemoveLine(EquipAssign a) { step.RemoveEquip(a); rebuild(); }
 
         static string TypText(string t) { return t == "stationaer" ? "stationär" : t; }
 
@@ -221,12 +203,6 @@ namespace Arbeitsplan.Win
             m.Show(bPos, new Point(0, bPos.Height));
         }
 
-        public void AddLine(string shortName)
-        {
-            EquipAssign a = new EquipAssign(); a.Short = shortName; Spec.Lines.Add(a);
-            rebuild();
-        }
-
         // Texte und Zustand aus dem Modell auffrischen und alles anordnen; liefert die Hoehe der Karte
         public int Arrange(int w, bool wide)
         {
@@ -254,37 +230,38 @@ namespace Arbeitsplan.Win
             y += ih + 4;
             timeY = y; timeW = iw; PlaceTiming();
             if (Open && ShowTiming) y += ih + 4;
-            foreach (Control c in new Control[] { bPos, lNone }) c.Visible = false;
-            foreach (Label l in heads) l.Visible = false;
-            foreach (Row r in rows) { if (r.R != null) r.R.Visible = false; if (r.Info != null) r.Info.Visible = false; if (r.ScopeBtn != null) r.ScopeLbl.Visible = r.ScopeBtn.Visible = false; }
+            bool any = rows.Count > 0;   // Sichtbarkeit je Steuerelement einmal setzen (erst aus- und wieder einblenden flackert)
+            bPos.Visible = Open; lNone.Visible = Open && !any;
+            for (int i = 0; i < 5; i++) heads[i].Visible = Open && any && (i < 2 || i == 4 || wide);
+            foreach (Row r in rows) { if (r.R != null) r.R.Visible = Open; if (r.Info != null) r.Info.Visible = Open; if (r.ScopeBtn != null) r.ScopeLbl.Visible = r.ScopeBtn.Visible = Open; }
             if (!Open) return Height = y + 2;
 
             int[] x = EquipRow.Cols(iw, wide);
             if (rows.Count > 0)
             {
-                for (int i = 0; i < 5; i++) { heads[i].SetBounds(8 + x[i], y, Math.Max(0, x[i + 1] - x[i] - 6), Font.Height + 2); heads[i].Visible = i < 2 || i == 4 || wide; }
+                for (int i = 0; i < 5; i++) heads[i].SetBounds(8 + x[i], y, Math.Max(0, x[i + 1] - x[i] - 6), Font.Height + 2);
                 y += Font.Height + 4;
             }
-            else { lNone.SetBounds(8, y, iw, ih); lNone.Visible = true; y += ih + 2; }
+            else { lNone.SetBounds(8, y, iw, ih); y += ih + 2; }
             for (int ri = 0; ri < rows.Count; ri++)
             {
                 Row r = rows[ri];
-                if (r.R != null) { r.R.SetOrder(ri, reorder.CanStep(ri, -1), reorder.CanStep(ri, 1)); r.R.Arrange(iw, wide); r.R.Location = new Point(8, y); r.R.Visible = true; y += r.R.Height; }
+                if (r.R != null) { r.R.SetOrder(ri, reorder.CanStep(ri, -1), reorder.CanStep(ri, 1)); r.R.Arrange(iw, wide); r.R.Location = new Point(8, y); r.R.TabIndex = 10 + ri; y += r.R.Height; }
                 else
                 {
                     PufferShare g = step.ShareOf(r.A); EquipChoice ch = r.A.ChoiceFor(0);
                     r.Info.Text = ShareName(r.A) + ": " + (ch != null ? ch.Id : "–") + "   – gemeinsam mit " + PufferName(g != null ? step.OwnerOf(g) : 0) + " (dort ändern)";
                     tip.SetToolTip(r.Info, r.Info.Text);
-                    r.Info.SetBounds(8, y, iw, ih); r.Info.Visible = true; y += ih + 2;
+                    r.Info.SetBounds(8, y, iw, ih); y += ih + 2;
                 }
                 if (r.ScopeBtn != null)
                 {
                     r.ScopeBtn.Text = ScopeText(r.A) + " ▾";
                     r.ScopeLbl.SetBounds(8, y, Math.Max(40, x[1] - 6), ih); r.ScopeBtn.SetBounds(8 + x[1], y, Math.Min(Math.Max(120, iw - x[1]), 230), ih);
-                    r.ScopeLbl.Visible = r.ScopeBtn.Visible = true; y += ih + 4;
+                    y += ih + 4;
                 }
             }
-            bPos.SetBounds(8, y, 130, ih); bPos.Visible = true; y += ih + 6;
+            bPos.SetBounds(8, y, 130, ih); y += ih + 6;
             return Height = y;
         }
 

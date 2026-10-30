@@ -38,12 +38,12 @@ namespace Arbeitsplan.Win
 
                 // Reihenfolge: Pfeile mehrfach, Auswahl und Equipment-Zeilen bleiben (kein Neuaufbau), Ziehen ans Ende, Alt+Hoch
                 PackageStep pk = f.Ordered()[0]; f.Bind(pk); Application.DoEvents();
-                Control eq0 = f.equipRows.Controls.Count > 0 ? f.equipRows.Controls[0] : null;
+                Control eq0 = f.eqRows.Count > 0 ? f.eqRows[0] : null;
                 f.MoveStep(1); f.MoveStep(1); f.MoveStep(-1); Application.DoEvents();
                 bool ord = eq0 != null && f.Ordered().IndexOf(pk) == 1 && f.cur == pk && f.lv.SelectedItems.Count == 1 && f.lv.SelectedItems[0].Tag == pk
-                    && f.equipRows.Controls[0] == eq0 && f.lv.Items[1].SubItems[3].Text == "Packen";
+                    && f.eqRows[0] == eq0 && f.lv.Items[1].SubItems[3].Text == "Packen";
                 f.DropAt(f.lv.Items.Count - 1); Application.DoEvents();
-                ord &= f.Ordered().IndexOf(pk) == f.steps.Count - 1 && f.lv.Items[f.lv.Items.Count - 1].Selected && f.equipRows.Controls[0] == eq0;
+                ord &= f.Ordered().IndexOf(pk) == f.steps.Count - 1 && f.lv.Items[f.lv.Items.Count - 1].Selected && f.eqRows[0] == eq0;
                 f.lv.Focus(); Message m = new Message();
                 bool alt = f.ProcessCmdKey(ref m, Keys.Alt | Keys.Up) && f.Ordered().IndexOf(pk) == f.steps.Count - 2;
                 if (!f.lv.Focused) alt = true;   // ohne Fokus (Fenster im Hintergrund) nicht pruefbar
@@ -57,11 +57,11 @@ namespace Arbeitsplan.Win
                 // Puffer: Ansatz Tank -> Flasche -> Tank (Schritt ohne Typ); mit Typ wandern die Zeilen in die Karte von Puffer 1 (UX-1b)
                 Baustein bp = f.cat.Baustein_("Puffer");
                 PackageStep pu = f.FromBaustein(bp); pu.Row = "Puffer"; f.AddStep(pu); Application.DoEvents();
-                bool tank = HasTank(f) && f.cbAnsatz.Visible && f.equipRows.Controls.Count == 1;
+                bool tank = HasTank(f) && f.cbAnsatz.Visible && f.eqRows.Count == 1;
                 f.cbAnsatz.SelectedIndex = 1; f.tGebinde.Text = "Flasche"; f.tMenge.Text = "5"; f.cbUnit.Text = "L"; Application.DoEvents();
-                bool geb = !HasTank(f) && f.equipRows.Controls.Count == 0 && f.tGebinde.Visible && pu.Compose(0, f.prefix).Contains("Gebinde: Flasche 5 L");
+                bool geb = !HasTank(f) && f.eqRows.Count == 0 && f.tGebinde.Visible && pu.Compose(0, f.prefix).Contains("Gebinde: Flasche 5 L");
                 f.cbAnsatz.SelectedIndex = 0; Application.DoEvents();
-                geb &= pu.Ansatz == "" && f.equipRows.Controls.Count == 1 && HasTank(f) && !f.tGebinde.Visible;
+                geb &= pu.Ansatz == "" && f.eqRows.Count == 1 && HasTank(f) && !f.tGebinde.Visible;
                 pu.Variant = "mobil"; f.Bind(pu); Application.DoEvents();   // Typ kommt aus dem Baustein: Puffer 1 mit der Zeile
                 bool var = f.cards.Count == 1 && f.Card(0).TestTyp.SelectedIndex == 0 && f.Card(0).TestRows.Count == 1 && f.gPuf.Visible && !f.pVar.Visible && f.blockPreview.Visible && pu.Equipment.Count == 0 && HasTank(f);
                 f.cbAnsatz.SelectedIndex = 1; Application.DoEvents();   // Flasche: die leere Tank-Zeile der Karte faellt weg

@@ -14,6 +14,8 @@ namespace Arbeitsplan.Win
         readonly EditMarker marker = new EditMarker();
         readonly Panel scroll = new Panel(), body = new Panel(), equipRows = new Panel();
         RowReorder equipOrder;   // Reihenfolge der Equipment-Zeilen normaler Schritte (UX-5b)
+        RowPool rowPool;   // Zeilen von equipRows werden wiederverwendet statt neu gebaut (UX-5e); aktive Zeilen in eqRows, freie bleiben versteckt in equipRows
+        readonly List<EquipRow> eqRows = new List<EquipRow>();
         Section gWhat, gWhen, gExtra, gEquip;
         readonly TextBox tTitle = new TextBox(), tSubNos = new TextBox(), tIdent = new TextBox(), tNote = new TextBox(), tManualNo = new TextBox();
         readonly ComboBox cbKind = new ComboBox(), cbRow = new ComboBox();
@@ -102,8 +104,9 @@ namespace Arbeitsplan.Win
             string[] heads = { "Position", "Gerät", "abwechselnd", "Ausweich-Gerät", "Notiz" };
             for (int i = 0; i < 5; i++) { equipHead[i] = Lbl(gEquip, heads[i], 0, 80); equipHead[i].Height = Font.Height + 4; equipHead[i].Font = new Font(Font, FontStyle.Bold); equipHead[i].AutoEllipsis = true; }
             equipRows.Tag = "keep"; gEquip.Controls.Add(equipRows);
-            equipOrder = new RowReorder(equipRows, delegate { return equipRows.Controls.Count; }, delegate(int i) { return equipRows.Controls[i].Bounds; },
-                delegate(int f, int t) { if (cur != null && PackageStep.MoveItem(cur.Equipment, f, t)) { dirty = true; Bind(cur); CommitUndo(); } }, gEquip);
+            rowPool = new RowPool(equipRows);
+            equipOrder = new RowReorder(equipRows, delegate { return eqRows.Count; }, delegate(int i) { return eqRows[i].Bounds; },
+                delegate(int f, int t) { if (cur != null && PackageStep.MoveItem(cur.Equipment, f, t)) { dirty = true; MoveEquipRow(f, t); } }, gEquip);
             lNoEquip = Lbl(gEquip, "Keine Equipment-Positionen – mit „+ Position hinzufügen“ ergänzen.", 8, 480); Gray(lNoEquip); Grow(lNoEquip);
             Btn(bPos, "+ Position hinzufügen ▾", 8, 0, 190, delegate { menuPos.Show(bPos, new Point(0, bPos.Height)); });
             gEquip.Controls.Add(bPos);
@@ -150,25 +153,43 @@ namespace Arbeitsplan.Win
             foreach (EquipPosition p in cat.Positions) { EquipPosition pp = p; menuPos.Items.Add(p.Name + "  (" + p.Short + ")", null, delegate { AddPosition(pp.Short); }); }
         }
 
-        void SetMore(bool on) { more = on; if (cur != null) Bind(cur); }
+        void SetMore(bool on)
+        {
+            more = on;
+            if (cur == null) return;
+            HoldDraw();   // nur andere Spalten/Gruppen anordnen, nichts neu bauen
+            try { LayoutDetails(); } finally { ReleaseDraw(); }
+        }
 
         static string VarText(string v) { return VariantSet.Display(v).Replace("stationaer", "stationär"); }
 
         // ---------- Schritt anzeigen ----------
 
+        // Schritt anzeigen. Das Zeichnen ruht, bis alles befuellt und angeordnet ist (kein schrittweises Aufbauen); Bildlaufstand bleibt beim selben Schritt.
         void Bind(PackageStep s)
+        {
+            PerfB(PfBind);
+            CancelView();   // ausstehende Tipp-Aktualisierung ist damit erledigt
+            Point sp = scroll.AutoScrollPosition; bool same = s == cur;
+            HoldDraw();
+            try { BindCore(s); if (same) scroll.AutoScrollPosition = new Point(-sp.X, -sp.Y); }
+            finally { ReleaseDraw(); }
+            PerfE(PfBind);
+        }
+
+        void BindCore(PackageStep s)
         {
             if (s != cur) curRun = -1;   // anderer Schritt: Vorschau beginnt beim ersten Eintrag (ausser nextRun, Klick im Kalender)
             cur = s;
             loading = true;
             body.SuspendLayout();
             equipOrder.Clear();
-            while (equipRows.Controls.Count > 0) { Control c = equipRows.Controls[0]; equipRows.Controls.RemoveAt(0); c.Dispose(); }
+            while (eqRows.Count > 0) { rowPool.Release(eqRows[eqRows.Count - 1]); eqRows.RemoveAt(eqRows.Count - 1); }
             if (s != null && s.IsBuffer) s.MigratePuffers();   // alter Modus -> eigene Puffer (verlustfrei, gleicher Plantext, kein "geändert")
             BindPuffer(s);   // Karten je Puffer (PackageForm.PufferCards.cs)
             if (s != null)
             {
-                foreach (EquipAssign a in s.Equipment) { EquipRow er = new EquipRow(a, cat, Product, delegate { Changed(); }, RemoveAssign); equipRows.Controls.Add(er); equipOrder.Add(er); }
+                foreach (EquipAssign a in s.Equipment) AddEquipRow(a);
                 tTitle.Text = s.Title;
                 cbKind.Items[1] = s == StepsView().Head ? "Hauptlauf" : "Lauf-Schritt mit Laufnummer";
                 cbKind.SelectedIndex = (int)s.Kind; tSubNos.Text = s.SubNos;
@@ -186,22 +207,10 @@ namespace Arbeitsplan.Win
             HookLeave(body);   // Feld verlassen = Rueckgaengig-Schnappschuss (PackageForm.Undo.cs)
         }
 
-        void AddPosition(string shortName)
-        {
-            if (cur == null) return;
-            EquipAssign a = new EquipAssign(); a.Short = shortName;
-            cur.Equipment.Add(a);
-            dirty = true;
-            Bind(cur);
-        }
-
-        void RemoveAssign(EquipAssign a) { if (cur == null) return; cur.Equipment.Remove(a); dirty = true; Bind(cur); }
-
-        void Changed() { if (loading) return; dirty = true; UpdateView(false); if (!(ActiveControl is TextBoxBase)) CommitUndo(); }   // Text: erst beim Verlassen des Felds
-
         // Alles nachziehen: Liste, Felder ein-/ausblenden, Kopfzeile, Vorschau, Pruefhinweise; scrollTo = Kalender zum Schritt scrollen.
         void UpdateView(bool scrollTo)
         {
+            PerfB(PfView);
             Repin();   // feste Laeufe bleiben an ihrem Tag (PackageForm.Order.cs)
             if (Package.SyncBackups(steps) && cur != null && cur.IsBackup) { bool was = loading; loading = true; BindWhen(cur); loading = was; }   // Back-Up folgt dem Packen
             FillList();
@@ -216,9 +225,10 @@ namespace Arbeitsplan.Win
             marker.Invalidate();
             UpdateRunsLabel();
             bUp.Enabled = bDown.Enabled = bDup.Enabled = bDel.Enabled = cur != null;
-            UpdatePreview(scrollTo);
-            UpdateHints();
+            PerfB(PfPreview); UpdatePreview(scrollTo); PerfE(PfPreview);
+            PerfB(PfHints); UpdateHints(); PerfE(PfHints);
             RecordPins(cur);
+            PerfE(PfView);
         }
 
         // Zeile in einer Gruppe: setzt Sichtbarkeit und Hoehe; liefert die naechste y-Position.
@@ -248,6 +258,7 @@ namespace Arbeitsplan.Win
         void LayoutDetails()
         {
             if (laying || cur == null) return;
+            PerfB(PfLayout);
             laying = true;
             PackageStep s = cur;
             bool sub = s.Kind == StepKind.SubRun;
@@ -289,19 +300,20 @@ namespace Arbeitsplan.Win
             else { gEquip.SetBounds(0, y, w, ArrangeEquip(w - 16)); y = gEquip.Bottom; }
             body.Height = y + 4;
             laying = false;
+            PerfE(PfLayout);
         }
 
         int ArrangeEquip(int iw)
         {
-            bool any = equipRows.Controls.Count > 0, wide = WideEquip;
+            bool any = eqRows.Count > 0, wide = WideEquip;
             int[] x = EquipRow.Cols(iw, wide);
             int y = gEquip.ContentTop;
             for (int i = 0; i < 5; i++) equipHead[i].SetBounds(8 + x[i], 0, Math.Max(0, x[i + 1] - x[i] - 6), equipHead[i].Height);
-            y = Row(y, any, equipHead) - 2;
-            equipHead[2].Visible = equipHead[3].Visible = any && wide;
+            if (!wide) equipHead[2].Visible = equipHead[3].Visible = false;   // Sichtbarkeit je Kopf einmal setzen (nicht erst ein-, dann ausblenden)
+            y = Row(y, any, wide ? (Control[])equipHead : new Control[] { equipHead[0], equipHead[1], equipHead[4] }) - 2;
             int ry = 0;
-            int n = equipRows.Controls.Count, si = 0;
-            foreach (Control c in equipRows.Controls) { EquipRow r = (EquipRow)c; r.SetOrder(si, si > 0, si < n - 1); si++; r.Arrange(iw, wide); r.Location = new Point(0, ry); ry += r.Height; }
+            int n = eqRows.Count, si = 0;
+            foreach (EquipRow r in eqRows) { r.TabIndex = si; r.SetOrder(si, si > 0, si < n - 1); si++; r.Arrange(iw, wide); r.Location = new Point(0, ry); ry += r.Height; }
             equipRows.SetBounds(8, y, x[6], ry);
             y += ry + 4;
             y = Row(y, !any, lNoEquip);

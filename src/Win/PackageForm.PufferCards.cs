@@ -33,17 +33,28 @@ namespace Arbeitsplan.Win
             tip.SetToolTip(bPufAdd, "Weiteren Puffer anhängen (aus dem Standardpuffer, höchstens " + PackageStep.MaxPuffer + ")");
         }
 
+        // Karten werden wiederverwendet: nicht gebrauchte bleiben versteckt in spare (ohne Zeilen), BindPuffer bindet sie neu
+        readonly List<PufferCard> spare = new List<PufferCard>();
+
+        PufferCard TakeCard()
+        {
+            if (spare.Count > 0) { PufferCard c = spare[spare.Count - 1]; spare.RemoveAt(spare.Count - 1); return c; }
+            PufferCard n = new PufferCard(PufferChanged, PufferRebuild, PufferStructure, TogglePuffer, delegate(int i) { RemovePuffer(i, true); });
+            pufCards.Controls.Add(n);
+            return n;
+        }
+
         void BindPuffer(PackageStep s)
         {
-            foreach (PufferCard c in cards) { pufCards.Controls.Remove(c); c.Dispose(); }
+            foreach (PufferCard c in cards) { c.ReleaseRows(); c.Visible = false; spare.Add(c); }
             cards.Clear();
             if (s == null || !s.IsBuffer || s.Puffers.Count == 0) { pufStep = null; return; }
             if (s != pufStep) { pufStep = s; openSpecs.Clear(); openSpecs.Add(s.Puffers[0]); }
             for (int k = 0; k < s.Puffers.Count; k++)
             {
-                int ck = k;
-                PufferCard c = new PufferCard(s, k, cat, Product, PufferChanged, PufferRebuild, delegate { TogglePuffer(ck); }, delegate(int i) { RemovePuffer(i, true); });
-                cards.Add(c); pufCards.Controls.Add(c);
+                PufferCard c = TakeCard();
+                c.Bind(s, k, cat, Product); c.TabIndex = k; c.Visible = true;
+                cards.Add(c);
             }
         }
 
@@ -58,6 +69,16 @@ namespace Arbeitsplan.Win
         void PufferChanged() { if (loading || cur == null) return; cur.SyncPuffers(); Changed(); }
 
         void PufferRebuild() { if (cur == null) return; cur.SyncPuffers(); dirty = true; Bind(cur); CommitUndo(); }
+
+        // Zeilen einer Karte geaendert (Reihenfolge, eine Zeile mehr/weniger): die Karte hat sich selbst angepasst, nur Ansicht nachziehen
+        void PufferStructure()
+        {
+            if (cur == null) return;
+            cur.SyncPuffers(); dirty = true;
+            HoldDraw();
+            try { HookLeave(pufCards); UpdateView(false); } finally { ReleaseDraw(); }
+            CommitUndo();
+        }
 
         void TogglePuffer(int k)
         {

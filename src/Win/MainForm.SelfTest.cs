@@ -318,6 +318,7 @@ namespace Arbeitsplan.Win
         {
             System.Text.StringBuilder sb = new System.Text.StringBuilder();
             quiet = true;
+            if (Environment.GetEnvironmentVariable("AP_ONLY") == "ux5e") { SelfTestUX5e(sb); quiet = false; return sb.ToString(); }   // Schnelllauf nur UX-5e (MainForm.SelfTestUX5e.cs)
 #if DEMO
             if (cfg != null) return SelfTestDemo();   // Vorfuehr-Version: eigene Tests (MainForm.SelfTestDemo.cs)
 #endif
@@ -379,6 +380,7 @@ namespace Arbeitsplan.Win
             SelfTestUX5a(sb);   // UX-5a: Packen-Nr. im Kopf, Mehr Optionen, Kennung, Pufferpakete verwalten (MainForm.SelfTestUX5a.cs)
             SelfTestUX5b(sb);   // UX-5b: Reihenfolge der Positionen, Lauf-Angabe je Puffer, Darstellung (MainForm.SelfTestUX5b.cs)
             SelfTestUX5c(sb);   // UX-5c: Puffer-Rhythmus (eigener Rhythmus, Lauf-Zuordnung, Zeitpunkt je Karte, Regeln) (MainForm.SelfTestUX5c.cs)
+            SelfTestUX5e(sb);   // UX-5e: Leistung/Flackern im Paket-Editor und in der Wochenansicht (MainForm.SelfTestUX5e.cs)
             using (MainForm mx = new MainForm("ux4", true, null, null)) { mx.FitToCursorScreen(); sb.AppendLine("UX4 Hauptfenster startet maximiert: " + Ok(mx.WindowState == FormWindowState.Maximized)); }
             quiet = false;
             return sb.ToString();

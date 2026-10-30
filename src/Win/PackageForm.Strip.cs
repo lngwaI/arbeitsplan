@@ -122,7 +122,17 @@ namespace Arbeitsplan.Win
             SetX(h ? sx : 0); SetY(v ? sy : 0);
         }
 
-        protected override void OnResize(EventArgs e) { base.OnResize(e); if (CalcDayW() != dayW) Rebuild(); else UpdateBars(); }
+        bool deferred, resizePending;   // waehrend das Fenster gezogen wird: Anordnung erst am Ende (UX-5e)
+
+        public bool Deferred
+        {
+            get { return deferred; }
+            set { deferred = value; if (!value && resizePending) { resizePending = false; Settle(); } }
+        }
+
+        protected override void OnResize(EventArgs e) { base.OnResize(e); if (deferred) { resizePending = true; return; } Settle(); }
+
+        void Settle() { if (CalcDayW() != dayW) Rebuild(); else UpdateBars(); }
 
         protected override void OnMouseWheel(MouseEventArgs e)
         {

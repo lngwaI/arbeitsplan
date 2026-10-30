@@ -37,7 +37,7 @@ namespace Arbeitsplan.Win
             sec.Dock = DockStyle.Fill;
             previewScroll.AutoScroll = true; previewScroll.BackColor = Color.White; previewScroll.BorderStyle = BorderStyle.FixedSingle; previewScroll.Tag = "keep";
             blockPreview.Location = Point.Empty; blockPreview.Font = Font; previewScroll.Controls.Add(blockPreview);
-            previewScroll.Resize += delegate { blockPreview.Relayout(PreviewW); };
+            previewScroll.Resize += delegate { if (sizing) sizePending = true; else blockPreview.Relayout(PreviewW); };   // beim Ziehen erst am Ende (PackageForm.Sizing.cs)
             Panel right = BuildPager(previewScroll, 372);   // Ein Eintrag mit ◀ ▶ (PackageForm.Pager.cs)
             Panel hints = Column(sec, "Prüfhinweise (Klick = hinspringen):", lbHints, 290);
             lbHints.IntegralHeight = false; lbHints.DrawMode = DrawMode.OwnerDrawVariable;   // Hinweise umbrechen statt abschneiden
@@ -110,7 +110,7 @@ namespace Arbeitsplan.Win
             if (nextRun >= 0) { curRun = nextRun; nextRun = -1; }
             if (PageIndex() < 0) curRun = curDates.Count > 0 ? curDates[0].Run : -1;
             strip.HeadText = StripHead;
-            strip.Set(items, cur, curRun);
+            PerfB(PfStrip); strip.Set(items, cur, curRun); PerfE(PfStrip);
             if (scrollTo) strip.ScrollTo(cur, curRun);
             UpdateStripBar();
             lPreview.Text = "So erscheint der Schritt im Plan:";

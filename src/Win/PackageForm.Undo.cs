@@ -91,7 +91,10 @@ namespace Arbeitsplan.Win
         void CommitUndo()
         {
             if (loading || undoBusy || IsDisposed) return;
+            FlushView();   // Ansicht zuerst auf den Stand der Eingaben bringen
+            PerfB(PfUndo);
             Snap s = TakeSnap();
+            PerfE(PfUndo);
             if (s == null) return;
             if (snapAt >= 0 && snaps[snapAt].Same(s)) { snaps[snapAt] = s; return; }   // gleicher Stand: nur Auswahl/Scroll auffrischen
             if (snapAt < snaps.Count - 1) { snaps.RemoveRange(snapAt + 1, snaps.Count - snapAt - 1); if (savedAt > snapAt) savedAt = -2; }

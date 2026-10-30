@@ -11,21 +11,28 @@ namespace Arbeitsplan.Win
     {
         const int Gap = 6, AltW = 132, DelW = 24, ArrowW = 17, GripW = 12;
         public const int Lead = GripW + 2 * ArrowW + 4;   // linke Spalte: Griff, ▲, ▼ (UX-5b)
-        readonly EquipAssign a;
-        readonly EquipPosition pos;
-        readonly Catalog cat;
-        readonly string product;    // Produktcode des Pakets: erlaubte Geraete/Austauschgruppen aus dem Produktprofil
-        readonly Action changed;
+        EquipAssign a;
+        EquipPosition pos;
+        Catalog cat;
+        string product;    // Produktcode des Pakets: erlaubte Geraete/Austauschgruppen aus dem Produktprofil
+        Action changed;
+        Action<EquipAssign> remove;
+        bool allowNone;
         readonly Label name = new Label();
         readonly ComboBox cbId = new ComboBox(), cbFb = new ComboBox();
         readonly CheckBox chkAlt = new CheckBox();
         readonly Button btnAlt = new Button(), del = new Button(), up = new Button(), down = new Button();
         readonly RowGrip grip;
+        readonly ToolTip tip = new ToolTip();
         bool hot, canUp, canDown;
         internal RowReorder Reorder;   // Umsortieren (Container setzt es; null = Zeile nicht verschiebbar)
         public int Slot = -1;          // Platz der Zeile im Container (Reihenfolge im Modell)
         readonly TextBox note = new TextBox();
         bool loading;
+        int arrW = -1; bool arrWide, arrRot;   // letzte Anordnung (Arrange tut nichts, wenn sich nichts geaendert hat)
+        bool itemsStale = true, fbStale = true;   // Auswahllisten werden erst beim Aufklappen gefuellt (ComboBox-Zugriffe sind teuer, UX-5e)
+
+        public EquipAssign Assign { get { return a; } }
 
         // x-Positionen der Spalten (Position, Geraet, abwechselnd, Ausweich, Notiz, Entfernen, Ende) fuer die Breite w; auch fuer die Spaltenkoepfe.
         // wide = false ("Mehr Optionen" zu): abwechselnd und Ausweich ohne Breite.
@@ -43,75 +50,84 @@ namespace Arbeitsplan.Win
 
         public EquipRow(EquipAssign a, Catalog cat, string product, Action changed, Action<EquipAssign> remove) : this(a, cat, product, changed, remove, false) { }
 
+        // Das Steuerelement wird einmal gebaut und kann mit Rebind auf eine andere Zeile umgestellt werden (Handles anlegen ist teuer, UX-5e)
         public EquipRow(EquipAssign a, Catalog cat, string product, Action changed, Action<EquipAssign> remove, bool allowNone)
         {
-            this.a = a; this.cat = cat; this.product = product; this.pos = cat.Position(a.Short); this.changed = changed;
-            name.Text = pos != null && pos.Name != a.Short ? pos.Name + " (" + a.Short + ")" : a.Short; name.AutoEllipsis = true;
-
-            List<string> own = cat.Allowed(product, a.Short);   // nur erlaubte Geraete (Produktprofil, sonst global)
-            string ph = Placeholder(cat, product, a.Short);
+            name.AutoEllipsis = true;
             cbId.DropDownStyle = ComboBoxStyle.DropDown;   // frei eintippbar (Notfall-/Ausweichgeraet)
-            if (allowNone) cbId.Items.Add(NoneText);
-            cbId.Items.AddRange(own.ToArray()); if (ph.Length > 0) cbId.Items.Add(ph);
             cbFb.DropDownStyle = ComboBoxStyle.DropDown;
-            foreach (string id in cat.SwapsFor(product, a.Short, "")) cbFb.Items.Add(id);   // Austauschgruppe des Produkts zuerst
-            foreach (EquipChoice c in cat.Interchangeable(a.Short)) { string t = c.Short == a.Short ? c.Id : c.Short + " " + c.Id; if (!cbFb.Items.Contains(t)) cbFb.Items.Add(t); }
             chkAlt.Text = "abwechselnd";
-            bool rot = pos != null && pos.AllowRotation;      // nur wo der Admin Rotation hinterlegt hat (z. B. Abfüllskid)
-            chkAlt.Visible = btnAlt.Visible = rot || a.Alternate;   // bereits gesetzte Rotation (Import) bleibt sicht- und aenderbar, nichts wird still veraendert (Arrange: nur bei "Mehr Optionen")
-            bool fix = cat.IsFixed(product, a.Short);          // festes Geraet je Kampagne: nur Abschalten einer vorhandenen Rotation erlaubt
-            chkAlt.Enabled = !fix || a.Alternate;
             btnAlt.Text = "…";
             Ui.SimpleMenu(note);
-            del.Text = "x"; del.Click += delegate { remove(a); };
+            del.Text = "x"; del.Click += delegate { this.remove(this.a); };
             grip = new RowGrip(this); up.Text = "▲"; down.Text = "▼"; up.Visible = down.Visible = false;
             up.Click += delegate { if (Reorder != null) Reorder.Step(this, -1); }; down.Click += delegate { if (Reorder != null) Reorder.Step(this, 1); };
             Controls.AddRange(new Control[] { name, cbId, chkAlt, btnAlt, cbFb, note, del, grip, up, down });
             foreach (Button b in new[] { btnAlt, del, up, down }) Theme.Current.StyleButton(b);
             Enter += delegate { ShowArrows(); }; Leave += delegate { ShowArrows(); };
-            ToolTip tip = new ToolTip();
-            tip.SetToolTip(name, name.Text);
-            tip.SetToolTip(cbId, "Gerät aus der validierten Liste wählen oder eigenes eintippen (nicht validierte Eingabe wird orange).");
-            tip.SetToolTip(chkAlt, fix ? "Für dieses Produkt ist ein festes Gerät je Kampagne vorgegeben – kein Wechsel." : "Läufe wechseln reihum zwischen den gewählten Geräten (Lauf 1 → A, Lauf 2 → B, Lauf 3 → wieder A …). Zur Auswahl stehen alle Geräte, die laut Admin gleich eingesetzt werden können.");
             tip.SetToolTip(btnAlt, "Geräte für den Wechsel auswählen");
             tip.SetToolTip(cbFb, "Ausweich-Gerät (Backup), falls das geplante ausfällt.");
             tip.SetToolTip(note, "Notiz/Bezeichnung zu diesem Gerät (steht im Plan hinter der Nummer).");
             tip.SetToolTip(grip, "Zeile verschieben: am Griff nach oben oder unten ziehen (oder ▲▼ nutzen). Die Reihenfolge steht so im Plan.");
             tip.SetToolTip(up, "Eine Zeile nach oben"); tip.SetToolTip(down, "Eine Zeile nach unten");
-            tip.SetToolTip(del, allowNone ? "Position entfernen (wie „" + NoneText + "“)" : "Position aus diesem Schritt entfernen");
-
-            loading = true;
-            chkAlt.Checked = a.Alternate; cbFb.Text = a.Fallback; note.Text = a.Note;
-            Refill();
-            loading = false;
 
             cbId.TextChanged += delegate
             {
                 if (loading || chkAlt.Checked) return;
-                if (allowNone && cbId.Text == NoneText)   // Zeile weglassen (nach dem Auswahlereignis, damit das Feld nicht mitten im Ereignis verschwindet)
+                if (this.allowNone && cbId.Text == NoneText)   // Zeile weglassen (nach dem Auswahlereignis, damit das Feld nicht mitten im Ereignis verschwindet)
                 {
-                    if (IsHandleCreated) BeginInvoke(new Action(delegate { remove(a); })); else remove(a);
+                    EquipAssign x = this.a; Action<EquipAssign> rm = this.remove;
+                    if (IsHandleCreated) BeginInvoke(new Action(delegate { rm(x); })); else rm(x);
                     return;
                 }
-                a.Choices.Clear();
-                if (cbId.Text.Trim().Length > 0) a.Choices.Add(new EquipChoice(a.Short, cbId.Text.Trim()));
-                Warn(); changed();
+                this.a.Choices.Clear();
+                if (cbId.Text.Trim().Length > 0) this.a.Choices.Add(new EquipChoice(this.a.Short, cbId.Text.Trim()));
+                Warn(); this.changed();
             };
-            cbFb.TextChanged += delegate { if (!loading) { a.Fallback = cbFb.Text.Trim(); changed(); } };
+            cbFb.TextChanged += delegate { if (!loading) { this.a.Fallback = cbFb.Text.Trim(); this.changed(); } };
             // Stammdaten: Ersatzgeraete des gewaehlten Geraets zuerst vorschlagen; Hinweise (Reihen-Notiz, Wartung, Regeln) als Tooltip
-            cbFb.DropDown += delegate { SuggestFallbacks(); DropMain(); };
-            cbId.TextChanged += delegate { ShowInfo(tip); };
-            ShowInfo(tip);
-            note.TextChanged += delegate { if (!loading) { a.Note = note.Text.Trim(); changed(); } };
+            cbFb.DropDown += delegate { EnsureFallbacks(); SuggestFallbacks(); DropMain(); };
+            cbId.DropDown += delegate { EnsureItems(); }; cbId.Enter += delegate { EnsureItems(); };   // Liste beim Aufklappen/Fokus fuellen (Pfeiltasten bleiben nutzbar)
+            cbFb.Enter += delegate { EnsureFallbacks(); };
+            cbId.TextChanged += delegate { ShowInfo(); };
+            note.TextChanged += delegate { if (!loading) { this.a.Note = note.Text.Trim(); this.changed(); } };
             chkAlt.CheckedChanged += delegate
             {
                 if (loading) return;
-                a.Alternate = chkAlt.Checked;
-                if (a.Alternate && a.Choices.Count < 2) PickAlternatives();
-                if (!a.Alternate && a.Choices.Count > 1) a.Choices.RemoveRange(1, a.Choices.Count - 1);
-                loading = true; Refill(); loading = false; changed();
+                this.a.Alternate = chkAlt.Checked;
+                if (this.a.Alternate && this.a.Choices.Count < 2) PickAlternatives();
+                if (!this.a.Alternate && this.a.Choices.Count > 1) this.a.Choices.RemoveRange(1, this.a.Choices.Count - 1);
+                loading = true; Refill(); loading = false; this.changed();
             };
-            btnAlt.Click += delegate { PickAlternatives(); loading = true; Refill(); loading = false; changed(); };
+            btnAlt.Click += delegate { PickAlternatives(); loading = true; Refill(); loading = false; this.changed(); };
+            this.cat = cat;
+            Load(a, product, changed, remove, allowNone);
+        }
+
+        // Auf eine andere Zeile umstellen (aus dem Pool): Inhalt, Listen und Zustand wie neu, Steuerelemente und Handles bleiben
+        public void Rebind(EquipAssign a, Catalog cat, string product, Action changed, Action<EquipAssign> remove, bool allowNone)
+        {
+            this.cat = cat; Reorder = null; Slot = -1; canUp = canDown = false; hot = false; grip.Hot = false;
+            up.Visible = down.Visible = false;
+            Load(a, product, changed, remove, allowNone);
+        }
+
+        void Load(EquipAssign a, string product, Action changed, Action<EquipAssign> remove, bool allowNone)
+        {
+            loading = true;
+            this.a = a; this.product = product; this.pos = cat.Position(a.Short); this.changed = changed; this.remove = remove; this.allowNone = allowNone;
+            name.Text = pos != null && pos.Name != a.Short ? pos.Name + " (" + a.Short + ")" : a.Short;
+            itemsStale = fbStale = true;   // Listen erst beim Aufklappen fuellen (EnsureItems/EnsureFallbacks)
+            bool fix = cat.IsFixed(product, a.Short);          // festes Geraet je Kampagne: nur Abschalten einer vorhandenen Rotation erlaubt
+            chkAlt.Enabled = !fix || a.Alternate;   // Sichtbarkeit von abwechselnd/Ausweich setzt Arrange (nur bei Mehr Optionen oder gesetztem Wert)
+            tip.SetToolTip(name, name.Text);
+            tip.SetToolTip(cbId, "Gerät aus der validierten Liste wählen oder eigenes eintippen (nicht validierte Eingabe wird orange).");
+            tip.SetToolTip(chkAlt, fix ? "Für dieses Produkt ist ein festes Gerät je Kampagne vorgegeben – kein Wechsel." : "Läufe wechseln reihum zwischen den gewählten Geräten (Lauf 1 → A, Lauf 2 → B, Lauf 3 → wieder A …). Zur Auswahl stehen alle Geräte, die laut Admin gleich eingesetzt werden können.");
+            tip.SetToolTip(del, allowNone ? "Position entfernen (wie „" + NoneText + "“)" : "Position aus diesem Schritt entfernen");
+            chkAlt.Checked = a.Alternate; cbFb.Text = a.Fallback; note.Text = a.Note;
+            Refill();
+            ShowInfo();
+            loading = false;
         }
 
         // Platzhalter aus den erlaubten Geraeten (Produktprofil oder global), z. B. H1-X-010X
@@ -143,6 +159,10 @@ namespace Arbeitsplan.Win
 
         public void Arrange(int w, bool wide)
         {
+            bool rot = (pos != null && pos.AllowRotation) || a.Alternate;
+            if (arrW == w && arrWide == wide && arrRot == rot) return;   // nichts zu tun: keine Fensternachrichten
+            bool resized = arrW != w || arrWide != wide;
+            arrW = w; arrWide = wide; arrRot = rot;
             int[] x = Cols(w, wide);
             int h = cbId.Height;
             Size = new Size(x[6], h + 6);
@@ -153,14 +173,13 @@ namespace Arbeitsplan.Win
             name.SetBounds(x[0] + 2, 3, x[1] - Gap - x[0] - 2, h);
             name.TextAlign = ContentAlignment.MiddleLeft;
             cbId.SetBounds(x[1], 3, x[2] - x[1] - Gap, h);
-            bool rot = (pos != null && pos.AllowRotation) || a.Alternate;
             chkAlt.Visible = btnAlt.Visible = wide && rot; cbFb.Visible = wide;
             chkAlt.SetBounds(x[2], 3, AltW - 30, h);
             btnAlt.SetBounds(x[2] + AltW - 28, 3, 28, h);
             cbFb.SetBounds(x[3], 3, Math.Max(0, x[4] - x[3] - Gap), h);
             note.SetBounds(x[4], 3, x[5] - x[4] - Gap, h);
             del.SetBounds(x[5], 3, DelW, h);
-            foreach (ComboBox c in new[] { cbId, cbFb }) if (!c.Focused) c.SelectionLength = 0;   // Groessenaenderung markiert sonst den ganzen Text
+            if (resized) foreach (ComboBox c in new[] { cbId, cbFb }) if (!c.Focused) c.SelectionLength = 0;   // Groessenaenderung markiert sonst den ganzen Text
         }
 
         // Knoepfe nur bei Hover/Fokus und nur, wenn es etwas zu verschieben gibt (Rand der Gruppe: der Knopf ist deaktiviert)
@@ -180,10 +199,37 @@ namespace Arbeitsplan.Win
         internal bool PinHot;
         internal Button TestUp { get { return up; } }
         internal Button TestDown { get { return down; } }
+        internal Button TestDel { get { return del; } }
         internal Control TestGrip { get { return grip; } }
-        internal ComboBox TestIdBox { get { return cbId; } }
+        internal ComboBox TestIdBox { get { EnsureItems(); return cbId; } }
         internal CheckBox TestAltBox { get { return chkAlt; } }
 #endif
+
+        // Auswahlliste Geraet: erlaubte Geraete (Produktprofil, sonst global) und Platzhalter; der Text bleibt
+        void EnsureItems()
+        {
+            if (!itemsStale) return;
+            itemsStale = false;
+            bool was = loading; loading = true; string text = cbId.Text;
+            cbId.Items.Clear();
+            List<string> own = cat.Allowed(product, a.Short);   // nur erlaubte Geraete (Produktprofil, sonst global)
+            string ph = Placeholder(cat, product, a.Short);
+            if (allowNone) cbId.Items.Add(NoneText);
+            cbId.Items.AddRange(own.ToArray()); if (ph.Length > 0) cbId.Items.Add(ph);
+            cbId.Text = text; loading = was;
+        }
+
+        // Auswahlliste Ausweich-Geraet: Austauschgruppe des Produkts zuerst, dann gleichwertige Positionen
+        void EnsureFallbacks()
+        {
+            if (!fbStale) return;
+            fbStale = false;
+            bool was = loading; loading = true; string text = cbFb.Text;
+            cbFb.Items.Clear();
+            foreach (string id in cat.SwapsFor(product, a.Short, "")) cbFb.Items.Add(id);
+            foreach (EquipChoice c in cat.Interchangeable(a.Short)) { string t = c.Short == a.Short ? c.Id : c.Short + " " + c.Id; if (!cbFb.Items.Contains(t)) cbFb.Items.Add(t); }
+            cbFb.Text = text; loading = was;
+        }
 
         string Display(EquipChoice c) { return c.Short == a.Short ? c.Id : c.ToString(); }
 
@@ -216,7 +262,7 @@ namespace Arbeitsplan.Win
 #if TESTHOOKS
         public List<string> FallbackItems()   // Selbsttest: Inhalt des Ausweich-Dropdowns nach dem Aufklappen
         {
-            SuggestFallbacks(); DropMain();
+            EnsureFallbacks(); SuggestFallbacks(); DropMain();
             List<string> l = new List<string>(); foreach (object o in cbFb.Items) l.Add(o.ToString()); return l;
         }
 #endif
@@ -235,7 +281,7 @@ namespace Arbeitsplan.Win
             cbFb.Text = text; loading = false;
         }
 
-        void ShowInfo(ToolTip tip)
+        void ShowInfo()
         {
             string id = CurrentId(), info = id.Length > 0 ? cat.Master.Info(id) : "";
             foreach (EquipSubst s in id.Length > 0 ? cat.Master.SubstitutesFor(id) : new List<EquipSubst>())
@@ -265,47 +311,6 @@ namespace Arbeitsplan.Win
             MessageBox.Show(owner, "Das Paket kann nicht " + action + " werden – Zubehör ist mit dem falschen Hauptgerät eingeplant:\n\n" + string.Join("\n", e.ToArray())
                 + "\n\nBitte das Zubehör oder das Hauptgerät anpassen.", "Equipment passt nicht zusammen", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             return false;
-        }
-    }
-
-    // Reihum-Verteilung: Geraete ankreuzen, die sich abwechseln. Angeboten werden alle Geraete, die laut Admin-Hinterlegung
-    // (Austausch-Gruppen) gleich eingesetzt werden koennen; eigene Eintraege sind moeglich.
-    class AlternativesPicker : Form
-    {
-        readonly CheckedListBox list = new CheckedListBox();
-        readonly TextBox own = new TextBox();
-        readonly List<EquipChoice> offered;
-        readonly string ownShort;
-        public List<EquipChoice> Result = new List<EquipChoice>();
-
-        public AlternativesPicker(List<EquipChoice> offered, List<EquipChoice> current, string ownShort)
-        {
-            this.offered = offered; this.ownShort = ownShort;
-            Text = "Abwechselnd verwenden";
-            Ui.Dialog(this, 360, 400);
-            Label l1 = new Label(); l1.Text = "Geräte ankreuzen, die sich abwechseln (A, B, A, B …). Angeboten werden alle Geräte, die laut Admin gleich eingesetzt werden können:"; l1.SetBounds(10, 8, 340, 48);
-            list.SetBounds(10, 60, 340, 220); list.CheckOnClick = true;
-            List<string> extras = new List<string>();
-            foreach (EquipChoice c in offered) list.Items.Add(c.ToString(), current.Exists(delegate(EquipChoice x) { return x.Short == c.Short && x.Id == c.Id; }));
-            foreach (EquipChoice c in current) if (!offered.Exists(delegate(EquipChoice x) { return x.Short == c.Short && x.Id == c.Id; })) extras.Add(c.Id);
-            Label l2 = new Label(); l2.Text = "Weitere (Komma getrennt):"; l2.SetBounds(10, 290, 340, 18);
-            own.SetBounds(10, 310, 340, 22); own.Text = string.Join(", ", extras.ToArray()); Ui.SimpleMenu(own);
-            Button ok = new Button(); ok.Text = "Übernehmen"; ok.SetBounds(150, 356, 95, 30); ok.Click += delegate { Commit(); };
-            Button cancel = new Button(); cancel.Text = "Abbrechen"; cancel.SetBounds(255, 356, 95, 30); cancel.DialogResult = DialogResult.Cancel;
-            CancelButton = cancel;
-            Controls.AddRange(new Control[] { l1, list, l2, own, ok, cancel });
-        }
-
-        void Commit()
-        {
-            Result = new List<EquipChoice>();
-            for (int i = 0; i < offered.Count; i++) if (list.GetItemChecked(i)) Result.Add(offered[i].Clone());
-            foreach (string t in own.Text.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries))
-            {
-                string v = t.Trim();
-                if (v.Length > 0 && !Result.Exists(delegate(EquipChoice x) { return x.Id == v; })) Result.Add(new EquipChoice(ownShort, v));
-            }
-            DialogResult = DialogResult.OK;
         }
     }
 }

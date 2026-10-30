@@ -42,7 +42,7 @@ namespace Arbeitsplan.Win
             return string.Join(",", r.ToArray());
         }
 
-        EquipRow EqRow(int i) { return (EquipRow)equipRows.Controls[i]; }
+        EquipRow EqRow(int i) { return eqRows[i]; }
 
         public static string TestUx5b(IDataStore store, IEquipmentStatusProvider equip, DateTime start)
         {
@@ -103,7 +103,7 @@ namespace Arbeitsplan.Win
                 f.SelectStep(2); Application.DoEvents();
                 PackageStep lf = f.cur;
                 string before = Shorts(lf.Equipment), planBefore = lf.Compose(0, f.prefix);
-                int n = f.equipRows.Controls.Count;
+                int n = f.eqRows.Count;
                 bool okEq = n >= 5 && f.EqRow(0).TestGrip.Visible && !f.EqRow(0).TestUp.Enabled && f.EqRow(1).TestUp.Enabled && !f.EqRow(n - 1).TestDown.Enabled && f.EqRow(n - 2).TestDown.Enabled;
                 EquipRow e0 = f.EqRow(0);
                 f.equipOrder.DragStart(e0); f.equipOrder.DragTo(e0, f.EqRow(2).Bounds.Bottom + 1);

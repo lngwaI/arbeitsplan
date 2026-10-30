@@ -66,7 +66,7 @@ namespace Arbeitsplan.Win
             cbType.SelectedIndexChanged += delegate { if (!loading && cbType.SelectedIndex >= 0 && (int)pk.Type != cbType.SelectedIndex) { pk.Type = (PackageType)cbType.SelectedIndex; Changed(); } };
             tProduct.TextChanged += delegate   // anderes Produkt: Geraetelisten der Zeilen neu fuellen (Produktprofil)
             {
-                if (!loading && cur != null && (Product.Length == 0 || Package.IsProductCode(Product))) { dirty = true; Bind(cur); } else Changed();
+                if (!loading && cur != null && (Product.Length == 0 || Package.IsProductCode(Product))) { dirty = true; if (ActiveControl is TextBoxBase) ScheduleView(true); else Bind(cur); } else Changed();   // Tippen: Zeilen erst nach kurzer Ruhe neu binden
             };
             tFirst.TextChanged += delegate { FirstRunTyped(); };
             nRuns.ValueChanged += delegate { RunsChanged(); };
