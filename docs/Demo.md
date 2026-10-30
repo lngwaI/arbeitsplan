@@ -23,3 +23,6 @@ Eigene exe mit **erfundenen Testdaten** für Vorführungen. Hat nichts mit den e
 
 ## Test
 `bin_demo\ArbeitsplanDemo.exe --shot demo.png --selftest demo.txt` → `SelfTestDemo` (Pfade, Produktivordner abgelehnt, Ausgangsdaten, Zurücksetzen, Rollen/Rechte). Startdialog als Bild: `--form demorole`. Rolle ohne Dialog: `--role leser|produktion|admin|r1`.
+
+## Beispiel-Umgebung
+Kopierbarer Ordner mit echter Release-exe statt Demo-exe: siehe `beispiel/README.md` (Vergleich dort), `scriptseispiel-bauen.cmd`.
