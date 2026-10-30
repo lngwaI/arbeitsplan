@@ -11,7 +11,11 @@ namespace Arbeitsplan.Win
         {
             if (prod == null) return;
             using (PufferPackForm f = new PufferPackForm(cat, prod))
-                if (f.ShowDialog(this) == System.Windows.Forms.DialogResult.OK) { prod.Puffer = f.Result; SelectProduct(prod); }
+            {
+                bool ok = f.ShowDialog(this) == System.Windows.Forms.DialogResult.OK;
+                if (ok) prod.Puffer = f.Result;
+                if (ok || f.Added.Count > 0) { SelectProduct(prod); Touch(ok ? "Pufferpaket von " + prod.Code + " geändert" : f.Added.Count + " Gerät(e) in die Liste aufgenommen"); }   // aufgenommene Geraete stehen schon in der Arbeitskopie
+            }
         }
     }
 }

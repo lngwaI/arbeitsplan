@@ -8,137 +8,143 @@ namespace Arbeitsplan.Win
 {
     // Einstellungen -> Produkte & Equipment (Recht PackageAdmin): je Produkt (Code frei, z. B. AB1) und Equipment-Position die erlaubten Geraete
     // (Standard oder eigene Liste), fest/frei und Austauschgruppen. Bearbeitet eine Katalog-Kopie; gespeichert wird der ganze Katalog.
+    // Links Produktliste, rechts Reiter "Geraete je Position" (Pos.cs, Groups.cs) und "Austauschgruppen" (Swaps.cs); unten Statuszeile.
     partial class ProductForm : Form
     {
         readonly Catalog cat;
+        readonly List<string> rowNames;   // Zeilennamen des Plans (fuer "Standardliste bearbeiten…"); null = Link ausgeblendet
+        readonly string[] variants;
         public Catalog Result;
-        bool loading;
+        bool loading, noAsk;
         ProductProfile prod;
-        EquipPosition pos;
+        int changes;
+        string lastAction = "";
 
-        readonly ListBox lbProd = new ListBox(), lbPos = new ListBox();
-        readonly TextBox pCode = new TextBox(), pName = new TextBox();
-        readonly Button bPuf;
+        readonly ListView lv = new ListView();
+        readonly Label head = new Label(), status = new Label();
+        readonly TabControl tabs = new TabControl();
+        readonly TabPage tabPos = new TabPage("Geräte je Position"), tabSwap = new TabPage("Austauschgruppen (0)");
+        Button bNew, bCopy, bEdit, bDel, bPuf;
 
-        public ProductForm(Catalog catalog)
+        public ProductForm(Catalog catalog, List<string> rowNames = null, string[] variants = null)
         {
-            cat = catalog.Clone();
+            cat = catalog.Clone(); this.rowNames = rowNames; this.variants = variants;
             Text = "Produkte & Equipment";
-            Ui.Dialog(this, 980, 650);
-            Controls.Add(Ui.Hint("Was ist das? Je Produkt legt man fest, welche Geräte an jeder Position erlaubt sind. Ohne eigene Liste gilt der Standard aus „Equipment & Bausteine“.", 8, 6, 964));
+            Ui.Dialog(this, 1000, 680);
+            Label intro = Ui.Hint("Je Produkt legt man fest, welche Geräte an jeder Position erlaubt sind. Ohne eigene Liste gilt die Standardliste aus „Equipment & Bausteine“.", 8, 6, 984); intro.UseMnemonic = false; Controls.Add(intro);
 
-            Controls.Add(L("Produkte (Code):", 8, 30));
-            lbProd.SetBounds(8, 48, 230, 440); lbProd.IntegralHeight = false; Controls.Add(lbProd);
-            lbProd.SelectedIndexChanged += delegate { if (!loading) SelectProduct(lbProd.SelectedItem as ProductProfile); };
-            Controls.Add(L("Code:", 8, 496)); pCode.SetBounds(8, 514, 100, 22); pCode.MaxLength = 12; Ui.SimpleMenu(pCode); Controls.Add(pCode);
-            Controls.Add(L("Name:", 114, 496)); pName.SetBounds(114, 514, 124, 22); Ui.SimpleMenu(pName); Controls.Add(pName);
-            pCode.TextChanged += delegate { if (!loading && prod != null) { prod.Code = pCode.Text.Trim(); RefreshItem(lbProd); } };
-            pName.TextChanged += delegate { if (!loading && prod != null) { prod.Name = pName.Text.Trim(); RefreshItem(lbProd); } };
-            Controls.Add(Btn("Neu…", 8, 544, 60, delegate { NewProduct(); }));
-            Controls.Add(Btn("Wie markiertes kopieren…", 72, 544, 166, delegate { CopySelected(); }));
-            Controls.Add(Btn("Entfernen", 8, 574, 80, delegate { RemoveSelected(); }));
-            bPuf = Btn("Pufferpaket…", 96, 574, 142, delegate { EditPuffer(); }); Controls.Add(bPuf);   // Puffer des Produkts (ProductForm.Puffer.cs)
+            Controls.Add(L("Produkte:", 8, 30));
+            lv.SetBounds(8, 48, 304, 516); lv.View = View.Details; lv.FullRowSelect = true; lv.HideSelection = false; lv.MultiSelect = false; lv.HeaderStyle = ColumnHeaderStyle.Nonclickable;
+            lv.Columns.Add("Code", 78); lv.Columns.Add("Name", 140); lv.Columns.Add("Puffer", 58);
+            lv.SelectedIndexChanged += delegate { if (!loading && lv.SelectedItems.Count > 0) SelectProduct(lv.SelectedItems[0].Tag as ProductProfile); };
+            Controls.Add(lv);
+            bNew = Btn("Neu…", 8, 570, 98, delegate { NewProduct(); });
+            bCopy = Btn("Kopieren…", 111, 570, 98, delegate { CopySelected(); });
+            bEdit = Btn("Bearbeiten…", 214, 570, 98, delegate { EditSelected(); });
+            bDel = Btn("Entfernen", 8, 600, 98, delegate { RemoveSelected(); });
+            bPuf = Btn("Pufferpaket…", 111, 600, 201, delegate { EditPuffer(); });   // Puffer des Produkts (ProductForm.Puffer.cs)
+            Controls.AddRange(new Control[] { bNew, bCopy, bEdit, bDel, bPuf });
 
-            Controls.Add(L("Equipment-Positionen:", 250, 30));
-            lbPos.SetBounds(250, 48, 210, 360); lbPos.IntegralHeight = false; Controls.Add(lbPos);
-            lbPos.SelectedIndexChanged += delegate { if (!loading) { PosItem pi = lbPos.SelectedItem as PosItem; SelectPos(pi != null ? pi.P : null); } };
+            head.SetBounds(322, 30, 670, 20); head.AutoEllipsis = true; head.UseMnemonic = false; head.Font = new Font(Font, FontStyle.Bold); Controls.Add(head);
+            tabs.SetBounds(322, 54, 670, 582); tabs.TabPages.Add(tabPos); tabs.TabPages.Add(tabSwap); Controls.Add(tabs);
+            tabs.SelectedIndexChanged += delegate { if (tabs.SelectedTab == tabSwap) LoadSwap(); };
             BuildPos(); BuildSwaps();
 
-            Button ok = Btn("Speichern", 780, 612, 95, delegate { Commit(); }); ok.Height = 30;
-            Button cancel = new Button(); cancel.Text = "Abbrechen"; cancel.SetBounds(880, 612, 92, 30); cancel.DialogResult = DialogResult.Cancel;
+            status.SetBounds(8, 648, 776, 20); status.AutoEllipsis = true; status.UseMnemonic = false; Controls.Add(status);
+            Button ok = Btn("Speichern", 794, 642, 96, delegate { Commit(); }); ok.Height = 30;
+            Button cancel = new Button(); cancel.Text = "Abbrechen"; cancel.SetBounds(896, 642, 96, 30); cancel.DialogResult = DialogResult.Cancel;
             CancelButton = cancel;
             Controls.AddRange(new Control[] { ok, cancel });
+            UpdateStatus();
             FillProducts(cat.Products.Count > 0 ? cat.Products[0] : null);
         }
 
-        static Label L(string text, int x, int y) { Label l = new Label(); l.Text = text; l.AutoSize = true; l.Location = new Point(x, y); return l; }
+        static Label L(string text, int x, int y) { Label l = new Label(); l.Text = text; l.AutoSize = true; l.UseMnemonic = false; l.Location = new Point(x, y); return l; }
         static Button Btn(string text, int x, int y, int w, EventHandler click) { Button b = new Button(); b.Text = text; b.SetBounds(x, y, w, 26); b.Click += click; return b; }
-        static void RefreshItem(ListBox lb) { int i = lb.SelectedIndex; if (i >= 0) lb.Items[i] = lb.Items[i]; }
         void Warn(string text) { MessageBox.Show(this, text, "Produkte & Equipment", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
+        static readonly Color Orange = Color.FromArgb(192, 96, 0);
 
-        static bool ValidCode(string c) { return Package.IsProductCode(c); }   // frei: 2-12 Zeichen, z. B. AB1 (alt 1357)
-        const string CodeRule = "2–12 Zeichen aus Buchstaben, Ziffern und - _ . / + (ohne Leerzeichen), z. B. AB1 oder AB12345678-";
+        // Statuszeile: letzte Aktion + Zaehler der ungespeicherten Aenderungen
+        string ChangeText() { return changes == 1 ? "1 Änderung" : changes + " Änderungen"; }
+        void UpdateStatus() { status.Text = (lastAction.Length > 0 ? lastAction + "    ·    " : "") + (changes > 0 ? "Nicht gespeichert: " + ChangeText() : "Keine Änderungen"); }
+        void Touch(string action) { changes++; lastAction = action; UpdateStatus(); }
 
-        // Position in der Liste, mit Kennzeichen, wenn das Produkt dort eine eigene Liste oder "fest" hat
-        class PosItem
+        protected override void OnFormClosing(FormClosingEventArgs e)
         {
-            public EquipPosition P; public ProductProfile Pr;
-            public override string ToString()
-            {
-                ProfilePos pp = Pr != null ? Pr.Pos(P.Short) : null;
-                string tag = pp == null ? "" : (pp.Own ? "  ● eigen" : "") + (pp.Fixed ? "  ● fest" : "");
-                return P.Name + " (" + P.Short + ")" + tag;
-            }
+            if (!e.Cancel && !noAsk && changes > 0 && DialogResult != DialogResult.OK && e.CloseReason == CloseReason.UserClosing
+                && MessageBox.Show(this, "Änderungen verwerfen?\n\nNicht gespeichert: " + ChangeText() + ".", "Produkte & Equipment", MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Question, MessageBoxDefaultButton.Button2) != DialogResult.Yes) e.Cancel = true;
+            base.OnFormClosing(e);
         }
+
+        static string PufText(ProductProfile p) { return p.Puffer.Count > 0 ? p.Puffer.Count.ToString() : "–"; }
 
         void FillProducts(ProductProfile select)
         {
             loading = true;
-            lbProd.Items.Clear();
-            foreach (ProductProfile p in cat.Products) lbProd.Items.Add(p);
-            lbProd.SelectedItem = select;
+            lv.Items.Clear();
+            foreach (ProductProfile p in cat.Products)
+            {
+                ListViewItem it = new ListViewItem(new[] { p.Code, p.Name, PufText(p) }); it.Tag = p; lv.Items.Add(it);
+                if (p == select) { it.Selected = true; it.EnsureVisible(); }
+            }
             loading = false;
             SelectProduct(select);
+        }
+
+        void RefreshProductRow()
+        {
+            foreach (ListViewItem it in lv.Items)
+                if (it.Tag == prod) { it.SubItems[0].Text = prod.Code; it.SubItems[1].Text = prod.Name; it.SubItems[2].Text = PufText(prod); }
         }
 
         void SelectProduct(ProductProfile p)
         {
             prod = p;
-            loading = true;
-            pCode.Text = p != null ? p.Code : ""; pName.Text = p != null ? p.Name : "";
-            pCode.Enabled = pName.Enabled = lbPos.Enabled = bPuf.Enabled = p != null;
-            bPuf.Text = "Pufferpaket" + (p != null && p.Puffer.Count > 0 ? " (" + p.Puffer.Count + ")" : "") + "…";
-            EquipPosition keep = pos;
-            lbPos.Items.Clear();
-            foreach (EquipPosition g in cat.Positions) { PosItem pi = new PosItem(); pi.P = g; pi.Pr = p; lbPos.Items.Add(pi); if (g == keep) lbPos.SelectedItem = pi; }
-            if (lbPos.SelectedIndex < 0 && lbPos.Items.Count > 0) lbPos.SelectedIndex = 0;
-            loading = false;
-            PosItem sel = lbPos.SelectedItem as PosItem;
-            SelectPos(p != null && sel != null ? sel.P : null);
+            bool any = p != null;
+            head.Text = any ? p.Code + (p.Name.Length > 0 ? " · " + p.Name : "") : "Kein Produkt gewählt – links „Neu…“ anlegen";
+            tabs.Enabled = bCopy.Enabled = bEdit.Enabled = bDel.Enabled = bPuf.Enabled = any;
+            bPuf.Text = "Pufferpaket" + (any && p.Puffer.Count > 0 ? " (" + p.Puffer.Count + ")" : "") + "…";
+            RefreshProductRow();
+            FillPos();
             FillSwaps(null);
-        }
-
-        // Code/Name abfragen (Neu, Kopieren); false = abgebrochen
-        bool Ask(string title, ref string code, ref string name)
-        {
-            using (Form f = new Form())
-            {
-                f.Text = title; Ui.Dialog(f, 330, 130, false);
-                TextBox c = new TextBox(), n = new TextBox(); c.Text = code; n.Text = name;
-                f.Controls.Add(L("Produktcode:", 8, 10)); c.SetBounds(100, 7, 120, 22); c.MaxLength = 12; f.Controls.Add(c);
-                f.Controls.Add(L("Name:", 8, 42)); n.SetBounds(60, 39, 262, 22); f.Controls.Add(n);
-                Button ok = Btn("OK", 152, 90, 80, null); ok.DialogResult = DialogResult.OK;
-                Button ca = Btn("Abbrechen", 238, 90, 84, null); ca.DialogResult = DialogResult.Cancel;
-                f.Controls.Add(ok); f.Controls.Add(ca); f.AcceptButton = ok; f.CancelButton = ca;
-                while (f.ShowDialog(this) == DialogResult.OK)
-                {
-                    string cc = c.Text.Trim();
-                    if (!ValidCode(cc)) { Warn("Produktcode ungültig: " + CodeRule + "."); continue; }
-                    if (cat.Product(cc) != null) { Warn("Produkt " + cc + " gibt es schon."); continue; }
-                    code = cc; name = n.Text.Trim();
-                    return true;
-                }
-                return false;
-            }
         }
 
         void NewProduct()
         {
             string code = "", name = "";
-            if (Ask("Neues Produkt", ref code, ref name)) AddProduct(code, name);
+            if (ProductAsk.Ask(this, cat, "Neues Produkt", ref code, ref name, null)) AddProduct(code, name);
         }
 
         void AddProduct(string code, string name)
         {
             ProductProfile p = new ProductProfile(); p.Code = code; p.Name = name; cat.Products.Add(p);
             FillProducts(p);
+            Touch("Produkt " + code + " angelegt.");
         }
 
         void CopySelected()
         {
-            if (prod == null) { Warn("Bitte zuerst links das Produkt markieren, das als Vorlage dient."); return; }
-            string code = "", name = prod.Name;
-            if (Ask("Wie Produkt " + prod.Code + " kopieren", ref code, ref name)) FillProducts(cat.CopyProduct(prod.Code, code, name));
+            if (prod == null) return;
+            string code = "", name = prod.Name, from = prod.Code;
+            if (ProductAsk.Ask(this, cat, "Wie Produkt " + from + " kopieren", ref code, ref name, null, "Kopieren")) { FillProducts(cat.CopyProduct(from, code, name)); Touch("Produkt " + code + " als Kopie von " + from + " angelegt."); }
+        }
+
+        void EditSelected()
+        {
+            if (prod == null) return;
+            string code = prod.Code, name = prod.Name;
+            if (ProductAsk.Ask(this, cat, "Produkt " + prod.Code + " bearbeiten", ref code, ref name, prod.Code, "Übernehmen")) ApplyEdit(code, name);
+        }
+
+        void ApplyEdit(string code, string name)
+        {
+            bool codeChanged = code != prod.Code, nameChanged = name != prod.Name;
+            if (!codeChanged && !nameChanged) return;
+            string old = prod.Code;
+            prod.Code = code; prod.Name = name;
+            SelectProduct(prod);
+            Touch(codeChanged ? "Code " + old + " zu " + code + " geändert. Bestehende Pakete und der Plan behalten den alten Code." : "Name von " + code + " geändert.");
         }
 
         void RemoveSelected()
@@ -146,8 +152,10 @@ namespace Arbeitsplan.Win
             if (prod == null) return;
             if (MessageBox.Show(this, "Produkt " + prod + " wirklich entfernen?\nIm Plan ändert sich nichts; für das Produkt gilt danach wieder der Standard.",
                 "Produkte & Equipment", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
+            string code = prod.Code;
             int i = cat.Products.IndexOf(prod); cat.Products.Remove(prod);
             FillProducts(cat.Products.Count > 0 ? cat.Products[Math.Min(i, cat.Products.Count - 1)] : null);
+            Touch("Produkt " + code + " entfernt.");
         }
 
         void Commit()
@@ -155,7 +163,7 @@ namespace Arbeitsplan.Win
             HashSet<string> seen = new HashSet<string>();
             foreach (ProductProfile p in cat.Products)
             {
-                if (!ValidCode(p.Code)) { Warn("Produktcode \"" + p.Code + "\" ist ungültig: " + CodeRule + "."); return; }
+                if (!Package.IsProductCode(p.Code)) { Warn("Produktcode \"" + p.Code + "\" ist ungültig: " + ProductAsk.CodeRule + "."); return; }
                 if (!seen.Add(p.Code)) { Warn("Produkt " + p.Code + " ist doppelt vorhanden."); return; }
                 p.Swaps.RemoveAll(delegate(SwapGroup g) { return g.Ids.Count == 0; });
             }
@@ -166,18 +174,13 @@ namespace Arbeitsplan.Win
 #if TESTHOOKS
         public void TestSelect(string code, string shortName)
         {
-            SelectProduct(cat.Product(code));
-            foreach (EquipPosition g in cat.Positions) if (g.Short == shortName)
-            {
-                object sel = null;
-                foreach (object o in lbPos.Items) if (((PosItem)o).P == g) sel = o;
-                if (sel != null) lbPos.SelectedItem = sel;
-                SelectPos(g);
-                break;
-            }
+            FillProducts(cat.Product(code));
+            foreach (object o in lbPos.Items) { PosItem pi = (PosItem)o; if (!pi.IsGroup && pi.Ps[0].Short == shortName) { lbPos.SelectedItem = pi; SelectPos(pi); break; } }
         }
+        public void TestSelectGroup(string name) { foreach (object o in lbPos.Items) { PosItem pi = (PosItem)o; if (pi.IsGroup && pi.GroupName == name) { lbPos.SelectedItem = pi; SelectPos(pi); break; } } }
         public void TestAdd(string code, string name) { AddProduct(code, name); }
         public bool TestCopy(string to, string name) { ProductProfile c = prod != null ? cat.CopyProduct(prod.Code, to, name) : null; FillProducts(c); return c != null; }
+        public bool TestEdit(string code, string name) { if (prod == null || ProductAsk.Check(cat, code, prod.Code).Length > 0) return false; ApplyEdit(code, name); return true; }
         public string TestOwn(bool own, bool fix, params string[] ids)
         {
             SetOwn(own); SetFixed(fix);
@@ -185,10 +188,22 @@ namespace Arbeitsplan.Win
             return string.Join(",", cat.Allowed(prod.Code, pos.Short).ToArray());
         }
         public void TestCheckGroup(int index) { devs.SetItemChecked(index, true); }
-        public void TestSwap(string name, params string[] ids) { NewSwap(); swName.Text = name; for (int i = 0; i < swMembers.Items.Count; i++) swMembers.SetSelected(i, Array.IndexOf(ids, swMembers.Items[i]) >= 0); }
+        public void TestSwap(string name, params string[] ids) { NewSwap(); swName.Text = name; for (int i = 0; i < swMembers.Items.Count; i++) swMembers.SetItemChecked(i, Array.IndexOf(ids, swMembers.Items[i]) >= 0); }
         public bool TestCommit() { Commit(); return Result != null; }
         public Catalog TestCatalog { get { return cat; } }
         public string TestPufButton { get { return bPuf.Text + "|" + bPuf.Enabled; } }
+        public int TestChanges { get { return changes; } }
+        public string TestStatus { get { return status.Text; } }
+        public string TestHead { get { return head.Text; } }
+        public void TestShowPos() { tabs.SelectedTab = tabPos; }
+        public void TestNoAsk() { noAsk = true; }
+        public bool TestNeedsAsk { get { return changes > 0 && DialogResult != DialogResult.OK; } }
+        public string TestPosList { get { List<string> r = new List<string>(); foreach (object o in lbPos.Items) r.Add(o.ToString()); return string.Join("\n", r.ToArray()); } }
+        public string TestPosInfo { get { return posInfo.Text; } }
+        public bool TestUnifyVisible { get { return unify.Visible; } }
+        public void TestUnify() { Unify(); }
+        public void TestApplyStandard(Catalog src) { ApplyStandard(src); }
+        public string TestProductRow(int i) { ListViewItem it = lv.Items[i]; return it.SubItems[0].Text + "|" + it.SubItems[1].Text + "|" + it.SubItems[2].Text; }
 #endif
     }
 }

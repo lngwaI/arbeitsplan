@@ -6,97 +6,140 @@ using Arbeitsplan.Core;
 
 namespace Arbeitsplan.Win
 {
-    // Rechte Seite von "Produkte & Equipment": Quelle Standard/eigen, Geraete nach Gerätegruppe (Gruppenzeile = ganze Gruppe), fest/frei,
-    // zuruecksetzen; darunter die Austauschgruppen des Produkts.
+    // Reiter "Geraete je Position" von "Produkte & Equipment": Quelle Standardliste/eigene Liste, Geraete nach Geraetegruppe (Gruppenzeile = ganze
+    // Gruppe), fest/frei, zuruecksetzen. Positionseintraege und Equipment-Gruppen: ProductForm.Groups.cs.
     partial class ProductForm
     {
+        PosItem cur;          // gewaehlter Eintrag der Positionsliste (Position oder Equipment-Gruppe)
+        EquipPosition pos;    // erste Position von cur (Referenz fuer die Anzeige)
+        readonly ListBox lbPos = new ListBox();
         readonly Label posTitle = new Label(), posInfo = new Label();
         readonly RadioButton rStd = new RadioButton(), rOwn = new RadioButton(), rFixed = new RadioButton(), rFree = new RadioButton();
+        readonly LinkLabel stdLink = new LinkLabel();
         readonly CheckedListBox devs = new CheckedListBox();
-        readonly Button reset = new Button();
-        readonly ListBox lbSwap = new ListBox(), swMembers = new ListBox();
-        readonly TextBox swName = new TextBox();
+        readonly Button reset = new Button(), unify = new Button();
 
         class DevItem { public string Id, Text; public override string ToString() { return Text; } }
         class GroupHead { public string Name; public List<string> Ids = new List<string>(); public override string ToString() { return "▸ " + Name + " (ganze Gruppe)"; } }
-        class SwapItem { public SwapGroup G; public override string ToString() { return (G.Name.Length > 0 ? G.Name : "(ohne Name)") + " (" + G.Ids.Count + ")"; } }
 
         void BuildPos()
         {
-            posTitle.SetBounds(470, 30, 500, 18); Controls.Add(posTitle);
-            Panel src = new Panel(); src.SetBounds(470, 48, 500, 24);
-            rStd.Text = "Standard (wie „Equipment & Bausteine“)"; rStd.AutoSize = true; rStd.Location = new Point(0, 2);
-            rOwn.Text = "eigen für dieses Produkt"; rOwn.AutoSize = true; rOwn.Location = new Point(270, 2);
-            src.Controls.Add(rStd); src.Controls.Add(rOwn); Controls.Add(src);
+            tabPos.Controls.Add(L("Equipment-Positionen:", 8, 8));
+            lbPos.SetBounds(8, 26, 282, 518); lbPos.IntegralHeight = false; tabPos.Controls.Add(lbPos);
+            lbPos.SelectedIndexChanged += delegate { if (!loading) SelectPos(lbPos.SelectedItem as PosItem); };
+
+            posTitle.SetBounds(300, 8, 354, 18); posTitle.AutoEllipsis = true; posTitle.UseMnemonic = false; tabPos.Controls.Add(posTitle);
+            rStd.Text = "Standardliste (aus „Equipment & Bausteine“)"; rStd.AutoSize = true; rStd.UseMnemonic = false; rStd.Location = new Point(0, 2);
+            stdLink.Text = "Standardliste bearbeiten…"; stdLink.AutoSize = true; stdLink.Location = new Point(22, 26); stdLink.Visible = rowNames != null;
+            stdLink.LinkClicked += delegate { EditStandard(); };
+            rOwn.Text = "eigene Liste für dieses Produkt"; rOwn.AutoSize = true; rOwn.UseMnemonic = false; rOwn.Location = new Point(0, 50);
+            Panel src = new Panel(); src.SetBounds(300, 28, 354, 74); src.Controls.AddRange(new Control[] { rStd, stdLink, rOwn }); tabPos.Controls.Add(src);   // eigene Panels: zwei getrennte Optionsgruppen
             rOwn.CheckedChanged += delegate { if (!loading) SetOwn(rOwn.Checked); };
 
-            devs.SetBounds(470, 76, 300, 330); devs.CheckOnClick = true; devs.IntegralHeight = false; Controls.Add(devs);
+            devs.SetBounds(300, 104, 354, 300); devs.CheckOnClick = true; devs.IntegralHeight = false; tabPos.Controls.Add(devs);
             devs.ItemCheck += delegate(object s, ItemCheckEventArgs e) { DevsCheck(e); };
 
-            Panel mode = new Panel(); mode.SetBounds(780, 76, 192, 50);
-            rFixed.Text = "Fest: ein Gerät je Kampagne"; rFixed.AutoSize = true; rFixed.Location = new Point(0, 0);
-            rFree.Text = "Frei: Geräte tauschbar"; rFree.AutoSize = true; rFree.Location = new Point(0, 24);
-            mode.Controls.Add(rFixed); mode.Controls.Add(rFree); Controls.Add(mode);
+            rFixed.Text = "Fest: ein Gerät je Kampagne"; rFixed.AutoSize = true; rFixed.UseMnemonic = false; rFixed.Location = new Point(0, 0);
+            rFree.Text = "Frei: Geräte tauschbar"; rFree.AutoSize = true; rFree.UseMnemonic = false; rFree.Location = new Point(0, 24);
             rFixed.CheckedChanged += delegate { if (!loading) SetFixed(rFixed.Checked); };
-            reset.Text = "Auf Standard zurücksetzen"; reset.SetBounds(780, 134, 192, 26); Controls.Add(reset);
-            reset.Click += delegate { if (prod != null && pos != null) { prod.Positions.Remove(prod.Pos(pos.Short)); Changed(); } };
-            posInfo.SetBounds(780, 170, 192, 236); posInfo.ForeColor = SystemColors.GrayText; Controls.Add(posInfo);
+            reset.Text = "Auf Standard zurücksetzen"; reset.SetBounds(484, 412, 170, 26);
+            reset.Click += delegate { if (prod != null && cur != null) { WriteAll(false, false, null); Changed("Liste auf Standard zurückgesetzt."); } };
+            posInfo.SetBounds(300, 468, 354, 46); posInfo.ForeColor = SystemColors.GrayText; posInfo.UseMnemonic = false;
+            unify.SetBounds(300, 516, 354, 26); unify.Visible = false; unify.Click += delegate { Unify(); };
+            Panel mode = new Panel(); mode.SetBounds(300, 410, 180, 50); mode.Controls.AddRange(new Control[] { rFixed, rFree }); tabPos.Controls.AddRange(new Control[] { mode, reset, posInfo, unify });
         }
 
-        // Eigene Position des Produkts (anlegen bei Bedarf)
-        ProfilePos MakePos()
+        void FillPos()
         {
-            ProfilePos pp = prod.Pos(pos.Short);
-            if (pp == null) { pp = new ProfilePos(); pp.Short = pos.Short; prod.Positions.Add(pp); }
-            return pp;
+            string key = cur != null ? cur.Key : null;
+            loading = true;
+            lbPos.Items.Clear();
+            PosItem pick = null;
+            if (prod != null) foreach (PosItem pi in BuildItems(prod)) { lbPos.Items.Add(pi); if (pi.Key == key) pick = pi; }
+            if (pick == null && lbPos.Items.Count > 0) pick = (PosItem)lbPos.Items[0];
+            if (pick != null) lbPos.SelectedItem = pick;
+            lbPos.Enabled = prod != null;
+            loading = false;
+            SelectPos(pick);
         }
 
-        void DropIfDefault(ProfilePos pp) { if (!pp.Own && !pp.Fixed) prod.Positions.Remove(pp); }
+        void RefreshPosList()
+        {
+            bool o = loading; loading = true;
+            int si = lbPos.SelectedIndex;
+            for (int i = 0; i < lbPos.Items.Count; i++) lbPos.Items[i] = lbPos.Items[i];
+            if (si >= 0) lbPos.SelectedIndex = si;
+            loading = o;
+        }
+
+        // Aenderung der Liste/Quelle: zaehlen, Anzeige neu aufbauen
+        void Changed(string action) { Touch(action); RefreshPosList(); SelectPos(cur); }
+
+        string CurName { get { return cur.IsGroup ? "Gruppe " + cur.GroupName : pos.Short; } }
 
         void SetOwn(bool own)
         {
-            if (prod == null || pos == null) return;
-            ProfilePos pp = MakePos();
-            pp.Own = own;
-            if (own && pp.Ids.Count == 0) pp.Ids.AddRange(pos.Ids);   // Start mit der Standardliste
-            if (!own) { pp.Ids.Clear(); DropIfDefault(pp); }
-            Changed();
+            if (prod == null || cur == null) return;
+            ProfilePos r = prod.Pos(pos.Short);
+            List<string> ids = own ? (r != null && r.Own ? r.Ids : StdUnion()) : null;   // Start mit der Standardliste
+            WriteAll(own, r != null && r.Fixed, ids);
+            Changed(own ? "Eigene Liste für " + CurName + " angelegt (Start: Standardliste)." : "Standardliste gilt wieder für " + CurName + ".");
         }
 
         void SetFixed(bool fix)
         {
-            if (prod == null || pos == null) return;
-            ProfilePos pp = MakePos(); pp.Fixed = fix; DropIfDefault(pp);
-            Changed();
+            if (prod == null || cur == null) return;
+            ProfilePos r = prod.Pos(pos.Short);
+            WriteAll(r != null && r.Own, fix, r != null ? r.Ids : null);
+            Changed(CurName + (fix ? ": fest (ein Gerät je Kampagne)." : ": frei (Geräte tauschbar)."));
         }
 
-        void Changed() { SelectPos(pos); RefreshItem(lbPos); FillSwaps(lbSwap.SelectedItem is SwapItem ? ((SwapItem)lbSwap.SelectedItem).G : null); }
-
-        // Auswahl: globale Geraete der Position, eigene Liste und alle Geraete derselben Geraeteart(en) aus den Stammdaten
-        List<string> Candidates(ProfilePos pp)
+        // Standardliste: "Equipment & Bausteine" direkt auf der Arbeitskopie dieses Dialogs (Produkte bleiben)
+        void EditStandard()
         {
-            List<string> r = new List<string>(pos.Ids), cls = new List<string>();
-            if (pp != null) foreach (string id in pp.Ids) if (!r.Contains(id)) r.Add(id);
+            if (rowNames == null) return;
+            using (CatalogForm f = new CatalogForm(cat, rowNames, variants))
+                if (f.ShowDialog(this) == DialogResult.OK) ApplyStandard(f.Result);
+        }
+
+        void ApplyStandard(Catalog src)
+        {
+            cat.Positions = src.Positions; cat.Groups = src.Groups; cat.Bausteine = src.Bausteine;   // nur diese Teile ändert CatalogForm
+            Touch("Standardliste geändert – wird mit „Speichern“ gesichert.");
+            SelectProduct(prod);
+        }
+
+        // Auswahl: Standardgeraete, eigene Liste und alle Geraete derselben Geraeteart(en) aus den Stammdaten (Vereinigung ueber den Eintrag)
+        List<string> Candidates()
+        {
+            List<string> r = new List<string>(), cls = new List<string>();
+            foreach (EquipPosition e in cur.Ps)
+            {
+                foreach (string id in e.Ids) if (!r.Contains(id)) r.Add(id);
+                ProfilePos pp = prod.Pos(e.Short);
+                if (pp != null) foreach (string id in pp.Ids) if (!r.Contains(id)) r.Add(id);
+            }
             foreach (string id in r) { EquipDevice d = cat.Master.Device(id); if (d != null && d.Class.Length > 0 && !cls.Contains(d.Class)) cls.Add(d.Class); }
             foreach (EquipDevice d in cat.Master.Devices) if (cls.Contains(d.Class) && !r.Contains(d.Id)) r.Add(d.Id);
             return r;
         }
 
-        void SelectPos(EquipPosition g)
+        void SelectPos(PosItem pi)
         {
-            pos = g;
+            cur = pi; pos = pi != null ? pi.Ps[0] : null;
             loading = true;
             devs.Items.Clear();
-            bool any = prod != null && g != null;
+            bool any = prod != null && pi != null, diff = any && GroupDiffers();
             rStd.Enabled = rOwn.Enabled = rFixed.Enabled = rFree.Enabled = reset.Enabled = any;
-            posTitle.Text = any ? "Position: " + g.Name + " (" + g.Short + ") – Produkt " + prod : "Bitte links ein Produkt anlegen oder wählen.";
+            unify.Visible = diff; posInfo.ForeColor = diff ? Orange : SystemColors.GrayText;
+            posTitle.Text = !any ? "" : pi.IsGroup ? "Gemeinsame Liste: " + pi.GroupName + " (" + pi.Shorts + ")" : "Position: " + pos.Name + " (" + pos.Short + ")";
             if (any)
             {
-                ProfilePos pp = prod.Pos(g.Short);
+                ProfilePos pp = prod.Pos(pos.Short);
                 bool own = pp != null && pp.Own;
-                List<string> on = own ? pp.Ids : g.Ids;
+                List<string> std = StdUnion(), on = own ? pp.Ids : std;
                 List<GroupHead> heads = new List<GroupHead>(); GroupHead rest = new GroupHead(); rest.Name = "ohne Gerätegruppe";
-                foreach (string id in Candidates(pp))
+                foreach (string id in Candidates())
                 {
                     List<EquipSeries> ss = cat.Master.SeriesOf(id);
                     GroupHead h = rest;
@@ -111,16 +154,18 @@ namespace Arbeitsplan.Win
                     {
                         EquipDevice d = cat.Master.Device(id);
                         DevItem it = new DevItem(); it.Id = id;
-                        it.Text = "      " + id + (d != null && !d.Active ? " (Wartung)" : "") + (pos.Ids.Contains(id) ? "" : "  – nicht im Standard");
+                        it.Text = "      " + id + (d != null && !d.Active ? " (Wartung)" : "") + (std.Contains(id) ? "" : "  – nicht im Standard");
                         devs.Items.Add(it, on.Contains(id));
                     }
                 }
                 devs.ForeColor = own ? SystemColors.WindowText : SystemColors.GrayText;   // Standard: nur ansehen (Haken werden zurueckgesetzt)
                 rStd.Checked = !own; rOwn.Checked = own;
                 rFixed.Checked = pp != null && pp.Fixed; rFree.Checked = !rFixed.Checked;
-                posInfo.Text = (own ? "Eigene Liste: Haken setzen oder entfernen; Haken an „▸ …“ wählt die ganze Gerätegruppe."
-                    : "Es gilt der Standard (" + g.Ids.Count + " Geräte). Für eine eigene Auswahl „eigen für dieses Produkt“ wählen.")
-                    + "\n\nFest: im Paket-Editor ist „abwechselnd“ gesperrt.";
+                unify.Text = "Vereinheitlichen (Liste von " + pos.Short + " für alle übernehmen)";
+                posInfo.Text = diff ? "Die Positionen der Gruppe haben unterschiedliche Listen."
+                    : (own ? "Eigene Liste: Haken setzen oder entfernen; Haken an „▸ …“ wählt die ganze Gerätegruppe."
+                    : "Es gilt die Standardliste (" + std.Count + " Geräte). Für eine eigene Auswahl „eigene Liste für dieses Produkt“ wählen.")
+                    + (pi.IsGroup ? "\nÄnderungen gelten für alle Positionen der Gruppe." : "\nFest: im Paket-Editor ist „abwechselnd“ gesperrt.");
             }
             else posInfo.Text = "";
             loading = false;
@@ -129,81 +174,28 @@ namespace Arbeitsplan.Win
         void DevsCheck(ItemCheckEventArgs e)
         {
             if (loading) return;
-            ProfilePos pp = prod != null && pos != null ? prod.Pos(pos.Short) : null;
+            ProfilePos pp = prod != null && cur != null ? prod.Pos(pos.Short) : null;
             if (pp == null || !pp.Own) { e.NewValue = e.CurrentValue; return; }
             bool on = e.NewValue == CheckState.Checked;
             loading = true;
             if (devs.Items[e.Index] is GroupHead)
                 for (int i = e.Index + 1; i < devs.Items.Count && devs.Items[i] is DevItem; i++) devs.SetItemChecked(i, on);
-            pp.Ids.Clear();
+            List<string> ids = new List<string>();
             for (int i = 0; i < devs.Items.Count; i++)
             {
                 DevItem d = devs.Items[i] as DevItem;
-                if (d != null && (i == e.Index ? on : devs.GetItemChecked(i))) pp.Ids.Add(d.Id);
+                if (d != null && (i == e.Index ? on : devs.GetItemChecked(i))) ids.Add(d.Id);
             }
+            WriteAll(true, pp.Fixed, ids);
             for (int i = 0; i < devs.Items.Count; i++)   // Gruppenzeilen nachziehen
             {
                 GroupHead h = devs.Items[i] as GroupHead;
-                if (h != null && i != e.Index) devs.SetItemChecked(i, h.Ids.TrueForAll(delegate(string x) { return pp.Ids.Contains(x); }));
+                if (h != null && i != e.Index) devs.SetItemChecked(i, h.Ids.TrueForAll(delegate(string x) { return ids.Contains(x); }));
             }
             loading = false;
-            RefreshItem(lbPos);
-        }
-
-        // ---------- Austauschgruppen ----------
-
-        void BuildSwaps()
-        {
-            Controls.Add(L("Austauschgruppen dieses Produkts (Geräte vertreten sich gegenseitig, Ausweich-Vorschlag zuerst):", 250, 416));
-            lbSwap.SetBounds(250, 436, 210, 140); lbSwap.IntegralHeight = false; Controls.Add(lbSwap);
-            lbSwap.SelectedIndexChanged += delegate { if (!loading) LoadSwap(); };
-            Controls.Add(Btn("Neu", 250, 580, 60, delegate { NewSwap(); }));
-            Controls.Add(Btn("Entfernen", 314, 580, 80, delegate { SwapItem s = lbSwap.SelectedItem as SwapItem; if (s != null) { prod.Swaps.Remove(s.G); FillSwaps(null); } }));
-            Controls.Add(L("Name:", 470, 439)); swName.SetBounds(520, 436, 250, 22); Ui.SimpleMenu(swName); Controls.Add(swName);
-            Controls.Add(L("Mitglieder (Mehrfachauswahl mit Strg/Umschalt):", 470, 462));
-            swMembers.SetBounds(470, 480, 300, 126); swMembers.SelectionMode = SelectionMode.MultiExtended; swMembers.IntegralHeight = false; Controls.Add(swMembers);
-            Label h = new Label(); h.Text = "Zur Auswahl stehen die für dieses Produkt erlaubten Geräte aller Positionen.";
-            h.SetBounds(780, 480, 192, 60); h.ForeColor = SystemColors.GrayText; Controls.Add(h);
-            swName.TextChanged += delegate { SwapItem s = lbSwap.SelectedItem as SwapItem; if (loading || s == null) return; s.G.Name = swName.Text.Trim(); RefreshItem(lbSwap); };
-            swMembers.SelectedIndexChanged += delegate
-            {
-                SwapItem s = lbSwap.SelectedItem as SwapItem; if (loading || s == null) return;
-                s.G.Ids.Clear(); foreach (object o in swMembers.SelectedItems) s.G.Ids.Add((string)o);
-                RefreshItem(lbSwap);
-            };
-        }
-
-        void FillSwaps(SwapGroup select)
-        {
-            loading = true;
-            lbSwap.Items.Clear();
-            if (prod != null) foreach (SwapGroup g in prod.Swaps) { SwapItem s = new SwapItem(); s.G = g; lbSwap.Items.Add(s); if (g == select) lbSwap.SelectedItem = s; }
-            if (lbSwap.SelectedIndex < 0 && lbSwap.Items.Count > 0) lbSwap.SelectedIndex = 0;
-            loading = false;
-            LoadSwap();
-        }
-
-        void LoadSwap()
-        {
-            SwapItem s = lbSwap.SelectedItem as SwapItem;
-            loading = true;
-            swName.Text = s != null ? s.G.Name : ""; swMembers.Items.Clear();
-            swName.Enabled = swMembers.Enabled = s != null;
-            if (s != null)
-            {
-                List<string> all = new List<string>();
-                foreach (EquipPosition g in cat.Positions) foreach (string id in cat.Allowed(prod.Code, g.Short)) if (!all.Contains(id)) all.Add(id);
-                foreach (string id in s.G.Ids) if (!all.Contains(id)) all.Add(id);
-                foreach (string id in all) { int i = swMembers.Items.Add(id); if (s.G.Ids.Contains(id)) swMembers.SetSelected(i, true); }
-            }
-            loading = false;
-        }
-
-        void NewSwap()
-        {
-            if (prod == null) return;
-            SwapGroup g = new SwapGroup(); g.Name = "Neue Austauschgruppe"; prod.Swaps.Add(g);
-            FillSwaps(g); swName.Focus(); swName.SelectAll();
+            RefreshPosList();
+            Touch("Geräteliste für " + CurName + " geändert.");
+            if (unify.Visible) { unify.Visible = false; posInfo.ForeColor = SystemColors.GrayText; posInfo.Text = "Änderungen gelten für alle Positionen der Gruppe."; }
         }
     }
 }

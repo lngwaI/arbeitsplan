@@ -111,11 +111,14 @@ namespace Arbeitsplan.Win
 
         void EditProducts()
         {
-            using (ProductForm f = new ProductForm(store.GetCatalog()))
+            List<string> names = new List<string>(), vars = new List<string>();   // Zeilennamen/Typen fuer "Standardliste bearbeiten…" (wie EditCatalog)
+            foreach (RowInfo r in store.GetRows()) { if (r.Name.Length > 0) names.Add(r.Name); foreach (string v in r.VariantList()) if (!vars.Contains(v)) vars.Add(v); }
+            using (ProductForm f = new ProductForm(store.GetCatalog(), names, vars.Count > 0 ? vars.ToArray() : null))
             {
                 if (f.ShowDialog(this) != DialogResult.OK) return;
-                try { store.SaveCatalog(f.Result); } catch (Exception ex) { ShowSaveError(ex); }
+                try { store.SaveCatalog(f.Result); } catch (Exception ex) { ShowSaveError(ex); return; }
             }
+            Status("Produkte & Equipment gespeichert", true);
         }
 
         void EditPufferPacks() { PufferPackAdmin.Manage(this, store, "", me.Has(Perm.PackageAdmin)); }
