@@ -24,7 +24,7 @@ namespace Arbeitsplan.Win
         readonly CheckedListBox bPos = new CheckedListBox();
         readonly CheckBox bUnique = new CheckBox(), bDefault = new CheckBox(), bSpecial = new CheckBox();
         readonly NumericUpDown bCount = new NumericUpDown();   // Standard-Anzahl Equipment-Zeilen der markierten Position
-        // Austausch-Gruppen
+        // Positionsgruppen (EquipGroup)
         readonly ListBox lbGrp = new ListBox();
         readonly TextBox gName = new TextBox();
         readonly CheckedListBox gPos = new CheckedListBox();
@@ -32,7 +32,7 @@ namespace Arbeitsplan.Win
         string[] varVals;   // Index 0 = kein Typ, danach die Varianten der Puffer-Zeile
         bool loading;
 
-        public CatalogForm(Catalog catalog, List<string> rowNames, string[] variants = null)
+        public CatalogForm(Catalog catalog, List<string> rowNames, string[] variants = null, bool fromProducts = false)
         {
             cat = catalog.Clone(); this.rowNames = rowNames;
             List<string> vl = new List<string>(); vl.Add("");
@@ -40,12 +40,12 @@ namespace Arbeitsplan.Win
             varVals = vl.ToArray();
             Text = "Equipment-Positionen und Bausteine einrichten";
             Ui.Dialog(this, 760, 540);
-            Controls.Add(Ui.Hint("Hier gilt alles für alle Produkte (Standard). Geräte je Produkt: Einstellungen → Produkte & Equipment; Geräte selbst: Equipment-Stammdaten.", 8, 6, 744));
+            Controls.Add(Ui.Hint("Hier gilt alles für alle Produkte (Standard). " + (fromProducts ? "" : "Geräte je Produkt: Einstellungen → Produkte & Equipment; ") + "Geräte selbst: Equipment-Stammdaten.", 8, 6, 744));
 
             TabControl tabs = new TabControl(); tabs.SetBounds(8, 28, 744, 462);
             TabPage t1 = new TabPage("Equipment-Positionen"), t2 = new TabPage("Bausteine (Ablaufschritte)");
             tabs.SelectedIndexChanged += delegate { if (tabs.SelectedIndex == 1) { RefillPos(); LoadBau(); } else if (tabs.SelectedIndex == 2) { RefillGroupPos(); LoadGrp(); } };
-            TabPage t3 = new TabPage("Austausch-Gruppen");
+            TabPage t3 = new TabPage("Positionsgruppen");
             tabs.TabPages.Add(t1); tabs.TabPages.Add(t2); tabs.TabPages.Add(t3);
             BuildPositions(t1); BuildBausteine(t2); BuildGroups(t3);
 
@@ -205,20 +205,20 @@ namespace Arbeitsplan.Win
             ShowCount();
         }
 
-        // ---------- Austausch-Gruppen ----------
+        // ---------- Positionsgruppen ----------
         // Geraete der angekreuzten Positionen koennen sich gegenseitig vertreten bzw. abwechselnd fuer denselben Zweck eingesetzt werden.
 
         void BuildGroups(TabPage p)
         {
-            p.Controls.Add(L("Austausch-Gruppen (z. B. Freezetanks):", 8, 8));
+            p.Controls.Add(L("Positionsgruppen (z. B. Freezetanks):", 8, 8));
             lbGrp.SetBounds(8, 28, 230, 360);
             foreach (EquipGroup g in cat.Groups) lbGrp.Items.Add(g);
             lbGrp.SelectedIndexChanged += delegate { LoadGrp(); };
             p.Controls.Add(lbGrp);
-            p.Controls.Add(Btn("+ Neu", 8, 394, 70, delegate { EquipGroup g = new EquipGroup(); g.Name = "Neue Gruppe"; cat.Groups.Add(g); lbGrp.Items.Add(g); lbGrp.SelectedIndex = lbGrp.Items.Count - 1; }));
+            p.Controls.Add(Btn("+ Neu", 8, 394, 70, delegate { EquipGroup g = new EquipGroup(); g.Name = "Neue Positionsgruppe"; cat.Groups.Add(g); lbGrp.Items.Add(g); lbGrp.SelectedIndex = lbGrp.Items.Count - 1; }));
             p.Controls.Add(Btn("Entfernen", 82, 394, 72, delegate { RemoveSel(lbGrp, cat.Groups); }));
 
-            p.Controls.Add(L("Name der Gruppe:", 260, 8)); gName.SetBounds(260, 28, 460, 22); p.Controls.Add(gName);
+            p.Controls.Add(L("Name der Positionsgruppe:", 260, 8)); gName.SetBounds(260, 28, 460, 22); p.Controls.Add(gName);
             p.Controls.Add(L("Diese Positionen können sich gegenseitig vertreten:", 260, 62));
             gPos.SetBounds(260, 82, 460, 250); gPos.CheckOnClick = true; p.Controls.Add(gPos);
             Label hint = L("Im Paket-Editor stehen beim \"abwechselnd\" und beim Ausweich-Equipment dann alle Geräte dieser Positionen zur Auswahl (z. B. Freezetank 1 → Freezetank 2).", 260, 340);

@@ -10,11 +10,12 @@ namespace Arbeitsplan.Win
         void EditPuffer()
         {
             if (prod == null) return;
+            string before = Sig(cat);
             using (PufferPackForm f = new PufferPackForm(cat, prod))
             {
                 bool ok = f.ShowDialog(this) == System.Windows.Forms.DialogResult.OK;
                 if (ok) prod.Puffer = f.Result;
-                if (ok || f.Added.Count > 0) { SelectProduct(prod); Touch(ok ? "Pufferpaket von " + prod.Code + " geändert" : f.Added.Count + " Gerät(e) in die Liste aufgenommen"); }   // aufgenommene Geraete stehen schon in der Arbeitskopie
+                if (ok || f.Added.Count > 0) { SelectProduct(prod); if (Sig(cat) != before) Touch(ok ? "Pufferpaket von " + prod.Code + " geändert" : f.Added.Count + " Gerät(e) in die Liste aufgenommen"); }   // aufgenommene Geraete stehen schon in der Arbeitskopie
             }
         }
     }

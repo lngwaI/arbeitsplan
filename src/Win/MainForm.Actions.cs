@@ -116,7 +116,15 @@ namespace Arbeitsplan.Win
             using (ProductForm f = new ProductForm(store.GetCatalog(), names, vars.Count > 0 ? vars.ToArray() : null))
             {
                 if (f.ShowDialog(this) != DialogResult.OK) return;
-                try { store.SaveCatalog(f.Result); } catch (Exception ex) { ShowSaveError(ex); return; }
+                while (true)
+                {
+                    try { store.SaveCatalog(f.Result); break; }
+                    catch (Exception ex)
+                    {
+                        if (quiet || MessageBox.Show("Konnte nicht gespeichert werden.\n" + ex.Message + "\n\nErneut versuchen? Bei „Abbrechen“ gehen die Änderungen in „Produkte & Equipment“ verloren.",
+                            "Speichern fehlgeschlagen", MessageBoxButtons.RetryCancel, MessageBoxIcon.Error) != DialogResult.Retry) return;
+                    }
+                }
             }
             Status("Produkte & Equipment gespeichert", true);
         }

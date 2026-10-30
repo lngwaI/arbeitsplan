@@ -5,7 +5,7 @@ using Arbeitsplan.Core;
 namespace Arbeitsplan.Win
 {
     // Positionsliste von "Produkte & Equipment": jede Position, davor je Equipment-Gruppe (cat.Groups, z. B. "Freezetanks": FZ1, FZ2) ein Eintrag
-    // "▸ Freezetanks (FZ1, FZ2) – gemeinsame Liste". Ein Gruppeneintrag bearbeitet EINE Liste, die in die ProfilePos aller Positionen der Gruppe
+    // "▸ Freezetanks (FZ1, FZ2) – gemeinsame Liste" (Positionsgruppe). Ein Gruppeneintrag bearbeitet EINE Liste, die in die ProfilePos aller Positionen der Gruppe
     // geschrieben wird (kein eigenes Datenfeld).
     partial class ProductForm
     {
@@ -41,7 +41,7 @@ namespace Arbeitsplan.Win
                 {
                     List<EquipPosition> m = Members(eg);
                     if (m.Count < 2 || m[0] != e) continue;
-                    PosItem gi = new PosItem(); gi.Ps = m; gi.Pr = p; gi.GroupName = eg.Name.Length > 0 ? eg.Name : "Gruppe"; r.Add(gi);
+                    PosItem gi = new PosItem(); gi.Ps = m; gi.Pr = p; gi.GroupName = eg.Name.Length > 0 ? eg.Name : "Positionsgruppe"; r.Add(gi);
                 }
                 PosItem pi = new PosItem(); pi.Ps.Add(e); pi.Pr = p; r.Add(pi);
             }
@@ -54,6 +54,15 @@ namespace Arbeitsplan.Win
             List<string> r = new List<string>();
             foreach (EquipPosition e in cur.Ps) foreach (string id in e.Ids) if (!r.Contains(id)) r.Add(id);
             return r;
+        }
+
+        // Gruppeneintrag: weichen die Standardlisten der Positionen voneinander ab?
+        bool StdDiffers()
+        {
+            if (cur == null || !cur.IsGroup) return false;
+            List<string> a = cur.Ps[0].Ids;
+            foreach (EquipPosition e in cur.Ps) if (e.Ids.Count != a.Count || !e.Ids.TrueForAll(delegate(string x) { return a.Contains(x); })) return true;
+            return false;
         }
 
         static bool SameProfile(ProfilePos a, ProfilePos b)
@@ -93,7 +102,7 @@ namespace Arbeitsplan.Win
             if (prod == null || cur == null) return;
             ProfilePos r = prod.Pos(cur.Ps[0].Short);
             WriteAll(r != null && r.Own, r != null && r.Fixed, r != null ? r.Ids : new List<string>());
-            Changed("Positionen der Gruppe " + cur.GroupName + " vereinheitlicht (Liste von " + cur.Ps[0].Short + ").");
+            Changed("Positionsgruppe " + cur.GroupName + " vereinheitlicht (Liste von " + cur.Ps[0].Short + ").");
         }
     }
 }

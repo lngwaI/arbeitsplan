@@ -20,7 +20,7 @@ namespace Arbeitsplan.Win
         readonly Button reset = new Button(), unify = new Button();
 
         class DevItem { public string Id, Text; public override string ToString() { return Text; } }
-        class GroupHead { public string Name; public List<string> Ids = new List<string>(); public override string ToString() { return "▸ " + Name + " (ganze Gruppe)"; } }
+        class GroupHead { public string Name; public List<string> Ids = new List<string>(); public override string ToString() { return "▸ " + Name + " (ganze Gerätegruppe)"; } }
 
         void BuildPos()
         {
@@ -43,7 +43,7 @@ namespace Arbeitsplan.Win
             rFree.Text = "Frei: Geräte tauschbar"; rFree.AutoSize = true; rFree.UseMnemonic = false; rFree.Location = new Point(0, 24);
             rFixed.CheckedChanged += delegate { if (!loading) SetFixed(rFixed.Checked); };
             reset.Text = "Auf Standard zurücksetzen"; reset.SetBounds(484, 412, 170, 26);
-            reset.Click += delegate { if (prod != null && cur != null) { WriteAll(false, false, null); Changed("Liste auf Standard zurückgesetzt."); } };
+            reset.Click += delegate { if (prod != null && cur != null && !GroupDiffers() && HasOwnOrFixed()) { WriteAll(false, false, null); Changed("Liste auf Standard zurückgesetzt."); } };
             posInfo.SetBounds(300, 468, 354, 46); posInfo.ForeColor = SystemColors.GrayText; posInfo.UseMnemonic = false;
             unify.SetBounds(300, 516, 354, 26); unify.Visible = false; unify.Click += delegate { Unify(); };
             Panel mode = new Panel(); mode.SetBounds(300, 410, 180, 50); mode.Controls.AddRange(new Control[] { rFixed, rFree }); tabPos.Controls.AddRange(new Control[] { mode, reset, posInfo, unify });
@@ -53,12 +53,14 @@ namespace Arbeitsplan.Win
         {
             string key = cur != null ? cur.Key : null;
             loading = true;
+            lbPos.BeginUpdate();
             lbPos.Items.Clear();
             PosItem pick = null;
             if (prod != null) foreach (PosItem pi in BuildItems(prod)) { lbPos.Items.Add(pi); if (pi.Key == key) pick = pi; }
             if (pick == null && lbPos.Items.Count > 0) pick = (PosItem)lbPos.Items[0];
             if (pick != null) lbPos.SelectedItem = pick;
             lbPos.Enabled = prod != null;
+            lbPos.EndUpdate();
             loading = false;
             SelectPos(pick);
         }
@@ -67,28 +69,32 @@ namespace Arbeitsplan.Win
         {
             bool o = loading; loading = true;
             int si = lbPos.SelectedIndex;
+            lbPos.BeginUpdate();
             for (int i = 0; i < lbPos.Items.Count; i++) lbPos.Items[i] = lbPos.Items[i];
             if (si >= 0) lbPos.SelectedIndex = si;
+            lbPos.EndUpdate();
             loading = o;
         }
 
         // Aenderung der Liste/Quelle: zaehlen, Anzeige neu aufbauen
         void Changed(string action) { Touch(action); RefreshPosList(); SelectPos(cur); }
 
-        string CurName { get { return cur.IsGroup ? "Gruppe " + cur.GroupName : pos.Short; } }
+        string CurName { get { return cur.IsGroup ? "Positionsgruppe " + cur.GroupName : pos.Short; } }
+
+        bool HasOwnOrFixed() { ProfilePos r = prod != null && cur != null ? prod.Pos(pos.Short) : null; return r != null && (r.Own || r.Fixed); }
 
         void SetOwn(bool own)
         {
-            if (prod == null || cur == null) return;
+            if (prod == null || cur == null || GroupDiffers()) return;   // uneinheitliche Positionsgruppe: erst vereinheitlichen
             ProfilePos r = prod.Pos(pos.Short);
             List<string> ids = own ? (r != null && r.Own ? r.Ids : StdUnion()) : null;   // Start mit der Standardliste
             WriteAll(own, r != null && r.Fixed, ids);
-            Changed(own ? "Eigene Liste für " + CurName + " angelegt (Start: Standardliste)." : "Standardliste gilt wieder für " + CurName + ".");
+            Changed(own ? "Eigene Liste für " + CurName + " angelegt (Start: " + (own && StdDiffers() ? "Vereinigung der Standardlisten" : "Standardliste") + ")." : "Standardliste gilt wieder für " + CurName + ".");
         }
 
         void SetFixed(bool fix)
         {
-            if (prod == null || cur == null) return;
+            if (prod == null || cur == null || GroupDiffers()) return;
             ProfilePos r = prod.Pos(pos.Short);
             WriteAll(r != null && r.Own, fix, r != null ? r.Ids : null);
             Changed(CurName + (fix ? ": fest (ein Gerät je Kampagne)." : ": frei (Geräte tauschbar)."));
@@ -98,14 +104,28 @@ namespace Arbeitsplan.Win
         void EditStandard()
         {
             if (rowNames == null) return;
-            using (CatalogForm f = new CatalogForm(cat, rowNames, variants))
+            using (CatalogForm f = new CatalogForm(cat, rowNames, variants, true))
                 if (f.ShowDialog(this) == DialogResult.OK) ApplyStandard(f.Result);
         }
 
         void ApplyStandard(Catalog src)
         {
+            string before = Sig(cat);
             cat.Positions = src.Positions; cat.Groups = src.Groups; cat.Bausteine = src.Bausteine;   // nur diese Teile ändert CatalogForm
-            Touch("Standardliste geändert – wird mit „Speichern“ gesichert.");
+            string orphans = "";
+            int n = 0;
+            foreach (ProductProfile p in cat.Products) n += p.Positions.FindAll(delegate(ProfilePos x) { return cat.Position(x.Short) == null; }).Count;
+            if (n > 0)
+            {
+                orphans = n + (n == 1 ? " Eintrag gehört" : " Einträge gehören") + " (eigene Liste/fest) zu Positionen, die es nicht mehr gibt.";
+                if (Msg(orphans + "\n\nJetzt entfernen?", MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button1) == DialogResult.Yes)
+                {
+                    foreach (ProductProfile p in cat.Products) p.Positions.RemoveAll(delegate(ProfilePos x) { return cat.Position(x.Short) == null; });
+                    orphans = n + (n == 1 ? " verwaisten Eintrag entfernt." : " verwaiste Einträge entfernt.");
+                }
+            }
+            if (Sig(cat) != before) Touch("Standardliste geändert – wird mit „Speichern“ gesichert." + (orphans.Length > 0 ? " " + orphans : ""));
+            else if (orphans.Length > 0) { lastAction = orphans; UpdateStatus(); }
             SelectProduct(prod);
         }
 
@@ -128,10 +148,11 @@ namespace Arbeitsplan.Win
         {
             cur = pi; pos = pi != null ? pi.Ps[0] : null;
             loading = true;
+            devs.BeginUpdate();
             devs.Items.Clear();
             bool any = prod != null && pi != null, diff = any && GroupDiffers();
-            rStd.Enabled = rOwn.Enabled = rFixed.Enabled = rFree.Enabled = reset.Enabled = any;
-            unify.Visible = diff; posInfo.ForeColor = diff ? Orange : SystemColors.GrayText;
+            rStd.Enabled = rOwn.Enabled = rFixed.Enabled = rFree.Enabled = devs.Enabled = any && !diff;   // uneinheitlich: nur "Vereinheitlichen"
+            unify.Visible = unify.Enabled = diff; posInfo.ForeColor = diff ? Orange : SystemColors.GrayText;
             posTitle.Text = !any ? "" : pi.IsGroup ? "Gemeinsame Liste: " + pi.GroupName + " (" + pi.Shorts + ")" : "Position: " + pos.Name + " (" + pos.Short + ")";
             if (any)
             {
@@ -161,13 +182,16 @@ namespace Arbeitsplan.Win
                 devs.ForeColor = own ? SystemColors.WindowText : SystemColors.GrayText;   // Standard: nur ansehen (Haken werden zurueckgesetzt)
                 rStd.Checked = !own; rOwn.Checked = own;
                 rFixed.Checked = pp != null && pp.Fixed; rFree.Checked = !rFixed.Checked;
+                reset.Enabled = !diff && (own || rFixed.Checked);
                 unify.Text = "Vereinheitlichen (Liste von " + pos.Short + " für alle übernehmen)";
-                posInfo.Text = diff ? "Die Positionen der Gruppe haben unterschiedliche Listen."
+                posInfo.Text = diff ? "Die Positionen der Positionsgruppe haben unterschiedliche Listen. Erst „Vereinheitlichen“, dann ist wieder alles bearbeitbar."
                     : (own ? "Eigene Liste: Haken setzen oder entfernen; Haken an „▸ …“ wählt die ganze Gerätegruppe."
-                    : "Es gilt die Standardliste (" + std.Count + " Geräte). Für eine eigene Auswahl „eigene Liste für dieses Produkt“ wählen.")
-                    + (pi.IsGroup ? "\nÄnderungen gelten für alle Positionen der Gruppe." : "\nFest: im Paket-Editor ist „abwechselnd“ gesperrt.");
+                    : "Es gilt die Standardliste (" + std.Count + " Geräte). Für eine eigene Auswahl „eigene Liste für dieses Produkt“ wählen."
+                        + (StdDiffers() ? "\nDie Standardlisten der Positionen unterscheiden sich – eine eigene Liste fasst sie zusammen." : ""))
+                    + (pi.IsGroup ? "\nÄnderungen gelten für alle Positionen der Positionsgruppe." : "\nFest: im Paket-Editor ist „abwechselnd“ gesperrt.");
             }
-            else posInfo.Text = "";
+            else { posInfo.Text = ""; reset.Enabled = false; }
+            devs.EndUpdate();
             loading = false;
         }
 
@@ -175,7 +199,8 @@ namespace Arbeitsplan.Win
         {
             if (loading) return;
             ProfilePos pp = prod != null && cur != null ? prod.Pos(pos.Short) : null;
-            if (pp == null || !pp.Own) { e.NewValue = e.CurrentValue; return; }
+            if (prod == null || cur == null || GroupDiffers()) { e.NewValue = e.CurrentValue; return; }
+            if (pp == null || !pp.Own) { e.NewValue = e.CurrentValue; lastAction = "Erst „eigene Liste für dieses Produkt“ wählen, dann Haken setzen."; UpdateStatus(); return; }
             bool on = e.NewValue == CheckState.Checked;
             loading = true;
             if (devs.Items[e.Index] is GroupHead)
@@ -194,8 +219,8 @@ namespace Arbeitsplan.Win
             }
             loading = false;
             RefreshPosList();
+            reset.Enabled = true;
             Touch("Geräteliste für " + CurName + " geändert.");
-            if (unify.Visible) { unify.Visible = false; posInfo.ForeColor = SystemColors.GrayText; posInfo.Text = "Änderungen gelten für alle Positionen der Gruppe."; }
         }
     }
 }

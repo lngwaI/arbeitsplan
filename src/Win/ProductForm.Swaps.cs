@@ -7,7 +7,7 @@ using Arbeitsplan.Core;
 namespace Arbeitsplan.Win
 {
     // Reiter "Austauschgruppen" von "Produkte & Equipment": Geraete eines Produkts, die sich gegenseitig vertreten (Ausweich-Vorschlag zuerst).
-    // Mitglieder per Haekchen (Reihenfolge der Ids = Listenreihenfolge), Zaehler, Leerzustand, Rueckmeldung ueber die Statuszeile.
+    // Mitglieder per Haekchen (Reihenfolge der Ids bleibt, neu Angehaktes hinten), Zaehler, Leerzustand, Rueckmeldung ueber die Statuszeile.
     partial class ProductForm
     {
         readonly ListBox lbSwap = new ListBox();
@@ -26,13 +26,15 @@ namespace Arbeitsplan.Win
             public override string ToString() { return (G.Name.Length > 0 ? G.Name : "(ohne Name)") + " (" + (G.Ids.Count == 1 ? "1 Gerät" : G.Ids.Count + " Geräte") + ")"; }
         }
 
+        class SwItem { public string Id, Text; public override string ToString() { return Text; } }
+
         SwapGroup CurSwap { get { SwapItem s = lbSwap.SelectedItem as SwapItem; return s != null ? s.G : null; } }
 
         void BuildSwaps()
         {
             tabSwap.Controls.Add(swMain); tabSwap.Controls.Add(swEmpty);
             swMain.SetBounds(0, 0, 662, 554); swEmpty.SetBounds(0, 0, 662, 554);
-            Label empty = new Label(); empty.Text = "Noch keine Austauschgruppe. Eine Gruppe fasst Geräte zusammen, die sich gegenseitig vertreten (Ausweich-Vorschlag).";
+            Label empty = new Label(); empty.Text = "Noch keine Austauschgruppe. Eine Austauschgruppe fasst Geräte zusammen, die sich gegenseitig vertreten (Ausweich-Vorschlag).";
             empty.SetBounds(20, 24, 600, 40); empty.ForeColor = SystemColors.GrayText; empty.UseMnemonic = false;
             swEmpty.Controls.Add(empty); swEmpty.Controls.Add(Btn("Erste Gruppe anlegen", 20, 72, 170, delegate { NewSwap(); }));
 
@@ -68,8 +70,8 @@ namespace Arbeitsplan.Win
             swMembers.ItemCheck += delegate(object s, ItemCheckEventArgs e)
             {
                 SwapGroup g = CurSwap; if (loading || g == null) return;
-                g.Ids.Clear();
-                for (int i = 0; i < swMembers.Items.Count; i++) if (i == e.Index ? e.NewValue == CheckState.Checked : swMembers.GetItemChecked(i)) g.Ids.Add((string)swMembers.Items[i]);
+                string id = ((SwItem)swMembers.Items[e.Index]).Id;
+                if (e.NewValue == CheckState.Checked) { if (!g.Ids.Contains(id)) g.Ids.Add(id); } else g.Ids.Remove(id);   // vorhandene Reihenfolge erhalten
                 RefreshSwap();
                 Touch("Austauschgruppe „" + g.Name + "“: " + (g.Ids.Count == 1 ? "1 Gerät" : g.Ids.Count + " Geräte") + " angehakt.");
             };
@@ -104,9 +106,11 @@ namespace Arbeitsplan.Win
         void FillSwaps(SwapGroup select)
         {
             loading = true;
+            lbSwap.BeginUpdate();
             lbSwap.Items.Clear();
             if (prod != null) foreach (SwapGroup g in prod.Swaps) { SwapItem s = new SwapItem(); s.G = g; lbSwap.Items.Add(s); if (g == select) lbSwap.SelectedItem = s; }
             if (lbSwap.SelectedIndex < 0 && lbSwap.Items.Count > 0) lbSwap.SelectedIndex = 0;
+            lbSwap.EndUpdate();
             loading = false;
             bool none = lbSwap.Items.Count == 0;
             swEmpty.Visible = none; swMain.Visible = !none;
@@ -118,15 +122,18 @@ namespace Arbeitsplan.Win
         {
             SwapGroup g = CurSwap;
             loading = true; nameTouched = false;
+            swMembers.BeginUpdate();
             swName.Text = g != null ? g.Name : ""; swMembers.Items.Clear();
             swName.Enabled = swMembers.Enabled = bSwDel.Enabled = g != null;
             if (g != null)
             {
                 List<string> all = new List<string>();
                 foreach (EquipPosition p in cat.Positions) foreach (string id in cat.Allowed(prod.Code, p.Short)) if (!all.Contains(id)) all.Add(id);
+                int allowed = all.Count;
                 foreach (string id in g.Ids) if (!all.Contains(id)) all.Add(id);
-                foreach (string id in all) swMembers.Items.Add(id, g.Ids.Contains(id));
+                for (int i = 0; i < all.Count; i++) { SwItem it = new SwItem(); it.Id = all[i]; it.Text = all[i] + (i >= allowed ? "  – nicht erlaubt" : ""); swMembers.Items.Add(it, g.Ids.Contains(all[i])); }
             }
+            swMembers.EndUpdate();
             loading = false;
             RefreshSwap();
         }
@@ -145,6 +152,7 @@ namespace Arbeitsplan.Win
             SwapGroup g = CurSwap; if (g == null) return;
             prod.Swaps.Remove(g); FillSwaps(null);
             Touch("Austauschgruppe „" + g.Name + "“ entfernt.");
+            if (lbSwap.Items.Count > 0) lbSwap.Focus();
         }
 
 #if TESTHOOKS
