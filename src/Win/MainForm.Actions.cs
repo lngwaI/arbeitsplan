@@ -118,6 +118,8 @@ namespace Arbeitsplan.Win
             }
         }
 
+        void EditPufferPacks() { PufferPackAdmin.Manage(this, store, "", me.Has(Perm.PackageAdmin)); }
+
         // ---------- Suche ----------
 
         void OnSearchChanged()

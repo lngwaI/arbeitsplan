@@ -30,9 +30,9 @@ namespace Arbeitsplan.Win
             if (building) return;
             bool valid = pkg.FirstRunNo < 0 || pkg.SetFirstRun(tFirst.Text);   // 8 Ziffern: Praefix + Lauf; Folgelaeufe zaehlen hoch
             string pn = tPack.Text.Trim(); bool pv = PackageStep.IsManualNo(pn);
-            foreach (PackageStep s in pkg.HandNoSteps()) s.ManualNo = pv ? pn : "";
+            if (pn != packLast) { foreach (PackageStep s in pkg.HandNoSteps()) s.ManualNo = pv ? pn : ""; packLast = pn; }   // unveraendert vorbelegt: Nummern der Schritte bleiben
             PackWarning = !needPack || pv ? null : (pn.Length == 0 ? "Laufnummer Packen fehlt (8 Ziffern, z. B. 12340001)." : "Laufnummer Packen: bitte 8 Ziffern eingeben.");
-            lPack.Text = PackWarning ?? "→ Packen (Nr. " + pn + ")"; lPack.ForeColor = PackWarning == null ? SystemColors.ControlText : Color.Firebrick;
+            lPack.Text = PackWarning ?? "→ Packen (Nr. " + pn + ")" + (pn == packInit ? " – aus dem Paket, hier änderbar" : ""); lPack.ForeColor = PackWarning == null ? SystemColors.ControlText : Color.Firebrick;
             SyncDay1();
             string over = pkg.Overflow();
             Package view = pkg.Clone();   // ohne Ausfaelle: auch ausgefallene Laeufe bleiben als Zeile sichtbar (zum Zuruecknehmen)

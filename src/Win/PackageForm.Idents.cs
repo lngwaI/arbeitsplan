@@ -92,7 +92,7 @@ namespace Arbeitsplan.Win
         void FillIdents()
         {
             PackageStep s = cur; int n = s != null ? StepsView().RunCountOf(s) : 0;
-            showIdents = s != null && (n > 1 || s.IdentStart.Length > 0 || s.IdentOver.Count > 0);
+            showIdents = s != null && IdentVisible(s) && ((n > 1 && s.Kind == StepKind.Run) || s.IdentStart.Length > 0 || s.IdentOver.Count > 0);
             bool was = loading; loading = true;
             if (gridId.Rows.Count != (showIdents ? n : 0))
             {

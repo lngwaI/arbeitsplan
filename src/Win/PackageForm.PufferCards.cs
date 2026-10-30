@@ -14,7 +14,7 @@ namespace Arbeitsplan.Win
     {
         Section gPuf;
         readonly Panel pufCards = new Panel();
-        readonly Button bPufAdd = new Button(), bPufProd = new Button();
+        readonly Button bPufAdd = new Button(), bPufProd = new Button(), bPufMgr = new Button();
         readonly List<PufferCard> cards = new List<PufferCard>();
         readonly HashSet<PufferSpec> openSpecs = new HashSet<PufferSpec>();   // aufgeklappte Karten (nur Ansicht, nicht gespeichert)
         readonly Dictionary<PackageStep, HashSet<int>> pufBad = new Dictionary<PackageStep, HashSet<int>>();   // Karten mit Hinweis (rot)
@@ -26,7 +26,9 @@ namespace Arbeitsplan.Win
             pufCards.Tag = "keep"; gPuf.Controls.Add(pufCards);
             Btn(bPufProd, "Puffer für Produkt…", 8, 0, 240, delegate { PufferForProduct(true); });
             Btn(bPufAdd, "+ Puffer", 0, 0, 110, delegate { AddPuffer(); });
-            gPuf.Controls.AddRange(new Control[] { bPufProd, bPufAdd });
+            Btn(bPufMgr, "Pufferpakete verwalten…", 0, 0, 200, delegate { ManagePufferPacks(); });
+            gPuf.Controls.AddRange(new Control[] { bPufProd, bPufAdd, bPufMgr });
+            tip.SetToolTip(bPufMgr, canAdmin ? "Pufferpakete der Produkte anlegen und ändern (Einstellungen → Pufferpakete…)" : "Pufferpakete der Produkte ansehen (ändern darf nur, wer Pakete einrichten darf)");
             gPuf.TabIndex = 4; gPuf.Visible = false;
             tip.SetToolTip(bPufAdd, "Weiteren Puffer anhängen (aus dem Standardpuffer, höchstens " + PackageStep.MaxPuffer + ")");
         }
@@ -43,6 +45,14 @@ namespace Arbeitsplan.Win
                 PufferCard c = new PufferCard(s, k, cat, Product, PufferChanged, PufferRebuild, delegate { TogglePuffer(ck); }, delegate(int i) { RemovePuffer(i, true); });
                 cards.Add(c); pufCards.Controls.Add(c);
             }
+        }
+
+        // Pufferpakete aller Produkte (Produktauswahl, dann Pufferpaket-Dialog); danach Katalog neu laden (PufferPackAdmin.cs)
+        void ManagePufferPacks()
+        {
+            if (!PufferPackAdmin.Manage(this, store, Product, canAdmin)) return;
+            cat = store.GetCatalog(); cat.AddStandardBausteine(); BuildPosMenu();
+            if (cur != null) Bind(cur);
         }
 
         void PufferChanged() { if (loading || cur == null) return; cur.SyncPuffers(); Changed(); }
@@ -65,7 +75,11 @@ namespace Arbeitsplan.Win
             bPufProd.Width = Math.Max(200, TextRenderer.MeasureText(bPufProd.Text, bPufProd.Font).Width + 28);
             tip.SetToolTip(bPufProd, "Puffer des Produkts übernehmen (Pufferpaket aus „Produkte & Equipment“, sonst Standardpuffer). Ersetzt die Puffer dieses Schritts.");
             bPufAdd.Left = 8 + bPufProd.Width + 8;
-            y = Row(y, true, bPufProd, bPufAdd);
+            bPufMgr.Width = Math.Max(190, TextRenderer.MeasureText(bPufMgr.Text, bPufMgr.Font).Width + 28);
+            bool wrap = bPufAdd.Right + 8 + bPufMgr.Width > iw;   // schmal: eigene Zeile
+            bPufMgr.Left = wrap ? 8 : bPufAdd.Right + 8;
+            y = Row(y, true, bPufProd, bPufAdd, bPufMgr);
+            if (wrap) { bPufMgr.Top = y; y += bPufMgr.Height + 6; }
             bool wide = WideEquip; int cy = 0;
             foreach (PufferCard c in cards)
             {

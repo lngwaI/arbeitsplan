@@ -40,6 +40,8 @@ namespace Arbeitsplan.Win
             headItems.Add(new Control[] { Head_("Produkt:", big, h), tName });
             headItems.Add(new Control[] { Head_("Code:", big, h), tProduct });
             headItems.Add(new Control[] { Head_("Erste Laufnummer:", big, h), tFirst });
+            lPackNo = Head_("Packen-Nr.:", big, h); lPackNo.Width = Math.Max(lPackNo.Width, TextRenderer.MeasureText("Laufnummer:", big).Width + 4); tPackNo.Width = 104;
+            headItems.Add(new Control[] { lPackNo, tPackNo });   // Packen-Nr. (PackageForm.PackNo.cs)
             headItems.Add(new Control[] { Head_("Läufe:", big, h), nRuns });
             headItems.Add(new Control[] { Head_("Lauf 1 am:", big, h), dtLauf1 });
             foreach (Control[] c in headItems)
@@ -48,7 +50,7 @@ namespace Arbeitsplan.Win
                 c[1].Font = big; head.Controls.Add(c[1]);
                 TextBox t = c[1] as TextBox; if (t != null) Ui.SimpleMenu(t);
             }
-            tProduct.MaxLength = 12; tFirst.MaxLength = 8;
+            tProduct.MaxLength = 12; tFirst.MaxLength = 8; tPackNo.MaxLength = 8;
             lRuns.TextAlign = ContentAlignment.MiddleLeft; lRuns.AutoEllipsis = true; lRuns.UseMnemonic = false;
             head.Controls.Add(lRuns);
             head.Resize += delegate { LayoutHead(h); };
@@ -58,6 +60,8 @@ namespace Arbeitsplan.Win
             tip.SetToolTip(tFirst, "Komplette 8-stellige Laufnummer des ersten Laufs (z. B. 13570030). Folgeläufe zählen die letzten 4 Stellen hoch. Beim Kampagnenstart anpassbar.");
             tip.SetToolTip(nRuns, "Anzahl der Läufe der Kampagne – gilt einmal für alle Schritte (Puffer, Unterläufe, Kennung …). Beim Kampagnenstart änderbar.");
             tip.SetToolTip(dtLauf1, "Optional: Datum von Lauf 1. Dann zeigen Tabelle, Kalender und Vorschau echte Daten; sonst nur „3 Tage vor Lauf 1“. Beim Kampagnenstart anpassbar.");
+            tip.SetToolTip(tPackNo, "Nummer des Packens, 8 Ziffern (z. B. 12340001), von Hand, kein Vorschlag. Gilt für alle Packen-Schritte; im Schritt änderbar. Leer = beim Kampagnenstart eintragen.");
+            tPackNo.TextChanged += delegate { PackNoTyped(); };
             tName.TextChanged += delegate { Changed(); };
             cbType.SelectedIndexChanged += delegate { if (!loading && cbType.SelectedIndex >= 0 && (int)pk.Type != cbType.SelectedIndex) { pk.Type = (PackageType)cbType.SelectedIndex; Changed(); } };
             tProduct.TextChanged += delegate   // anderes Produkt: Geraetelisten der Zeilen neu fuellen (Produktprofil)
@@ -84,6 +88,8 @@ namespace Arbeitsplan.Win
             foreach (Control[] c in headItems)
             {
                 Label l = (Label)c[0];
+                if (c[1] == tPackNo && !packShow) { l.Visible = tPackNo.Visible = false; continue; }
+                if (c[1] == tPackNo) l.Visible = tPackNo.Visible = true;
                 int need = (l != null ? l.Width + 2 : 0) + c[1].Width;
                 if (x > 10 && x + need > w - 10) { x = 10; y += h + 4; }
                 if (l != null) { l.Location = new Point(x, y); x = l.Right + 2; }
@@ -108,6 +114,7 @@ namespace Arbeitsplan.Win
             if (pk.Lauf1.HasValue && pk.Lauf1.Value >= dtLauf1.MinDate && pk.Lauf1.Value <= dtLauf1.MaxDate) dtLauf1.Value = pk.Lauf1.Value;
             else if (pk.Lauf1.HasValue) { pk.Lauf1 = null; dtLauf1.Checked = false; }
             SyncRuns();
+            LoadPackNo();   // Packen-Nr. aus den Packen-Schritten (PackageForm.PackNo.cs)
             loading = was;
         }
 
@@ -189,7 +196,8 @@ namespace Arbeitsplan.Win
 
         void UpdateRunsLabel()
         {
-            string err = ProductError() ?? FirstRunError() ?? StepsView().Overflow();
+            SyncPackNo();
+            string err = ProductError() ?? FirstRunError() ?? PackNoError() ?? StepsView().Overflow();
             bool runs = StepsView().FirstRunNo >= 0;
             if (err != null) lRuns.Text = err;
             else if (!runs) lRuns.Text = prefix.Length > 0 ? "noch kein Lauf im Ablauf" : "";

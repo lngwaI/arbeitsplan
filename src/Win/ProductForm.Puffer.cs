@@ -22,7 +22,7 @@ namespace Arbeitsplan.Win
 
     class PufferPackForm : Form
     {
-        readonly Catalog cat; readonly ProductProfile prod;
+        readonly Catalog cat; readonly ProductProfile prod; readonly bool readOnly;   // readOnly: nur ansehen (ohne Recht PackageAdmin)
         public List<PufferTemplate> Result = new List<PufferTemplate>();
         readonly List<PufferTemplate> list = new List<PufferTemplate>();
         PufferTemplate cur;
@@ -34,9 +34,9 @@ namespace Arbeitsplan.Win
         readonly Button bPos = new Button();
         readonly ContextMenuStrip posMenu = new ContextMenuStrip();
 
-        public PufferPackForm(Catalog cat, ProductProfile prod)
+        public PufferPackForm(Catalog cat, ProductProfile prod, bool readOnly = false)
         {
-            this.cat = cat; this.prod = prod;
+            this.cat = cat; this.prod = prod; this.readOnly = readOnly;
             foreach (PufferTemplate t in prod.Puffer) list.Add(t.Clone());
             Text = "Pufferpaket für Produkt " + prod.Code;
             Ui.Dialog(this, 860, 560);
@@ -66,6 +66,12 @@ namespace Arbeitsplan.Win
             Baustein b = cat.Baustein_(Catalog.StandardPufferName);
             if (b != null) shorts.AddRange(b.Positions);
             foreach (string sh in shorts) { string s = sh; EquipPosition ep = cat.Position(sh); posMenu.Items.Add(ep != null ? ep.Name + "  (" + sh + ")" : sh, null, delegate { AddPos(s); }); }
+            if (readOnly)   // nur ansehen: Liste und Vorschau bleiben bedienbar, alles Aendernde entfaellt
+            {
+                Text += " (nur ansehen)";
+                foreach (Control c in Controls) if (c is Button && c != cancel) c.Visible = false;
+                cancel.Text = "Schließen"; ok.Visible = false;
+            }
             Fill(list.Count > 0 ? list[0] : null);
         }
 
@@ -91,7 +97,7 @@ namespace Arbeitsplan.Win
         {
             cur = t; loading = true;
             tName.Text = t != null ? t.Name : ""; cbTyp.SelectedIndex = t != null && t.Typ == "stationaer" ? 1 : 0;
-            tName.Enabled = cbTyp.Enabled = bPos.Enabled = t != null;
+            tName.Enabled = cbTyp.Enabled = bPos.Enabled = t != null && !readOnly;
             while (rows.Controls.Count > 0) { Control c = rows.Controls[0]; rows.Controls.RemoveAt(0); c.Dispose(); }
             if (t != null) { int y = 4; foreach (PufferTemplatePos p in t.Positions) y = AddRow(p, y); }
             loading = false;
@@ -114,6 +120,7 @@ namespace Arbeitsplan.Win
             s.CheckedChanged += delegate { if (!loading) { pp.Shared = s.Checked; Preview(); } };
             no.TextChanged += delegate { if (!loading) { pp.Note = no.Text.Trim(); Preview(); } };
             x.Click += delegate { cur.Positions.Remove(pp); Choose(cur); };
+            if (readOnly) { d.Enabled = s.Enabled = no.Enabled = false; x.Visible = false; }
             rows.Controls.AddRange(new Control[] { n, d, s, no, x });
             return y + 26;
         }

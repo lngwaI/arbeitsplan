@@ -206,7 +206,7 @@ namespace Arbeitsplan.Win
             s.Bind = StepBind.JeLauf; s.RunOffset = s.IsBuffer || s.UsesAnsatz ? -1 : 0; s.RunEvery = 1; s.NumberRuns = false;
         }
 
-        void AddStep(PackageStep s) { steps.Add(s); StepsView().Normalize(); dirty = true; Bind(s); CommitUndo(); }   // Normalize: ein Puffer "1 Tag vor Lauf 1" darf nicht vor Tag 1 landen
+        void AddStep(PackageStep s) { steps.Add(s); AdoptPackNo(s); StepsView().Normalize(); dirty = true; Bind(s); CommitUndo(); }   // Normalize: ein Puffer "1 Tag vor Lauf 1" darf nicht vor Tag 1 landen
 
         void Duplicate()
         {

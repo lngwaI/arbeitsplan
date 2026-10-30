@@ -63,14 +63,15 @@ namespace Arbeitsplan.Win
             lKind = Lbl(gWhat, "Art:", 8, lw); cbKind.SetBounds(x, 0, w, IH); cbKind.DropDownStyle = ComboBoxStyle.DropDownList;
             cbKind.Items.AddRange(new object[] { "Sonstiges (ohne Laufnummer)", "Lauf-Schritt mit Laufnummer", "Unterlauf (Splitten/Einfrieren)" });   // Eintrag 2: beim Hauptlauf "Hauptlauf"
             lManual = Lbl(gWhat, "Laufnummer (von Hand):", 8, lw); tManualNo.SetBounds(x, 0, w, IH); tManualNo.MaxLength = 8; gWhat.Controls.Add(tManualNo);
-            tip.SetToolTip(tManualNo, "Nummer des Packens, 8 Ziffern (z. B. 12340001); wird nicht vorgeschlagen. Im Plan: „Packen (Nr. 12340001)“, zählt nicht als Kampagnenlauf.");
+            tip.SetToolTip(tManualNo, "Nummer des Packens, 8 Ziffern (z. B. 12340001); wird nicht vorgeschlagen. Kommt aus „Packen-Nr.“ im Kopf, hier nur ändern, wenn dieser Schritt eine andere hat. Im Plan: „Packen (Nr. 12340001)“, zählt nicht als Kampagnenlauf.");
+            BuildManualHint(gWhat, x, w);
             lVar = Lbl(gWhat, "Puffer-Typ:", 8, lw);
             tip.SetToolTip(lVar, "Ergibt sich aus dem Baustein (Puffer mobil / Puffer stationär); ein Schritt = ein Puffer.");
             lSub = Lbl(gWhat, "Unterlauf-Nr.:", 8, lw); tSubNos.SetBounds(x, 0, w, IH);
             lSubHelp = Lbl(gWhat, "Komma = nächster Lauf, „/“ = mehrere (z. B. 4186/4187, 4188); 4 Ziffern + Praefix der Laufnummer", x, w);
             lSubHelp.Height = 3 * Font.Height + 2; lSubHelp.TextAlign = ContentAlignment.TopLeft;
             gWhat.Controls.AddRange(new Control[] { tTitle, cbRow, cbKind, tSubNos });
-            Grow(tTitle, cbKind, cbRow, rowHint, tSubNos, lSubHelp, tManualNo); Gray(lSubHelp);
+            Grow(tTitle, cbKind, cbRow, rowHint, tSubNos, lSubHelp, tManualNo, lManualHint); Gray(lSubHelp);
             tip.SetToolTip(cbKind, "Hauptlauf bzw. Lauf-Schritt: bekommt die 8-stellige Laufnummer. Unterlauf: Splitten/Einfrieren eines Laufs. Sonstiges: nur der Titel (bei Wiederholung „Titel 1, 2, 3“).");
             BuildAnsatz(lw, x, w);   // Herstellung mit Anzahl, Ansatz (PackageForm.When.cs)
             BuildWhen();             // Wann? (PackageForm.When.cs)
@@ -82,16 +83,17 @@ namespace Arbeitsplan.Win
 
             // Zusaetze
             gExtra = Group("Zusätze", "Optional; erscheinen im Plan unter dem Equipment", 500);
-            lw = LabelW("Kennung Start:", "Notiz:"); x = 8 + lw; w = 500 - 8 - x;
+            lw = LabelW("PA-/Kennungsnummer:", "Notiz:"); x = 8 + lw; w = 500 - 8 - x;
             tNote.Multiline = true; tNote.AcceptsReturn = true; tNote.ScrollBars = ScrollBars.Vertical; tNote.WordWrap = true; tNote.Font = new Font(Font, FontStyle.Italic);
-            lIdent = Lbl(gExtra, "Kennung Start:", 8, lw); tIdent.SetBounds(x, 0, w, IH);
-            lIdentHelp = Lbl(gExtra, "z. B. PA 40010001 (+1 je Lauf); im Plan rot, groß, fett als letzte Zeile", x, w);
-            lIdentHelp.AutoEllipsis = true; lIdentHelp.Height = Font.Height + 2;
+            lIdent = Lbl(gExtra, "PA-/Kennungsnummer:", 8, lw); tIdent.SetBounds(x, 0, w, IH);
+            lIdentHelp = Lbl(gExtra, "z. B. PA 40010001 – steht im Plan als rote letzte Zeile; zählt je Lauf +1; ausgefallener Lauf = Lücke", x, w);
+            lIdentHelp.TextAlign = ContentAlignment.TopLeft; lIdentHelp.Height = 2 * Font.Height + 2;
+            tip.SetToolTip(tIdent, "PA-/Kennungsnummer des ersten Laufs, z. B. PA 40010001. Im Plan steht sie als rote, große, fette letzte Zeile des Blocks; jeder weitere Lauf zählt +1. Fällt ein Lauf aus, bleibt seine Nummer als Lücke. Nur bei Lauf-/Unterlauf-Schritten.");
             lNote = Lbl(gExtra, "Notizen – stehen bei jedem Lauf (je Zeile eine Notiz)", 8, 480); tNote.SetBounds(8, 0, 480, 3 * Font.Height + 10);
             gExtra.Controls.AddRange(new Control[] { tIdent, tNote });
             Grow(tIdent, tNote, lIdentHelp, lNote); Gray(lIdentHelp);
             tip.SetToolTip(tNote, "Enter = nächste Notiz. Jede Zeile steht im Plan als eigene Notiz (kursiv, zählt nicht als Inhalt) bei jedem Lauf.");
-            tip.SetToolTip(lIdentHelp, lIdentHelp.Text);
+            tip.SetToolTip(lIdentHelp, lIdentHelp.Text); tip.SetToolTip(lIdent, lIdentHelp.Text);
             BuildIdents();   // Kennungstabelle + Materialvorlage (PackageForm.Idents.cs)
 
             // Equipment
@@ -127,7 +129,7 @@ namespace Arbeitsplan.Win
                 }
                 dirty = true; BindWhen(cur); UpdateView(false);
             };
-            tManualNo.TextChanged += delegate { if (Edit()) { cur.ManualNo = PackageStep.IsManualNo(tManualNo.Text.Trim()) ? tManualNo.Text.Trim() : ""; tManualNo.ForeColor = tManualNo.Text.Trim().Length == 0 || cur.ManualNo.Length > 0 ? SystemColors.WindowText : Color.Firebrick; Changed(); } };
+            tManualNo.TextChanged += delegate { if (Edit()) { cur.ManualNo = StepPackNo(tManualNo.Text); tManualNo.ForeColor = tManualNo.Text.Trim().Length == 0 || PackageStep.IsManualNo(tManualNo.Text.Trim()) ? SystemColors.WindowText : Color.Firebrick; ShowManualHint(cur); Changed(); } };
             tSubNos.TextChanged += delegate { if (Edit()) { cur.SubNos = tSubNos.Text.Trim(); Changed(); } };
             cbRow.SelectedIndexChanged += delegate { if (Edit()) { cur.Row = cbRow.Text; loading = true; FillVariants(cur); loading = false; Changed(); } };
             tIdent.TextChanged += delegate { if (Edit()) { cur.Ident = ""; cur.IdentStart = tIdent.Text.Trim(); Changed(); } };
@@ -136,6 +138,8 @@ namespace Arbeitsplan.Win
         }
 
         bool Edit() { return !loading && cur != null; }
+
+        static bool IdentVisible(PackageStep s) { return s.Kind != StepKind.Normal || s.IdentStart.Length > 0 || s.IdentOver.Count > 0 || s.Ident.Trim().Length > 0; }
 
         void BuildPosMenu()
         {
@@ -164,7 +168,7 @@ namespace Arbeitsplan.Win
                 tTitle.Text = s.Title;
                 cbKind.Items[1] = s == StepsView().Head ? "Hauptlauf" : "Lauf-Schritt mit Laufnummer";
                 cbKind.SelectedIndex = (int)s.Kind; tSubNos.Text = s.SubNos;
-                tManualNo.Text = s.ManualNo; tManualNo.ForeColor = SystemColors.WindowText;
+                tManualNo.Text = s.ManualNo; tManualNo.ForeColor = SystemColors.WindowText; ShowManualHint(s);
                 if (s.Row.Length > 0 && !cbRow.Items.Contains(s.Row)) cbRow.Items.Add(s.Row);   // unbekannter Block bleibt sichtbar
                 cbRow.SelectedIndex = cbRow.Items.IndexOf(s.Row);
                 FillVariants(s); BindAnsatz(s); BindWhen(s);
@@ -255,13 +259,15 @@ namespace Arbeitsplan.Win
             int y = gWhat.ContentTop;
             y = Row(y, true, lTitle, tTitle); y = Row(y, true, lRow, cbRow); y = Row(y, off, rowHint) - (off ? 4 : 0);
             y = Row(y, true, lKind, cbKind); y = LayoutVariants(y, var); y = LayoutAnsatz(y, s);
-            y = Row(y, s.Source == Package.PackenName && !s.IsBackup, lManual, tManualNo);
+            bool packen = s.Source == Package.PackenName && !s.IsBackup;
+            y = Row(y, packen, lManual, tManualNo); y = Row(y, packen && lManualHint.Text.Length > 0, lManualHint) - (packen && lManualHint.Text.Length > 0 ? 2 : 0);
             y = Row(y, sub, lSub, tSubNos); y = Row(y, sub, lSubHelp);
             int hWhat = y + 2, hWhen = LayoutWhen(s);   // Wann?: PackageForm.When.cs
 
             gExtra.Width = w;   // vor dem Anordnen, damit die Anker-Breiten (Tabelle) stimmen
             y = gExtra.ContentTop;
-            y = Row(y, true, lIdent, tIdent); y = Row(y, true, lIdentHelp) - 2;
+            bool ident = IdentVisible(s);   // Kennung/PA nur bei Lauf-/Unterlauf-Schritten, nie bei Puffern (ausser es steht schon eine drin)
+            y = Row(y, ident, lIdent, tIdent); y = Row(y, ident, lIdentHelp) - (ident ? 2 : 0);
             gridId.SetBounds(8, gridId.Top, w - 16, gridId.Height); y = Row(y, showIdents, gridId);
             y = Row(y, true, lNote); y = Row(y, true, tNote) - 2;
             y = Row(y, cat.NoteTemplateFor(s).Length > 0, bTemplate);
@@ -272,11 +278,11 @@ namespace Arbeitsplan.Win
             y = h + 4;
             bMore.Text = (more ? "▾ Weniger Optionen" : "▸ Mehr Optionen (eigene Nummer, Abwechseln, Ausweich, Kennung, Notizen)" + MoreSummary(s));
             bMore.SetBounds(0, y, w, bMore.Height); y = bMore.Bottom + 4;
+            gExtra.Visible = more;   // Zusaetze direkt unter "Mehr Optionen", vor den Puffer-/Equipment-Karten
+            if (more) { gExtra.SetBounds(0, y, w, hExtra); y = gExtra.Bottom + g; }
             gEquip.Visible = !s.IsBuffer; gPuf.Visible = s.IsBuffer;   // Puffer-Schritt: je Puffer eine Karte statt der gemeinsamen Equipment-Liste
-            if (s.IsBuffer) { gPuf.Width = w; gPuf.SetBounds(0, y, w, ArrangePuffer(w - 16)); y = gPuf.Bottom + g; }
-            else { gEquip.SetBounds(0, y, w, ArrangeEquip(w - 16)); y = gEquip.Bottom + g; }
-            gExtra.Visible = more;
-            if (more) { gExtra.SetBounds(0, y, w, hExtra); y = gExtra.Bottom; }
+            if (s.IsBuffer) { gPuf.Width = w; gPuf.SetBounds(0, y, w, ArrangePuffer(w - 16)); y = gPuf.Bottom; }
+            else { gEquip.SetBounds(0, y, w, ArrangeEquip(w - 16)); y = gEquip.Bottom; }
             body.Height = y + 4;
             laying = false;
         }

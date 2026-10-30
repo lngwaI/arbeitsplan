@@ -48,6 +48,7 @@ namespace Arbeitsplan.Win
             ToolStripItem mf = set.DropDownItems.Add("Equipment-Stammdaten…", null, delegate { EditMaster(); }); mf.Enabled = me.Has(Perm.PackageAdmin);
             ToolStripItem du = set.DropDownItems.Add("Pflichtpunkte && Feiertage…", null, delegate { EditDuties(); }); du.Enabled = me.Has(Perm.PackageAdmin);
             ToolStripItem pf = set.DropDownItems.Add("Produkte && Equipment…", null, delegate { EditProducts(); }); pf.Enabled = me.Has(Perm.PackageAdmin);
+            set.DropDownItems.Add("Pufferpakete…", null, delegate { EditPufferPacks(); });   // ohne PackageAdmin nur ansehen
             ToolStripItem bk = set.DropDownItems.Add("Sicherung…", null, delegate { OpenBackup(); }); bk.Enabled = me.Has(Perm.PackageAdmin);
             set.Visible = structure || usr || me.Has(Perm.PackageAdmin);
 

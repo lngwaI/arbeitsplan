@@ -38,6 +38,7 @@ namespace Arbeitsplan.Win
         readonly Dictionary<long, int> offs = new Dictionary<long, int>();      // (Schritt, Lauf) -> Verschiebung in Tagen (gewuenscht - vorgeschlagen)
         readonly Dictionary<long, string> rooms = new Dictionary<long, string>();   // (Schritt, Lauf) -> gewaehlter Block, falls abweichend
         bool filling, building = true, modeTouched;
+        string packInit = "", packLast = "";   // Packen-Nr. aus dem Paket-Kopf (vorbelegt) und zuletzt uebernommener Feldwert
         Control[] foot;   // nur Einzelmodus: untere Zeile (Modus, Knöpfe), wandert mit der Höhe
         int firstRunDay = int.MaxValue;
         Font strike;
@@ -85,6 +86,8 @@ namespace Arbeitsplan.Win
             DateTime? saved = pkg.Lauf1; pkg.Lauf1 = null;
             simple = pkg.Type == PackageType.Einzel;
             needPack = pkg.HandNoSteps().Count > 0;
+            foreach (PackageStep hs in pkg.HandNoSteps()) if (hs.ManualNo.Length > 0) { packInit = hs.ManualNo; break; }   // Kopfwert des Paket-Editors: vorbelegt, nur aenderbar
+            packLast = packInit;
             if (!saved.HasValue) pkg.Day1 = start.DayOfWeek;   // Wiederholung an Wochentagen haengt vom Starttag ab
             DateTime lauf1 = saved.HasValue ? saved.Value.Date : start.Date.AddDays(pkg.Lauf1Day - 1);   // im Paket gespeicherte Vorgabe "Lauf 1 am" hat Vorrang
             foreach (RowInfo r in store.GetRows()) if (r.Name.Length > 0 && !ids.ContainsKey(r.Name)) ids[r.Name] = r.Id;
@@ -120,8 +123,8 @@ namespace Arbeitsplan.Win
             int y = 42;
             if (needPack)
             {
-                Label lp = L("Laufnummer Packen (von Hand):", 10, y + 2); lp.Font = big; Controls.Add(lp);
-                tPack.Font = big; tPack.MaxLength = 8; tPack.SetBounds(lp.Left + lp.PreferredWidth + 4, y - 2, 112, tPack.PreferredHeight); Ui.SimpleMenu(tPack); Controls.Add(tPack);   // kein Vorschlag: immer von Hand
+                Label lp = L(simple ? "Laufnummer:" : "Laufnummer Packen:", 10, y + 2); lp.Font = big; Controls.Add(lp);
+                tPack.Font = big; tPack.MaxLength = 8; tPack.SetBounds(lp.Left + lp.PreferredWidth + 4, y - 2, 112, tPack.PreferredHeight); Ui.SimpleMenu(tPack); tPack.Text = packInit; Controls.Add(tPack);   // kein Vorschlag; vorbelegt nur mit der Nummer aus dem Paket-Kopf
                 lPack.SetBounds(tPack.Right + 8, y + 4, 890 - tPack.Right - 8, 18); lPack.AutoEllipsis = true; Controls.Add(lPack);
                 y += 34;
             }

@@ -44,11 +44,11 @@ namespace Arbeitsplan.Win
         Package Collect()
         {
             Package.SyncBackups(steps);
-            string err = ProductError() ?? FirstRunError() ?? Package.BackupProblem(steps) ?? StepsView().Overflow();
+            string err = ProductError() ?? FirstRunError() ?? PackNoError() ?? Package.BackupProblem(steps) ?? StepsView().Overflow();
             if (err != null)
             {
                 MessageBox.Show(this, err, "Paket-Editor", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                (ProductError() != null ? tProduct : tFirst).Focus(); return null;
+                (ProductError() != null ? tProduct : FirstRunError() == null && PackNoError() != null ? tPackNo : tFirst).Focus(); return null;
             }
             Package p = new Package(); p.Name = tName.Text.Trim(); p.ProductCode = Product; p.RunPrefix = prefix;
             foreach (PackageStep s in steps) if (!s.IsEmpty) p.Steps.Add(s.Clone());
