@@ -73,8 +73,25 @@ namespace Arbeitsplan.Win
             Problems = pkg.Check(store, Start, Mode, Schedule);
             ShowRules();
             ok.Enabled = Warning == null && PackWarning == null && !Package.HasBlock(Problems);
+            ShowWhy();
             SimpleSummary();
         }
+
+        // Neben dem gesperrten Knopf: warum (kurz), Volltext im Tooltip
+        void ShowWhy()
+        {
+            string why = "", full = "";
+            if (!ok.Enabled)
+            {
+                PackageProblem bp = Problems.Find(delegate(PackageProblem p) { return p.Blocks; });
+                if (PackWarning != null) { why = "Bitte die Laufnummer für Packen eintragen"; full = PackWarning; }
+                else if (Warning != null) { why = "Erste Laufnummer prüfen"; full = Warning; }
+                else if (bp != null) { string t = PackageProblem.RuleTitle(bp.Code); why = "Sperre: " + (t.Length > 0 ? t : pkg.Describe(bp)); full = pkg.Describe(bp); }
+            }
+            lWhy.Text = why; lWhy.Visible = why.Length > 0;
+            if (full != whyTip) { whyTip = full; tip.SetToolTip(lWhy, full); }
+        }
+        string whyTip = "";
 
         // Regelverstoesse: betroffene Zeilen rot (Tooltip = Grund), erste Meldung unter der Tabelle
         void ShowRules()

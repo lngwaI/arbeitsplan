@@ -17,9 +17,11 @@ namespace Arbeitsplan.Win
         public string PackageFile;       // gewaehltes Paket; null + NewPackage = neues Paket
         public bool NewPackage;
 
+        internal const string ProductCue = "Produkt wählen oder Code eintippen";   // Platzhalter im leeren Feld (CB_SETCUEBANNER)
+
         readonly string folder;
         readonly Catalog cat;
-        readonly ComboBox cbProduct = new ComboBox();
+        readonly CueCombo cbProduct = new CueCombo();
         readonly RadioButton rbCampaign = new RadioButton(), rbSingle = new RadioButton(), rbSpecial = new RadioButton();
         readonly ListView list = new ListView();
         readonly Label[] heads = new Label[3];
@@ -48,6 +50,7 @@ namespace Arbeitsplan.Win
             cbProduct.DropDownStyle = ComboBoxStyle.DropDown; cbProduct.SetBounds(14, 90, 300, 26);
             foreach (string c in ProductCodes()) cbProduct.Items.Add(c);
             cbProduct.Text = preProduct ?? "";
+            cbProduct.Cue = ProductCue;
             pages[0].Controls.Add(cbProduct);
             rbCampaign.Text = "Kampagne (Packen, Läufe, …)"; rbCampaign.Checked = true; rbCampaign.SetBounds(20, 96, 400, 24);
             rbSingle.Text = "Einzelpaket (eigene Laufnummer ohne Bezug zur Kampagne, anderer Raum, Sonderfall)"; rbSingle.SetBounds(20, 126, 520, 24);
@@ -142,5 +145,20 @@ namespace Arbeitsplan.Win
         public List<string> TestItems() { List<string> r = new List<string>(); foreach (ListViewItem i in list.Items) if (i.Tag != null) r.Add(i.Text); return r; }
         public List<string> TestProducts() { List<string> r = new List<string>(); foreach (object o in cbProduct.Items) r.Add((string)o); return r; }
 #endif
+    }
+
+    // Auswahlfeld mit Platzhaltertext im leeren Feld (grau, verschwindet beim Tippen); zeichnet auch beim Abzug (WM_PRINT).
+    class CueCombo : ComboBox
+    {
+        public string Cue = "";
+
+        protected override void WndProc(ref Message m)
+        {
+            base.WndProc(ref m);
+            if ((m.Msg != 0xF && m.Msg != 0x317) || Cue.Length == 0 || Text.Length > 0 || DropDownStyle == ComboBoxStyle.DropDownList) return;
+            Rectangle r = new Rectangle(4, 2, Math.Max(0, Width - SystemInformation.VerticalScrollBarWidth - 8), Math.Max(0, Height - 4));
+            if (m.Msg == 0x317 && m.WParam != IntPtr.Zero) { using (Graphics g = Graphics.FromHdc(m.WParam)) TextRenderer.DrawText(g, Cue, Font, r, Section.HelpColor, TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix); }
+            else using (Graphics g = CreateGraphics()) TextRenderer.DrawText(g, Cue, Font, r, Section.HelpColor, TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
+        }
     }
 }

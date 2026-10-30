@@ -15,6 +15,7 @@ namespace Arbeitsplan.Win
         readonly BlockPreview blockPreview = new BlockPreview();
         readonly ListBox lbHints = new ListBox();
         Label lPreview;
+        Panel hintsCol, pagerCol;   // rechte Spalten von Abschnitt 3: schmal bei kleinem Fenster, damit der Kalender Platz hat
         List<Hint> hintList = new List<Hint>();   // alle Hinweise (Gruppenkoepfe samt Einzelhinweisen)
         List<Hint> shownHints = new List<Hint>(); // Inhalt von lbHints (fuer MeasureItem): zugeklappte Gruppen ohne Einzelhinweise
 
@@ -22,7 +23,7 @@ namespace Arbeitsplan.Win
         {
             public string Text; public PackageStep Step; public Control Field;
             public int Run = -1, Run2 = -1; public PackageStep Step2;   // Beteiligte: Klick springt zum ersten, der zweite wird im Kalender rot umrandet
-            public bool Blocks, Indent;                                 // Blocks = Sperre (steht vor den Hinweisen)
+            public bool Blocks, Indent, Info;                           // Blocks = Sperre (steht vor den Hinweisen); Info = nur zur Kenntnis (blau, kein Fehler)
             public string Code = "", UnvalId, UnvalShort;               // UnvalId: nicht validiertes Geraet (Klick = zur Liste hinzufuegen)
             public List<Hint> Kids; public bool Open;                   // Gruppenkopf gleicher Regeln (Klick klappt auf)
             public Hint(string t, PackageStep s, Control f) { Text = t; Step = s; Field = f; }
@@ -38,8 +39,8 @@ namespace Arbeitsplan.Win
             previewScroll.AutoScroll = true; previewScroll.BackColor = Color.White; previewScroll.BorderStyle = BorderStyle.FixedSingle; previewScroll.Tag = "keep";
             blockPreview.Location = Point.Empty; blockPreview.Font = Font; previewScroll.Controls.Add(blockPreview);
             previewScroll.Resize += delegate { if (sizing) sizePending = true; else blockPreview.Relayout(PreviewW); };   // beim Ziehen erst am Ende (PackageForm.Sizing.cs)
-            Panel right = BuildPager(previewScroll, 372);   // Ein Eintrag mit ◀ ▶ (PackageForm.Pager.cs)
-            Panel hints = Column(sec, "Prüfhinweise (Klick = hinspringen):", lbHints, 290);
+            Panel right = pagerCol = BuildPager(previewScroll, 372);   // Ein Eintrag mit ◀ ▶ (PackageForm.Pager.cs)
+            Panel hints = hintsCol = Column(sec, "Prüfhinweise (Klick = hinspringen):", lbHints, 290);
             lbHints.IntegralHeight = false; lbHints.DrawMode = DrawMode.OwnerDrawVariable;   // Hinweise umbrechen statt abschneiden
             lbHints.MeasureItem += delegate(object o, MeasureItemEventArgs e)
             {
@@ -53,7 +54,7 @@ namespace Arbeitsplan.Win
                 bool sel = (e.State & DrawItemState.Selected) != 0;
                 Rectangle r = new Rectangle(e.Bounds.X + 3, e.Bounds.Y + 2, e.Bounds.Width - 6, e.Bounds.Height - 2);
                 Hint hh = lbHints.Items[e.Index] as Hint;
-                TextRenderer.DrawText(e.Graphics, Convert.ToString(lbHints.Items[e.Index]), Font, r, sel ? SystemColors.HighlightText : (hh != null && hh.Blocks ? Color.Firebrick : lbHints.ForeColor), TextFormatFlags.WordBreak | TextFormatFlags.NoPrefix);
+                TextRenderer.DrawText(e.Graphics, Convert.ToString(lbHints.Items[e.Index]), Font, r, sel ? SystemColors.HighlightText : (hh != null && hh.Blocks ? Color.Firebrick : hh != null && hh.Info ? InfoColor : lbHints.ForeColor), TextFormatFlags.WordBreak | TextFormatFlags.NoPrefix);
             };
             // Resize: nur bei echter Breitenaenderung neu umbrechen (RewrapHints, PackageForm.Sizing.cs)
             lbHints.MouseUp += delegate(object o, MouseEventArgs e)
@@ -71,6 +72,8 @@ namespace Arbeitsplan.Win
             paneWrap.Controls.Add(sec);
             return paneWrap;
         }
+
+        static readonly Color InfoColor = Color.FromArgb(30, 80, 140);
 
         int PreviewW { get { return Math.Max(80, previewScroll.ClientSize.Width - (blockPreview.Height > previewScroll.ClientSize.Height ? 0 : 1)); } }
 
@@ -113,7 +116,7 @@ namespace Arbeitsplan.Win
             PerfB(PfStrip); strip.Set(items, cur, curRun); PerfE(PfStrip);
             if (scrollTo) strip.ScrollTo(cur, curRun);
             UpdateStripBar();
-            lPreview.Text = "So erscheint der Schritt im Plan:";
+            lPreview.Text = "So steht es im Plan:";
             tip.SetToolTip(lPreview, pk.Lauf1.HasValue ? "Vorschau mit den Daten ab Lauf 1 am " + DText(pk.Lauf1.Value) + "." : "Vorschau relativ zu Lauf 1; das Datum steht fest, sobald „Lauf 1 am“ im Kopf gesetzt ist oder beim Kampagnenstart.");
             ShowCard();
         }
@@ -153,8 +156,8 @@ namespace Arbeitsplan.Win
                 foreach (string e in cat.CheckPackageWarn(one)) h.Add(new Hint(n + ": " + e, s, null));   // Stammdaten "Passt zu": nur Hinweis
             }
             h.AddRange(RuleHints(o));   // Regeln aus Core/Packages.Rules.cs (Sperre = Übernehmen nicht möglich), PackageForm.Hints.cs
-            bool ok = h.Count == 0;
-            if (ok) h.Add(new Hint("Keine Auffälligkeiten – das Muster kann übernommen werden.", null, null));
+            bool ok = !h.Exists(delegate(Hint x) { return !x.Info; });   // reine Infos machen die Pruefung nicht auffaellig
+            if (ok) h.Insert(0, new Hint("Keine Auffälligkeiten – das Muster kann übernommen werden.", null, null));
             FillHintList(BlocksFirst(h));
             UpdateEquipBar();   // unbekanntes Geraet im aktuellen Schritt: Leiste (PackageForm.EquipBar.cs)
             MarkCards(); FlagRows();

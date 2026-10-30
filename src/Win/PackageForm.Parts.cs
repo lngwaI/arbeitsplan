@@ -10,7 +10,7 @@ namespace Arbeitsplan.Win
     // (gilt auch fuer angedockte Kinder). major = Hauptbereich (gefuellte Kopfleiste), sonst Untergruppe (Titel mit Linie).
     class Section : Panel
     {
-        public static readonly Color HelpColor = Color.FromArgb(100, 106, 118);
+        public static readonly Color HelpColor = Color.FromArgb(70, 76, 90);
         readonly bool major;
         string title, help;
 

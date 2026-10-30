@@ -30,19 +30,19 @@ namespace Arbeitsplan.Win
                 f.Show(); Application.DoEvents();
                 // (1) Packen-Nr. im Kopf: sichtbar, Eingabe geht in alle Packen-Schritte, Aenderung zieht nach, Abweichung bleibt
                 List<PackageStep> pack = f.PackSteps();
-                bool okHead = pack.Count >= 1 && f.packShow && f.tPackNo.Visible && f.lPackNo.Visible && f.lPackNo.Text == "Packen-Nr.:" && f.tPackNo.Text == "" && pack[0].ManualNo == "";
+                bool okHead = pack.Count >= 1 && f.packShow && f.tPackNo.Visible && f.lPackNo.Visible && f.lPackNo.Text == "Nr. für Packen:" && f.tPackNo.Text == "" && pack[0].ManualNo == "";
                 f.tPackNo.Text = "12340001"; Application.DoEvents();
                 bool okTake = pack.TrueForAll(delegate(PackageStep s) { return s.ManualNo == "12340001"; }) && f.dirty;
                 f.tPackNo.Text = "12340002"; Application.DoEvents();
                 okTake &= pack.TrueForAll(delegate(PackageStep s) { return s.ManualNo == "12340002"; });
                 f.Bind(pack[0]); Application.DoEvents();   // Schritt zeigt den Kopfwert, Hinweis "wie Kopf"
-                bool okStep = f.tManualNo.Text == "12340002" && f.lManualHint.Text.Contains("wie Packen-Nr. im Kopf") && f.lManualHint.Visible;
+                bool okStep = f.tManualNo.Text == "12340002" && f.lManualHint.Text.Contains("wie Nr. für Packen im Kopf") && f.lManualHint.Visible;
                 f.tManualNo.Text = "12349999"; Application.DoEvents();   // Ueberschreibung im Schritt
                 okStep &= pack[0].ManualNo == "12349999" && f.lManualHint.Text.StartsWith("weicht vom Kopf ab") && f.tPackNo.Text == "12340002";
                 f.tPackNo.Text = "12340003"; Application.DoEvents();
                 okStep &= pack[0].ManualNo == "12349999" && f.tManualNo.Text == "12349999";   // Abweichung bleibt
                 f.tManualNo.Text = ""; Application.DoEvents();   // leer = wie Kopf
-                okStep &= pack[0].ManualNo == "12340003" && f.lManualHint.Text.Contains("wie Packen-Nr.");
+                okStep &= pack[0].ManualNo == "12340003" && f.lManualHint.Text.Contains("wie Nr. für Packen");
                 PackageStep np = new PackageStep(); np.Title = "Packen"; np.Source = Package.PackenName; np.Row = "Suite 2"; np.Day = 9;
                 f.AddStep(np); Application.DoEvents();
                 okTake &= np.ManualNo == "12340003";

@@ -113,7 +113,9 @@ namespace Arbeitsplan.Win
             Package p = StepsView();
             DateTime? d = p.DateOf(day);
             if (!wide) return d.HasValue ? d.Value.Day.ToString() : "";
-            return d.HasValue ? PackageStep.DayNames[((int)d.Value.DayOfWeek + 6) % 7] + " " + d.Value.ToString("dd.MM.", CultureInfo.InvariantCulture) : p.RelText(day);
+            if (d.HasValue) return PackageStep.DayNames[((int)d.Value.DayOfWeek + 6) % 7] + " " + d.Value.ToString("dd.MM.", CultureInfo.InvariantCulture);
+            string rel = p.RelText(day);   // schmale Spalte: "2 Tage vor Lauf 1" -> "2 T. vor L1" (der Kasten zeigt den Schritt, Tooltip den Volltext)
+            return rel.Replace(" Tage vor Lauf ", " T. vor L").Replace(" Tag vor Lauf ", " T. vor L").Replace(" Tage nach Lauf ", " T. nach L").Replace(" Tag nach Lauf ", " T. nach L");
         }
 
         // ---------- Tabelle ----------

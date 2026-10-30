@@ -28,6 +28,8 @@ namespace Arbeitsplan.Win
         readonly Label lFirst = new Label(), lPack = new Label(), info = new Label(), lSum = new Label(), lRule = new Label();
         readonly ComboBox cbRoom = new ComboBox(), cbMode = new ComboBox();
         readonly Button ok = new Button();
+        readonly Label lWhy = new Label();       // Grund, warum "In Plan uebernehmen" gesperrt ist (neben dem Knopf)
+        readonly ToolTip tip = new ToolTip();
         readonly CheckBox chkShift = new CheckBox(), chkRooms = new CheckBox(), chkRhythm = new CheckBox();
         readonly DataGridView grid = new DataGridView();
         readonly List<int> gaps;
@@ -137,25 +139,26 @@ namespace Arbeitsplan.Win
 
             chkShift.Text = "Folgende mitverschieben"; chkShift.Checked = true; chkShift.SetBounds(10, y, 170, 22); Controls.Add(chkShift);
             chkRooms.Text = "Raum für ALLE Folgeläufe ändern"; chkRooms.SetBounds(185, y, 215, 22); Controls.Add(chkRooms);
-            Label lt = L("Datum als TT.MM.JJJJ eintippen oder − / +.", 405, y + 3); Controls.Add(lt);
-            chkShift.Visible = chkRooms.Visible = lt.Visible = !simple;
+            chkShift.Visible = chkRooms.Visible = !simple;
+            Label lt = L("Datum in der Spalte „Gewünscht“ als TT.MM.JJJJ eintippen, oder mit „Tage −“ / „Tage +“ um einen Tag verschieben.", 10, y + 28); lt.ForeColor = Section.HelpColor; Controls.Add(lt);   // eigene Zeile
+            lt.Visible = !simple;
 
-            grid.SetBounds(10, y + 26, 880, 526 - (y + 26));
+            grid.SetBounds(10, y + 50, 880, 526 - (y + 50));
             lRule.SetBounds(10, 530, 880, 18); lRule.AutoEllipsis = true; Controls.Add(lRule);
             grid.AllowUserToAddRows = false; grid.AllowUserToDeleteRows = false; grid.AllowUserToResizeRows = false; grid.RowHeadersVisible = false;
             grid.SelectionMode = DataGridViewSelectionMode.CellSelect; grid.MultiSelect = false; grid.BackgroundColor = Color.White;
-            Col(new DataGridViewTextBoxColumn(), "Schritt / Lauf", 245, true);
-            Col(new DataGridViewTextBoxColumn(), "Bezug", 155, true);
+            Col(new DataGridViewTextBoxColumn(), "Schritt / Lauf", 235, true);
+            Col(new DataGridViewTextBoxColumn(), "Bezug", 135, true);
             List<string> names = new List<string>();
             foreach (RowInfo r in store.GetRows()) if (r.Name.Length > 0 && !names.Contains(r.Name)) names.Add(r.Name);
             foreach (PackageStep s in pkg.Steps) if (s.Row.Length > 0 && !names.Contains(s.Row)) names.Add(s.Row);   // unbekannter Block bleibt sichtbar
             DataGridViewComboBoxColumn cr = new DataGridViewComboBoxColumn(); cr.FlatStyle = FlatStyle.Flat; cr.Items.AddRange(names.ToArray());
-            Col(cr, "Block (Raum)", 105, false);
+            Col(cr, "Block (Raum)", 100, false);
             Col(new DataGridViewTextBoxColumn(), "Vorschlag", 100, true);
             Col(new DataGridViewTextBoxColumn(), "Gewünscht", 100, false);
-            Col(new DataGridViewButtonColumn(), "−", 28, true);
-            Col(new DataGridViewButtonColumn(), "+", 28, true);
-            Col(new DataGridViewCheckBoxColumn(), "fällt aus", 70, false);
+            Col(new DataGridViewButtonColumn(), "Tage −", 58, true); ((DataGridViewButtonColumn)grid.Columns[cMinus]).Text = "−";   // Kopf nennt die Einheit, Knopf nur das Zeichen
+            Col(new DataGridViewButtonColumn(), "Tage +", 58, true); ((DataGridViewButtonColumn)grid.Columns[cPlus]).Text = "+";
+            Col(new DataGridViewCheckBoxColumn(), "entfällt", 70, false);
             grid.CellContentClick += delegate(object s, DataGridViewCellEventArgs e) { if (e.RowIndex >= 0 && (e.ColumnIndex == cMinus || e.ColumnIndex == cPlus)) Shift(e.RowIndex, e.ColumnIndex == cMinus ? -1 : 1); };
             grid.CellEndEdit += delegate(object s, DataGridViewCellEventArgs e) { if (e.ColumnIndex == cWant) Typed(e.RowIndex); };
             grid.CurrentCellDirtyStateChanged += delegate { if (grid.IsCurrentCellDirty && (grid.CurrentCell.ColumnIndex == cRoom || grid.CurrentCell.ColumnIndex == cSkip)) grid.CommitEdit(DataGridViewDataErrorContexts.Commit); };
@@ -178,14 +181,18 @@ namespace Arbeitsplan.Win
             }
 
             Label lMode = L("Vorhandene Einträge:", 10, 562); Controls.Add(lMode);   // Uebernahme-Modus wird erst hier gewaehlt (nicht im Paket-Editor)
-            cbMode.DropDownStyle = ComboBoxStyle.DropDownList; cbMode.SetBounds(135, 558, 250, 22);
+            cbMode.DropDownStyle = ComboBoxStyle.DropDownList; cbMode.SetBounds(135, 558, 215, 22);
             cbMode.Items.AddRange(new object[] { "Nur leere Blöcke füllen", "Vorhandenes überschreiben", "An vorhandenen Text anhängen" });
             cbMode.SelectedIndex = (int)mode; cbMode.SelectionChangeCommitted += delegate { modeTouched = true; if (!building) UpdateAll(); }; Controls.Add(cbMode);
             ok.Text = "In Plan übernehmen"; ok.SetBounds(640, 556, 135, 28);
             ok.Click += delegate { grid.EndEdit(); DialogResult = DialogResult.OK; };
             Button cancel = new Button(); cancel.Text = "Abbrechen"; cancel.SetBounds(785, 556, 105, 28); cancel.DialogResult = DialogResult.Cancel;
-            Controls.Add(ok); Controls.Add(cancel); CancelButton = cancel;
-            if (simple) foot = new Control[] { lMode, cbMode, ok, cancel };
+            lWhy.SetBounds(358, 561, 274, 18); lWhy.AutoEllipsis = true; lWhy.ForeColor = Color.Firebrick; lWhy.UseMnemonic = false; Controls.Add(lWhy);
+            Controls.Add(ok); Controls.Add(cancel); CancelButton = cancel; AcceptButton = ok;   // Enter = In Plan uebernehmen (nur wenn freigegeben), Esc = Abbrechen
+            ok.Font = new Font(Font, FontStyle.Bold);
+            Control[] tab = { dtLauf1, nRuns, tFirst, tPack, chkRhythm, chkShift, chkRooms, grid, cbMode, ok, cancel };   // Tab-Reihenfolge = Lesereihenfolge
+            for (int i = 0; i < tab.Length; i++) tab[i].TabIndex = i;
+            if (simple) foot = new Control[] { lMode, cbMode, lWhy, ok, cancel };
 
             dtLauf1.ValueChanged += delegate { Recalc(); };
             tFirst.TextChanged += delegate { Recalc(); };
@@ -216,6 +223,9 @@ namespace Arbeitsplan.Win
         public int TestRuns { get { return (int)nRuns.Value; } set { nRuns.Value = value; } }
         public string TestPackNo { get { return tPack.Text; } set { tPack.Text = value; } }
         public bool TestOkEnabled { get { return ok.Enabled; } }
+        public string TestWhy { get { return lWhy.Text; } }
+        public bool TestButtons { get { return AcceptButton == ok && CancelButton != null && ok.Text == "In Plan übernehmen"; } }
+        public string TestHeaders { get { List<string> h = new List<string>(); foreach (DataGridViewColumn c in grid.Columns) h.Add(c.HeaderText); return string.Join("|", h.ToArray()); } }
         public bool TestPackVisible { get { return tPack.Parent != null && needPack; } }
         public bool TestSimple { get { return simple; } }
         public string TestRoom { get { return cbRoom.Text; } set { cbRoom.SelectedItem = value; } }

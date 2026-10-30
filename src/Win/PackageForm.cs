@@ -33,6 +33,7 @@ namespace Arbeitsplan.Win
         readonly ListView lv = new ListView();
         readonly Button bAdd = new Button(), bUp = new Button(), bDown = new Button(), bDup = new Button(), bDel = new Button();
         readonly ToolTip tip = new ToolTip();
+        Button bApplyBtn;   // "In Plan uebernehmen" (Standardschaltflaeche)
 
         int IH { get { return Font.Height + 8; } }     // Hoehe der Eingabefelder
         int RowH { get { return IH + 6; } }
@@ -45,7 +46,7 @@ namespace Arbeitsplan.Win
             StartPosition = FormStartPosition.CenterParent;
             MinimizeBox = false; ShowInTaskbar = false;
             ClientSize = new Size(1190, 700);
-            MinimumSize = new Size(900, 600);
+            MinimumSize = new Size(960, 640);   // kleiner nicht: sonst bleibt fuer "Schritt-Details" zu wenig Platz (OnLoad begrenzt auf den Bildschirm)
             cat = store.GetCatalog();
             cat.AddStandardBausteine();   // alte Bestaende: Puffer, Freeze / Thaw, CIP / SIP, Einwaage anbieten (gespeichert erst mit "Katalog einrichten")
             foreach (RowInfo r in store.GetRows()) if (r.Name.Length > 0) { rowNames.Add(r.Name); rowVars[r.Name] = r.VariantList(); }
@@ -60,6 +61,7 @@ namespace Arbeitsplan.Win
             head.TabIndex = 0; left.TabIndex = 1; details.TabIndex = 2; preview.TabIndex = 3; bar.TabIndex = 4;
             InitSizing();   // Doppelpuffer, Layoutsperre beim Ziehen (PackageForm.Sizing.cs)
             Theme.Current.Style(this);
+            bApplyBtn.FlatAppearance.BorderColor = Theme.Current.BorderSel; bApplyBtn.FlatAppearance.BorderSize = 2;   // Primaraktion farblich abgesetzt
             ClampPane();
             LoadPackage(initial);
             ActiveControl = lv;   // Start im Ablauf, nicht mit markiertem Namen
@@ -69,6 +71,7 @@ namespace Arbeitsplan.Win
         {
             base.OnLoad(e);
             Rectangle wa = Screen.FromControl(this).WorkingArea;   // kleiner Bildschirm (z. B. 1024x768): Fenster passt sich an, Bereiche scrollen
+            MinimumSize = new Size(Math.Min(MinimumSize.Width, wa.Width), Math.Min(MinimumSize.Height, wa.Height));
             if (Width <= wa.Width && Height <= wa.Height) return;
             Size = new Size(Math.Min(Width, wa.Width), Math.Min(Height, wa.Height));
             Location = new Point(wa.X + (wa.Width - Width) / 2, wa.Y + (wa.Height - Height) / 2);
@@ -76,7 +79,9 @@ namespace Arbeitsplan.Win
 
         protected override void OnResize(EventArgs e)
         {
-            left.Width = Math.Max(360, Math.Min(600, ClientSize.Width * 46 / 100));
+            bool narrow = ClientSize.Width < 1150;   // schmales Fenster: mehr Platz fuer Schritt-Details und Kalender, schmalere Hinweis-/Vorschauspalte
+            left.Width = Math.Max(360, Math.Min(600, ClientSize.Width * (narrow ? 38 : 46) / 100));
+            if (hintsCol != null) { hintsCol.Width = narrow ? 210 : 290; pagerCol.Width = narrow ? 290 : 372; }
             base.OnResize(e);
             ClampPane();
         }
@@ -139,6 +144,10 @@ namespace Arbeitsplan.Win
             Button bClose = Btn(new Button(), "Schließen", 0, y, 100, delegate { Close(); });
             Button bApply = Btn(new Button(), "In Plan übernehmen…", 0, y, 170, delegate { DoApply(); });
             bApply.Enabled = canApply; bApply.Font = new Font(Font, FontStyle.Bold);
+            if (canApply) AcceptButton = bApply;   // Enter = Primaraktion (Kampagne starten), Esc = Schliessen (mit Rueckfrage bei ungespeicherten Aenderungen)
+            CancelButton = bClose; bApplyBtn = bApply;
+            Control[] ord = { bOpen, bSave, bSaveAs, bSetup, bApply, bClose };
+            for (int i = 0; i < ord.Length; i++) ord[i].TabIndex = i;
             bClose.Left = ClientSize.Width - 108; bApply.Left = bClose.Left - 176;
             bClose.Anchor = bApply.Anchor = AnchorStyles.Top | AnchorStyles.Right;
             bar.Width = ClientSize.Width;

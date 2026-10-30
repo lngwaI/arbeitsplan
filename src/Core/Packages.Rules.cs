@@ -5,7 +5,7 @@ using System.Text;
 
 namespace Arbeitsplan.Core
 {
-    public enum Severity { Sperre, Hinweis }
+    public enum Severity { Sperre, Hinweis, Info }   // Info: nur zur Kenntnis (kein Fehler, macht die Pruefung nicht "auffaellig")
 
     // Ergebnis der Regelpruefung: Sperre (Uebernehmen/Apply verweigert, auch PackageAdmin darf nicht umgehen) oder Hinweis.
     // Step/Run: Position im Paket (-1 = ganzes Paket); Code ordnet das Problem einem Eingabefeld zu (Paket-Editor).
@@ -18,6 +18,7 @@ namespace Arbeitsplan.Core
         public string Action = "";          // kurze Handlungsanweisung; Text nennt Ursache und Beteiligte
 
         public bool Blocks { get { return Severity == Severity.Sperre; } }
+        public bool IsInfo { get { return Severity == Severity.Info; } }
         public string Full { get { return Action.Length > 0 ? Text + " – " + Action : Text; } }
         public override string ToString() { return Full; }
 
@@ -107,7 +108,7 @@ namespace Arbeitsplan.Core
                 if (nRuns > 1 && s.IdentStart.Length > 0 && s.IdentStart == PackageStep.IdentAt(s.IdentStart, 1))
                     Add(res, Severity.Sperre, "ident", "Kennung-Start „" + s.IdentStart + "“ hat keine Endziffern – ab Lauf 2 bleibt die Kennung gleich.", i);
                 if (s.Source == PackenName && !s.IsBackup && s.ManualNo.Length == 0)
-                    Add(res, Severity.Hinweis, "packen", "Packen ohne eigene Nummer im Paket – sie wird beim Kampagnenstart Pflicht (von Hand, 8 Ziffern).", i);
+                    Add(res, Severity.Info, "packen", "Packen hat noch keine eigene Nummer – der Kampagnenstart fragt sie ab.", i).Action = "oben unter „Nr. für Packen“ eintragen (8 Ziffern, z. B. 12340001)";
                 if (s.IsBuffer && Math.Max(s.PufferCount, s.Puffers.Count) > 9) Add(res, Severity.Sperre, "pufzahl", "Mehr als 9 Puffer je Termin sind nicht möglich (" + Math.Max(s.PufferCount, s.Puffers.Count) + ").", i);
                 if (s.IsBuffer && s.Puffers.Count == 0 && s.BufferNames().Length > Math.Max(1, s.PufferCount)) Add(res, Severity.Hinweis, "pufnamen", "Es sind mehr Puffer-Namen als Puffer eingetragen – die überzähligen Namen werden nicht verwendet.", i);
                 if (s.RunEvery > 1 && !s.IsBuffer) Add(res, Severity.Hinweis, "every", "„Reicht für " + s.RunEvery + " Läufe“ ist nur für Puffer üblich.", i);

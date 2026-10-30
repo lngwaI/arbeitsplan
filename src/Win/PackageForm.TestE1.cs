@@ -107,7 +107,7 @@ namespace Arbeitsplan.Win
                 f.Bind(lauf); bool okKind = f.cbKind.Items[0].ToString() == "Sonstiges (ohne Laufnummer)" && f.cbKind.Items[1].ToString() == "Hauptlauf" && f.cbKind.Items[2].ToString().StartsWith("Unterlauf") && !f.tManualNo.Visible;
                 f.Bind(misch); okKind &= f.cbKind.Items[1].ToString() == "Lauf-Schritt mit Laufnummer";
                 f.Bind(packen); f.TestMore(); Application.DoEvents();
-                bool okNo = f.tManualNo.Visible && f.lManual.Text == "Laufnummer (von Hand)" + ":";
+                bool okNo = f.tManualNo.Visible && f.lManual.Text == "Nr. von Hand:";
                 f.tManualNo.Text = "12340001"; Application.DoEvents();
                 okNo &= packen.ManualNo == "12340001" && packen.Compose(0, f.prefix).Contains("(Nr. 12340001)");
                 f.tManualNo.Text = "123"; Application.DoEvents();

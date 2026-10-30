@@ -108,7 +108,7 @@ namespace Arbeitsplan.Core
 
         // ---------- Anzeige, Suche ----------
 
-        // Protokoll/Vorschau: je Vorgang eine Zeile "Freeze 1: Bag · Unterlauf X (aus Y) · C1 12.10. 12:00 · 14 Cycles"; detail: darunter je Ist-Cycle "C4 Ist 12.10. 02:00 (+7 h)"
+        // Protokoll/Vorschau: je Vorgang eine Zeile "Freeze 1: Bag · Unterlauf X (aus Y) · Z1 12.10. 12:00 · 14 Zyklen"; detail: darunter je Ist-Zyklus "Z4 Ist 12.10. 02:00 (+7 h)"
         public static List<string> DisplayLines(List<FreezeItem> l, bool detail)
         {
             List<string> r = new List<string>();
@@ -118,7 +118,7 @@ namespace Arbeitsplan.Core
                 string head = "Freeze " + (i + 1) + ": " + (f.Art == FreezeArt.Tank ? "Tank GWK" + f.Anlage + " K" + f.Kreislauf : "Bag");
                 if (f.SubNo.Length > 0) head += " · Unterlauf " + f.SubNo + (f.MainRef.Length > 0 ? " (aus " + f.MainRef + ")" : "");
                 else if (f.MainRef.Length > 0) head += " · Lauf " + f.MainRef;
-                if (f.Valid) head += " · C1 " + FreezeCalc.Short(f.Start1to3[0]) + (f.Art == FreezeArt.Bag ? " · " + FreezeCalc.Count(f) + " Cycles" : " · " + FreezeCalc.Dur(f.DauerMin));
+                if (f.Valid) head += " · Z1 " + FreezeCalc.Short(f.Start1to3[0]) + (f.Art == FreezeArt.Bag ? " · " + FreezeCalc.Count(f) + " Zyklen" : " · " + FreezeCalc.Dur(f.DauerMin));
                 if (f.Tanks.Length > 0) head += " · Tanks " + f.Tanks;
                 r.Add(head);
                 if (!detail) continue;

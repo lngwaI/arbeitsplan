@@ -21,6 +21,29 @@ namespace Arbeitsplan.Win
         readonly List<int> rowIds = new List<int>();
         readonly DutyConfig src;
         public DutyConfig Result;
+        const int CCond = 4;   // Spalte "Bedingung" (Klartext; im Modell bleibt die Syntax +v / !v)
+        readonly Dictionary<string, string> condByText = new Dictionary<string, string>();   // Klartext -> Syntax
+        DataGridViewComboBoxColumn condCol;
+
+        // Syntax "+mobil,!stationaer" in Klartext: "automatisch erfüllt bei mobil und entfällt bei stationär" ("" = keine)
+        internal static string CondText(string cond)
+        {
+            List<string> t = new List<string>();
+            foreach (string raw in (cond ?? "").Split(','))
+            {
+                string c = raw.Trim();
+                if (c.Length < 2 || (c[0] != '+' && c[0] != '!')) { if (c.Length > 0) t.Add(c); continue; }
+                t.Add((c[0] == '+' ? "automatisch erfüllt bei " : "entfällt bei ") + c.Substring(1).Replace("stationaer", "stationär"));
+            }
+            return t.Count == 0 ? "keine" : string.Join(" und ", t.ToArray());
+        }
+
+        string CondItem(string cond)
+        {
+            string t = CondText(cond), c = (cond ?? "").Replace(" ", "");
+            if (!condByText.ContainsKey(t)) { condByText[t] = c; condCol.Items.Add(t); }
+            return t;
+        }
 
         public DutiesForm(DutyConfig cfg, List<RowInfo> rows)
         {
@@ -36,20 +59,28 @@ namespace Arbeitsplan.Win
 
             Label l1 = L("Pflichtpunkte je Zeile (Haken im Block):", 10, 8, 760);
             Grid(defs, 10, 28, 760, 170);
-            Text_(defs, "Name", 150); Text_(defs, "Kurz", 70);
-            Combo(defs, "Zeile", 140, rowNames.ToArray()); Combo(defs, "Regel", 120, RuleNames);
-            Text_(defs, "Bedingung", 110);
+            Text_(defs, "Name", 160); Text_(defs, "Kurz", 70);
+            Combo(defs, "Zeile", 120, rowNames.ToArray()); Combo(defs, "Regel", 110, RuleNames);
+            condCol = new DataGridViewComboBoxColumn(); condCol.HeaderText = "Bedingung (Variante)"; condCol.Width = 190; condCol.FlatStyle = FlatStyle.Flat; condCol.SortMode = DataGridViewColumnSortMode.NotSortable;
+            condCol.ToolTipText = "Nur für Zeilen mit Herstellungsvarianten (z. B. Puffer: mobil/stationär). „automatisch erfüllt“: der Punkt ist bei dieser Variante ohne Haken erledigt. „entfällt“: der Punkt wird bei dieser Variante nicht verlangt.";
+            defs.Columns.Add(condCol);
+            CondItem("");
+            List<string> vars = new List<string>();
+            foreach (RowInfo ri0 in rows) foreach (string v in ri0.VariantList()) if (!vars.Contains(v)) vars.Add(v);
+            if (vars.Count == 0) vars.AddRange(new[] { "mobil", "stationaer" });
+            foreach (string v in vars) { CondItem("+" + v); CondItem("!" + v); }
+            foreach (CheckDef d0 in cfg.Defs) CondItem(d0.Cond);   // vorhandene (auch zusammengesetzte) Bedingungen bleiben waehlbar
             DataGridViewCheckBoxColumn wk = new DataGridViewCheckBoxColumn(); wk.HeaderText = "1× je KW"; wk.Width = 70; defs.Columns.Add(wk);
             foreach (CheckDef d in cfg.Defs)
             {
                 int ri = rowIds.IndexOf(d.RowId);
-                int i = defs.Rows.Add(d.Name, d.Short, ri >= 0 ? rowNames[ri] : null, RuleNames[(int)d.Rule], d.Cond, d.Weekly);
+                int i = defs.Rows.Add(d.Name, d.Short, ri >= 0 ? rowNames[ri] : null, RuleNames[(int)d.Rule], CondItem(d.Cond), d.Weekly);
                 defs.Rows[i].Tag = d.Clone();
             }
             Button bAdd = B("+ Pflichtpunkt", 10, 204, 120), bDel = B("Entfernen", 136, 204, 90);
-            bAdd.Click += delegate { int i = defs.Rows.Add("", "", null, RuleNames[0], "", false); defs.Rows[i].Tag = new CheckDef(); defs.CurrentCell = defs.Rows[i].Cells[0]; };
+            bAdd.Click += delegate { int i = defs.Rows.Add("", "", null, RuleNames[0], CondItem(""), false); defs.Rows[i].Tag = new CheckDef(); defs.CurrentCell = defs.Rows[i].Cells[0]; };
             bDel.Click += delegate { if (defs.CurrentRow != null) defs.Rows.Remove(defs.CurrentRow); };
-            Label hint = L("Bedingung: +v = bei Variante v automatisch erfüllt, !v = entfällt bei Variante v (mehrere mit Komma).\n\"1× je KW\" (nur \"wenn belegt\"): leere Tage zählen nicht, sobald die KW erledigt ist. LKZ kommt aus der Blockstruktur.", 236, 202, 534);
+            Label hint = L("Bedingung: nur für Zeilen mit Varianten (z. B. Puffer mobil/stationär) – Punkt bei einer Variante automatisch erfüllt oder entfallen.\n\"1× je KW\" (nur \"wenn belegt\"): leere Tage zählen nicht, sobald die KW erledigt ist. LKZ kommt aus der Blockstruktur.", 236, 202, 534);
             hint.Height = 34;
 
             Label l2 = L("Rundgänge je Kalenderwoche:", 10, 244, 370);
@@ -72,8 +103,11 @@ namespace Arbeitsplan.Win
             Button bOk = B("Speichern", 570, 498, 95), bCancel = B("Abbrechen", 675, 498, 95), bPuffer = B("Standard Puffer einrichten", 10, 498, 200);
             bOk.Click += delegate { Commit(); };
             bPuffer.Click += delegate { AddPuffer(PufferSetup.Row(rows)); };
-            bCancel.DialogResult = DialogResult.Cancel; CancelButton = bCancel;
+            bCancel.DialogResult = DialogResult.Cancel; CancelButton = bCancel; AcceptButton = bOk;   // Enter = Speichern, Esc = Abbrechen
+            extra.AcceptsReturn = removed.AcceptsReturn = true;   // Enter im Datumsfeld = neue Zeile, nicht Speichern
             Controls.AddRange(new Control[] { l1, defs, bAdd, bDel, hint, l2, rounds, l3, ll, land, le, lr, extra, removed, madeBox, mh, bPuffer, bOk, bCancel });
+            Control[] tab = { defs, bAdd, bDel, rounds, land, extra, removed, madeBox, bPuffer, bOk, bCancel };   // Tab-Reihenfolge = Lesereihenfolge
+            for (int i = 0; i < tab.Length; i++) tab[i].TabIndex = i;
         }
 
         public bool PufferVariants;   // beim Speichern: Varianten mobil/stationaer an der Zeile Puffer setzen, falls noch keine
@@ -89,7 +123,7 @@ namespace Arbeitsplan.Win
                 bool have = false;
                 foreach (DataGridViewRow r in defs.Rows) have |= ((CheckDef)r.Tag).Key == d.Key;
                 if (have) continue;
-                int i = defs.Rows.Add(d.Name, d.Short, rowNames[rowIds.IndexOf(pr.Id)], RuleNames[(int)d.Rule], d.Cond, d.Weekly);
+                int i = defs.Rows.Add(d.Name, d.Short, rowNames[rowIds.IndexOf(pr.Id)], RuleNames[(int)d.Rule], CondItem(d.Cond), d.Weekly);
                 defs.Rows[i].Tag = d.Clone(); n++;
             }
             PufferVariants = pr.Variants.Length == 0;
@@ -169,7 +203,7 @@ namespace Arbeitsplan.Win
                 }
                 if (d.Short.Length == 0) d.Short = d.Name.Length > 10 ? d.Name.Substring(0, 10) : d.Name;
                 d.RowId = rowIds[ri]; d.Rule = rule < 0 ? CheckRule.IfOccupied : (CheckRule)rule;
-                d.Cond = S(r.Cells[4].Value).Replace(" ", "");
+                string ct = S(r.Cells[CCond].Value); d.Cond = condByText.ContainsKey(ct) ? condByText[ct] : "";
                 d.Weekly = d.Rule == CheckRule.IfOccupied && r.Cells[5].Value is bool && (bool)r.Cells[5].Value;
                 if (d.Key.Length == 0) { d.Key = NewKey(d.Short, keys); keys.Add(d.Key); }   // Schluessel bleibt fuer immer (Haken in den Bloecken)
                 c.Defs.Add(d);
@@ -203,6 +237,9 @@ namespace Arbeitsplan.Win
         }
 
 #if TESTHOOKS
+        public DutyConfig TestCommit() { Commit(); return Result; }
+        public string TestCondCell(int i) { return S(defs.Rows[i].Cells[CCond].Value); }
+        public bool TestButtons { get { return AcceptButton != null && CancelButton != null; } }
         public static string SelfTest()
         {
             List<string> used = new List<string>(new[] { "PROBE" });

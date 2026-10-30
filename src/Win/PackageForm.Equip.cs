@@ -59,13 +59,13 @@ namespace Arbeitsplan.Win
             chkAlt.Text = "abwechselnd";
             btnAlt.Text = "…";
             Ui.SimpleMenu(note);
-            del.Text = "x"; del.Click += delegate { this.remove(this.a); };
+            del.Text = "✕"; del.Click += delegate { this.remove(this.a); };
             grip = new RowGrip(this); up.Text = "▲"; down.Text = "▼"; up.Visible = down.Visible = false;
             up.Click += delegate { if (Reorder != null) Reorder.Step(this, -1); }; down.Click += delegate { if (Reorder != null) Reorder.Step(this, 1); };
             Controls.AddRange(new Control[] { name, cbId, chkAlt, btnAlt, cbFb, note, del, grip, up, down });
             foreach (Button b in new[] { btnAlt, del, up, down }) Theme.Current.StyleButton(b);
             Enter += delegate { ShowArrows(); }; Leave += delegate { ShowArrows(); };
-            tip.SetToolTip(btnAlt, "Geräte für den Wechsel auswählen");
+            tip.SetToolTip(btnAlt, "Geräte für den Wechsel auswählen"); tip.SetToolTip(del, "Zeile entfernen");
             tip.SetToolTip(cbFb, "Ausweich-Gerät (Backup), falls das geplante ausfällt." + UndoTip);
             tip.SetToolTip(note, "Notiz/Bezeichnung zu diesem Gerät (steht im Plan hinter der Nummer).");
             tip.SetToolTip(grip, "Zeile verschieben: am Griff nach oben oder unten ziehen (oder ▲▼ nutzen). Die Reihenfolge steht so im Plan.");

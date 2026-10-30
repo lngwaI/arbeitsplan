@@ -20,6 +20,8 @@ namespace Arbeitsplan.Win
         // Equipment mit Spalten abwechselnd/Ausweich: aufgeklappt oder wenn ein Wert gesetzt ist (nichts verschwindet still)
         bool WideEquip { get { return more || (cur != null && cur.AllEquip().Exists(delegate(EquipAssign a) { return a.Alternate || a.Fallback.Length > 0; })); } }
 
+        internal static int StackW = 540;   // Breite der Details, ab der "Wann?" unter "Was? Wo im Plan?" steht
+
         const string MoreTip = "Mehr Optionen: eigene Laufnummer, abwechselnde Geräte, Ausweich-Gerät, Kennung und Notizen";
         string moreTip = "";
 
@@ -51,8 +53,9 @@ namespace Arbeitsplan.Win
             bool sub = s.Kind == StepKind.SubRun;
             bool var = s.IsBuffer && s.Puffers.Count == 0;   // Typ steht je Puffer in der Karte (PackageForm.PufferCards.cs)
             int w = body.ClientSize.Width, g = 8;
-            int a = Math.Max((w - g) / 2, Math.Min(w - g - 250, (w - g) * 55 / 100));   // Breite Was? Wo? | Rest Wann?
-            gWhat.Width = a; gWhen.Width = w - a - g;   // Feldbreiten (Anker) stehen vor dem Anordnen fest
+            bool stack = w < StackW;   // schmales Fenster: "Wann?" unter "Was? Wo im Plan?" statt daneben (Felder behalten ihre Breite)
+            int a = stack ? w : Math.Max((w - g) / 2, Math.Min(w - g - 250, (w - g) * 55 / 100));   // Breite Was? Wo? | Rest Wann?
+            gWhat.Width = a; gWhen.Width = stack ? w : w - a - g;   // Feldbreiten (Anker) stehen vor dem Anordnen fest
 
             Baustein b = cat.Baustein_(s.Source);
             bool off = b != null && b.Row.Length > 0 && s.Row.Length > 0 && s.Row != b.Row;   // z. B. Packen in Suite 2
@@ -76,7 +79,8 @@ namespace Arbeitsplan.Win
             int hExtra = y + 2;
 
             int h = Math.Max(hWhat, hWhen);
-            gWhat.SetBounds(0, 0, a, h); gWhen.SetBounds(a + g, 0, w - a - g, h);
+            if (stack) { gWhat.SetBounds(0, 0, w, hWhat); gWhen.SetBounds(0, hWhat + g, w, hWhen); h = hWhat + g + hWhen; }
+            else { gWhat.SetBounds(0, 0, a, h); gWhen.SetBounds(a + g, 0, w - a - g, h); }
             y = h + 4;
             string sum = MoreSummary(s);   // U7: kurzer Knopftext, Zusammenfassung dahinter und vollstaendig im Tooltip (bei 1024 px nicht abgeschnitten)
             bMore.Text = more ? "▾ Weniger Optionen" : "▸ Mehr Optionen" + sum;

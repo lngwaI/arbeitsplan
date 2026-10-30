@@ -52,7 +52,7 @@ namespace Arbeitsplan.Win
             bool okText = FreezeCalc.DelayText(420) == "+7 h" && FreezeCalc.DelayText(-30) == "-30 min" && FreezeCalc.DelayText(90) == "+1 h 30 min" && FreezeCalc.DelayText(0) == "" && FreezeCalc.Dur(360) == "6 h";
             FreezeItem dl = FzBag(FzD0); dl.Ist[4] = FzD0.AddHours(14);
             List<string> lines = FreezeSet.DisplayLines(FzEntry(dl).Freezes, true);
-            bool okLines = lines.Count == 2 && lines[1] == "    C4 Ist 04.03. 02:00 (+7 h)" && lines[0].StartsWith("Freeze 1: Bag");
+            bool okLines = lines.Count == 2 && lines[1] == "    Z4 Ist 04.03. 02:00 (+7 h)" && lines[0].StartsWith("Freeze 1: Bag");
             sb.AppendLine("Freeze Rechnung: C1 12:00 Abstand 7 h -> C4 19:00, C7 02:00 Folgetag=" + Ok(okBeisp) + " Anlage C1..C14=" + Ok(okAnlage) + " geschätzt C2/C3=" + Ok(okSchaetz) + " eigene Starts=" + Ok(okEigen)
                 + " Ist C4 -> C7/C10 folgen, C5/C6 gleich=" + Ok(okIst) + " Tank Start+Dauer=" + Ok(okTank) + " Anzahl 1-14=" + Ok(okAnz) + " Hinweise=" + Ok(okHint) + " Texte=" + Ok(okText) + " Protokollzeile=" + Ok(okLines));
         }

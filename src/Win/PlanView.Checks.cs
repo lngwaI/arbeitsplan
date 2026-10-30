@@ -37,7 +37,7 @@ namespace Arbeitsplan.Win
             switch (StateOf(c, i))
             {
                 case DayState.Auto: return d.Rule == CheckRule.WeeklyOnce ? d.Short + " ✓ stationär" : d.Short + " auto";
-                case DayState.Missing: return d.Short + " fehlt";
+                case DayState.Missing: return "! " + d.Short + " fehlt";   // Symbol + Wort, nicht nur Farbe
                 case DayState.NA: return d.Short + " entfällt";
                 case DayState.NotNeeded: return d.Short + " KW ok";
                 case DayState.WeekOpen: return d.Rule == CheckRule.WeeklyOnce ? "manuell: " + d.Short + " offen" : d.Short + " offen";
@@ -105,7 +105,7 @@ namespace Arbeitsplan.Win
                 else if (st == DayState.NA || st == DayState.NotNeeded) fg = th.Muted;
                 if (single)   // nur LKZ: ganze Leiste einfaerben, Text + grosse Checkbox mittig
                 {
-                    string text = on ? def.Name : st == DayState.NotNeeded ? def.Short + " nicht nötig" : def.Name + "?";
+                    string text = on ? def.Name : st == DayState.NotNeeded ? def.Short + " nicht nötig" : st == DayState.Missing ? "! " + (def.Short.Length > 0 ? def.Short : def.Name) + " offen" : def.Name + "?";   // rot: zusaetzlich "!" + "offen"
                     if (!fill.IsEmpty) Fill(g, fill, c.RChecks);
                     int tw = Math.Min(TextW(text, Font), sr.Width - bs - 12), x0 = sr.X + Math.Max(2, (sr.Width - tw - (box ? bs + 8 : 0)) / 2);
                     TextRenderer.DrawText(g, text, Font, new Rectangle(x0, sr.Y, tw + 1, sr.Height), fg, tf);
@@ -169,7 +169,7 @@ namespace Arbeitsplan.Win
         string CheckTip(CellData c, CheckSlot s)
         {
             if (s.Add) return "Puffer hinzufügen (Name, Typ, Text)";
-            if (s.Freeze) return "Freeze-Vorgang hinzufügen (Bag-Freeze mit Cycles oder Tank-Freeze)";
+            if (s.Freeze) return "Freeze-Vorgang hinzufügen (Bag-Freeze mit Zyklen oder Tank-Freeze)";
             CheckDef d = DefsOf(c.RowIndex)[s.Def];
             DayState st = StateOf(c, s.Def);
             string mt = BufMade ? MadeRules.Tip(d, st, On(c, d)) : "";

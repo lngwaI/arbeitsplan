@@ -28,7 +28,7 @@ namespace Arbeitsplan.Win
     }
 
     // Freeze-Bereich eines Blocks (Zeile mit RowInfo.Freeze): je Vorgang eine Kopfzeile "Bag-Freeze · Unterlauf X (aus Y) · Tanks ..." und darunter
-    // die Cycles des Tages kompakt je Anlage ("C1 · FA1 · 12:00   C4 · FA1 · 19:00", Verzoegerung orange, geschaetzte Zeiten kursiv).
+    // die Cycles des Tages kompakt je Anlage ("Z1 · FA1 · 12:00   Z4 · FA1 · 19:00", Verzoegerung orange, geschaetzte Zeiten kursiv).
     // Fortsetzungen frueherer Tage kursiv grau "(aus Mo)" (nur berechnet, nie gespeichert). Unter dem Inhalt jedes Hauptlauf-Blocks die abgeleitete
     // graue Zeile "gesplittet in X1, X2 · Tanks ..." (SplitIndex, einmal je Wochenaufbau).
     partial class PlanView
@@ -89,10 +89,10 @@ namespace Arbeitsplan.Win
             System.Text.StringBuilder sb = new System.Text.StringBuilder(FreezeHead(f));
             if (f.Valid)
                 sb.Append("\nStart ").Append(FreezeCalc.Short(f.Start1to3[0])).Append(", Dauer ").Append(FreezeCalc.Dur(f.DauerMin))
-                  .Append(f.Art == FreezeArt.Bag ? ", " + FreezeCalc.Count(f) + " Cycles, Abstand " + FreezeCalc.Dur(f.AbstandMin) : "");
+                  .Append(f.Art == FreezeArt.Bag ? ", " + FreezeCalc.Count(f) + " Zyklen, Abstand " + FreezeCalc.Dur(f.AbstandMin) : "");
             foreach (FreezeCycle c in today)
-                if (c.DelayMin != 0) sb.Append("\n").Append(c.Label).Append(" ").Append(FreezeCalc.DelayText(c.DelayMin)).Append(c.HasIst ? " (eingetragen)" : " (folgt aus früherem Cycle)");
-            foreach (FreezeCycle c in today) if (c.Estimated) { sb.Append("\nC2/C3 ohne Eingabe: geschätzt (kursiv)"); break; }
+                if (c.DelayMin != 0) sb.Append("\n").Append(c.Label).Append(" ").Append(FreezeCalc.DelayText(c.DelayMin)).Append(c.HasIst ? " (eingetragen)" : " (folgt aus früherem Zyklus)");
+            foreach (FreezeCycle c in today) if (c.Estimated) { sb.Append("\nZ2/Z3 ohne Eingabe: geschätzt (kursiv)"); break; }
             foreach (string h in FreezeCalc.Hints(f)) sb.Append("\nHinweis: ").Append(h);
             sb.Append(cont ? "\nFortsetzung aus " + Ui.DayText(origin) + " – Klick öffnet den Vorgang." : "\nKlick: Vorgang bearbeiten");
             return sb.ToString();
@@ -101,7 +101,7 @@ namespace Arbeitsplan.Win
         // Breite wie TextBlock: die feste Zusatzbreite jeder Messung (MeasureText) wird herausgerechnet
         FrzRun Run(string text, Font f, Color col) { FrzRun r = new FrzRun(); r.Text = text; r.Font = f; r.Color = col; r.W = TextW(text, f) - (2 * TextW("a", f) - TextW("aa", f)); return r; }
 
-        // Ein Cycle als Eintrag "C1 · FA1 · 12:00"; zu breit fuer die Spalte: kompakt ohne Punkte "C1 FA1 12:00"
+        // Ein Cycle als Eintrag "Z1 · FA1 · 12:00"; zu breit fuer die Spalte: kompakt ohne Punkte "Z1 FA1 12:00"
         FrzSeg Seg(FreezeCycle c, bool cont, int maxW)
         {
             Theme th = Theme.Current;

@@ -26,7 +26,7 @@ namespace Arbeitsplan.Win
         readonly FreezeChoice ch;
         readonly FreezeItem it;
         readonly RadioButton rBag = new RadioButton(), rTank = new RadioButton();
-        readonly CheckBox k2 = new CheckBox(), k3 = new CheckBox();   // "Start Cycle 2/3 angeben" (sonst geschaetzt)
+        readonly CheckBox k2 = new CheckBox(), k3 = new CheckBox();   // "Start Zyklus 2/3 angeben" (sonst geschaetzt)
         readonly DateTimePicker dC1 = new DateTimePicker(), dC2 = new DateTimePicker(), dC3 = new DateTimePicker(), dTank = new DateTimePicker();
         readonly ComboBox cGwk = new ComboBox(), cKreis = new ComboBox(), cMain = new ComboBox(), cPick = new ComboBox();
         readonly NumericUpDown nDur = new NumericUpDown(), nGap = new NumericUpDown(), nCnt = new NumericUpDown();
@@ -48,14 +48,14 @@ namespace Arbeitsplan.Win
 
             rBag.Text = "&Bag-Freeze"; rBag.SetBounds(LblX, 12, 120, 24); rBag.Checked = it.Art == FreezeArt.Bag; Place(rBag);
             rTank.Text = "&Tank-Freeze"; rTank.SetBounds(140, 12, 120, 24); rTank.Checked = it.Art == FreezeArt.Tank; Place(rTank);
-            lbWhere.Text = ch.Where; lbWhere.ForeColor = SystemColors.GrayText; lbWhere.TextAlign = ContentAlignment.MiddleRight; lbWhere.SetBounds(300, 12, 468, 24); Controls.Add(lbWhere);
+            lbWhere.Text = ch.Where; lbWhere.ForeColor = Section.HelpColor; lbWhere.TextAlign = ContentAlignment.MiddleRight; lbWhere.SetBounds(300, 12, 468, 24); Controls.Add(lbWhere);
 
             // linke Spalte: je Art andere Felder in denselben Zeilen
-            Label l1 = Lbl("Start &Cycle 1:", 0);
-            Check(k2, "Start C&ycle 2:", 1); Check(k3, "Start Cy&cle 3:", 2);
+            Label l1 = Lbl("Start &Zyklus 1:", 0);
+            Check(k2, "Start Z&yklus 2:", 1); Check(k3, "Start Zyk&lus 3:", 2);
             Setup(dC1, FldX, Row(0)); Place(dC1);
-            Setup(dC2, FldX, Row(1)); Place(dC2); Label h2 = Hint("sonst C1 + 1 h", 1);
-            Setup(dC3, FldX, Row(2)); Place(dC3); Label h3 = Hint("sonst C1 + 2 h", 2);
+            Setup(dC2, FldX, Row(1)); Place(dC2); Label h2 = Hint("sonst Z1 + 1 h", 1);
+            Setup(dC3, FldX, Row(2)); Place(dC3); Label h3 = Hint("sonst Z1 + 2 h", 2);
             bagOnly.AddRange(new Control[] { l1, dC1, k2, dC2, h2, k3, dC3, h3 });
             Label g1 = Lbl("&GWK-Anlage:", 0), g2 = Lbl("&Kreislauf:", 1), g3 = Lbl("&Start:", 2);
             cGwk.DropDownStyle = ComboBoxStyle.DropDownList; cGwk.SetBounds(FldX, Row(0) - 2, FldW, 24); for (int i = 1; i <= Math.Max(1, ch.Cfg.GwkAnlagen); i++) cGwk.Items.Add("GWK " + i); Place(cGwk);
@@ -65,8 +65,8 @@ namespace Arbeitsplan.Win
 
             lbDur.SetBounds(LblX, Row(3), LblW, 20); lbDur.AutoSize = false; Place(lbDur);
             Hours(nDur, Row(3)); Place(nDur); Hint("Stunden", 3);
-            Label ab = Lbl("&Zeit zwischen zwei Cycles:", 4); Hours(nGap, Row(4)); Place(nGap); Label abh = Hint("h je Anlage", 4);
-            Label an = Lbl("&Anzahl Cycles:", 5); nCnt.Minimum = 1; nCnt.Maximum = FreezeCalc.MaxCycles; nCnt.SetBounds(FldX, Row(5) - 2, 70, 24); Place(nCnt); Label anh = Hint("1 bis " + FreezeCalc.MaxCycles + ", Anlagen reihum", 5); anh.Width = 200;
+            Label ab = Lbl("Z&eit zwischen zwei Zyklen:", 4); Hours(nGap, Row(4)); Place(nGap); Label abh = Hint("Std. je Anlage", 4); abh.Width = 98;
+            Label an = Lbl("&Anzahl Zyklen:", 5); nCnt.Minimum = 1; nCnt.Maximum = FreezeCalc.MaxCycles; nCnt.SetBounds(FldX, Row(5) - 2, 70, 24); Place(nCnt); Label anh = Hint("1 bis " + FreezeCalc.MaxCycles + ", Anlagen reihum", 5); anh.Width = 200;
             bagOnly.AddRange(new Control[] { ab, nGap, abh, an, nCnt, anh });
             lbEnd.Text = "Ende:"; lbEnd.SetBounds(LblX, Row(4), LblW, 20); lbEndV.SetBounds(FldX, Row(4), 260, 20); Controls.Add(lbEnd); Controls.Add(lbEndV);
             tankOnly.AddRange(new Control[] { lbEnd, lbEndV });
@@ -80,7 +80,7 @@ namespace Arbeitsplan.Win
             cPick.SelectedIndex = 0; Place(cPick);
             RLbl("&Notiz:", 4); tNote.SetBounds(RFldX, Row(4) - 2, RFldW, 54); tNote.Multiline = true; tNote.AcceptsReturn = true; tNote.ScrollBars = ScrollBars.Vertical; Ui.SimpleMenu(tNote); Place(tNote);
 
-            lbCycles.Text = "Cycles – unter „tatsächlicher Start“ eine Zeit eintragen: Folge-Cycles derselben Anlage ziehen nach."; lbCycles.SetBounds(LblX, 240, 756, 18); lbCycles.AutoSize = false; Controls.Add(lbCycles);
+            lbCycles.Text = "Zyklen – unter „tatsächlicher Start“ eine Zeit eintragen: Folge-Zyklen derselben Anlage ziehen nach."; lbCycles.SetBounds(LblX, 240, 756, 18); lbCycles.AutoSize = false; Controls.Add(lbCycles);
             BuildGrid(258);
             lbHint.SetBounds(LblX, 566, 756, 40); lbHint.AutoSize = false; Controls.Add(lbHint);
 
@@ -100,7 +100,7 @@ namespace Arbeitsplan.Win
         void Check(CheckBox k, string text, int row) { k.Text = text; k.AutoSize = false; k.SetBounds(LblX, Row(row) + 1, LblW, 22); Place(k); }
         Label Lbl(string text, int row) { Label l = new Label(); l.Text = text; l.AutoSize = false; l.SetBounds(LblX, Row(row) + 2, LblW, 20); Place(l); return l; }
         Label RLbl(string text, int row) { Label l = new Label(); l.Text = text; l.AutoSize = false; l.SetBounds(RLblX, Row(row) + 2, RLblW, 20); Place(l); return l; }
-        Label Hint(string text, int row) { Label l = new Label(); l.Text = text; l.AutoSize = false; l.ForeColor = SystemColors.GrayText; l.SetBounds(HintX, Row(row) + 2, HintW, 20); Controls.Add(l); return l; }
+        Label Hint(string text, int row) { Label l = new Label(); l.Text = text; l.AutoSize = false; l.ForeColor = Section.HelpColor; l.SetBounds(HintX, Row(row) + 2, HintW, 20); Controls.Add(l); return l; }
 
         static void Setup(DateTimePicker d, int x, int y)
         {
@@ -164,7 +164,7 @@ namespace Arbeitsplan.Win
             bool bag = bagMode = rBag.Checked;
             foreach (Control c in bagOnly) c.Visible = bag;
             foreach (Control c in tankOnly) c.Visible = !bag;
-            lbDur.Text = bag ? "&Dauer je Cycle:" : "&Dauer:";
+            lbDur.Text = bag ? "&Dauer je Zyklus:" : "&Dauer:";
             lbCycles.Visible = grid.Visible = bag;
             int hy = bag ? 566 : 240, by = bag ? 612 : 288;
             lbHint.Top = hy; lbHint.Height = bag ? 40 : 40;
@@ -217,7 +217,7 @@ namespace Arbeitsplan.Win
 
         void Remove()
         {
-            if (MessageBox.Show(this, "Diesen Freeze-Vorgang wirklich entfernen?\nAlle Cycles und tatsächlichen Starts gehen aus dem Plan.", "Arbeitsplan", MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button2) != DialogResult.Yes) return;
+            if (MessageBox.Show(this, "Diesen Freeze-Vorgang wirklich entfernen?\nAlle Zyklen und tatsächlichen Starts gehen aus dem Plan.", "Arbeitsplan", MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button2) != DialogResult.Yes) return;
             ch.Action = FreezeChoice.Act.Remove; DialogResult = DialogResult.OK;
         }
     }

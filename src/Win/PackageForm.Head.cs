@@ -38,9 +38,9 @@ namespace Arbeitsplan.Win
             tName.Width = 150; tProduct.Width = 80; tFirst.Width = 104;
             headItems.Add(new Control[] { null, cbType });
             headItems.Add(new Control[] { Head_("Produkt:", big, h), tName });
-            headItems.Add(new Control[] { Head_("Code:", big, h), tProduct });
+            headItems.Add(new Control[] { Head_("Produktcode:", big, h), tProduct });
             headItems.Add(new Control[] { Head_("Erste Laufnummer:", big, h), tFirst });
-            lPackNo = Head_("Packen-Nr.:", big, h); lPackNo.Width = Math.Max(lPackNo.Width, TextRenderer.MeasureText("Laufnummer:", big).Width + 4); tPackNo.Width = 104;
+            lPackNo = Head_("Nr. für Packen:", big, h); lPackNo.Width = Math.Max(lPackNo.Width, TextRenderer.MeasureText("Laufnummer:", big).Width + 4); tPackNo.Width = 104;
             headItems.Add(new Control[] { lPackNo, tPackNo });   // Packen-Nr. (PackageForm.PackNo.cs)
             headItems.Add(new Control[] { Head_("Läufe:", big, h), nRuns });
             headItems.Add(new Control[] { Head_("Lauf 1 am:", big, h), dtLauf1 });
@@ -102,7 +102,7 @@ namespace Arbeitsplan.Win
             lRuns.Visible = avail >= 200;
             lRuns.SetBounds(x, y, Math.Max(40, avail), h);
             int nh = y + h + 8;
-            if (headPanel.Height != nh) headPanel.Height = nh;
+            if (headPanel.Height != nh) { headPanel.Height = nh; if (paneWant > 0) ClampPane(); }   // Kopfhoehe aendert den Platz fuer Abschnitt 3
         }
 
         // Typ und "Lauf 1 am" aus dem Paket in die Felder uebernehmen (beim Laden)

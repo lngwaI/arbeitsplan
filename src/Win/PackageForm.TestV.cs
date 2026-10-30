@@ -51,7 +51,7 @@ namespace Arbeitsplan.Win
 
                 // Hoehe: Standard, verstellen (gemerkt), Mindesthoehe, Obergrenze, neuer Editor liest den Wert; Felder wachsen mit
                 int h0 = f.paneWrap.Height, hh0 = f.lbHints.Height, sh0 = f.strip.Height, ph0 = f.previewScroll.Height;
-                bool noFile = !File.Exists(tmp) && h0 == f.PaneMin + 24;
+                bool noFile = !File.Exists(tmp) && h0 == Math.Min(f.PaneMin + 24, f.PaneMax);   // kleines Fenster: Vorschau schrumpft (PaneMax)
                 f.TestPaneMoved(h0 + 60); Application.DoEvents();
                 bool grow = f.paneWrap.Height == h0 + 60 && f.lbHints.Height == hh0 + 60 && f.strip.Height == sh0 + 60 && f.previewScroll.Height == ph0 + 60 && Pref("Hoehe3") == (h0 + 60).ToString();
                 f.TestPaneMoved(10); bool min = f.paneWrap.Height == f.PaneMin && Pref("Hoehe3") == f.PaneMin.ToString();
@@ -59,9 +59,9 @@ namespace Arbeitsplan.Win
                 f.TestPaneMoved(h0 + 60); Application.DoEvents();
                 g = new PackageForm(store, equip, start, Package.SampleCampaign("TestV2"), true, true);
                 g.StartPosition = FormStartPosition.Manual; g.Location = new Point(0, 0); g.Show(); Application.DoEvents();
-                bool load = g.paneWrap.Height == Math.Min(h0 + 60, g.PaneMax) && g.paneWrap.Height > g.PaneMin;
+                bool load = g.paneWant == h0 + 60 && g.paneWrap.Height == Math.Min(h0 + 60, g.PaneMax) && g.paneWrap.Height >= g.PaneMin;   // gemerkt = Wunsch; angezeigt begrenzt (kleines Fenster)
                 return "Paket-Editor Vorschau: Kalender-Zeilen in Planreihenfolge " + T(order) + ", Blättern 1 bis n " + T(page) + ", Kalender und Vorschau synchron " + T(sync)
-                    + ", Höhe ändern, Felder wachsen " + T(noFile && grow) + ", Mindesthöhe " + T(min) + ", Obergrenze " + T(max) + ", Höhe gemerkt und geladen " + T(load);
+                    + ", Höhe ändern, Felder wachsen " + T(noFile && grow) + (noFile && grow ? "" : " [h0=" + h0 + " min=" + f.PaneMin + " max=" + f.PaneMax + " noFile=" + noFile + " grow=" + grow + " cs=" + f.ClientSize + "]") + ", Mindesthöhe " + T(min) + ", Obergrenze " + T(max) + ", Höhe gemerkt und geladen " + T(load);
             }
             catch (Exception ex) { return "Paket-Editor Vorschau: FEHLER " + ex.GetType().Name + ": " + ex.Message; }
             finally

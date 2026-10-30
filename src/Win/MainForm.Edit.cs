@@ -81,7 +81,7 @@ namespace Arbeitsplan.Win
             c.Editing = true; c.Dirty = true;
             view.Selected = c;
             LoadEditors(c);
-            foreach (Control f in fmtControls) f.Enabled = me.Has(Perm.Format);
+            SetFormatBar(true);
             view.Relayout();
             edContent.Focus();
         }
@@ -250,7 +250,7 @@ namespace Arbeitsplan.Win
             c.Show(c.Cur);
             c.Editing = false;
             editCell = null; editChanged = fmtChanged = false;
-            foreach (Control f in fmtControls) f.Enabled = false;
+            SetFormatBar(false);
             ComputeChecks();   // Pflichtpunkt-Zustaende nach dem Speichern
             view.Relayout();
             return true;

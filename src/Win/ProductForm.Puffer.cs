@@ -32,6 +32,7 @@ namespace Arbeitsplan.Win
         readonly ComboBox cbTyp = new ComboBox();
         readonly Panel rows = new Panel();
         readonly Button bPos = new Button();
+        readonly ToolTip tip = new ToolTip();
         readonly ContextMenuStrip posMenu = new ContextMenuStrip();
 
         public PufferPackForm(Catalog cat, ProductProfile prod, bool readOnly = false)
@@ -114,7 +115,8 @@ namespace Arbeitsplan.Win
             else d.Text = p.Ids.Count == 1 ? p.Ids[0] : "";
             CheckBox s = new CheckBox(); s.Text = "gemeinsam"; s.Checked = p.Shared; s.SetBounds(318, y, 92, 22);
             TextBox no = new TextBox(); no.Text = p.Note; no.SetBounds(416, y, 150, 22); Ui.SimpleMenu(no);
-            Button x = Btn("x", 572, y, 26, null);
+            Button x = Btn("✕", 572, y, 26, null);
+            tip.SetToolTip(x, "Zeile entfernen"); tip.SetToolTip(s, "Das Gerät gilt für mehrere Puffer gemeinsam (z. B. WFI-Anschluss)");
             PufferTemplatePos pp = p;
             d.TextChanged += delegate { if (loading || pp.Ids.Count > 1) return; pp.Ids.Clear(); if (d.Text.Trim().Length > 0) pp.Ids.Add(d.Text.Trim()); Preview(); };
             s.CheckedChanged += delegate { if (!loading) { pp.Shared = s.Checked; Preview(); } };

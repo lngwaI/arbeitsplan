@@ -92,7 +92,7 @@ namespace Arbeitsplan.Core
         public bool HasIst, Estimated;   // tatsaechlicher Start eingetragen / Start aus Cycle 1 geschaetzt (C2/C3 ohne Eingabe)
         public DateTime OriginDay = DateTime.MinValue;   // nur Fortsetzungen: Tag des Blocks mit dem Vorgang (FreezeSet.Continuations)
         public DateTime Day { get { return Actual.Date; } }   // ein Cycle gehoert zum Kalendertag seines Starts
-        public string Label { get { return "C" + N; } }
+        public string Label { get { return "Z" + N; } }
     }
 
     public static class FreezeCalc
@@ -161,13 +161,13 @@ namespace Arbeitsplan.Core
             List<string> h = new List<string>();
             if (!f.Valid) return h;
             if (f.Art == FreezeArt.Bag && Count(f) > Anlagen && f.AbstandMin < f.DauerMin)
-                h.Add("Abstand (" + Dur(f.AbstandMin) + ") ist kleiner als die Dauer (" + Dur(f.DauerMin) + "): die Anlage ist beim nächsten Cycle noch belegt.");
+                h.Add("Abstand (" + Dur(f.AbstandMin) + ") ist kleiner als die Dauer (" + Dur(f.DauerMin) + "): die Anlage ist beim nächsten Zyklus noch belegt.");
             if (f.Art == FreezeArt.Bag)
                 for (int n = Anlagen + 1; n <= Count(f); n++)
                 {
                     DateTime e;
                     if (f.Ist.TryGetValue(n, out e) && e < Actual(f, n - Anlagen).AddMinutes(f.DauerMin))
-                        h.Add("C" + n + " startet vor dem Ende von C" + (n - Anlagen) + " (gleiche Anlage).");
+                        h.Add("Z" + n + " startet vor dem Ende von Z" + (n - Anlagen) + " (gleiche Anlage).");
                 }
             return h;
         }

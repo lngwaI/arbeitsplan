@@ -124,6 +124,7 @@ namespace Arbeitsplan.Win
             Size cs = new Size(1280, 720);
             if (sz != null) cs = new Size(int.Parse(sz.Split('x')[0]), int.Parse(sz.Split('x')[1]));
             if (Arg(args, "--weeks") == "2") MainForm.TestWeeks = 2;
+            MainForm.TestSizeGiven = sz != null;
             // Test: --data <ordner> nutzt die verschluesselte Datendatei (wie Release) statt der Testdaten; Testadmin mmuster
             Arbeitsplan.Core.AppConfig cfg = null;
             Arbeitsplan.Core.FileStore fs = null;

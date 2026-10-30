@@ -25,6 +25,7 @@ namespace Arbeitsplan.Win
         readonly Button bPos = new Button(), bMore = new Button();
         readonly ContextMenuStrip menuPos = new ContextMenuStrip();
         bool laying, more;
+        string markerTip = "";
 
         static void Grow(params Control[] cs) { foreach (Control c in cs) c.Anchor = TLR; }
         static void Gray(params Label[] ls) { foreach (Label l in ls) l.ForeColor = Section.HelpColor; }
@@ -57,7 +58,7 @@ namespace Arbeitsplan.Win
 
             // Was? Wo im Plan? – der Raum steht direkt unter dem Titel
             gWhat = Group("Was? Wo im Plan?", "Titel, Raum (Block im Plan) und Art des Schritts", 280);
-            int lw = LabelW("Unterlauf-Nr.:", "Titel:", "Wo im Plan?", "Art:", "Puffer-Typ:", "Gebinde:", "Laufnummer (von Hand):"), x = 8 + lw, w = 280 - 8 - x;
+            int lw = LabelW("Unterlauf-Nr.:", "Titel:", "Wo im Plan?", "Art:", "Puffer-Typ:", "Gebinde:", "Nr. von Hand:"), x = 8 + lw, w = 280 - 8 - x;
             lTitle = Lbl(gWhat, "Titel:", 8, lw); tTitle.SetBounds(x, 0, w, IH);
             lRow = Lbl(gWhat, "Wo im Plan?", 8, lw); lRow.Font = new Font(Font, FontStyle.Bold);
             cbRow.SetBounds(x, 0, w, IH); cbRow.DropDownStyle = ComboBoxStyle.DropDownList; cbRow.Items.AddRange(rowNames.ToArray());
@@ -65,8 +66,8 @@ namespace Arbeitsplan.Win
             tip.SetToolTip(cbRow, "Raum (Block) im Plan, in dem der Schritt steht. Beim Kampagnenstart je Lauf änderbar.");
             lKind = Lbl(gWhat, "Art:", 8, lw); cbKind.SetBounds(x, 0, w, IH); cbKind.DropDownStyle = ComboBoxStyle.DropDownList;
             cbKind.Items.AddRange(new object[] { "Sonstiges (ohne Laufnummer)", "Lauf-Schritt mit Laufnummer", "Unterlauf (Splitten/Einfrieren)" });   // Eintrag 2: beim Hauptlauf "Hauptlauf"
-            lManual = Lbl(gWhat, "Laufnummer (von Hand):", 8, lw); tManualNo.SetBounds(x, 0, w, IH); tManualNo.MaxLength = 8; gWhat.Controls.Add(tManualNo);
-            tip.SetToolTip(tManualNo, "Nummer des Packens, 8 Ziffern (z. B. 12340001); wird nicht vorgeschlagen. Kommt aus „Packen-Nr.“ im Kopf, hier nur ändern, wenn dieser Schritt eine andere hat. Im Plan: „Packen (Nr. 12340001)“, zählt nicht als Kampagnenlauf.");
+            lManual = Lbl(gWhat, "Nr. von Hand:", 8, lw); tManualNo.SetBounds(x, 0, w, IH); tManualNo.MaxLength = 8; gWhat.Controls.Add(tManualNo);
+            tip.SetToolTip(tManualNo, "Nummer des Packens, 8 Ziffern (z. B. 12340001); wird nicht vorgeschlagen. Kommt aus „Nr. für Packen“ im Kopf, hier nur ändern, wenn dieser Schritt eine andere hat. Im Plan: „Packen (Nr. 12340001)“, zählt nicht als Kampagnenlauf.");
             BuildManualHint(gWhat, x, w);
             lVar = Lbl(gWhat, "Puffer-Typ:", 8, lw);
             tip.SetToolTip(lVar, "Ergibt sich aus dem Baustein (Puffer mobil / Puffer stationär); ein Schritt = ein Puffer.");
@@ -220,8 +221,10 @@ namespace Arbeitsplan.Win
             int n = cur != null ? No(cur) : 0;
             marker.Active = cur != null;
             marker.Text = cur != null
-                ? "Du bearbeitest gerade: Schritt " + n + " von " + steps.Count + " – " + TitleOf(cur) + "   (" + WhenText(cur) + ", " + (cur.Row.Length > 0 ? cur.Row : "Raum fehlt") + ")"
+                ? "Schritt " + n + " von " + steps.Count + " – " + TitleOf(cur)
                 : "Kein Schritt gewählt – links im Ablauf einen Schritt anklicken oder „+ Schritt hinzufügen“.";
+            string mtip = cur != null ? "Du bearbeitest gerade diesen Schritt: " + TitleOf(cur) + " (" + WhenText(cur) + ", " + (cur.Row.Length > 0 ? cur.Row : "Raum fehlt") + ")" : "";
+            if (mtip != markerTip) { markerTip = mtip; tip.SetToolTip(marker, mtip); }
             marker.Invalidate();
             UpdateRunsLabel();
             bUp.Enabled = bDown.Enabled = bDup.Enabled = bDel.Enabled = cur != null;

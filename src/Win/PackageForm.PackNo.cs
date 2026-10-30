@@ -23,7 +23,7 @@ namespace Arbeitsplan.Win
         void SyncPackNo()
         {
             bool show = PackSteps().Count > 0 && !(pk.Type == PackageType.Ereignis && pk.TypeIsSet);
-            string t = pk.Type == PackageType.Einzel ? "Laufnummer:" : "Packen-Nr.:";
+            string t = pk.Type == PackageType.Einzel ? "Laufnummer:" : "Nr. für Packen:";
             if (lPackNo.Text != t) lPackNo.Text = t;
             if (show != packShow) { packShow = show; LayoutHead(headH); }
         }
@@ -40,7 +40,7 @@ namespace Arbeitsplan.Win
         string PackNoError()
         {
             string t = tPackNo.Text.Trim();
-            return packShow && t.Length > 0 && !PackageStep.IsManualNo(t) ? "Packen-Nr.: bitte 8 Ziffern eingeben (z. B. 12340001)." : null;
+            return packShow && t.Length > 0 && !PackageStep.IsManualNo(t) ? "Nr. für Packen: bitte 8 Ziffern eingeben (z. B. 12340001)." : null;
         }
 
         void PackNoTyped()
@@ -77,8 +77,8 @@ namespace Arbeitsplan.Win
         string ManualHint(PackageStep s)
         {
             if (packPrev.Length == 0) return "";
-            if (s.ManualNo.Length == 0 || s.ManualNo == packPrev) return "leer oder gleich = wie Packen-Nr. im Kopf (" + packPrev + ")";
-            return "weicht vom Kopf ab (Packen-Nr.: " + packPrev + ")";
+            if (s.ManualNo.Length == 0 || s.ManualNo == packPrev) return "leer oder gleich = wie Nr. für Packen im Kopf (" + packPrev + ")";
+            return "weicht vom Kopf ab (Nr. für Packen: " + packPrev + ")";
         }
 
         void BuildManualHint(Control parent, int x, int w)

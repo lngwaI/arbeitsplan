@@ -78,9 +78,9 @@ namespace Arbeitsplan.Win
 
             // Hinweise
             Package hn = Package.SampleCampaign("hinweis");
-            bool hPack = Has(hn.Check(), "packen", Severity.Hinweis);
+            bool hPack = Has(hn.Check(), "packen", Severity.Info);
             hn.Steps[0].ManualNo = "12340001";
-            bool hPack2 = !Has(hn.Check(), "packen", Severity.Hinweis);
+            bool hPack2 = !Has(hn.Check(), "packen", Severity.Info);
             Package ht = Package.SampleCampaign("frueh"); ht.Steps[2].Day = 70;
             bool hFrueh = Has(ht.Check(), "frueh", Severity.Hinweis) && !Has(good.Check(), "frueh", Severity.Hinweis);
             Package he = Package.SampleCampaign("every"); he.Steps[3].RunEvery = 2;

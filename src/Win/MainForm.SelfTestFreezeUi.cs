@@ -66,7 +66,7 @@ namespace Arbeitsplan.Win
                 f.TestSetIst(6, "");
                 okBad = bad1 && !f.TestHint.Contains("nicht lesbar");
                 f.TestSetIst(4, "03.03. 15:00");   // vor dem Ende von C1 (18:00): nur ein Hinweis
-                bool hint1 = f.TestHint.Contains("C4 startet vor dem Ende von C1");
+                bool hint1 = f.TestHint.Contains("Z4 startet vor dem Ende von Z1");
                 f.TestClickReset(4);
                 okHint = hint1 && !f.TestHint.Contains("startet vor");
                 f.TestSetArt(false);
@@ -128,7 +128,7 @@ namespace Arbeitsplan.Win
                 // 2) Anzeige: Vorgang am Starttag (C1/C2 auf zwei Anlagen), Fortsetzung am Folgetag (C3..C8), Hoehen ohne Ueberlappung
                 CellData wc = CellOf(fr, 2), tc = CellOf(fr, 3);
                 string headTxt = ""; foreach (List<Item> ln in wc.FrzParts[0].Head.Lines) foreach (Item it in ln) headTxt += it.Text;
-                bool okOwn = wc.FrzParts.Count == 1 && !wc.FrzParts[0].Cont && wc.FrzParts[0].Segs.Count == 2 && wc.FrzParts[0].Segs[0].Runs[0].Text == "C1" && wc.FrzParts[0].Segs[1].Y > wc.FrzParts[0].Segs[0].Y
+                bool okOwn = wc.FrzParts.Count == 1 && !wc.FrzParts[0].Cont && wc.FrzParts[0].Segs.Count == 2 && wc.FrzParts[0].Segs[0].Runs[0].Text == "Z1" && wc.FrzParts[0].Segs[1].Y > wc.FrzParts[0].Segs[0].Y
                     && headTxt.Replace(" ", "") == PlanView.FreezeHead(e.Freezes[0]).Replace(" ", "") && headTxt.StartsWith("Bag-Freeze");
                 bool okCont = tc.Conts.Count == 6 && tc.FrzParts.Count == 1 && tc.FrzParts[0].Cont && tc.FrzParts[0].Origin == d2 && tc.FrzParts[0].Id == "f1" && tc.FrzParts[0].Segs.Count == 6
                     && tc.FrzParts[0].Segs[0].Runs[0].Font.Italic && tc.FrzParts[0].Head.Lines[0][0].Text == "(aus";
@@ -142,8 +142,8 @@ namespace Arbeitsplan.Win
                 freezeTest = delegate(FreezeChoice ch) { ch.Item.Ist[4] = d3.AddHours(8); return true; };
                 view.TestClick(view.FreezePoint(wc, 0));
                 e = store.Get(d2, fid); tc = CellOf(fr, 3);
-                bool okIst = e.Freezes[0].Ist.Count == 1 && tc.FrzParts.Count == 1 && FzuNext(tc.FrzParts[0], "C4", "(+3 h)") && FzuNext(tc.FrzParts[0], "C7", "(+3 h)") && FzuHas(tc.FrzParts[0], "C7", "15:00")
-                    && !FzuNext(tc.FrzParts[0], "C5", "(+3 h)") && store.GetAudit(d2, fid).Count == au.Count + 1;
+                bool okIst = e.Freezes[0].Ist.Count == 1 && tc.FrzParts.Count == 1 && FzuNext(tc.FrzParts[0], "Z4", "(+3 h)") && FzuNext(tc.FrzParts[0], "Z7", "(+3 h)") && FzuHas(tc.FrzParts[0], "Z7", "15:00")
+                    && !FzuNext(tc.FrzParts[0], "Z5", "(+3 h)") && store.GetAudit(d2, fid).Count == au.Count + 1;
                 // 5) Konflikt: ein anderer PC aendert den Vorgang waehrend des Dialogs (Notiz); meine Korrektur C5 wird eingearbeitet, die fremde Notiz bleibt
                 freezeTest = delegate(FreezeChoice ch)
                 {

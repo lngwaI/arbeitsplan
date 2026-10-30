@@ -14,7 +14,9 @@ namespace Arbeitsplan.Win
         readonly Panel paneWrap = new Panel();
         readonly Splitter paneSplit = new PaneSplitter();
         int paneWant;                       // gewuenschte Hoehe (gemerkt); die angezeigte kann bei kleinem Fenster kleiner sein
-        const int MiddleMin = 240;          // Platz, der Abschnitt 1 und 2 mindestens bleibt
+        const int MiddleMin = 360;          // Platz, der Abschnitt 1 und 2 standardmaessig bleibt (kleines Fenster: Vorschau schrumpft bis PaneMin)
+        const int MiddleHard = 240;         // Untergrenze, wenn der Nutzer den Teiler selbst zieht
+        bool paneDragged;
 
         // Datei der gemerkten Einstellungen (Tests setzen einen anderen Pfad)
         internal static string PrefsFile = Path.Combine(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), Arbeitsplan.Core.AppId.Dir), "paketeditor.ini");
@@ -25,7 +27,7 @@ namespace Arbeitsplan.Win
             get
             {
                 int fixedH = crumbs.Height + (headPanel != null ? headPanel.Height : 0) + Theme.Current.ButtonH + 14 + paneSplit.Height;
-                return Math.Max(PaneMin, ClientSize.Height - fixedH - MiddleMin);
+                return Math.Max(PaneMin, ClientSize.Height - fixedH - (paneDragged ? MiddleHard : MiddleMin));
             }
         }
 
@@ -33,13 +35,13 @@ namespace Arbeitsplan.Win
         {
             int saved = PrefInt("Hoehe3");
             paneWant = saved > 0 ? saved : PaneMin + 24;
-            paneSplit.Dock = DockStyle.Bottom; paneSplit.Height = 7; paneSplit.Tag = "keep"; paneSplit.MinSize = PaneMin; paneSplit.MinExtra = MiddleMin;
+            paneSplit.Dock = DockStyle.Bottom; paneSplit.Height = 7; paneSplit.Tag = "keep"; paneSplit.MinSize = PaneMin; paneSplit.MinExtra = MiddleHard;
             paneSplit.SplitterMoved += delegate { PaneMoved(); };
             tip.SetToolTip(paneSplit, "Ziehen = Höhe von „3 Vorschau & Prüfung“ ändern (wird gemerkt)");
             ClampPane();
         }
 
-        void PaneMoved() { paneWant = paneWrap.Height; ClampPane(); SetPref("Hoehe3", paneWrap.Height.ToString()); }
+        void PaneMoved() { paneWant = paneWrap.Height; paneDragged = true; ClampPane(); SetPref("Hoehe3", paneWrap.Height.ToString()); }
 
         // Angezeigte Hoehe = gewuenschte, begrenzt auf Mindesthoehe und den Platz im Fenster
         void ClampPane()

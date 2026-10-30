@@ -35,7 +35,7 @@ namespace Arbeitsplan.Win
             grid.ColumnHeadersDefaultCellStyle.SelectionBackColor = grid.ColumnHeadersDefaultCellStyle.BackColor;
             grid.DefaultCellStyle.SelectionBackColor = Color.FromArgb(255, 236, 190); grid.DefaultCellStyle.SelectionForeColor = Color.Black;
             grid.GridColor = Color.FromArgb(214, 219, 228);
-            AddCol("Cycle", 60, true); AddCol("Anlage", 70, true); AddCol("geplanter Start", 150, true); AddCol("tatsächlicher Start", 160, false); AddCol("Ende", 130, true); AddCol("Verzögerung", 90, true);
+            AddCol("Zyklus", 60, true); AddCol("Anlage", 70, true); AddCol("geplanter Start", 150, true); AddCol("tatsächlicher Start", 160, false); AddCol("Ende", 130, true); AddCol("Verzögerung", 90, true);
             DataGridViewLinkColumn lk = new DataGridViewLinkColumn(); lk.HeaderText = ""; lk.Width = 96; lk.SortMode = DataGridViewColumnSortMode.NotSortable; lk.ReadOnly = true;
             lk.LinkColor = lk.VisitedLinkColor = Color.FromArgb(0, 105, 180); grid.Columns.Add(lk);
             grid.Columns[ColStart].HeaderCell.ToolTipText = "Zeit eintragen (z. B. 02:30 oder 05.03. 02:30). Leer = berechnet.";
@@ -93,7 +93,7 @@ namespace Arbeitsplan.Win
             List<string> hints = FreezeCalc.Hints(it);
             if (msg.Length > 0) { lbHint.ForeColor = Color.FromArgb(185, 30, 30); lbHint.Text = msg; }
             else if (hints.Count > 0) { lbHint.ForeColor = Color.FromArgb(170, 80, 0); lbHint.Text = "Hinweis: " + string.Join("\n", hints.ToArray()); }
-            else { lbHint.ForeColor = SystemColors.GrayText; lbHint.Text = it.Art == FreezeArt.Bag ? "Cycle n läuft auf Anlage ((n − 1) mod 3) + 1. Gespeichert werden nur Ihre Eingaben; alle weiteren Zeiten werden berechnet." : "Der Tank-Freeze hat einen Start und eine Dauer."; }
+            else { lbHint.ForeColor = Section.HelpColor; lbHint.Text = it.Art == FreezeArt.Bag ? "Zyklus n läuft auf Anlage ((n − 1) mod 3) + 1. Gespeichert werden nur Ihre Eingaben; alle weiteren Zeiten werden berechnet." : "Der Tank-Freeze hat einen Start und eine Dauer."; }
         }
 
         // Eingabe in "tatsaechlicher Start": leer oder gleich dem berechneten Wert = kein Ist; sonst Ist setzen (Folge-Cycles derselben Anlage folgen)

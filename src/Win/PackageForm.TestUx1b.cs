@@ -32,7 +32,8 @@ namespace Arbeitsplan.Win
                 EquipPosition p = c.Position(row[0]);
                 for (int i = 1; i < row.Length; i++) if (p != null && !p.Ids.Contains(row[i])) p.Ids.Add(row[i]);
             }
-            store.SaveCatalog(c);
+            try { store.SaveCatalog(c); }
+            catch (System.IO.IOException) { }   // --nosave (simulierter System-PC): Testbild ohne gespeicherten Katalog statt unbehandelter Ausnahme
         }
 
         // Kampagne + Puffer-Schritt mit zwei Puffern (Loesung A: Ansatztank, Vorlagetank, Tween; Loesung B: Ansatztank, Vorlagetank) und gemeinsamem WFI-Tank

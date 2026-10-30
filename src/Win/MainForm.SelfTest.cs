@@ -13,6 +13,7 @@ namespace Arbeitsplan.Win
     partial class MainForm
     {
         public static int TestWeeks = 1;
+        public static bool TestSizeGiven;   // --size angegeben: auch die uebrigen --form-Dialoge bekommen diese Groesse
         SecondWeek week2;
 
         void SetWeeks(int n)
@@ -108,7 +109,8 @@ namespace Arbeitsplan.Win
             }
             if (which.StartsWith("rt:")) demo = Package.Load(which.Substring(3));   // Roundtrip: Datei laden, im Editor unveraendert wieder speichern (.rt.apkg)
             if (which == "campaign2")   // fruehere Kampagne (Laeufe 1-4, Abstaende 5, 5, 7) sechs Wochen vorher
-                Package.SampleCampaign("alt").Apply(store, start.AddDays(-42), ApplyMode.Overwrite, Package.SampleCampaign("alt").Schedule(new List<int>(new[] { 5, 5, 7 })));
+                try { Package.SampleCampaign("alt").Apply(store, start.AddDays(-42), ApplyMode.Overwrite, Package.SampleCampaign("alt").Schedule(new List<int>(new[] { 5, 5, 7 }))); }
+                catch (System.IO.IOException) { }   // --nosave: ohne Vorkampagne
             Form f;
             if (which == "campaign2") { CampaignForm cf = new CampaignForm(demo, store, start, ApplyMode.Overwrite); cf.SetRoom(7, "Suite 2", false); f = cf; }
             else if (which == "campaign3" || which == "campaign4")   // Kampagnenstart: 5 Laeufe, Packen-Nummer, Lauf 3 faellt aus / Einzelpaket
@@ -141,7 +143,7 @@ namespace Arbeitsplan.Win
             else if (which == "duties") f = new DutiesForm(store.GetDuties(), store.GetRows());
             else if (which == "equipexport")
             {
-                SelfTestEquipExport(null);
+                try { SelfTestEquipExport(null); } catch (System.IO.IOException) { }   // --nosave
                 f = new EquipExportForm(store, start, null);
             }
             else if (which == "openduties") { DateTime mon = ShownWeek; f = new OpenDutiesForm("Offen in " + PlanView.WeekTitle(mon), delegate(int w) { return OpenDuties.List(store, store.GetDuties(), store.GetRows(), mon, w, DateTime.Today); }); }
@@ -175,6 +177,7 @@ namespace Arbeitsplan.Win
             f.StartPosition = FormStartPosition.Manual; f.Location = new Point(0, 0); f.TopMost = true;
             PackageForm pf = f as PackageForm;
             if (pf != null && ClientSize.Width < 1190) pf.Size = ClientSize;   // --size 1024x768: Editor wie auf einem kleinen Bildschirm
+            if (pf == null && TestSizeGiven) f.ClientSize = ClientSize;        // übrige Dialoge: Größe aus --size
             if (pf != null && which.StartsWith("rt:")) pf.Text = pf.TestSave(which.Substring(3) + ".rt.apkg");
             f.Show();
             if (pf != null && which == "package2") pf.SelectStep(1);
@@ -392,6 +395,7 @@ namespace Arbeitsplan.Win
             SelfTestFreezeUi(sb);   // F2: Freeze-Oberflaeche (Dialog, Speichern, Anzeige, Struktur) (MainForm.SelfTestFreezeUi.cs)
             sb.Append(PackageForm.TestUx5f(equip, start));   // N5: Leiste "nicht in der Equipment-Liste", Vormerkung (PackageForm.TestUx5f.cs)
             SelfTestN7(sb);   // N7: Review-Befunde Paket-Editor + Puffer (MainForm.SelfTestN7.cs)
+            SelfTestUX7(sb);  // UX-7: Usability-Befunde (Details bei 1024x768, Enter/Esc, Hinweis Info, Datumsformat, Klartext, Zyklus) (MainForm.SelfTestUX7.cs)
             using (MainForm mx = new MainForm("ux4", true, null, null)) { mx.FitToCursorScreen(); sb.AppendLine("UX4 Hauptfenster startet maximiert: " + Ok(mx.WindowState == FormWindowState.Maximized)); }
             quiet = false;
             return sb.ToString();

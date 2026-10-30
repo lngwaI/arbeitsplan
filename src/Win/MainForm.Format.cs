@@ -20,6 +20,8 @@ namespace Arbeitsplan.Win
             fmtBar.Visible = me.Has(Perm.Format);
             int x = 6;
             Label l = new Label(); l.Text = "Textformat:"; l.AutoSize = true; l.Location = new Point(x, 9); fmtBar.Controls.Add(l); x += 78;
+            fmtHint = new Label(); fmtHint.Text = "Textformat (Schrift, Größe, Farbe): erst im Bearbeitungsmodus – Doppelklick auf einen Block"; fmtHint.AutoSize = true; fmtHint.Location = new Point(6, 9); fmtHint.ForeColor = Section.HelpColor; fmtBar.Controls.Add(fmtHint);   // gleiche Hoehe: Plan springt nicht
+            fmtLabel = l;
             cbFont.DropDownStyle = ComboBoxStyle.DropDownList; cbFont.SetBounds(x, 5, 130, 22); cbFont.Items.AddRange(FontNames); cbFont.SelectedIndex = 0;
             cbFont.SelectedIndexChanged += delegate { if (!syncingFormat) ChangeFont(delegate(Font f) { return MakeFont(cbFont.SelectedIndex == 0 ? plainFont.Name : cbFont.SelectedItem.ToString(), f.SizeInPoints, f.Style); }); };
             x += 136;
@@ -46,7 +48,16 @@ namespace Arbeitsplan.Win
             foreach (Button sb in new Button[] { btnBold, btnItalic, more, clear }) Theme.Current.StyleButton(sb);
             fmtBar.Controls.Add(more); fmtBar.Controls.Add(clear);
             fmtControls.AddRange(new Control[] { cbFont, cbSize, btnBold, btnItalic, more, clear });
-            foreach (Control c in fmtControls) c.Enabled = false;
+            SetFormatBar(false);
+        }
+
+        Label fmtHint, fmtLabel;
+
+        // Formatleiste nur im Bearbeitungsmodus zeigen (Leiste behaelt ihre Hoehe); sonst ein Hinweis an gleicher Stelle
+        void SetFormatBar(bool editing)
+        {
+            foreach (Control c in fmtControls) { c.Enabled = editing && me.Has(Perm.Format); c.Visible = editing; }
+            fmtLabel.Visible = editing; fmtHint.Visible = !editing;
         }
 
         ContextMenuStrip BuildContentMenu()

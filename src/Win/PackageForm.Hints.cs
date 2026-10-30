@@ -19,8 +19,8 @@ namespace Arbeitsplan.Win
             PackageStep ps2 = p.Step2 >= 0 && p.Step2 < steps.Count ? steps[p.Step2] : null;
             int ix = ps != null ? o.IndexOf(ps) : -1;
             Control fld = p.Code == "ident" ? tIdent : (p.Code == "number" ? (ps != null && ps.Kind != StepKind.Normal ? (Control)tFirst : nStartNo) : null);
-            Hint h = new Hint((p.Blocks ? "SPERRE – " : "") + (ix >= 0 ? "Schritt " + (ix + 1) + ": " : "") + p.Full, ps, fld);
-            h.Blocks = p.Blocks; h.Code = p.Code; h.Run = p.Run; h.Step2 = ps2; h.Run2 = p.Run2;
+            Hint h = new Hint((p.Blocks ? "SPERRE – " : p.IsInfo ? "Info – " : "") + (ix >= 0 ? "Schritt " + (ix + 1) + ": " : "") + p.Full, ps, fld);
+            h.Blocks = p.Blocks; h.Info = p.IsInfo; h.Code = p.Code; h.Run = p.Run; h.Step2 = ps2; h.Run2 = p.Run2;
             if (p.Code == "pufdoppelt") NoteDup(p, ps, ps2);   // betroffene Karten rot (PackageForm.PufferCards.cs)
             return h;
         }
@@ -66,7 +66,8 @@ namespace Arbeitsplan.Win
         static List<Hint> BlocksFirst(List<Hint> h)
         {
             List<Hint> r = h.FindAll(delegate(Hint x) { return x.Blocks; });
-            r.AddRange(h.FindAll(delegate(Hint x) { return !x.Blocks; }));
+            r.AddRange(h.FindAll(delegate(Hint x) { return !x.Blocks && !x.Info; }));
+            r.AddRange(h.FindAll(delegate(Hint x) { return x.Info; }));   // Infos zuletzt
             return r;
         }
 
