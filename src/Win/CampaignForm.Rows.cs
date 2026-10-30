@@ -127,7 +127,7 @@ namespace Arbeitsplan.Win
             DataGridViewRow row = grid.Rows[i];
             bool sk = skipped[i], busy = IsBusy(i);
             row.Cells[cLabel].Value = sched[i].Label;
-            row.Cells[cRel].Value = pkg.RelText(sched[i].Day + Off(i), effHead) + (busy ? " · belegt" : "");
+            row.Cells[cRel].Value = pkg.RelTextOf(sched[i], sched[i].Day + Off(i), effHead) + (busy ? " · belegt" : "");
             row.Cells[cRel].Style.BackColor = busy ? Belegt : Color.Empty;
             row.Cells[cProp].Value = Ui.DayText(Proposed(i));
             row.Cells[cWant].Value = Ui.DayText(Proposed(i).AddDays(Off(i)));

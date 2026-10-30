@@ -18,7 +18,7 @@ namespace Arbeitsplan.Win
             PackageStep pk = new PackageStep(); pk.Title = "Packen"; pk.Source = Package.PackenName; pk.Row = "Suite 1"; pk.Day = 1;
             EquipAssign a = new EquipAssign(); a.Short = "TFF"; a.Choices.Add(new EquipChoice("TFF", "H1-X-0101")); a.Fallback = "H1-X-0102"; pk.Equipment.Add(a);
             PackageStep bk = Package.MakeBackup(pk, bb);
-            PackageStep lf = new PackageStep(); lf.Title = "Lauf"; lf.Source = "Lauf"; lf.Row = "Suite 1"; lf.Day = 4; lf.Kind = StepKind.Run;
+            PackageStep lf = new PackageStep(); lf.Title = "Lauf"; lf.Source = "Lauf"; lf.Row = "Suite 1"; lf.Day = 6; lf.Kind = StepKind.Run;
             p.Steps.Add(pk); p.Steps.Add(bk); p.Steps.Add(lf);
             bool okMake = bb != null && bk.Day == 2 && bk.Row == "Suite 1" && bk.BackupOf == "Packen" && bk.Equipment.Count == 1 && bk.Equipment[0].Choices[0].Id == "H1-X-0102"
                 && bk.Compose(0, "").Contains("TFF: H1-X-0102") && Package.BackupProblem(p.Steps) == null;
@@ -49,7 +49,7 @@ namespace Arbeitsplan.Win
                 cf.TestShiftFollowing = false; cf.Shift(0, 2);
                 List<RunDate> sc = cf.Schedule;
                 RunDate rp = sc.Find(delegate(RunDate r) { return r.Step == 0; }), rb = sc.Find(delegate(RunDate r) { return r.Step == 1; }), rl = sc.Find(delegate(RunDate r) { return r.Step == 2; });
-                bool okCf = rb.Day == rp.Day + 1 && rp.Day == 5 && rl.Day == 4;
+                bool okCf = rb.Day == rp.Day + 1 && rp.Day == 5 && rl.Day == 6;
                 cf.SetRoom(0, "Suite 2", false);
                 sc = cf.Schedule;
                 okCf &= sc.Find(delegate(RunDate r) { return r.Step == 1; }).Row == "Suite 2";

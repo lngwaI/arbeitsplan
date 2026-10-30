@@ -11,16 +11,17 @@ namespace Arbeitsplan.Core
     {
         public string Id = "", Name = "", Typ = "", Text = "";
         public int LaufRef;   // Nummer des Laufs, den dieser Puffer bedient (UX-5b, setzt Package.Apply; 0 = unbekannt, alte Daten)
+        public string LaufNo = "";   // volle Laufnummer des bedienten Laufs (8 Ziffern, XML "laufnr", setzt Package.Apply; "" = unbekannt). Nie in Name/Text: RunNumbers.Find zaehlte sie als Lauf
         public bool Made;     // hergestellt (N2, nur mit DutyConfig.BufMade sichtbar/wirksam; XML fertig="1", alte Daten = false)
 
         public BufferItem Clone() { return (BufferItem)MemberwiseClone(); }
-        public bool SameCore(BufferItem o) { return o != null && Name == o.Name && Typ == o.Typ && Text == o.Text && LaufRef == o.LaufRef; }   // ohne Made
+        public bool SameCore(BufferItem o) { return o != null && Name == o.Name && Typ == o.Typ && Text == o.Text && LaufRef == o.LaufRef && LaufNo == o.LaufNo; }   // ohne Made
         public bool SameValue(BufferItem o) { return SameCore(o) && Made == o.Made; }
-        public string Key() { return Id + "|" + Typ + "|" + Name + "|" + Text + (LaufRef > 0 ? "|L" + LaufRef : "") + (Made ? "|M" : "") + ";"; }
+        public string Key() { return Id + "|" + Typ + "|" + Name + "|" + Text + (LaufRef > 0 ? "|L" + LaufRef : "") + (LaufNo.Length > 0 ? "|N" + LaufNo : "") + (Made ? "|M" : "") + ";"; }
 
-        // Kopfzeile wie im Plan: "Puffer 2: Name · Lauf 3" (ohne Namen "–", ohne Lauf-Angabe nur "Puffer 2: Name")
+        // Kopfzeile wie im Plan: "Puffer 2: Name · für 12340003" (ohne Nummer "· Lauf 3", ohne Namen "–", ohne Lauf-Angabe nur "Puffer 2: Name")
         public string HeadText(int n) { return "Puffer " + n + ": " + (Name.Length > 0 ? Name : "–") + LaufText; }
-        public string LaufText { get { return LaufRef > 0 ? " · Lauf " + LaufRef : ""; } }
+        public string LaufText { get { return LaufNo.Length > 0 ? " · für " + LaufNo : (LaufRef > 0 ? " · Lauf " + LaufRef : ""); } }
     }
 
     // Hilfsfunktionen fuer Entry.Buffers: Typen (VariantSet), Migration alter Daten, Rechte, Anzeige, Dreiwege-Merge.
@@ -134,6 +135,7 @@ namespace Arbeitsplan.Core
                 w.WriteStartElement("puffer");
                 w.WriteAttributeString("id", b.Id); w.WriteAttributeString("typ", b.Typ); w.WriteAttributeString("name", b.Name);
                 if (b.LaufRef > 0) w.WriteAttributeString("lauf", b.LaufRef.ToString(CultureInfo.InvariantCulture));
+                if (b.LaufNo.Length > 0) w.WriteAttributeString("laufnr", b.LaufNo);
                 if (b.Made) w.WriteAttributeString("fertig", "1");
                 w.WriteString(b.Text);
                 w.WriteEndElement();
@@ -151,6 +153,7 @@ namespace Arbeitsplan.Core
                 BufferItem b = new BufferItem();
                 b.Id = c.GetAttribute("id"); b.Typ = c.GetAttribute("typ"); b.Name = c.GetAttribute("name"); b.Text = c.InnerText.Replace("\r\n", "\n");
                 int lr; if (int.TryParse(c.GetAttribute("lauf"), NumberStyles.Integer, CultureInfo.InvariantCulture, out lr) && lr > 0 && lr < 100000) b.LaufRef = lr;
+                if (PackageStep.IsManualNo(c.GetAttribute("laufnr"))) b.LaufNo = c.GetAttribute("laufnr");
                 b.Made = c.GetAttribute("fertig") == "1";
                 l.Add(b);
             }

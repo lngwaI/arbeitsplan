@@ -101,7 +101,7 @@ namespace Arbeitsplan.Win
                 foreach (RunDate d in plan)
                 {
                     if (d.Step != si) continue;
-                    PlanStrip.Item it = new PlanStrip.Item(); it.Step = s; it.Day = d.Day; it.Run = d.Run; it.Shifted = !je && s.Pinned(d.Run); it.Je = je;
+                    PlanStrip.Item it = new PlanStrip.Item(); it.Step = s; it.Day = d.Day; it.Run = d.Run; it.Shifted = (!je || s.IsBuffer) && s.Pinned(d.Run); it.Je = je;
                     it.Title = TitleOf(s); it.Row = s.Row; it.Bad = StepsView().CardBeforeStart(d, pk.Day1);   // N7: Karte vor dem Start rot
                     it.Sub = s.Numbered ? s.RunNo(prefix, d.Run) : (many ? (je || s.Kind != StepKind.Normal ? "Lauf " : "Termin ") + (d.Run + 1) : "");
                     if (!je && IsPuffer(s) && hasHead) { int fl = StepsView().LaufOf(plan, d); it.Sub = fl >= 0 ? "für Lauf " + (fl + 1) : "ohne Lauf"; }   // UX-5c: Puffer mit eigenem Rhythmus
@@ -147,7 +147,7 @@ namespace Arbeitsplan.Win
                 if (own && s.Repeat == RepeatMode.DayList && PackageStep.ParseDays(s.DayList).Count == 0) h.Add(new Hint(n + ": Termine fehlen (Tage des Ablaufs, z. B. 1, 4, 9).", s, tDays));
                 if (s == cur && tManualNo.Text.Trim().Length > 0 && !PackageStep.IsManualNo(tManualNo.Text.Trim())) h.Add(new Hint(n + ": Laufnummer von Hand muss 8 Ziffern haben (z. B. 12340001).", s, tManualNo));
                 foreach (string t in s.MissingTanks(cat))
-                    h.Add(new Hint(n + ": Tank (" + t + ") nicht gewählt – Gerät wählen oder Ansatz „Flasche/Gebinde“/„Ohne Gebinde“.", s, cbAnsatz));
+                    h.Add(new Hint(n + ": Tank (" + t + ") nicht gewählt – Gerät wählen oder Ansatz „Flasche/Gebinde“.", s, cbAnsatz));
                 foreach (EquipAssign a in s.Equipment)
                     foreach (string id in EquipRow.Unvalidated(a, cat, Product)) h.Add(EquipHint(n, a, id, s));
                 PufferHints(h, n, s);   // je Puffer: nicht validiert, Produktpassung, Kartenmarkierung (PackageForm.PufferCards.cs)

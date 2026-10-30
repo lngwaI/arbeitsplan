@@ -10,7 +10,7 @@ namespace Arbeitsplan.Win
 {
     // Selbsttests Paket-Editor 3: Wiederholmodi (alle x Tage / Wochentage / Tagesliste, bis Tag n), Verschieben (Zieltag aus x,
     // ganzer Schritt, einzelner Lauf, Reihenfolge), Puffer-Varianten mit Anzahl (Format, Merge, Pflichtpunkte, Puffer-Dialog),
-    // Ansatz Flasche/ohne Gebinde, alte Pakete; Editor-Ablauf in PackageForm.Test3.cs.
+    // Ansatz Flasche/Gebinde, alte Pakete; Editor-Ablauf in PackageForm.Test3.cs.
     partial class MainForm
     {
         static string L(List<int> l) { List<string> s = new List<string>(); foreach (int i in l) s.Add(i.ToString()); return string.Join(",", s.ToArray()); }
@@ -102,21 +102,21 @@ namespace Arbeitsplan.Win
             sb.AppendLine("Paket3 Varianten: Format " + Ok(okFmt) + " Anzahl-Hilfen " + Ok(okStep) + " Merge/Summe " + Ok(okMerge) + " Pflichtpunkte " + Ok(okRule) + " Paket " + Ok(okPkg));
             SelfTestBufferUi(sb);
 
-            // 4 Ansatz: Tank fehlt = Hinweis; Flasche/ohne Gebinde: kein Tank-Hinweis, Plantext mit Menge
+            // 4 Ansatz: Tank fehlt = Hinweis; Flasche/Gebinde: kein Tank-Hinweis, Plantext mit Menge
             Catalog cat = Catalog.Default();
             PackageStep pt = P3("Puffer", "Puffer", 1); pt.Source = "Puffer";
             EquipAssign wfi = new EquipAssign(); wfi.Short = "WFI"; pt.Equipment.Add(wfi);
             bool tankHint = pt.MissingTanks(cat).Count == 1 && pt.MissingTanks(cat)[0] == "WFI";
             pt.Ansatz = "gebinde"; pt.Gebinde = "Flasche"; pt.Menge = "5"; pt.Einheit = "L";
             bool okGeb = pt.MissingTanks(cat).Count == 0 && pt.Compose(0, "") == "Puffer\nGebinde: Flasche 5 L";
-            PackageStep po = pt.Clone(); po.Ansatz = "ohne"; po.Menge = "2"; po.Einheit = "kg";
-            okGeb &= po.MissingTanks(cat).Count == 0 && po.AnsatzLine() == "Ohne Gebinde: 2 kg";
+            PackageStep po = pt.Clone(); po.Ansatz = "ohne"; po.Gebinde = ""; po.Menge = "2"; po.Einheit = "kg";
+            okGeb &= po.MissingTanks(cat).Count == 0;
             PackageStep other = P3("Lauf", "Suite 1", 1); EquipAssign ptk = new EquipAssign(); ptk.Short = "PT"; other.Equipment.Add(ptk);
             bool noNoise = other.MissingTanks(cat).Count == 0 && !other.UsesAnsatz;   // Tank-Hinweis nur bei Puffer-Schritten
             Package pg = new Package(); pg.Steps.Add(pt); pg.Steps.Add(po); pg.Save(path);
             Package pgl = Package.Load(path);
-            okGeb &= pgl.Steps[0].Ansatz == "gebinde" && pgl.Steps[0].AnsatzLine() == "Gebinde: Flasche 5 L" && pgl.Steps[1].AnsatzLine() == "Ohne Gebinde: 2 kg";
-            sb.AppendLine("Paket3 Ansatz: Tank-Hinweis " + Ok(tankHint) + " Flasche/ohne Gebinde " + Ok(okGeb) + " nur Puffer " + Ok(noNoise));
+            okGeb &= pgl.Steps[0].Ansatz == "gebinde" && pgl.Steps[0].AnsatzLine() == "Gebinde: Flasche 5 L" && pgl.Steps[1].Ansatz == "gebinde" && pgl.Steps[1].AnsatzLine() == "Gebinde: 2 kg";
+            sb.AppendLine("Paket3 Ansatz: Tank-Hinweis " + Ok(tankHint) + " Flasche/Gebinde, ohne wird Gebinde " + Ok(okGeb) + " nur Puffer " + Ok(noNoise));
 
             // 5 Alte Pakete (Version 4, ohne neue Attribute): alle x Tage, Tank, Variante je 1
             File.WriteAllText(path, "<Paket name=\"Alt\" version=\"4\"><Schritt titel=\"Puffer\" quelle=\"Puffer\" block=\"Puffer\" tag=\"2\" anzahl=\"3\" abstand=\"2\" startnr=\"1\" text=\"\" notiz=\"\" variante=\"mobil|stationaer\"/></Paket>");

@@ -6,27 +6,28 @@ using Arbeitsplan.Core;
 
 namespace Arbeitsplan.Win
 {
-    // Paket-Editor, Schritt-Details: Herstellung (Anzahl je Variante der Zeile, RowInfo.Variants) und Ansatz (Tank / Flasche-Gebinde / ohne).
+    // Paket-Editor, Schritt-Details: Herstellung (Anzahl je Variante der Zeile, RowInfo.Variants) und Ansatz (je Puffer-Typ, PackageStep.AnsatzFor).
     partial class PackageForm
     {
         readonly ComboBox cbAnsatz = new ComboBox(), cbUnit = new ComboBox();
         readonly TextBox tGebinde = new TextBox(), tMenge = new TextBox();
         readonly Panel pVar = new Panel();
         Label lAnsatz, lGebinde, lMenge;
+        List<KeyValuePair<string, string>> ansatzList = new List<KeyValuePair<string, string>>();   // Einträge von cbAnsatz (Schlüssel, Anzeige)
 
         // ---------- Herstellung (Anzahl je Variante) und Ansatz ----------
 
         void BuildAnsatz(int lw, int x, int w)
         {
             pVar.Tag = "keep"; gWhat.Controls.Add(pVar);
-            lAnsatz = Lbl(gWhat, "Ansatz:", 8, lw); cbAnsatz.SetBounds(x, 0, w, IH); cbAnsatz.DropDownStyle = ComboBoxStyle.DropDownList; cbAnsatz.Items.AddRange(PackageStep.AnsatzNames);
+            lAnsatz = Lbl(gWhat, "Ansatz:", 8, lw); cbAnsatz.SetBounds(x, 0, w, IH); cbAnsatz.DropDownStyle = ComboBoxStyle.DropDownList;
             lGebinde = Lbl(gWhat, "Gebinde:", 8, lw); tGebinde.SetBounds(x, 0, w, IH);
             lMenge = Lbl(gWhat, "Menge:", 8, lw); tMenge.SetBounds(x, 0, 60, IH); cbUnit.SetBounds(x + 66, 0, 70, IH); cbUnit.Items.AddRange(new object[] { "L", "mL", "kg", "g", "Stk" });
             gWhat.Controls.AddRange(new Control[] { cbAnsatz, tGebinde, tMenge, cbUnit });
             Grow(cbAnsatz, tGebinde); Ui.SimpleMenu(tGebinde); Ui.SimpleMenu(tMenge);
-            tip.SetToolTip(cbAnsatz, "Tank: Vorlagetank/WFI-Tank als Equipment. Flasche/Gebinde oder ohne Gebinde: kein Tank nötig, Menge angeben.");
+            tip.SetToolTip(cbAnsatz, "Tank: Tank als Equipment. Flasche/Gebinde: kein Tank nötig, Menge angeben.");
             tip.SetToolTip(tGebinde, "Bezeichnung, z. B. Flasche, Kanister, Tween-Gebinde");
-            cbAnsatz.SelectedIndexChanged += delegate { if (Edit() && cbAnsatz.SelectedIndex >= 0) SetAnsatz(cur, PackageStep.AnsatzKeys[cbAnsatz.SelectedIndex]); };
+            cbAnsatz.SelectedIndexChanged += delegate { if (Edit() && cbAnsatz.SelectedIndex >= 0 && cbAnsatz.SelectedIndex < ansatzList.Count) SetAnsatz(cur, ansatzList[cbAnsatz.SelectedIndex].Key); };
             tGebinde.TextChanged += delegate { if (Edit()) { cur.Gebinde = tGebinde.Text.Trim(); Changed(); } };
             tMenge.TextChanged += delegate { if (Edit()) { cur.Menge = tMenge.Text.Trim(); Changed(); } };
             cbUnit.TextChanged += delegate { if (Edit()) { cur.Einheit = cbUnit.Text.Trim(); Changed(); } };
@@ -67,14 +68,17 @@ namespace Arbeitsplan.Win
 
         void BindAnsatz(PackageStep s)
         {
-            cbAnsatz.SelectedIndex = Math.Max(0, Array.IndexOf(PackageStep.AnsatzKeys, s.Ansatz));
+            ansatzList = s.AnsatzChoices();
+            cbAnsatz.Items.Clear();
+            foreach (KeyValuePair<string, string> k in ansatzList) cbAnsatz.Items.Add(k.Value);
+            cbAnsatz.SelectedIndex = Math.Max(0, ansatzList.FindIndex(delegate(KeyValuePair<string, string> k) { return k.Key == s.Ansatz; }));
             tGebinde.Text = s.Gebinde; tMenge.Text = s.Menge; cbUnit.Text = s.Einheit;
         }
 
         int LayoutAnsatz(int y, PackageStep s)
         {
             bool show = s.UsesAnsatz;
-            y = Row(y, show, lAnsatz, cbAnsatz);
+            y = Row(y, show && s.AnsatzChoices().Count > 1, lAnsatz, cbAnsatz);   // stationaer: nur der Tank, keine Wahl
             y = Row(y, show && s.Ansatz == "gebinde", lGebinde, tGebinde);
             return Row(y, show && s.Ansatz.Length > 0, lMenge, tMenge, cbUnit);
         }

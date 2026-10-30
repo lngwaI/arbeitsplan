@@ -36,6 +36,9 @@ namespace Arbeitsplan.Core
                 case "unterlauf": return "Unterlauf fehlt";
                 case "frueh": return "Termin sehr früh vor Lauf 1";
                 case "pufvor": return "Puffer vor dem Kampagnen-Start";
+                case "packen-tag": return "Packen oder Back-Up am Tag eines Laufs";
+                case "lauffolge": return "Laufnummern steigen nicht mit dem Datum";
+                case "pufkeine": return "Kampagne ohne Puffer";
                 default: return "";   // ohne Titel: nie gruppiert
             }
         }
@@ -126,6 +129,11 @@ namespace Arbeitsplan.Core
                 CheckBuffers(res, plan, head.RunCountFor(d1));
                 CheckPufferAfter(res, plan, d1);
                 CheckSubRuns(res, plan, main, runs);
+                CheckPackenTag(res, plan, main, start, store != null || Lauf1.HasValue);   // Packages.RulesPacken.cs
+                CheckLaufFolge(res, plan, main);
+                if (store != null) CheckLaufFolgePlan(res, store, start, mode, plan, main);
+                if (Type == PackageType.Kampagne && !Steps.Exists(delegate(PackageStep x) { return !x.IsEmpty && (x.IsBuffer || x.UsesAnsatz); }))
+                    Add(res, Severity.Hinweis, "pufkeine", "Die Kampagne hat keinen Puffer-Schritt").Action = "Puffer hinzufügen, falls das Produkt welche braucht";
                 foreach (RunDate d in plan)
                     if (first != int.MaxValue && d.Day < first - 60 && d.Step != main)
                         Add(res, Severity.Hinweis, "frueh", StepName(d.Step) + " (" + d.Label.Replace("\n", " ") + ") liegt mehr als 60 Tage vor Lauf 1", d.Step, d.Run).Action = "Tag prüfen";
@@ -223,8 +231,8 @@ namespace Arbeitsplan.Core
                     string when = off == 0 ? "am selben Tag" : (off < 0 ? "am Vortag" : "am Folgetag");
                     string oname = "", oprod = "";
                     foreach (BufferItem b in e.Buffers)
-                        foreach (RunRef r in RunNumbers.Find(b.Name + "\n" + b.Text, null))
-                            if (oname.Length == 0 && r.Product != mine) { oname = b.Name; oprod = r.Product; }
+                        foreach (string pr in BufferProducts(b))
+                            if (oname.Length == 0 && pr != mine) { oname = b.Name; oprod = pr; }
                     if (oname.Length == 0 && e.Buffers.Count > 0) oname = e.Buffers[0].Name;
                     string txt = "Puffer „" + StepName(d.Step) + "“ (Produkt " + ProductCode + ") am " + DateText(cday) + " in " + (d.Row.Length > 0 ? d.Row : s.Row)
                         + " und im Plan schon Puffer „" + oname + "“" + (other == 1 ? " (Produkt " + oprod + ")" : " (Produkt nicht erkennbar, Zuordnung unsicher)") + " " + when;
@@ -233,17 +241,26 @@ namespace Arbeitsplan.Core
             }
         }
 
-        // Produkt der Puffer eines Blocks aus Laufnummern in Name/Text: 1 = anderes Praefix als dieses Paket, -1 = nur dieses Paket,
+        // Produkt der Puffer eines Blocks aus LaufNo und Laufnummern in Name/Text: 1 = anderes Praefix als dieses Paket, -1 = nur dieses Paket,
         // 0 = keine Nummer erkennbar (oder eigenes Praefix unbekannt)
         static int ProductOfBuffers(Entry e, string mine)
         {
             bool other = false, same = false;
             foreach (BufferItem b in e.Buffers)
-                foreach (RunRef r in RunNumbers.Find(b.Name + "\n" + b.Text, null))
+                foreach (string pr in BufferProducts(b))
                 {
-                    if (mine.Length > 0 && r.Product == mine) same = true; else if (mine.Length > 0) other = true;
+                    if (mine.Length > 0 && pr == mine) same = true; else if (mine.Length > 0) other = true;
                 }
             return other ? 1 : (same ? -1 : 0);
+        }
+
+        // Praefixe (XXYY), die ein Puffer erkennen laesst: bedienter Lauf (LaufNo), sonst Laufnummern in Name/Text (alte Daten)
+        static List<string> BufferProducts(BufferItem b)
+        {
+            List<string> l = new List<string>();
+            if (b.LaufNo.Length == 8) l.Add(b.LaufNo.Substring(0, 4));
+            foreach (RunRef r in RunNumbers.Find(b.Name + "\n" + b.Text, null)) if (!l.Contains(r.Product)) l.Add(r.Product);
+            return l;
         }
     }
 }

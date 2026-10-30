@@ -227,7 +227,8 @@ namespace Arbeitsplan.Win
             if (mtip != markerTip) { markerTip = mtip; tip.SetToolTip(marker, mtip); }
             marker.Invalidate();
             UpdateRunsLabel();
-            bUp.Enabled = bDown.Enabled = bDup.Enabled = bDel.Enabled = cur != null;
+            bDup.Enabled = bDel.Enabled = cur != null;
+            bUp.Enabled = n > 1; bDown.Enabled = n > 0 && n < steps.Count;   // am Listenrand gesperrt
             PerfB(PfPreview); UpdatePreview(scrollTo); PerfE(PfPreview);
             PerfB(PfHints); UpdateHints(); PerfE(PfHints);
             RecordPins(cur);

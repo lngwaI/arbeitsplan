@@ -86,8 +86,8 @@ namespace Arbeitsplan.Core
         }
 
         // Kalender: Lauf "run" von s um delta Tage ziehen. Standard = dieser und alle folgenden Laeufe (Move ab diesem Lauf; beim ersten Lauf
-        // der ganze Schritt), onlyRun = nur dieser Lauf (Shift). JeLauf-Schritte folgen dem Hauptlauf: nur der Versatz zum Lauf, nie ein
-        // einzelner Lauf. false = nicht moeglich (vor Tag 1, Versatz zu gross).
+        // der ganze Schritt), onlyRun = nur dieser Lauf (Shift). JeLauf-Schritte folgen dem Hauptlauf: nur der Versatz zum Lauf, einzelne Laeufe
+        // nur bei Puffern (eigener Abstand zu diesem Lauf). false = nicht moeglich (vor Tag 1, Versatz zu gross).
         public bool DragRun(PackageStep s, int run, int delta, bool onlyRun)
         {
             if (!DragRunRaw(s, run, delta, onlyRun)) return false;
@@ -98,7 +98,15 @@ namespace Arbeitsplan.Core
         bool DragRunRaw(PackageStep s, int run, int delta, bool onlyRun)
         {
             if (delta == 0) return false;
-            if (s.Bind == StepBind.JeLauf && Head != null && s != Head) return !onlyRun && MoveStep(s, delta);
+            if (s.Bind == StepBind.JeLauf && Head != null && s != Head)
+            {
+                if (!onlyRun) return MoveStep(s, delta);
+                if (!s.IsBuffer || run < 0 || run >= Head.Days(Day1).Count) return false;
+                int v; s.Shift.TryGetValue(run, out v); v += delta;
+                if (Math.Abs(s.RunOffset + v) > PackageStep.MaxOffset) return false;
+                if (v == 0) s.Shift.Remove(run); else s.Shift[run] = v;
+                return true;
+            }
             List<int> d = s.Days(Day1);
             if (run < 0 || run >= d.Count) return false;
             if (onlyRun) return s.MoveRun(run, delta, Day1);

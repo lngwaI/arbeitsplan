@@ -62,7 +62,9 @@ namespace Arbeitsplan.Win
                 bool okLbl = f.lPackNo.Text == "Nr. für Packen:";
                 bool code = false; foreach (Control c in f.headPanel.Controls) if (c is Label && c.Text == "Produktcode:") code = true;
                 okLbl &= code && f.marker.Text.StartsWith("Schritt 3 von " + f.steps.Count + " – ") && !f.marker.Text.Contains("(") && f.tip.GetToolTip(f.marker).Contains("Du bearbeitest");
-                // (5) Hinweis "Packen ohne Nummer": Info (nicht rot), mit Loesung; Pruefung bleibt gruen
+                // (5) Hinweis "Packen ohne Nummer": Info (nicht rot), mit Loesung; Pruefung bleibt gruen (Kampagne mit Puffer, sonst Hinweis "pufkeine")
+                PackageStep ux7p = new PackageStep(); ux7p.Title = "Puffer mobil"; ux7p.Source = "Puffer mobil"; ux7p.Row = "Puffer"; ux7p.Variant = "mobil"; ux7p.Bind = StepBind.JeLauf; ux7p.RunOffset = -1;
+                f.AddStep(ux7p); f.dirty = false; Application.DoEvents();
                 Hint info = f.hintList.Find(delegate(Hint h) { return h.Code == "packen"; });
                 bool okInfo = info != null && info.Info && !info.Blocks && info.Text.StartsWith("Info – ") && info.Text.Contains("„Nr. für Packen“") && f.lbHints.ForeColor == Color.DarkGreen
                     && f.hintList.Exists(delegate(Hint h) { return h.Text.StartsWith("Keine Auffälligkeiten"); });

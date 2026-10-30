@@ -51,6 +51,20 @@ namespace Arbeitsplan.Core
             return RelOf(day, runs, nos);
         }
 
+        // Wie RelText(day, plan), Puffer aber zum bedienten Lauf ("1 Tag vor Lauf 2" statt "2 Tage nach Lauf 1"). rd = Termin, day = sein tatsaechlicher Tag.
+        public string RelTextOf(RunDate rd, int day, List<RunDate> plan)
+        {
+            int hi = Steps.IndexOf(Head);
+            if (rd.Step >= 0 && rd.Step < Steps.Count && Steps[rd.Step].IsBuffer && hi >= 0)
+            {
+                RunDate at = new RunDate(); at.Step = rd.Step; at.Run = rd.Run; at.Day = day;
+                int lauf = LaufOf(plan, at);
+                foreach (RunDate m in plan)
+                    if (m.Step == hi && m.Run == lauf) return RelOf(day, new List<int>(new[] { m.Day }), new List<int>(new[] { lauf + 1 }));
+            }
+            return RelText(day, plan);
+        }
+
         static string RelOf(int day, List<int> runs, List<int> nos)
         {
             if (runs.Count == 0)

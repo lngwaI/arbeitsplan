@@ -102,20 +102,44 @@ namespace Arbeitsplan.Win
             PackageStep n = o[to];
             List<RunDate> plan = Plan();
             int delta = FirstOf(n, plan) - FirstOf(s, plan);
-            if (delta != 0 && !MoveBy(s, delta)) return false;
-            steps.Remove(s);
-            int k = steps.IndexOf(n);
-            steps.Insert(from < to ? k + 1 : k, s);
+            // Erst auf einer Kopie: Der Hauptlauf zieht seine "zu jedem Lauf"-Schritte mit, der Back-Up springt zum Packen zurueck. Dann bliebe die
+            // Position gleich und nur das Datum wanderte still (z. B. Lauf auf den Tag des Back-Ups).
+            Package trial = StepsView().Clone();
+            PackageStep ts = trial.Steps[steps.IndexOf(s)], tn = trial.Steps[steps.IndexOf(n)];
+            if (delta != 0 && !MoveBy(trial, ts, delta)) { Say("Nicht verschoben: Dort ist kein Termin möglich (Versatz zu groß)."); return false; }
+            Package.SyncBackups(trial.Steps);
+            PlaceAt(trial.Steps, ts, tn, from < to);
+            if (OrderOf(trial).IndexOf(ts) == from) { Say(StaysText(s, n)); return false; }
+            if (delta != 0 && !MoveBy(StepsView(), s, delta)) return false;
+            PlaceAt(steps, s, n, from < to);
+            Say("");
             return true;
+        }
+
+        static void PlaceAt(List<PackageStep> l, PackageStep s, PackageStep n, bool after)
+        {
+            l.Remove(s);
+            int k = l.IndexOf(n);
+            l.Insert(after ? k + 1 : k, s);
+        }
+
+        // Warum sich die Position nicht aendern laesst, und wo der Termin zu aendern ist
+        string StaysText(PackageStep s, PackageStep neighbor)
+        {
+            if (s.IsBackup) return "Der Back-Up liegt immer 1 Tag nach dem Packen – Packen verschieben.";
+            PackageStep je = IsJe(s) ? s : (IsJe(neighbor) ? neighbor : null);   // Hauptlauf: der Nachbar wandert mit ihm mit
+            if (je != null) return TitleOf(je) + " liegt " + OffsetText(je.RunOffset) + " – Abstand unter „Wann?“ ändern.";
+            return "Position bleibt gleich – Termin unter „Wann?“ ändern.";
         }
 
         // Schritt um delta Tage verschieben: "zu jedem Lauf" ueber den Versatz zum Lauf (RunOffset), sonst ueber sein Raster; vor dem
         // ersten Termin schiebt sich der Ursprung mit (alle anderen wandern nach hinten). false = nicht moeglich (Versatz > 30 Tage).
-        bool MoveBy(PackageStep s, int delta)
+        bool MoveBy(PackageStep s, int delta) { return MoveBy(StepsView(), s, delta); }
+
+        static bool MoveBy(Package p, PackageStep s, int delta)
         {
-            Package p = StepsView();
             if (delta == 0) return false;
-            if (IsJe(s)) return p.MoveStep(s, delta);
+            if (s.Bind == StepBind.JeLauf && p.Head != null && s != p.Head) return p.MoveStep(s, delta);
             List<int> d = s.Days(p.Day1); int first = d[0];
             foreach (int x in d) first = Math.Min(first, x);
             if (first + delta < 1) p.ShiftOrigin(1 - (first + delta));
@@ -178,7 +202,7 @@ namespace Arbeitsplan.Win
             Package trial = StepsView().Clone();
             if (!trial.DragRun(trial.Steps[si], run, delta, onlyRun))
             {
-                Say(onlyRun && IsJe(s) ? "Dieser Schritt folgt dem Hauptlauf – er lässt sich nur für alle Läufe verschieben." : "Nicht verschoben: Dort ist kein Termin möglich (vor dem ersten Tag oder Versatz zu groß).");
+                Say(onlyRun && IsJe(s) && !s.IsBuffer ? "Dieser Schritt folgt dem Hauptlauf – er lässt sich nur für alle Läufe verschieben." : "Nicht verschoben: Dort ist kein Termin möglich (vor dem ersten Tag oder Versatz zu groß).");
                 return;
             }
             string clash = NewClash(StepsView(), trial);
@@ -213,13 +237,14 @@ namespace Arbeitsplan.Win
             string who = many && run > 0 && !je ? "Diesen und alle folgenden Läufe" : (je ? "Alle Läufe" : "Ganzen Schritt");
             stripMenu.Items.Add(who + " 1 Tag früher", null, delegate { MoveInCalendar(s, run, day - 1, false); });
             stripMenu.Items.Add(who + " 1 Tag später", null, delegate { MoveInCalendar(s, run, day + 1, false); });
-            if (many && !je)
+            bool single = !je || s.IsBuffer;   // Puffer "zu jedem Lauf": eigener Abstand je Lauf
+            if (many && single)
             {
                 stripMenu.Items.Add(new ToolStripSeparator());
                 stripMenu.Items.Add("Nur diesen Lauf 1 Tag früher", null, delegate { MoveInCalendar(s, run, day - 1, true); }).Enabled = day > 1;
                 stripMenu.Items.Add("Nur diesen Lauf 1 Tag später", null, delegate { MoveInCalendar(s, run, day + 1, true); });
             }
-            if (!je && s.Shift.Count + s.Move.Count > 0)
+            if (single && s.Shift.Count + s.Move.Count > 0)
             {
                 stripMenu.Items.Add(new ToolStripSeparator());
                 stripMenu.Items.Add("Diesen Lauf auf Regel zurücksetzen", null, delegate { ResetRun(s, run); }).Enabled = s.Pinned(run);

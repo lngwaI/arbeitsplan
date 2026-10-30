@@ -23,12 +23,7 @@ namespace Arbeitsplan.Win
             string fr = p != null ? p.FirstRun : "";
             tFirst.Text = fr.Length > 0 ? fr : (prefix.Length > 0 ? Package.FormatRun(prefix, 1) : "");
             bool fresh = p == null || (p.Steps.Count == 0 && p.Blocks.Count == 0 && p.Name.Length == 0 && p.ProductCode.Length > 0);   // neues Paket mit vorbelegtem Produkt (Assistent)
-            if (fresh)
-            {
-                foreach (Baustein b in cat.Bausteine) if (b.DefaultInCampaign) steps.Add(FromBaustein(b));   // z. B. "Packen" ist standardmaessig dabei
-                PackageStep pack = steps.Find(delegate(PackageStep x) { return x.Source == Package.PackenName; });
-                if (pack != null && cat.Baustein_(Package.BackupName) != null) steps.Add(Package.MakeBackup(pack, cat.Baustein_(Package.BackupName)));   // mit Back-Up
-            }
+            if (fresh) steps.AddRange(Package.DefaultCampaign(cat, NewRunNo()).Steps);   // Packen, Back-Up, Lauf, Puffer mobil und stationaer
             else steps.AddRange(p.Steps);
             lBlocks.Text = blocks.Count > 0 ? "Enthält zusätzlich " + blocks.Count + " fertige Blöcke aus einem Wochen-Export (werden mit übernommen)." : "";
             lBlocks.Visible = blocks.Count > 0;

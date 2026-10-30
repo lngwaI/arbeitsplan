@@ -74,14 +74,13 @@ namespace Arbeitsplan.Win
                     {
                         BlockPreview.Card cc = new BlockPreview.Card(); cc.Room = c.Room; cc.Missing = c.Missing || d.Day + dl < 1;   // N7: Karte vor dem Start rot
                         cc.Day = RelOf(cur, d, plan, dl); cc.Data = new Entry();
-                        cc.Data.Buffers = pv.WithCode(cur.BuffersAt(d.Run, prefix, lauf, dl));
-                        foreach (BufferItem bi in cc.Data.Buffers) bi.LaufRef = lauf;
+                        cc.Data.Buffers = pv.WithLauf(pv.WithCode(cur.BuffersAt(d.Run, prefix, lauf, dl)), lauf, pv.Day1);
                         cards.Add(cc);
                     }
                 }
                 else
                 {
-                    if (c.Data.Buffers.Count > 0) { int lauf = pv.LaufOf(plan, d) + 1; foreach (BufferItem bi in c.Data.Buffers) bi.LaufRef = lauf; }   // Kopf "Puffer n: Name · Lauf m" wie im Plan
+                    if (c.Data.Buffers.Count > 0) pv.WithLauf(c.Data.Buffers, pv.LaufOf(plan, d) + 1, pv.Day1);   // Kopf "Puffer n: Name · für 12340002" wie im Plan
                     cards.Add(c);
                 }
             }

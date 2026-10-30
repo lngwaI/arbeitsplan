@@ -108,7 +108,7 @@ namespace Arbeitsplan.Win
                 cf.Shift(i1, -6);
                 okRed = !cf.TestOkEnabled && cf.TestRowRed(i1) && Has(cf.Problems, "gleichtag", Severity.Sperre) && cf.RuleText.StartsWith("Gesperrt");
                 cf.Shift(i1, 6);
-                okLift = cf.TestOkEnabled && !cf.TestRowRed(i1) && cf.RuleText.Length == 0;
+                okLift = cf.TestOkEnabled && !cf.TestRowRed(i1) && !cf.RuleText.StartsWith("Gesperrt");   // Testkampagne ohne Puffer: Hinweis bleibt
             }
             sb.AppendLine("E4 Kampagnenstart: ohne Verstoß frei " + K(okCf) + " Zeile rot, Übernehmen gesperrt " + K(okRed) + " nach Korrektur wieder frei " + K(okLift));
 

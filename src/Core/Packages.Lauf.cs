@@ -21,5 +21,22 @@ namespace Arbeitsplan.Core
                 if (m.Step == main && m.Day >= rd.Day && m.Day < bestDay) { best = m.Run; bestDay = m.Day; }
             return best;
         }
+
+        // Volle Laufnummer (8 Ziffern) des bedienten Laufs (lauf = Nummer im Hauptlauf, 1 = erster); "" = unbekannt (kein Praefix, kein Lauf)
+        public string LaufNoOf(int lauf, DayOfWeek day1)
+        {
+            int main = HeadIndex(day1);
+            if (main < 0 || lauf < 1 || !IsCode4(Prefix)) return "";
+            string no = FormatRun(Prefix, Steps[main].StartNo + lauf - 1);
+            return no.Length == 8 ? no : "";
+        }
+
+        // Puffer dem bedienten Lauf zuordnen (Plan und Vorschau)
+        public List<BufferItem> WithLauf(List<BufferItem> l, int lauf, DayOfWeek day1)
+        {
+            string no = LaufNoOf(lauf, day1);
+            foreach (BufferItem b in l) { b.LaufRef = Math.Max(0, lauf); b.LaufNo = no; }
+            return l;
+        }
     }
 }

@@ -139,7 +139,7 @@ namespace Arbeitsplan.Win
                 CellData c = CellOf(pr, 3);   // Donnerstag = Hauptlauf (Mittwoch) + 1
                 bool okShow = c != null && c.BufParts.Count == 3 && c.Buffers[0].LaufRef == 1 && c.Buffers[2].LaufRef == 1;
                 string h0 = okShow ? UxHead(c.BufParts[0]) : "", h1 = okShow ? UxHead(c.BufParts[1]) : "", h2 = okShow ? UxHead(c.BufParts[2]) : "";
-                bool okHead = h0.StartsWith("Puffer 1: " + Package.PlanBufferName(p.ProductCode, "Lösung A")) && h0.EndsWith("Lauf 1") && h1.StartsWith("Puffer 2: " + Package.PlanBufferName(p.ProductCode, "Lösung B")) && h1.EndsWith("Lauf 1") && h2.StartsWith("Puffer 3: " + Package.PlanBufferName(p.ProductCode, "Lösung C")) && h2.EndsWith("Lauf 1");
+                bool okHead = h0.StartsWith("Puffer 1: " + Package.PlanBufferName(p.ProductCode, "Lösung A")) && h0.EndsWith("für " + p.LaufNoOf(1, wk.DayOfWeek)) && h1.StartsWith("Puffer 2: " + Package.PlanBufferName(p.ProductCode, "Lösung B")) && h1.EndsWith("für " + p.LaufNoOf(1, wk.DayOfWeek)) && h2.StartsWith("Puffer 3: " + Package.PlanBufferName(p.ProductCode, "Lösung C")) && h2.EndsWith("für " + p.LaufNoOf(1, wk.DayOfWeek));
                 bool okGap = okShow, okOver = okShow;
                 if (okShow)
                     for (int i = 0; i + 1 < c.BufParts.Count; i++)

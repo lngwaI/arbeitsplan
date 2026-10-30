@@ -20,6 +20,7 @@ namespace Arbeitsplan.Core
                     int off;
                     if (!FollowsHead(Steps[hi], s, out off)) continue;
                     s.Bind = StepBind.JeLauf; s.RunOffset = off; s.NumberRuns = s.Kind == StepKind.Normal && s.RunCountFor(DayOfWeek.Monday) > 1;
+                    s.Shift.Clear(); s.Move.Clear();   // der Hauptlauf traegt diese Ausnahmen schon, JeLauf-Puffer rechnen Shift sonst doppelt
                 }
             foreach (PackageStep s in Steps) s.IdentToStart(RunCountOf(s));
         }

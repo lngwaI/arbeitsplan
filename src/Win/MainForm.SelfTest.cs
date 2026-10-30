@@ -322,12 +322,19 @@ namespace Arbeitsplan.Win
 
         static string Ok(bool b) { return b ? "OK" : "FEHLER"; }
 
+        void SelfTestP1(System.Text.StringBuilder sb)
+        {
+            try { sb.AppendLine(PackageForm.TestP1Rules()); } catch (Exception ex) { sb.AppendLine("P1 Regeln: FEHLER " + ex.GetType().Name + ": " + ex.Message + "\n" + ex.StackTrace); }
+            sb.AppendLine(PackageForm.TestP1Editor(equip, start));
+        }
+
         // Selbsttest (Admin): Zuklappen, Bearbeiten mit Format, LKZ, Struktur, Export/Import, Paket-Schritte.
         public string SelfTest()
         {
             System.Text.StringBuilder sb = new System.Text.StringBuilder();
             quiet = true;
             if (Environment.GetEnvironmentVariable("AP_ONLY") == "ux6") { SelfTestUX6(sb); quiet = false; return sb.ToString(); }   // Schnelllauf nur UX-6
+            if (Environment.GetEnvironmentVariable("AP_ONLY") == "p1") { SelfTestP1(sb); quiet = false; return sb.ToString(); }   // Schnelllauf nur P1 (PackageForm.TestP1.cs)
             if (Environment.GetEnvironmentVariable("AP_ONLY") == "ux5e") { SelfTestUX5e(sb); quiet = false; return sb.ToString(); }   // Schnelllauf nur UX-5e (MainForm.SelfTestUX5e.cs)
 #if DEMO
             if (cfg != null) return SelfTestDemo();   // Vorfuehr-Version: eigene Tests (MainForm.SelfTestDemo.cs)
@@ -399,6 +406,7 @@ namespace Arbeitsplan.Win
             SelfTestN7(sb);   // N7: Review-Befunde Paket-Editor + Puffer (MainForm.SelfTestN7.cs)
             SelfTestUX6(sb);  // UX-6: Puffer-/Produkt-Dialoge (MainForm.SelfTestUX6.cs + partielle Methoden der Dialog-Tests)
             SelfTestUX7(sb);  // UX-7: Usability-Befunde (Details bei 1024x768, Enter/Esc, Hinweis Info, Datumsformat, Klartext, Zyklus) (MainForm.SelfTestUX7.cs)
+            SelfTestP1(sb);   // P1: Standardschritte, Tagesregel, Lauffolge, Entfernen, Reihenfolge, Abstand je Lauf, LaufNo, Ansatz (PackageForm.TestP1.cs)
             using (MainForm mx = new MainForm("ux4", true, null, null)) { mx.FitToCursorScreen(); sb.AppendLine("UX4 Hauptfenster startet maximiert: " + Ok(mx.WindowState == FormWindowState.Maximized)); }
             quiet = false;
             return sb.ToString();

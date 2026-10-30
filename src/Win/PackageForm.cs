@@ -171,14 +171,7 @@ namespace Arbeitsplan.Win
 
         PackageStep FromBaustein(Baustein b)
         {
-            PackageStep s = new PackageStep();
-            s.Title = b.Name; s.Source = b.Name; s.Row = b.Row; s.Text = b.Text; s.Day = steps.Count == 0 ? 1 : NextDay();
-            s.Variant = b.Variant;   // Puffer mobil / stationaer: ein Schritt = ein Puffer mit diesem Typ
-            if (b.Name == "Lauf") s.Kind = StepKind.Run; else if (b.Name == "Splitten") s.Kind = StepKind.SubRun;   // Vorbelegung, im Schritt aenderbar
-            if (s.Kind != StepKind.Normal) s.StartNo = NewRunNo();
-            foreach (string sh in b.Positions)
-                for (int i = 0, n = b.DefaultCount(sh); i < n; i++) { EquipAssign a = new EquipAssign(); a.Short = sh; s.Equipment.Add(a); }   // Standard-Anzahl (z. B. 2 mobile Tanks)
-            return s;
+            return Package.FromBaustein(b, steps.Count == 0 ? 1 : NextDay(), NewRunNo());
         }
 
         // Erst die Art (Baustein oder "Sonstiges"), dann der Raum (vorbelegt, Pflicht)
@@ -235,26 +228,28 @@ namespace Arbeitsplan.Win
         void RemoveStep(bool ask)
         {
             if (cur == null) return;
-            if (Package.HasBackup(steps, cur))   // gilt fuer alle, auch PackageAdmin: erst den Back-Up entfernen
+            if (!StepsView().CanRemove(cur))   // gilt fuer alle: die Kampagne braucht ihren Hauptlauf
             {
-                if (ask) MessageBox.Show(this, "\"" + TitleOf(cur) + "\" hat einen Back-Up. Zuerst den Back-Up-Schritt entfernen.", "Paket-Editor", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                if (ask) MessageBox.Show(this, "\"" + TitleOf(cur) + "\" ist der Hauptlauf der Kampagne und lässt sich nicht entfernen.", "Paket-Editor", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
             Baustein b = cat.Baustein_(cur.Source);
-            if (b != null && b.Unique && !canAdmin)
+            if (b != null && b.Unique && !canAdmin && cur.Source != Package.PackenName)   // Packen darf jeder entfernen, der Pakete bearbeitet
             {
                 MessageBox.Show(this, "\"" + b.Name + "\" ist ein Standard-Schritt der Kampagne. Entfernen braucht das Recht \"Pakete einrichten\".", "Paket-Editor", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
-            int deps = HeadDeps(cur);   // N7: Hauptlauf mit abhaengigen "zu jedem Lauf"-Schritten: eigene Rueckfrage, Standard Abbrechen
+            int deps = HeadDeps(cur);   // N7: Hauptlauf (nur ausserhalb von Kampagnen entfernbar) mit abhaengigen "zu jedem Lauf"-Schritten: eigene Rueckfrage, Standard Abbrechen
+            List<PackageStep> gone = steps.FindAll(delegate(PackageStep x) { return x.BacksUp(cur); });   // Packen nimmt seinen Back-Up mit
             if (ask && deps > 0 && MessageBox.Show(this, "Schritt " + No(cur) + " \"" + TitleOf(cur) + "\" ist der Hauptlauf. " + deps + (deps == 1 ? " Schritt folgt" : " Schritte folgen")
                 + " ihm „zu jedem Lauf“ und " + (deps == 1 ? "verliert" : "verlieren") + " damit ihren Takt (ihre Termine ändern sich).\n\nHauptlauf trotzdem entfernen?", "Hauptlauf entfernen",
                 MessageBoxButtons.OKCancel, MessageBoxIcon.Warning, MessageBoxDefaultButton.Button2) != DialogResult.OK) return;
-            if (ask && deps == 0 && MessageBox.Show(this, "Schritt " + No(cur) + " \"" + TitleOf(cur) + "\" (" + WhenText(cur) + ") aus dem Ablauf entfernen?", "Schritt entfernen",
+            if (ask && deps == 0 && MessageBox.Show(this, "Schritt " + No(cur) + " \"" + TitleOf(cur) + "\" (" + WhenText(cur) + ")" + (gone.Count > 0 ? " und seinen Back-Up" : "") + " aus dem Ablauf entfernen?", "Schritt entfernen",
                 MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button2) != DialogResult.Yes) return;
             List<PackageStep> o = Ordered();
             int i = o.IndexOf(cur);
-            o.RemoveAt(i); steps.Remove(cur);
+            gone.Add(cur);
+            foreach (PackageStep x in gone) { if (o.IndexOf(x) < i) i--; o.Remove(x); steps.Remove(x); }
             dirty = true;
             Bind(o.Count > 0 ? o[Math.Min(i, o.Count - 1)] : null);
             CommitUndo();

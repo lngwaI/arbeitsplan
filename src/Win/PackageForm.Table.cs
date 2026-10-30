@@ -30,13 +30,23 @@ namespace Arbeitsplan.Win
         }
 
         // Wie im Plan: nach erstem Datum; am selben Tag gilt die vom Nutzer gesetzte Reihenfolge (Index in der Schrittliste).
-        List<PackageStep> Ordered()
+        List<PackageStep> Ordered() { return OrderOf(StepsView()); }
+
+        // Reihenfolge eines Pakets (auch einer Probe-Kopie, PackageForm.Order.cs)
+        static List<PackageStep> OrderOf(Package p)
         {
-            List<RunDate> plan = Plan();
+            List<PackageStep> all = p.Steps;
             Dictionary<PackageStep, int> first = new Dictionary<PackageStep, int>();
-            foreach (PackageStep s in steps) first[s] = FirstOf(s, plan);
-            List<PackageStep> o = new List<PackageStep>(steps);
-            o.Sort(delegate(PackageStep a, PackageStep b) { return first[a] != first[b] ? first[a].CompareTo(first[b]) : steps.IndexOf(a).CompareTo(steps.IndexOf(b)); });
+            foreach (PackageStep s in all) first[s] = s.FirstDay;
+            bool[] seen = new bool[all.Count];
+            foreach (RunDate d in p.Schedule())
+            {
+                PackageStep s = all[d.Step];
+                if (!seen[d.Step] || d.Day < first[s]) first[s] = d.Day;
+                seen[d.Step] = true;
+            }
+            List<PackageStep> o = new List<PackageStep>(all);
+            o.Sort(delegate(PackageStep a, PackageStep b) { return first[a] != first[b] ? first[a].CompareTo(first[b]) : all.IndexOf(a).CompareTo(all.IndexOf(b)); });
             return o;
         }
 
@@ -79,7 +89,8 @@ namespace Arbeitsplan.Win
         {
             Package p = StepsView();
             if (!IsJe(s)) return p.RelText(d.Day) + ForLauf(s, d, plan);
-            int off = s.RunOffset + delta;
+            int own = 0; if (s.IsBuffer) s.Shift.TryGetValue(d.Run, out own);   // Abstand je Lauf
+            int off = s.RunOffset + delta + own;
             string rel = off == 0 ? "Lauf " + (d.Run + 1) : DayW(Math.Abs(off)) + (off < 0 ? " vor" : " nach") + " Lauf " + (d.Run + 1);
             DateTime? dt = p.DateOf(d.Day + delta);
             return dt.HasValue ? DText(dt.Value) + " · " + rel : rel;

@@ -43,7 +43,7 @@ namespace Arbeitsplan.Win
                 okStep &= pack[0].ManualNo == "12349999" && f.tManualNo.Text == "12349999";   // Abweichung bleibt
                 f.tManualNo.Text = ""; Application.DoEvents();   // leer = wie Kopf
                 okStep &= pack[0].ManualNo == "12340003" && f.lManualHint.Text.Contains("wie Nr. für Packen");
-                PackageStep np = new PackageStep(); np.Title = "Packen"; np.Source = Package.PackenName; np.Row = "Suite 2"; np.Day = 9;
+                PackageStep np = new PackageStep(); np.Title = "Packen"; np.Source = Package.PackenName; np.Row = "Suite 2"; np.Day = 2;   // vor Lauf 1 (Regel packen-tag)
                 f.AddStep(np); Application.DoEvents();
                 okTake &= np.ManualNo == "12340003";
                 f.tPackNo.Text = "1234"; Application.DoEvents();   // ungueltig: Hinweis, Schritte unveraendert

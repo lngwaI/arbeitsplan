@@ -8,7 +8,7 @@ namespace Arbeitsplan.Core
     // Wiederholung eines Schritts: alle x Tage (Standard, alte Pakete), an bestimmten Wochentagen oder an bestimmten Tagen der Kampagne.
     public enum RepeatMode { Interval, Weekdays, DayList }
 
-    // Wiederholmodi, Versatz je Lauf (Ausnahme aus dem Kalender) und Ansatz (Puffer mit Tank, Flasche/Gebinde oder ohne Gebinde).
+    // Wiederholmodi, Versatz je Lauf (Ausnahme aus dem Kalender) und Ansatz (Puffer mit Tank oder Flasche/Gebinde).
     public partial class PackageStep
     {
         public RepeatMode Repeat;                // XML "wiederholung" (fehlt = alle x Tage)
@@ -19,11 +19,39 @@ namespace Arbeitsplan.Core
         public const int MaxRuns = 99;
         public static readonly string[] DayNames = { "Mo", "Di", "Mi", "Do", "Fr", "Sa", "So" };
 
-        // Ansatz (fest im Code, siehe Ansaetze): "" = Tank (Vorlagetank/WFI-Tank, wie bisher), "gebinde" = Flasche/Gebinde mit
-        // Bezeichnung + Menge + Einheit (kein Tank noetig), "ohne" = ohne Gebinde (nur Menge). Gilt fuer Puffer-Schritte (UsesAnsatz).
+        // Ansatz (fest im Code, siehe AnsatzFor): "" = Tank (wie bisher), "gebinde" = Flasche/Gebinde mit Bezeichnung + Menge + Einheit (kein Tank
+        // noetig). Gilt fuer Puffer-Schritte (UsesAnsatz). Das fruehere "ohne" (ohne Gebinde) wird beim Laden zu "gebinde".
         public string Ansatz = "", Gebinde = "", Menge = "", Einheit = "";
-        public static readonly string[] AnsatzKeys = { "", "gebinde", "ohne" };
-        public static readonly string[] AnsatzNames = { "Tank (Vorlagetank/WFI-Tank)", "Flasche/Gebinde", "Ohne Gebinde" };
+        public const string AnsatzGebinde = "gebinde";
+
+        // Moegliche Ansaetze je Puffer-Typ, Schluessel -> Anzeige: mobil = Mobiler Tank | Flasche/Gebinde; stationaer = nur stationaerer Tank (keine Wahl);
+        // sonst (alter Puffer ohne eindeutigen Typ) Tank | Flasche/Gebinde
+        public static List<KeyValuePair<string, string>> AnsatzFor(string typ)
+        {
+            List<KeyValuePair<string, string>> l = new List<KeyValuePair<string, string>>();
+            l.Add(new KeyValuePair<string, string>("", typ == "mobil" ? "Mobiler Tank" : (typ == "stationaer" ? "Stationärer Tank" : "Tank (Vorlagetank/WFI-Tank)")));
+            if (typ != "stationaer") l.Add(new KeyValuePair<string, string>(AnsatzGebinde, "Flasche/Gebinde"));
+            return l;
+        }
+
+        // Puffer-Typ des Schritts, wenn er eindeutig ist; sonst ""
+        public string AnsatzTyp
+        {
+            get
+            {
+                List<string> v = VariantSet.Of(Variant);
+                if (Puffers.Count > 0) { v = new List<string>(); foreach (PufferSpec p in Puffers) if (!v.Contains(p.Typ)) v.Add(p.Typ); }
+                return v.Count == 1 ? v[0] : "";
+            }
+        }
+
+        // Auswahl fuer diesen Schritt: alte stationaere Schritte mit Gebinde behalten ihren Eintrag, bis er bewusst geaendert wird
+        public List<KeyValuePair<string, string>> AnsatzChoices()
+        {
+            List<KeyValuePair<string, string>> l = AnsatzFor(AnsatzTyp);
+            if (Ansatz.Length > 0 && !l.Exists(delegate(KeyValuePair<string, string> k) { return k.Key == Ansatz; })) l.Add(new KeyValuePair<string, string>(Ansatz, "Flasche/Gebinde"));
+            return l;
+        }
 
         static int Bit(int dayIndex) { return 1 << (((dayIndex % 7) + 7) % 7); }   // 0 = Mo
         static int MonIndex(DayOfWeek d) { return ((int)d + 6) % 7; }
@@ -150,13 +178,12 @@ namespace Arbeitsplan.Core
 
         public bool UsesAnsatz { get { return Ansatz.Length > 0 || Source == PufferSetup.RowName || Row == PufferSetup.RowName; } }
 
-        // Plantext-Zeile: "Gebinde: Flasche 5 L", "Ohne Gebinde: 2 kg"; Tank = "" (Equipment-Zeilen wie bisher)
+        // Plantext-Zeile: "Gebinde: Flasche 5 L"; Tank = "" (Equipment-Zeilen wie bisher)
         public string AnsatzLine()
         {
             if (Ansatz.Length == 0) return "";
-            string amount = (Menge.Trim() + " " + Einheit.Trim()).Trim();
-            if (Ansatz == "gebinde") { string g = (Gebinde.Trim() + " " + amount).Trim(); return "Gebinde: " + (g.Length > 0 ? g : "Flasche"); }
-            return "Ohne Gebinde" + (amount.Length > 0 ? ": " + amount : "");
+            string g = (Gebinde.Trim() + " " + (Menge.Trim() + " " + Einheit.Trim()).Trim()).Trim();
+            return "Gebinde: " + (g.Length > 0 ? g : "Flasche");
         }
 
         // Tank-Positionen (Positionsname enthaelt "tank") ohne Geraet; nur bei Puffer-Schritten mit Ansatz Tank, sonst leer (kein Hinweis)

@@ -6,7 +6,7 @@ namespace Arbeitsplan.Core
 {
     // "Packen (Back-Up)": Reservetag am Tag nach dem Packen, im Paket an den Packen-Schritt gekoppelt (PackageStep.BackupOf = Source des
     // Packen-Schritts, XML "backup", Paketformat 6; fehlt bei alten Paketen). Der Back-Up folgt dem Packen-Schritt (Tag +1) und kann nicht
-    // ohne ihn existieren; Packen ist nicht entfernbar, solange ein Back-Up daran haengt.
+    // ohne ihn existieren; wird Packen entfernt, geht sein Back-Up mit (Paket-Editor, eine Rueckfrage).
     public partial class PackageStep
     {
         public string BackupOf = "";        // Source des Packen-Schritts, zu dem dieser Schritt der Back-Up ist; "" = normaler Schritt

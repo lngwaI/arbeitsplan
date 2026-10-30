@@ -143,8 +143,9 @@ namespace Arbeitsplan.Win
             Package p = StepsView();
             int off = Math.Max(-PackageStep.MaxOffset, Math.Min(PackageStep.MaxOffset, FirstOf(s, Plan()) - p.Lauf1Day));
             bool numbered = s.Kind == StepKind.Normal && p.RunCountOf(s) > 1;
+            if (s.Bind != StepBind.JeLauf) s.Shift.Clear();   // nur beim echten Wechsel: Abstand je Lauf eines Puffers bleibt sonst
             s.Bind = StepBind.JeLauf; s.RunOffset = off; s.RunEvery = 1; s.NumberRuns = numbered;
-            s.Repeat = RepeatMode.Interval; s.Count = 1; s.Until = 0; s.WeekDays = 0; s.DayList = ""; s.Shift.Clear(); s.Move.Clear();
+            s.Repeat = RepeatMode.Interval; s.Count = 1; s.Until = 0; s.WeekDays = 0; s.DayList = ""; s.Move.Clear();
         }
 
         // Eigenes Datum: die bisherigen Termine bleiben (eine Tagesliste)

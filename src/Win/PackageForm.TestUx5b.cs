@@ -124,10 +124,10 @@ namespace Arbeitsplan.Win
                 BlockPreview bp = f.blockPreview;
                 BlockPreview.Card pc = bp.Count > 0 ? bp.TestCard(0) : null;
                 bool okLauf = pc != null && pc.Data.Buffers.Count == 3 && pc.Data.Buffers[0].LaufRef == 1 && pc.Data.Buffers[2].LaufRef == 1
-                    && pc.Data.Buffers[1].HeadText(2) == "Puffer 2: " + Package.PlanBufferName(f.Product, "Lösung B") + " · Lauf 1" && f.curDates.Count >= 2;
+                    && pc.Data.Buffers[1].HeadText(2) == "Puffer 2: " + Package.PlanBufferName(f.Product, "Lösung B") + f.StepsView().WithLauf(new List<BufferItem>(new[] { new BufferItem() }), 1, f.pk.Day1)[0].LaufText && pc.Data.Buffers[1].LaufNo == f.StepsView().LaufNoOf(1, f.pk.Day1) && f.curDates.Count >= 2;
                 f.GoPage(1); Application.DoEvents();
                 pc = bp.TestCard(0);
-                okLauf &= pc.Data.Buffers[0].LaufRef == 2 && pc.Data.Buffers[0].HeadText(1) == "Puffer 1: " + Package.PlanBufferName(f.Product, "Lösung A") + " · Lauf 2";
+                okLauf &= pc.Data.Buffers[0].LaufRef == 2 && pc.Data.Buffers[0].HeadText(1) == "Puffer 1: " + Package.PlanBufferName(f.Product, "Lösung A") + " · für " + f.StepsView().LaufNoOf(2, f.pk.Day1);
                 List<Rectangle> bands = bp.TestBands(0);
                 bool okBands = bands.Count == 3 && bp.TestBufCount(0) == 3 && bands[1].Top - bands[0].Bottom >= 8 && bands[2].Top - bands[1].Bottom >= 8 && bands[0].Top >= 4;
                 bool okTint = BufStyle.Tint(0) != BufStyle.Tint(1) && BufStyle.Tint(1) != BufStyle.Tint(2) && BufStyle.Tint(0) != Color.White && BufStyle.Gap >= 8 && BufStyle.Gap <= 12;

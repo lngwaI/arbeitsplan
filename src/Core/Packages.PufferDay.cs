@@ -104,6 +104,7 @@ namespace Arbeitsplan.Core
                     List<string> late = new List<string>();
                     if (s.Puffers.Count == 0) { if (s.RunOffset > 0) late.Add("alle Puffer"); }
                     else for (int k = 0; k < s.Puffers.Count; k++) if (s.CardOffset(s.Puffers[k]) > 0) late.Add("Puffer " + (k + 1));
+                    foreach (KeyValuePair<int, int> kv in s.Shift) if (s.RunOffset + kv.Value > 0) late.Add("für Lauf " + (kv.Key + 1));
                     if (late.Count > 0)
                         Add(res, Severity.Hinweis, "pufnach", "Puffer „" + StepName(i) + "“ (" + string.Join(", ", late.ToArray()) + ") liegt nach dem Lauf, den er bedient", i).Action = "Versatz auf „vor dem Lauf“ oder „am Tag des Laufs“ stellen";
                     continue;

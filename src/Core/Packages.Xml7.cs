@@ -73,6 +73,7 @@ namespace Arbeitsplan.Core
             if (s.ManualNo.Length > 0) w.WriteAttributeString("nr", s.ManualNo);
             if (s.Skip.Count > 0) w.WriteAttributeString("ausfall", string.Join(",", s.Skip.ConvertAll<string>(delegate(int r) { return I(r + 1); }).ToArray()));
             if (s.Move.Count > 0) { w.WriteAttributeString("versatzab", PackageStep.MapText(s.Move)); w.WriteAttributeString("versatznur", s.ShiftText()); }
+            else if (s.Bind == StepBind.JeLauf && s.Shift.Count > 0) w.WriteAttributeString("versatznur", s.ShiftText());   // Puffer: Abstand je Lauf (das aufgeloeste Raster fuer aeltere exe enthaelt ihn schon)
             if (s.IdentStart.Length > 0) w.WriteAttributeString("kennungstart", s.IdentStart);
             if (s.IdentOver.Count > 0)
             {

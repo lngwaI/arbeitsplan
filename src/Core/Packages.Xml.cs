@@ -10,7 +10,7 @@ namespace Arbeitsplan.Core
     // Paketdatei .apkg. Version 4: Produktcode frei ("produkt"), Laufnummern-Praefix eigenes Attribut "praefix", Schritt-"variante";
     // alte Pakete (produkt = 4 Ziffern, ohne praefix) bleiben lesbar: Praefix = Produktcode. Version 5: Schritt "wiederholung"
     // (wochentage|tage, fehlt = alle x Tage), "wochentage" (Mo,Mi,Fr), "tage" (1, 4, 9), "bis", "versatz" (Lauf:Tage;…),
-    // "ansatz" (gebinde|ohne) mit "gebinde"/"menge"/"einheit"; "variante" mit Anzahl (mobil:2|stationaer).
+    // "ansatz" (gebinde, alt auch ohne) mit "gebinde"/"menge"/"einheit"; "variante" mit Anzahl (mobil:2|stationaer).
     // Version 6: Schritt "backup" (= Source des Packen-Schritts; Back-Up folgt ihm, Packages.Backup.cs).
     // Version 8 (nur wenn ein Schritt eigene Puffer hat, Packages.PufferXml.cs): <Puffer>/<Gemeinsam> je Schritt; die gemeinsame <Equipment>-Liste bleibt fuer aeltere exe.
     // Version 7 (Zeitmodell, Packages.Xml7.cs): Paket "typ"/"lauf1", Schritt "bezug"/"laufversatz"/"jelaeufe"/"nr"/"ausfall"/"versatzab"/"kennungstart"/"kennungje";
@@ -167,7 +167,7 @@ namespace Arbeitsplan.Core
                     s.Until = Clamp(ToInt(e.GetAttribute("bis"), 0), 0, 999);
                     ReadStep7(e, s);
                     string an = e.GetAttribute("ansatz");
-                    s.Ansatz = Array.IndexOf(PackageStep.AnsatzKeys, an) > 0 ? an : "";
+                    s.Ansatz = an == PackageStep.AnsatzGebinde || an == "ohne" ? PackageStep.AnsatzGebinde : "";   // "Ohne Gebinde" gibt es nicht mehr
                     s.Gebinde = e.GetAttribute("gebinde"); s.Menge = e.GetAttribute("menge"); s.Einheit = e.GetAttribute("einheit");
                     foreach (XmlElement q in Elements(e))
                         if (q.Name == "Equipment") s.Equipment.Add(ReadEquip(q));

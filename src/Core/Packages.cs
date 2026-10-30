@@ -152,7 +152,7 @@ namespace Arbeitsplan.Core
                     string k = day.ToString("yyyyMMdd", CultureInfo.InvariantCulture) + "|" + id;
                     Target t;
                     if (!map.TryGetValue(k, out t)) { t = new Target(); t.Day = day; t.RowId = id; t.Data = new Entry(); map[k] = t; order.Add(t); }
-                    if (s.IsBuffer) { int lauf = LaufOf(plan, rd, start.DayOfWeek) + 1; BufferSet.AddRange(t.Data.Buffers, WithCode(split ? s.BuffersAt(rd.Run, Prefix, lauf, dl) : s.BuffersFor(rd.Run, Prefix, lauf))); }   // mehrere Puffer am Tag: anhaengen
+                    if (s.IsBuffer) { int lauf = LaufOf(plan, rd, start.DayOfWeek) + 1; BufferSet.AddRange(t.Data.Buffers, WithLauf(WithCode(split ? s.BuffersAt(rd.Run, Prefix, lauf, dl) : s.BuffersFor(rd.Run, Prefix, lauf)), lauf, start.DayOfWeek)); }   // mehrere Puffer am Tag: anhaengen
                     else AppendText(t.Data, s.EntryFor(rd.Run, Prefix));   // Notizzeilen und Kennung (Format) kommen mit
                 }
             }
