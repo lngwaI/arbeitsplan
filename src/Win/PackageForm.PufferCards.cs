@@ -7,8 +7,8 @@ using Arbeitsplan.Core;
 namespace Arbeitsplan.Win
 {
     // Paket-Editor (UX-1b): Puffer-Schritt = eine Karte je Puffer (PufferCard) statt einer gemeinsamen Equipment-Liste. Karten sind zugeklappt
-    // kompakt; "+ Puffer" hängt einen Puffer aus dem Standardpuffer an, "Puffer für Produkt…" setzt die Puffer des Produktprofils (sonst
-    // Standardpuffer). Beim Öffnen eines Puffer-Schritts wird er auf eigene Puffer umgestellt (MigratePuffers, verlustfrei), nach jeder
+    // kompakt; "+ Puffer ▾" (PackageForm.PufferAdd.cs) hängt einen leeren/kopierten/Vorlagen-Puffer an, "Pufferpaket übernehmen…" setzt die Puffer
+    // eines Produkts (sonst Standardpuffer). Beim Öffnen eines Puffer-Schritts wird er auf eigene Puffer umgestellt (MigratePuffers, verlustfrei), nach jeder
     // Änderung SyncPuffers + Rückgängig-Schnappschuss. Hinweise (Doppelbelegung, Produkt) markieren die betroffene Karte rot.
     partial class PackageForm
     {
@@ -24,13 +24,13 @@ namespace Arbeitsplan.Win
         {
             gPuf = Group("Puffer", "Je Puffer eigene Geräte; orange = nicht validiert.", 500);
             pufCards.Tag = "keep"; gPuf.Controls.Add(pufCards);
-            Btn(bPufProd, "Puffer für Produkt…", 8, 0, 240, delegate { PufferForProduct(true); });
-            Btn(bPufAdd, "+ Puffer", 0, 0, 110, delegate { AddPuffer(); });
+            Btn(bPufProd, "Pufferpaket übernehmen…", 8, 0, 240, delegate { PickPufferPack(false, null); });
+            Btn(bPufAdd, "+ Puffer ▾", 0, 0, 110, delegate { ShowAddMenu(); });
             Btn(bPufMgr, "Pufferpakete verwalten…", 0, 0, 200, delegate { ManagePufferPacks(); });
             gPuf.Controls.AddRange(new Control[] { bPufProd, bPufAdd, bPufMgr });
             tip.SetToolTip(bPufMgr, canAdmin ? "Pufferpakete der Produkte anlegen und ändern (Einstellungen → Pufferpakete…)" : "Pufferpakete der Produkte ansehen (ändern darf nur, wer Pakete einrichten darf)");
             gPuf.TabIndex = 4; gPuf.Visible = false;
-            tip.SetToolTip(bPufAdd, "Weiteren Puffer anhängen (aus dem Standardpuffer, höchstens " + PackageStep.MaxPuffer + ")");
+            tip.SetToolTip(bPufAdd, "Weiteren Puffer anhängen: leer, als Kopie eines vorhandenen oder aus einer Vorlage (höchstens " + PackageStep.MaxPuffer + ")");
         }
 
         // Karten werden wiederverwendet: nicht gebrauchte bleiben versteckt in spare (ohne Zeilen), BindPuffer bindet sie neu
@@ -92,9 +92,8 @@ namespace Arbeitsplan.Win
         {
             int y = gPuf.ContentTop;
             if (cur == null || pufStep != cur || cards.Count != cur.Puffers.Count) return y + 8;
-            bPufProd.Text = Product.Length > 0 ? "Puffer für Produkt " + Product + "…" : "Standardpuffer verwenden…";
             bPufProd.Width = Math.Max(200, TextRenderer.MeasureText(bPufProd.Text, bPufProd.Font).Width + 28);
-            tip.SetToolTip(bPufProd, "Puffer des Produkts übernehmen (Pufferpaket aus „Produkte & Equipment“, sonst Standardpuffer). Ersetzt die Puffer dieses Schritts.");
+            tip.SetToolTip(bPufProd, (Product.Length > 0 ? "Quelle: Pufferpaket von " + Product : "Quelle: Pufferpaket eines Produkts oder der Standardpuffer") + " (anderes Produkt im Dialog wählbar). Ersetzt die Puffer dieses Schritts oder hängt sie hinten an.");
             bPufAdd.Left = 8 + bPufProd.Width + 8;
             bPufMgr.Width = Math.Max(190, TextRenderer.MeasureText(bPufMgr.Text, bPufMgr.Font).Width + 28);
             bool wrap = bPufAdd.Right + 8 + bPufMgr.Width > iw;   // schmal: eigene Zeile
@@ -110,23 +109,6 @@ namespace Arbeitsplan.Win
             pufCards.SetBounds(8, y, iw, cy); y += cy;
             bPufAdd.Enabled = cur.Puffers.Count < PackageStep.MaxPuffer;
             return y + 4;
-        }
-
-        // Neuer Puffer: Positionen des Standardpuffers (ohne Geräte), Typ wie der vorige; neue Karte aufgeklappt, die anderen bleiben wie sie sind
-        void AddPuffer()
-        {
-            if (cur == null || !cur.IsBuffer || cur.Puffers.Count == 0 || cur.Puffers.Count >= PackageStep.MaxPuffer) return;
-            PufferTemplate t = cat.StandardPuffer();
-            if (t == null)
-            {
-                t = new PufferTemplate();
-                foreach (EquipAssign a in cur.Puffers[cur.Puffers.Count - 1].Lines) { PufferTemplatePos p = new PufferTemplatePos(); p.Short = a.Short; t.Positions.Add(p); }
-            }
-            t.Typ = cur.Puffers[cur.Puffers.Count - 1].Typ;
-            PufferSpec sp = Package.ApplyPufferTemplate(cur, t);
-            sp.NameNo = cur.Puffers.Count;   // ohne eigenen Namen "Titel 2", "Titel 3" …
-            openSpecs.Add(sp);
-            dirty = true; Bind(cur); CommitUndo();
         }
 
         internal void RemovePuffer(int k, bool ask)
@@ -147,37 +129,6 @@ namespace Arbeitsplan.Win
             if (cur == null || !cur.MovePuffer(from, to)) return;
             dirty = true; Bind(cur); CommitUndo();
             Say("Puffer " + (from + 1) + " steht jetzt an Stelle " + (to + 1));
-        }
-
-        // ---------- Puffer für Produkt ----------
-
-        void PufferForProduct(bool ask)
-        {
-            if (cur == null || !cur.IsBuffer) return;
-            List<PufferTemplate> list = Package.PufferFor(cat, Product);
-            if (list.Count == 0)
-            {
-                MessageBox.Show(this, "Weder für Produkt " + (Product.Length > 0 ? Product : "(noch ohne Code)") + " noch als Standardpuffer ist ein Puffer hinterlegt.\nDer Admin kann beides unter Einstellungen → „Produkte & Equipment“ bzw. „Equipment & Bausteine“ anlegen.",
-                    "Puffer für Produkt", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                return;
-            }
-            ProductProfile pr = cat.Product(Product);
-            bool own = pr != null && pr.Puffer.Count > 0;
-            using (PufferPickForm d = new PufferPickForm(Product, own, list, cur.Puffers.Count))
-            {
-                if (d.ShowDialog(this) != DialogResult.OK) return;
-                ApplyProductPuffer(d.Result);
-            }
-        }
-
-        internal void ApplyProductPuffer(List<PufferTemplate> list)
-        {
-            if (cur == null || !cur.IsBuffer || list.Count == 0) return;
-            if (list.Count > PackageStep.MaxPuffer) list = list.GetRange(0, PackageStep.MaxPuffer);
-            Package.ApplyPufferTemplates(cur, list);
-            for (int k = 1; k < cur.Puffers.Count; k++) if (cur.Puffers[k].Name.Length == 0) cur.Puffers[k].NameNo = k + 1;   // unbenannte: "Titel 2" …
-            pufStep = null;   // Kartenzustand neu: die erste aufgeklappt
-            dirty = true; Bind(cur); CommitUndo();
         }
 
         // ---------- Hinweise (PackageForm.Preview.cs: UpdateHints, PackageForm.Hints.cs: RuleHint) ----------

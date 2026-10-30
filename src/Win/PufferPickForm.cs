@@ -6,43 +6,163 @@ using Arbeitsplan.Core;
 
 namespace Arbeitsplan.Win
 {
-    // Auswahl der Puffer eines Produkts (Pufferpaket aus dem Produktprofil oder Standardpuffer); ersetzt die Puffer des Schritts.
+    // UX-6 B1 "Pufferpaket übernehmen": Quelle wählen (Pufferpaket eines Produkts oder Standardpuffer), Puffer anhaken, bisherige ersetzen oder hinten
+    // anhängen. Ohne Vorlagen der Quelle: Leerzustand mit "Pufferpaket für X anlegen…" (Ergebnis Retry, CreateFor = Produktcode; der Editor ruft
+    // PufferPackAdmin und öffnet den Dialog erneut). Ein im Paket nicht gesetzter Produktcode wird nie geändert.
     class PufferPickForm : Form
     {
-        public List<PufferTemplate> Result = new List<PufferTemplate>();
-        readonly List<PufferTemplate> list;
-        readonly CheckedListBox lb = new CheckedListBox();
+        class Source
+        {
+            public string Code = "", Text = ""; public List<PufferTemplate> List = new List<PufferTemplate>();
+            public override string ToString() { return Text; }
+        }
 
-        // Eine Zeile je Vorlage: "Name · Typ · Position: Gerät, …" (Geräte nur, wenn vorbelegt)
-        public static string Describe(PufferTemplate t)
+        public List<PufferTemplate> Result = new List<PufferTemplate>();   // Klone der angehakten Vorlagen (höchstens PackageStep.MaxPuffer)
+        public string ResultCode = "";   // Quelle: Produktcode, leer = Standardpuffer
+        public bool Append;              // true = hinten anhängen, false = bisherige ersetzen
+        public string CreateFor = "";    // bei Retry: Produkt, dessen Pufferpaket angelegt werden soll
+
+        readonly Catalog cat; readonly int existing, free; readonly bool canAdmin;
+        internal readonly ComboBox cbSrc = new ComboBox();
+        internal readonly ListView lv = new ListView();
+        internal readonly Label lblHint = new Label(), lblCount = new Label(), lblEmpty = new Label();
+        internal readonly LinkLabel link = new LinkLabel();
+        internal readonly RadioButton rbReplace = new RadioButton(), rbAppend = new RadioButton();
+        internal readonly Button bOk = new Button(), bAll = new Button(), bNone = new Button();
+        readonly ToolTip tip = new ToolTip();
+        bool loading;
+        const string WarnText = "Nicht in der Equipment-Liste";
+
+        public static string TypText(string typ) { return typ == "stationaer" ? "stationär" : typ; }
+
+        // "Ansatztank H1-T-0101, VT, WFI": Position, bei vorbelegten Geräten mit Nummer
+        public static string Devices(PufferTemplate t)
         {
             List<string> p = new List<string>();
             foreach (PufferTemplatePos x in t.Positions) p.Add(x.Ids.Count > 0 ? x.Short + " " + string.Join("/", x.Ids.ToArray()) : x.Short);
-            return (t.Name.Length > 0 ? t.Name : "(Name aus Titel)") + " · " + (t.Typ == "stationaer" ? "stationär" : t.Typ) + (p.Count > 0 ? " · " + string.Join(", ", p.ToArray()) : "");
+            return string.Join(", ", p.ToArray());
         }
 
-        public PufferPickForm(string product, bool own, List<PufferTemplate> list, int existing)
+        static bool Unknown(Catalog cat, PufferTemplate t)
         {
-            this.list = list;
-            Text = "Puffer für Produkt" + (product.Length > 0 ? " " + product : "");
-            Ui.Dialog(this, 520, 330);
-            Label l = new Label(); l.SetBounds(10, 8, 490, 64); l.UseMnemonic = false;
-            l.Text = (own ? "Für das Produkt ist ein Pufferpaket hinterlegt." : "Für das Produkt ist kein Pufferpaket hinterlegt – es gilt der Standardpuffer (ohne Geräte).")
-                + "\nDie angehakten Puffer ersetzen die bisherigen " + existing + " Puffer dieses Schritts; Geräte lassen sich danach in den Karten ändern.";
-            lb.SetBounds(10, 78, 490, 180); lb.CheckOnClick = true; lb.IntegralHeight = false; lb.HorizontalScrollbar = true;
-            foreach (PufferTemplate t in list) lb.Items.Add(Describe(t), true);
-            Button ok = new Button(); ok.Text = "Übernehmen"; ok.SetBounds(300, 270, 100, 30); ok.Click += delegate { Commit(); };
-            Button cancel = new Button(); cancel.Text = "Abbrechen"; cancel.SetBounds(410, 270, 90, 30); cancel.DialogResult = DialogResult.Cancel;
-            AcceptButton = ok; CancelButton = cancel;
-            Controls.AddRange(new Control[] { l, lb, ok, cancel });
+            foreach (PufferTemplatePos x in t.Positions) foreach (string id in x.Ids) if (id.Length > 0 && cat.Master.Device(id) == null) return true;
+            return false;
         }
+
+        // packageProduct = Produktcode des Pakets (kann leer sein); pre = Vorauswahl der Quelle (null = automatisch)
+        public PufferPickForm(Catalog cat, string packageProduct, int existing, bool canAdmin, bool append, string pre)
+        {
+            this.cat = cat; this.existing = existing; this.canAdmin = canAdmin; free = Math.Max(0, PackageStep.MaxPuffer - existing);
+            Text = "Pufferpaket übernehmen";
+            Ui.Dialog(this, 660, 478);
+            Label intro = new Label(); intro.SetBounds(12, 10, 636, 38); intro.UseMnemonic = false;
+            intro.Text = "Hake die Puffer an, die dieser Schritt bekommen soll. Geräte und Reihenfolge kannst du danach in den Karten ändern.";
+            Label ls = new Label(); ls.Text = "Pufferpaket von:"; ls.SetBounds(12, 54, 112, 24); ls.TextAlign = ContentAlignment.MiddleLeft;
+            cbSrc.DropDownStyle = ComboBoxStyle.DropDownList; cbSrc.SetBounds(128, 54, 520, 24);
+            lblHint.SetBounds(128, 82, 520, 18); lblHint.ForeColor = Color.DarkOrange; lblHint.UseMnemonic = false;
+            lblHint.Text = "Paket hat noch keinen Produktcode – Produkt hier wählen."; lblHint.Visible = packageProduct.Length == 0;
+            lv.SetBounds(12, 106, 636, 200); lv.View = View.Details; lv.CheckBoxes = true; lv.FullRowSelect = true; lv.HideSelection = false; lv.MultiSelect = false; lv.ShowItemToolTips = false;
+            lv.Columns.Add("Bezeichnung", 190); lv.Columns.Add("Typ", 80); lv.Columns.Add("Positionen und Geräte", 340);
+            lv.ItemChecked += delegate { if (!loading) Recount(); };
+            lv.MouseMove += OnMove;
+            lblEmpty.SetBounds(20, 114, 620, 20); lblEmpty.ForeColor = SystemColors.GrayText; lblEmpty.UseMnemonic = false; lblEmpty.AutoEllipsis = true;
+            link.SetBounds(20, 138, 620, 20); link.UseMnemonic = false; link.LinkClicked += delegate { CreatePack(); };
+            lblCount.SetBounds(12, 312, 400, 20); lblCount.UseMnemonic = false;
+            bAll.Text = "Alle"; bAll.SetBounds(482, 308, 80, 26); bAll.Click += delegate { CheckAll(true); };
+            bNone.Text = "Keine"; bNone.SetBounds(568, 308, 80, 26); bNone.Click += delegate { CheckAll(false); };
+            rbReplace.Text = existing == 1 ? "Bisherigen Puffer ersetzen" : "Bisherige " + existing + " Puffer ersetzen"; rbReplace.SetBounds(12, 346, 636, 22); rbReplace.UseMnemonic = false;
+            rbAppend.Text = free > 0 ? "Hinten anhängen (noch " + free + " frei)" : "Hinten anhängen (kein Platz frei, höchstens " + PackageStep.MaxPuffer + " Puffer)"; rbAppend.SetBounds(12, 370, 636, 22); rbAppend.UseMnemonic = false;
+            rbAppend.Enabled = free > 0; rbAppend.Checked = append && free > 0; rbReplace.Checked = !rbAppend.Checked;
+            rbReplace.CheckedChanged += delegate { if (!loading) Recount(); };
+            bOk.SetBounds(400, 432, 160, 30); bOk.Click += delegate { Commit(); };
+            Button cancel = new Button(); cancel.Text = "Abbrechen"; cancel.SetBounds(568, 432, 80, 30); cancel.DialogResult = DialogResult.Cancel;
+            AcceptButton = bOk; CancelButton = cancel;
+            Controls.AddRange(new Control[] { intro, ls, cbSrc, lblHint, lv, lblEmpty, link, lblCount, bAll, bNone, rbReplace, rbAppend, bOk, cancel });
+
+            foreach (ProductProfile p in cat.Products)
+            {
+                Source s = new Source(); s.Code = p.Code; s.List = p.Puffer;
+                s.Text = p.Code + (p.Name.Length > 0 ? " · " + p.Name : "") + (p.Puffer.Count > 0 ? " (" + p.Puffer.Count + " Puffer)" : " (kein Pufferpaket)");
+                cbSrc.Items.Add(s);
+            }
+            Source std = new Source(); std.Text = "Standardpuffer (ohne Geräte)"; PufferTemplate st = cat.StandardPuffer(); if (st != null) std.List.Add(st);
+            cbSrc.Items.Add(std);
+            cbSrc.SelectedIndex = cbSrc.Items.Count - 1;
+            string want = pre;
+            if (want == null)
+            {
+                int withPack = 0; string one = "";
+                foreach (ProductProfile p in cat.Products) if (p.Puffer.Count > 0) { withPack++; one = p.Code; }
+                want = packageProduct.Length > 0 ? packageProduct : withPack == 1 ? one : "";
+            }
+            for (int i = 0; i < cbSrc.Items.Count; i++) if (((Source)cbSrc.Items[i]).Code == want && want.Length > 0) cbSrc.SelectedIndex = i;
+            cbSrc.SelectedIndexChanged += delegate { Fill(); };
+            Fill();
+        }
+
+        Source Cur { get { return (Source)cbSrc.SelectedItem; } }
+
+        void Fill()
+        {
+            loading = true; lv.Items.Clear(); Source s = Cur;
+            foreach (PufferTemplate t in s.List)
+            {
+                ListViewItem it = new ListViewItem(t.Label); it.Checked = true; it.UseItemStyleForSubItems = false; it.Tag = t;
+                it.SubItems.Add(TypText(t.Typ));
+                bool warn = Unknown(cat, t);
+                ListViewItem.ListViewSubItem d = it.SubItems.Add((warn ? "⚠ " : "") + Devices(t));
+                if (warn) d.ForeColor = Color.DarkOrange;
+                lv.Items.Add(it);
+            }
+            bool empty = s.List.Count == 0;
+            lv.Visible = !empty; bAll.Enabled = bNone.Enabled = !empty; lblEmpty.Visible = empty; link.Visible = false;
+            if (empty)
+            {
+                if (s.Code.Length == 0) lblEmpty.Text = "Der Standardpuffer ist noch nicht eingerichtet (Einstellungen → Equipment & Bausteine).";
+                else if (canAdmin) { lblEmpty.Text = "Für " + s.Code + " ist kein Pufferpaket hinterlegt."; link.Text = "Pufferpaket für " + s.Code + " anlegen…"; link.Visible = true; }
+                else lblEmpty.Text = "Für " + s.Code + " ist kein Pufferpaket hinterlegt. Der Admin legt Pufferpakete an.";
+            }
+            loading = false; Recount();
+        }
+
+        void CheckAll(bool on) { loading = true; foreach (ListViewItem it in lv.Items) it.Checked = on; loading = false; Recount(); }
+
+        int Checked() { int n = 0; foreach (ListViewItem it in lv.Items) if (it.Checked) n++; return n; }
+
+        // Zähler, Knopftext (Anzahl wie sie wirklich übernommen wird) und Knopf aus bei 0
+        void Recount()
+        {
+            int c = Checked(), n = lv.Items.Count, room = rbAppend.Checked ? free : PackageStep.MaxPuffer, eff = Math.Min(c, room);
+            lblCount.Text = lv.Visible ? c + " von " + n + (n == 1 ? " Puffer" : " Puffern") + " angehakt" + (eff < c ? " – es passen nur " + eff : "") : "";
+            lblCount.ForeColor = eff < c ? Color.DarkOrange : SystemColors.ControlText;
+            bOk.Text = eff > 0 ? eff + " Puffer übernehmen" : "Puffer übernehmen"; bOk.Enabled = eff > 0;
+        }
+
+        void OnMove(object sender, MouseEventArgs e)
+        {
+            ListViewHitTestInfo h = lv.HitTest(e.Location);
+            string t = h.Item != null && h.SubItem != null && h.SubItem.Text.StartsWith("⚠") ? WarnText : "";
+            if (tip.GetToolTip(lv) != t) tip.SetToolTip(lv, t);
+        }
+
+        void CreatePack() { CreateFor = Cur.Code; Append = rbAppend.Checked; DialogResult = DialogResult.Retry; }
 
         void Commit()
         {
             Result = new List<PufferTemplate>();
-            for (int i = 0; i < list.Count; i++) if (lb.GetItemChecked(i)) Result.Add(list[i].Clone());
-            if (Result.Count == 0) { MessageBox.Show(this, "Bitte mindestens einen Puffer anhaken.", Text, MessageBoxButtons.OK, MessageBoxIcon.Information); return; }
+            int room = rbAppend.Checked ? free : PackageStep.MaxPuffer;
+            foreach (ListViewItem it in lv.Items) if (it.Checked && Result.Count < room) Result.Add(((PufferTemplate)it.Tag).Clone());
+            if (Result.Count == 0) return;
+            ResultCode = Cur.Code; Append = rbAppend.Checked;
             DialogResult = DialogResult.OK;
         }
+
+#if TESTHOOKS
+        internal string TestSourceText { get { return Cur.Text; } }
+        internal int TestSourceCount { get { return cbSrc.Items.Count; } }
+        internal void TestPickSource(string code) { for (int i = 0; i < cbSrc.Items.Count; i++) if (((Source)cbSrc.Items[i]).Code == code) { cbSrc.SelectedIndex = i; return; } }
+        internal void TestCommit() { Commit(); }
+        internal void TestCreate() { CreatePack(); }
+#endif
     }
 }
