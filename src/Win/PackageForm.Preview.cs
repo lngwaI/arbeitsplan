@@ -121,7 +121,7 @@ namespace Arbeitsplan.Win
         void UpdateHints()
         {
             List<Hint> h = new List<Hint>();
-            pufBad.Clear();
+            pufBad.Clear(); unk.Clear();
             if (tName.Text.Trim().Length == 0) h.Add(new Hint("Das Muster hat noch keinen Namen.", null, tName));
             bool runs = steps.Exists(delegate(PackageStep s) { return s.Kind != StepKind.Normal; });
             if (ProductError() != null) h.Add(new Hint(ProductError(), null, tProduct));
@@ -156,6 +156,7 @@ namespace Arbeitsplan.Win
             bool ok = h.Count == 0;
             if (ok) h.Add(new Hint("Keine Auffälligkeiten – das Muster kann übernommen werden.", null, null));
             FillHintList(BlocksFirst(h));
+            UpdateEquipBar();   // unbekanntes Geraet im aktuellen Schritt: Leiste (PackageForm.EquipBar.cs)
             MarkCards();
             strip.Mark(null, -1);
             lbHints.ForeColor = ok ? Color.DarkGreen : Color.FromArgb(150, 60, 0);
@@ -230,7 +231,7 @@ namespace Arbeitsplan.Win
                         hp.Add(new Piece(head.Substring(0, head.Length - bi.LaufText.Length), bold, Color.Black, false, Color.Empty));
                         if (bi.LaufText.Length > 0) hp.Add(new Piece(bi.LaufText, bold, Theme.Current.Muted, false, Color.Empty));
                         p.Head = TextBlock.Build(hp, bold, tw);
-                        if (bi.Text.Length > 0) p.Body = TextBlock.Build(new List<Piece>(new[] { new Piece(bi.Text, plain, Color.Black, false, Color.Empty) }), plain, tw - BufIndent);
+                        if (bi.Text.Length > 0) p.Body = TextBlock.Build(NotePieces(bi.Text, plain), plain, tw - BufIndent);
                         p.Y = 0; p.H = BufStyle.Pad + p.Head.Height + (p.Body != null ? p.Body.Height : 0) + BufStyle.Pad;
                         parts.Add(p);
                     }
@@ -241,6 +242,17 @@ namespace Arbeitsplan.Win
             }
             Size = new Size(Math.Max(40, width), Math.Max(h, 20));
             Invalidate();
+        }
+
+        // Puffer-Text: die Notiz einer Equipment-Zeile (BufferSet.NoteMark) steht kursiv, eingerueckt unter dem Geraet (UX-5f)
+        static List<Piece> NotePieces(string text, Font plain)
+        {
+            bool[] it; string t = BufferSet.ForDisplay(text, out it);
+            Font ital = FontCache.Get(plain.Name, plain.SizeInPoints, FontStyle.Italic, plain);
+            List<Piece> res = new List<Piece>();
+            for (int s = 0, i = 1; i <= t.Length; i++)
+                if (i == t.Length || it[i] != it[s]) { res.Add(new Piece(t.Substring(s, i - s), it[s] ? ital : plain, Color.Black, false, Color.Empty)); s = i; }
+            return res;
         }
 
         static List<Piece> Pieces(Entry e, Font plain)

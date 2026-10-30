@@ -33,7 +33,10 @@ namespace Arbeitsplan.Core
 
         // Eigene Zeile: "<Kurzname>: <ID> (Ausweich: <ID>) <Notiz>"; ohne ID steht die Notiz (z. B. Schlauch-Bezeichnung) hinter dem Namen.
         // Bei Geraeten einer anderen Position der Gruppe (Freezetank 2 statt 1) steht deren Kurzname.
-        public string Line(int run)
+        public string Line(int run) { return BufferSet.Plain(LineM(run)); }
+
+        // Wie Line, aber mit NoteMark (BufferSet) statt des Leerzeichens vor der Notiz: Der Notiz-Teil wird im Plan kursiv gezeigt (UX-5f).
+        public string LineM(int run)
         {
             EquipChoice c = ChoiceFor(run);
             string id = c != null ? c.Id : "";
@@ -41,7 +44,7 @@ namespace Arbeitsplan.Core
             StringBuilder sb = new StringBuilder(c != null && c.Short.Length > 0 ? c.Short : Short).Append(':');
             if (id.Length > 0) sb.Append(' ').Append(id);
             if (Fallback.Length > 0) sb.Append(" (Ausweich: ").Append(Fallback).Append(')');
-            if (Note.Length > 0) sb.Append(' ').Append(Note);
+            if (Note.Length > 0) sb.Append(BufferSet.NoteMark).Append(Note);
             return sb.ToString();
         }
     }

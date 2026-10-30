@@ -105,6 +105,7 @@ namespace Arbeitsplan.Core
             foreach (EquipDevice d in Devices) m.Devices.Add(d.Clone());
             foreach (EquipLink l in Links) m.Links.Add(l.Clone());
             foreach (EquipSubst s in Substs) m.Substs.Add(s.Clone());
+            foreach (EquipPending p in Pending) m.Pending.Add(p.Clone());
             return m;
         }
 

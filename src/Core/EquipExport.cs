@@ -11,7 +11,7 @@ namespace Arbeitsplan.Core
         static string ScanText(Entry e)
         {
             StringBuilder sb = new StringBuilder(Notes.ContentText(e));
-            foreach (BufferItem b in e.Buffers) sb.Append('\n').Append(b.Name).Append('\n').Append(b.Text);
+            foreach (BufferItem b in e.Buffers) sb.Append('\n').Append(b.Name).Append('\n').Append(BufferSet.Plain(b.Text));
             return sb.ToString();
         }
 

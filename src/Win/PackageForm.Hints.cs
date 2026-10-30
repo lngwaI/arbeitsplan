@@ -111,8 +111,9 @@ namespace Arbeitsplan.Win
             if (!unknown)
                 return new Hint(n + ": Gerät " + id + " (" + a.Short + ") ist " + (cat.Product(Product) != null ? "für dieses Produkt nicht vorgesehen." : "nicht validiert."), s, null);
             string head = n + ": Gerät " + id + " (" + a.Short + "): Nicht in der Equipment-Liste (nicht validiert). ";
+            NoteUnknown(id, a.Short, s);   // fuer die Leiste (PackageForm.EquipBar.cs)
             string tail = canAdmin ? "Klick: „Zur Liste hinzufügen…“"
-                : (notedIds.Contains(id) ? "Vorgemerkt – der Admin muss die Nummer noch aufnehmen." : "Bitte Admin bitten, die Nummer aufzunehmen (Klick = vormerken).");
+                : (IsNoted(id) ? "Vorgemerkt – der Admin muss die Nummer noch aufnehmen." : "Bitte Admin bitten, die Nummer aufzunehmen (Klick = vormerken).");
             Hint h = new Hint(head + tail, s, null); h.UnvalId = id; h.UnvalShort = a.Short;
             return h;
         }
@@ -124,11 +125,13 @@ namespace Arbeitsplan.Win
             if (Environment.CommandLine.Contains("--selftest") || Environment.CommandLine.Contains("--hintclick")) return;   // Klick-Tests duerfen keinen modalen Dialog oeffnen
 #endif
             if (!canAdmin)
-            {
-                if (notedIds.Add(id)) MessageBox.Show(this, "Bitte den Admin bitten, die Nummer „" + id + "“ in die Equipment-Liste aufzunehmen. Sie ist hier vorgemerkt.", "Nicht validiert", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                UpdateHints(); return;
+            {   // dauerhaft vormerken (Katalog); Rueckmeldung als Leiste, wenn der Schritt gerade offen ist
+                Unk u = unk.Find(delegate(Unk x) { return x.Id == id && x.Step == cur; }) ?? new Unk();
+                if (u.Id == null) { u.Id = id; u.Short = shortName; u.Step = cur; }
+                if (!IsNoted(id)) Inform(u); else UpdateHints();
+                return;
             }
-            using (EquipAddForm f = new EquipAddForm(id, cat))
+            using (EquipAddForm f = new EquipAddForm(id, cat, shortName))
             {
                 if (f.ShowDialog(this) != DialogResult.OK) return;
                 AddDevice(f.Device, shortName);
@@ -142,6 +145,7 @@ namespace Arbeitsplan.Win
             if (cat.Master.Device(d.Id) == null) cat.Master.Devices.Add(d);
             EquipPosition pos = cat.Position(shortName);
             if (pos != null && !pos.Ids.Contains(d.Id)) pos.Ids.Add(d.Id);
+            cat.Master.RemovePending(d.Id);   // eine Vormerkung ist damit erledigt
             try { store.SaveCatalog(cat); }
             catch (Exception ex) { MessageBox.Show(this, "Die Equipment-Liste konnte nicht gespeichert werden:\n" + ex.Message, "Speichern", MessageBoxButtons.OK, MessageBoxIcon.Warning); return false; }
             notedIds.Remove(d.Id);

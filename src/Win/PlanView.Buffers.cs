@@ -36,11 +36,12 @@ namespace Arbeitsplan.Win
         // Text mit Statusfarbe erkannter Equipment-Nummern und Suchtreffern (wie der Inhalt, ohne Formatierung)
         List<Piece> BufferPieces(string text, bool search, out int hits)
         {
+            bool[] ital; text = BufferSet.ForDisplay(text, out ital);   // Notiz einer Equipment-Zeile: eigene eingerueckte Zeile, kursiv (UX-5f)
             Color[] fore = new Color[text.Length];
             Font[] fnt = new Font[text.Length];
             int[] mode = new int[text.Length];
-            Font plain = FontCache.Get(Font.Name, Font.SizeInPoints, FontStyle.Regular, Font);
-            for (int i = 0; i < fore.Length; i++) { fore[i] = Color.Black; fnt[i] = plain; }
+            Font plain = FontCache.Get(Font.Name, Font.SizeInPoints, FontStyle.Regular, Font), italic = FontCache.Get(Font.Name, Font.SizeInPoints, FontStyle.Italic, Font);
+            for (int i = 0; i < fore.Length; i++) { fore[i] = Color.Black; fnt[i] = ital[i] ? italic : plain; }
             foreach (Match m in EquipmentMatcher.Pattern.Matches(text))
             {
                 Color col = Rgb(StatusRgb(m.Value));

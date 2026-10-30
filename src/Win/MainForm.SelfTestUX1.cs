@@ -61,7 +61,7 @@ namespace Arbeitsplan.Win
         static string UxTexts(List<BufferItem> l)
         {
             List<string> n = new List<string>();
-            foreach (BufferItem b in l) n.Add(b.Typ + "/" + b.Name + "/" + b.Text.Replace("\n", "|"));
+            foreach (BufferItem b in l) n.Add(b.Typ + "/" + b.Name + "/" + BufferSet.Plain(b.Text).Replace("\n", "|"));   // Plain: Notiz-Marker (UX-5f) ist nur Darstellung
             return string.Join(";", n.ToArray());
         }
 

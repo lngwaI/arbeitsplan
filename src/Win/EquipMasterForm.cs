@@ -31,7 +31,7 @@ namespace Arbeitsplan.Win
             Controls.Add(L("Suchen (ID, Notiz, Eigenschaft):", 8, 11));
             search.SetBounds(200, 8, 200, 22); Ui.SimpleMenu(search); Controls.Add(search);
             search.TextChanged += delegate { RebuildTree(cur); };
-            Controls.Add(Ui.Hint("Art → Gruppe → Gerät (Zubehör grau)", 412, 11, 270));
+            hintTree = Ui.Hint("Art → Gruppe → Gerät (Zubehör grau)", 412, 11, 270); Controls.Add(hintTree);
 
             tree.SetBounds(8, 40, 300, 560); tree.HideSelection = false; tree.ShowNodeToolTips = true;
             tree.AfterSelect += delegate(object s, TreeViewEventArgs e) { ShowFor(e.Node); };
@@ -46,7 +46,7 @@ namespace Arbeitsplan.Win
             Controls.Add(Btn("Matrix…", 580, 606, 70, delegate { OpenMatrix(); }));
 
             foreach (Panel pn in new[] { pCls, pSer, pDev }) { pn.SetBounds(320, 40, 652, 560); pn.Visible = false; Controls.Add(pn); }
-            BuildClass(); BuildGroup(); BuildCard(); BuildQuick();
+            BuildClass(); BuildGroup(); BuildCard(); BuildQuick(); BuildPending();
 
             Button ok = Btn("Speichern", 780, 612, 95, delegate { Commit(); }); ok.Height = 30;
             Button cancel = new Button(); cancel.Text = "Abbrechen"; cancel.SetBounds(880, 612, 92, 30); cancel.DialogResult = DialogResult.Cancel;

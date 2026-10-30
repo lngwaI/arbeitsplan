@@ -12,7 +12,10 @@ namespace Arbeitsplan.Win
         readonly Catalog cat;
         public EquipDevice Device;   // Ergebnis bei OK
 
-        public EquipAddForm(string id, Catalog cat)
+        public EquipAddForm(string id, Catalog cat) : this(id, cat, "") { }
+
+        // shortName: Position der Zeile (Hilfe fuer die geratene Geraeteart)
+        public EquipAddForm(string id, Catalog cat, string shortName)
         {
             this.cat = cat;
             Text = "Zur Equipment-Liste hinzufügen";
@@ -24,7 +27,7 @@ namespace Arbeitsplan.Win
             cbClass.SetBounds(126, 81, 242, 22); cbClass.DropDownStyle = ComboBoxStyle.DropDownList;
             cbClass.Items.Add("(keine)");
             foreach (EquipClass c in cat.Master.Classes) cbClass.Items.Add(c.Name);
-            cbClass.SelectedIndex = 0;
+            cbClass.SelectedIndex = Math.Max(0, cbClass.Items.IndexOf(cat.Master.GuessClass(id, cat.Position(shortName))));   // Art aus dem Schema geraten
             Label l3 = new Label(); l3.Text = "Notiz"; l3.SetBounds(12, 116, 110, 20);
             tNote.SetBounds(126, 113, 242, 22); Ui.SimpleMenu(tNote);
             Button ok = new Button(); ok.Text = "Hinzufügen"; ok.SetBounds(172, 200, 96, 30); ok.Click += delegate { Commit(); };

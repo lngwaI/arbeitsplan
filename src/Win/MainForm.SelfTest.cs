@@ -92,7 +92,7 @@ namespace Arbeitsplan.Win
             {
                 demo = Package.SampleBuffers("Testpaket");
             }
-            if (which == "package11" || which == "package12" || which == "package13")   // UX-1b: Puffer-Schritt mit zwei Karten (12: Geraet doppelt = rote Karten)
+            if (which == "package11" || which == "package12" || which == "package13" || which == "package18")   // UX-1b: Puffer-Schritt mit zwei Karten (12: Geraet doppelt = rote Karten)
             {
                 PackageForm.Ux1bPrepare(store); demo = PackageForm.Ux1bSample("Testpaket", which == "package12");
             }
@@ -100,6 +100,8 @@ namespace Arbeitsplan.Win
             {
                 PackageForm.Ux1bPrepare(store); demo = PackageForm.Ux5cSample("Testpaket", which == "package16");
             }
+            if (which == "package18") demo = PackageForm.Ux5fSample("Testpaket");   // UX-5f: Puffer mit Notizen an Equipment-Zeilen
+            if (which == "equipadd2") demo = PackageForm.Ux5fBarSample("Testpaket");   // N5: unbekannter Tank im Lauf-Schritt (Leiste)
             if (which == "package15")   // UX-5b: Puffer-Schritt mit drei Karten, folgt jedem Lauf (Vorschau mit Lauf-Angabe, Knoepfe ▲▼ einer Zeile sichtbar)
             {
                 PackageForm.Ux1bPrepare(store); demo = PackageForm.Ux5bSample("Testpaket");
@@ -183,6 +185,8 @@ namespace Arbeitsplan.Win
             if (pf != null && which == "package7") { pf.SelectStep(3); pf.TestMore(); pf.TestScrollEnd(); }   // Hauptlauf, Zusaetze (Kennungstabelle) im Blick
             if (pf != null && which == "package6") pf.SelectStep(2);
             if (pf != null && which == "package10") pf.TestSelectBuffer();
+            if (pf != null && which == "package18") { pf.TestSelectBuffer(); pf.TestScrollEnd(); }
+            if (pf != null && which == "equipadd2") pf.SelectStep(2);
             if (pf != null && (which == "package11" || which == "package12" || which == "package15")) { if (which == "package15") pf.Size = ClientSize.Width < 1190 ? ClientSize : new Size(1190, 980); pf.TestSelectBuffer(); if (which == "package12") pf.TestOpenCard(1); if (which == "package15") { pf.TestOpenCard(1); pf.TestShrinkPane(); } pf.TestHotRow(0, 1); if (which != "package15") pf.TestScrollEnd(); }
             if (pf != null && (which == "package16" || which == "package17")) { pf.Size = ClientSize.Width < 1190 ? ClientSize : new Size(1190, 980); pf.TestSelectBuffer(); if (which == "package17") pf.TestOpenCard(1); pf.TestShrinkPane(); }
             if (pf != null && (which == "package13" || which == "package14")) { pf.Size = ClientSize.Width < 1190 ? ClientSize : new Size(1190, 980); if (which == "package13") pf.TestSelectBuffer(); else pf.SelectStep(2); pf.TestMore(); pf.TestShrinkPane(); }   // UX-5a: hohes Fenster, "Mehr Optionen" offen (13 Puffer, 14 Lauf)
@@ -381,6 +385,8 @@ namespace Arbeitsplan.Win
             SelfTestUX5b(sb);   // UX-5b: Reihenfolge der Positionen, Lauf-Angabe je Puffer, Darstellung (MainForm.SelfTestUX5b.cs)
             SelfTestUX5c(sb);   // UX-5c: Puffer-Rhythmus (eigener Rhythmus, Lauf-Zuordnung, Zeitpunkt je Karte, Regeln) (MainForm.SelfTestUX5c.cs)
             SelfTestUX5e(sb);   // UX-5e: Leistung/Flackern im Paket-Editor und in der Wochenansicht (MainForm.SelfTestUX5e.cs)
+            SelfTestUX5f(sb);   // UX-5f: Equipment-Notiz kursiv (Plan, Puffer) (MainForm.SelfTestUX5f.cs)
+            sb.Append(PackageForm.TestUx5f(equip, start));   // N5: Leiste "nicht in der Equipment-Liste", Vormerkung (PackageForm.TestUx5f.cs)
             using (MainForm mx = new MainForm("ux4", true, null, null)) { mx.FitToCursorScreen(); sb.AppendLine("UX4 Hauptfenster startet maximiert: " + Ok(mx.WindowState == FormWindowState.Maximized)); }
             quiet = false;
             return sb.ToString();

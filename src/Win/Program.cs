@@ -160,7 +160,7 @@ namespace Arbeitsplan.Win
                 return;
             }
             string mk = Arg(args, "--makepkg");   // Test: Testpaket als Datei erzeugen (Name = Dateiname), z. B. testpakete\Name.apkg
-            if (mk != null) { string mkn = System.IO.Path.GetFileNameWithoutExtension(mk); (mkn.StartsWith("UX5b") ? PackageForm.Ux5bSample(mkn) : mkn.StartsWith("PB") ? Arbeitsplan.Core.Package.SampleBuffers(mkn) : Arbeitsplan.Core.Package.SampleCampaign(mkn)).Save(mk); return; }   // PB...: mit 3 mobilen Puffern
+            if (mk != null) { string mkn = System.IO.Path.GetFileNameWithoutExtension(mk); (mkn.StartsWith("UX5b") ? PackageForm.Ux5bSample(mkn) : mkn.StartsWith("UX5f") ? PackageForm.Ux5fSample(mkn) :mkn.StartsWith("PB") ? Arbeitsplan.Core.Package.SampleBuffers(mkn) : Arbeitsplan.Core.Package.SampleCampaign(mkn)).Save(mk); return; }   // PB...: mit 3 mobilen Puffern
             if (shot == null)
             {
 #if DEMO

@@ -52,7 +52,7 @@ namespace Arbeitsplan.Win
             body.Dock = DockStyle.Top; body.Tag = "keep"; body.Width = 680;   // Resize -> LayoutDetails (PackageForm.Sizing.cs)
             scroll.Controls.Add(body);
             Panel gap = new Panel(); gap.Tag = "keep"; gap.Dock = DockStyle.Top; gap.Height = 8;
-            sec.Controls.Add(scroll); sec.Controls.Add(gap); sec.Controls.Add(marker);
+            sec.Controls.Add(scroll); sec.Controls.Add(eqBar); InitEquipBar(); sec.Controls.Add(gap); sec.Controls.Add(marker);   // eqBar: Leiste "nicht in der Liste" (N5)
             wrap.Controls.Add(sec);
 
             // Was? Wo im Plan? – der Raum steht direkt unter dem Titel

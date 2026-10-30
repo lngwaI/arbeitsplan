@@ -198,6 +198,11 @@ namespace Arbeitsplan.Core
                 w.WriteStartElement("Ersatz"); w.WriteAttributeString("id", s.Id); w.WriteAttributeString("ersetzt", s.Replaces);
                 w.WriteAttributeString("notiz", s.Note); w.WriteAttributeString("beide", B(s.Both)); w.WriteEndElement();
             }
+            foreach (EquipPending p in m.Pending)
+            {
+                w.WriteStartElement("Vormerkung"); w.WriteAttributeString("id", p.Id); w.WriteAttributeString("kurz", p.Short); w.WriteAttributeString("von", p.By);
+                w.WriteAttributeString("am", p.At.ToString("yyyy-MM-ddTHH:mm:ss", Inv)); w.WriteEndElement();
+            }
             w.WriteEndElement();
         }
 
@@ -245,6 +250,12 @@ namespace Arbeitsplan.Core
             {
                 EquipSubst s = new EquipSubst(); s.Id = e.GetAttribute("id"); s.Replaces = e.GetAttribute("ersetzt");
                 s.Note = e.GetAttribute("notiz"); s.Both = Bool(e, "beide"); m.Substs.Add(s);
+            }
+            foreach (XmlElement e in Kids(sd, "Vormerkung"))   // N5; fehlt in aelteren Dateien
+            {
+                EquipPending p = new EquipPending(); p.Id = e.GetAttribute("id"); p.Short = e.GetAttribute("kurz"); p.By = e.GetAttribute("von");
+                DateTime at; if (DateTime.TryParseExact(e.GetAttribute("am"), "yyyy-MM-ddTHH:mm:ss", Inv, DateTimeStyles.None, out at)) p.At = at;
+                if (p.Id.Length > 0) m.Pending.Add(p);
             }
         }
     }

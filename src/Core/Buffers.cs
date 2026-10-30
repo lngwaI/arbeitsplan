@@ -24,6 +24,27 @@ namespace Arbeitsplan.Core
     // Hilfsfunktionen fuer Entry.Buffers: Typen (VariantSet), Migration alter Daten, Rechte, Anzeige, Dreiwege-Merge.
     public static class BufferSet
     {
+        // Marker in BufferItem.Text (UX-5f): steht anstelle des Leerzeichens vor der Notiz einer Equipment-Zeile ("TFF: H1-T-0123<Marker>Notiz").
+        // Plain ergibt den bisherigen Text; Alt-Daten ohne Marker bleiben unveraendert (Private-Use-Zeichen, in XML erlaubt).
+        public const char NoteMark = '';
+
+        public static string Plain(string text) { return text != null && text.IndexOf(NoteMark) >= 0 ? text.Replace(NoteMark, ' ') : text; }
+
+        // Anzeige: die Notiz steht kursiv, eingerueckt in einer eigenen Zeile unter dem Geraet; italic[i] gehoert zu Zeichen i des Ergebnisses
+        public static string ForDisplay(string text, out bool[] italic)
+        {
+            if (text.IndexOf(NoteMark) < 0) { italic = new bool[text.Length]; return text; }
+            StringBuilder sb = new StringBuilder(); List<bool> it = new List<bool>(); bool inNote = false;
+            foreach (char ch in text)
+            {
+                if (ch == NoteMark) { sb.Append("\n  "); it.Add(false); it.Add(false); it.Add(false); inNote = true; continue; }
+                if (ch == '\n') inNote = false;
+                sb.Append(ch); it.Add(inNote);
+            }
+            italic = it.ToArray();
+            return sb.ToString();
+        }
+
         // Typen der Puffer als VariantSet-String ("mobil:2|stationaer"); Eingabe fuer CheckEval (Anzahl spielt dort keine Rolle)
         public static string Types(List<BufferItem> l)
         {
@@ -144,7 +165,7 @@ namespace Arbeitsplan.Core
             {
                 BufferItem b = l[i];
                 r.Add("Puffer " + (i + 1) + ": " + (b.Name.Length > 0 ? b.Name : "–") + (b.Typ.Length > 0 ? " (" + b.Typ + ")" : ""));
-                if (withText && b.Text.Length > 0) foreach (string t in b.Text.Split('\n')) r.Add("    " + t);
+                if (withText && b.Text.Length > 0) foreach (string t in Plain(b.Text).Split('\n')) r.Add("    " + t);
             }
             return r;
         }
@@ -152,7 +173,7 @@ namespace Arbeitsplan.Core
         public static bool Matches(List<BufferItem> l, string q)
         {
             foreach (BufferItem b in l)
-                if (b.Name.IndexOf(q, StringComparison.OrdinalIgnoreCase) >= 0 || b.Text.IndexOf(q, StringComparison.OrdinalIgnoreCase) >= 0) return true;
+                if (b.Name.IndexOf(q, StringComparison.OrdinalIgnoreCase) >= 0 || Plain(b.Text).IndexOf(q, StringComparison.OrdinalIgnoreCase) >= 0) return true;
             return false;
         }
 

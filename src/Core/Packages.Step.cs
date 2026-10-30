@@ -71,7 +71,7 @@ namespace Arbeitsplan.Core
             return Numbered ? t + " " + RunNo(prefix, run) : t;
         }
 
-        public string Compose(int run, string prefix) { return string.Join("\n", Lines(run, prefix).ToArray()); }
+        public string Compose(int run, string prefix) { return BufferSet.Plain(string.Join("\n", Lines(run, prefix).ToArray())); }
 
         // Puffer-Schritt (Variante gesetzt): erzeugt Puffer statt Inhaltstext
         public bool IsBuffer { get { return Puffers.Count > 0 || (Variant.Trim().Length > 0 && VariantSet.Of(Variant).Count > 0); } }
@@ -115,7 +115,7 @@ namespace Arbeitsplan.Core
         List<string> Lines(int run, string prefix, int alt)
         {
             List<string> eq = new List<string>();
-            foreach (EquipAssign a in Equipment) { string l = a.Line(alt); if (l.Length > 0) eq.Add(l); }
+            foreach (EquipAssign a in Equipment) { string l = a.LineM(alt); if (l.Length > 0) eq.Add(l); }
             return Lines(run, prefix, eq);
         }
 
@@ -165,6 +165,13 @@ namespace Arbeitsplan.Core
             if (IsBuffer) { e.Buffers = BuffersFor(run, prefix); return e; }
             List<string> lines = Lines(run, prefix);
             e.Content = string.Join("\n", lines.ToArray());
+            for (int i = e.Content.IndexOf(BufferSet.NoteMark); i >= 0; i = e.Content.IndexOf(BufferSet.NoteMark, i + 1))   // Notiz-Teil der Geraetezeile kursiv (UX-5f)
+            {
+                int end = e.Content.IndexOf('\n', i); if (end < 0) end = e.Content.Length;
+                FormatSpan it = new FormatSpan(); it.Start = i + 1; it.Length = end - i - 1; it.Italic = true;
+                if (it.Length > 0) e.Spans.Add(it);
+            }
+            e.Content = BufferSet.Plain(e.Content);   // Marker -> Leerzeichen, Positionen bleiben
             string idt = IdentFor(run);
             int nn = NoteTexts().Count;
             if (nn > 0)

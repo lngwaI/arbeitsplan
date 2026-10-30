@@ -96,8 +96,8 @@ namespace Arbeitsplan.Core
         {
             List<string> r = new List<string>();
             int alt = run * sp.AltMul + sp.AltAdd;
-            foreach (EquipAssign a in sp.Lines) { string l = a.Line(alt); if (l.Length > 0) r.Add(l); }
-            foreach (PufferShare g in PufferShared) if (g.Covers(k)) { string l = g.Eq.Line(run); if (l.Length > 0) r.Add(l); }
+            foreach (EquipAssign a in sp.Lines) { string l = a.LineM(alt); if (l.Length > 0) r.Add(l); }   // mit Notiz-Marker (BufferSet.NoteMark)
+            foreach (PufferShare g in PufferShared) if (g.Covers(k)) { string l = g.Eq.LineM(run); if (l.Length > 0) r.Add(l); }
             return r;
         }
 

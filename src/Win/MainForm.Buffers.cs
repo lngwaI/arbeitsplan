@@ -29,7 +29,7 @@ namespace Arbeitsplan.Win
             BufferChoice ch = new BufferChoice();
             ch.Types = ri.VariantList(); ch.Names = BufferNames(c.RowIndex); ch.Number = index + 1;
             ch.CanUp = index > 0; ch.CanDown = index >= 0 && index < c.Buffers.Count - 1;
-            if (cur != null) { ch.Name = cur.Name; ch.Typ = cur.Typ; ch.Text = cur.Text; }
+            if (cur != null) { ch.Name = cur.Name; ch.Typ = cur.Typ; ch.Text = BufferSet.Plain(cur.Text); }   // Notiz-Marker (UX-5f) nicht anzeigen
             else ch.Typ = Array.IndexOf(ch.Types, lastBufferTyp) >= 0 ? lastBufferTyp : (ch.Types.Length > 0 ? ch.Types[0] : "");
             if (!AskBuffer(ch)) return;
             lastBufferTyp = ch.Typ;
@@ -41,7 +41,7 @@ namespace Arbeitsplan.Win
                 BufferItem b = id == null ? null : l.Find(delegate(BufferItem x) { return x.Id == id; });
                 if (act == BufferChoice.Act.Remove) { if (b != null) l.Remove(b); return; }
                 if (b == null) b = BufferSet.Add(l, name, typ, text);   // neu (oder inzwischen von einem anderen PC entfernt: bleibt erhalten)
-                else { b.Name = name; b.Typ = typ; b.Text = text; }
+                else { b.Name = name; b.Typ = typ; if (BufferSet.Plain(b.Text) != text) b.Text = text; }   // unveraendert: Notiz-Marker bleibt
                 if (act == BufferChoice.Act.Up || act == BufferChoice.Act.Down) MoveBuffer(l, b.Id, act == BufferChoice.Act.Up ? -1 : 1);
             });
         }
