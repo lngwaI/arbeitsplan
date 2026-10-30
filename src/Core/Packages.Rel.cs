@@ -91,13 +91,30 @@ namespace Arbeitsplan.Core
         {
             int si = Steps.IndexOf(step);
             List<int> runs = new List<int>();
-            foreach (RunDate d in Schedule(null)) if (d.Step == si) runs.Add(d.Run + 1);
+            List<RunDate> plan = Schedule(null);
+            foreach (RunDate d in plan) if (d.Step == si) runs.Add(d.Run + 1);
             int n = runs.Count;
             if (n == 0) return "kein Termin";
             string t = n + (n == 1 ? " Termin" : " Termine");
             PackageStep h = Head;
-            if (h == null || (step != h && step.Bind != StepBind.JeLauf)) return t;
-            StringBuilder sb = new StringBuilder("Lauf ");
+            if (h == null || (step != h && step.Bind != StepBind.JeLauf))
+            {
+                if (h != null && step != h && step.IsBuffer)   // UX-5c: eigener Rhythmus, "fuer Lauf 1–3"
+                {
+                    List<int> fl = new List<int>();
+                    foreach (RunDate d in plan) if (d.Step == si) { int l = LaufOf(plan, d) + 1; if (l > 0 && !fl.Contains(l)) fl.Add(l); }
+                    fl.Sort();
+                    if (fl.Count > 0) t += " · für Lauf " + RangeText(fl);
+                }
+                return t;
+            }
+            return "Lauf " + RangeText(runs) + " · " + t;
+        }
+
+        // "1–4", "1, 2, 4": aufeinanderfolgende ab drei zusammengefasst
+        static string RangeText(List<int> runs)
+        {
+            StringBuilder sb = new StringBuilder();
             for (int i = 0; i < runs.Count; )
             {
                 int j = i;
@@ -106,7 +123,7 @@ namespace Arbeitsplan.Core
                 if (j - i >= 2) { sb.Append(runs[i]).Append('–').Append(runs[j]); i = j + 1; }
                 else { sb.Append(runs[i]); i++; }
             }
-            return sb.Append(" · ").Append(t).ToString();
+            return sb.ToString();
         }
     }
 }

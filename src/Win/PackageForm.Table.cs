@@ -58,13 +58,30 @@ namespace Arbeitsplan.Win
             return off == 0 ? "am Tag jedes Laufs" : DayW(Math.Abs(off)) + (off < 0 ? " vor" : " nach") + " jedem Lauf";
         }
 
+        // "2 Tage vor dem Lauf", "am Tag des Laufs"
+        static string CardOffText(int off) { return PufferCard.OffText(off); }
+
         // Bezug eines Termins: JeLauf zum eigenen Lauf ("1 Tag vor Lauf 2"), sonst RelText (mit Datum, wenn Lauf 1 bekannt)
-        string RelOf(PackageStep s, RunDate d)
+        string RelOf(PackageStep s, RunDate d) { return RelOf(s, d, null); }
+
+        // Puffer mit eigenem Rhythmus: welchen Lauf der Termin bedient (naechster Lauf am oder nach dem Termin), "" bei anderen Schritten
+        string ForLauf(PackageStep s, RunDate d, List<RunDate> plan)
+        {
+            if (!IsPuffer(s) || IsJe(s) || StepsView().Head == null) return "";
+            int l = StepsView().LaufOf(plan ?? Plan(), d);
+            return l >= 0 ? " · für Lauf " + (l + 1) : " · nach dem letzten Lauf";
+        }
+
+        string RelOf(PackageStep s, RunDate d, List<RunDate> plan) { return RelOf(s, d, plan, 0); }
+
+        // delta: Puffer-Karte mit eigenem Versatz (Tage gegenueber dem Termin des Schritts)
+        string RelOf(PackageStep s, RunDate d, List<RunDate> plan, int delta)
         {
             Package p = StepsView();
-            if (!IsJe(s)) return p.RelText(d.Day);
-            string rel = s.RunOffset == 0 ? "Lauf " + (d.Run + 1) : DayW(Math.Abs(s.RunOffset)) + (s.RunOffset < 0 ? " vor" : " nach") + " Lauf " + (d.Run + 1);
-            DateTime? dt = p.DateOf(d.Day);
+            if (!IsJe(s)) return p.RelText(d.Day) + ForLauf(s, d, plan);
+            int off = s.RunOffset + delta;
+            string rel = off == 0 ? "Lauf " + (d.Run + 1) : DayW(Math.Abs(off)) + (off < 0 ? " vor" : " nach") + " Lauf " + (d.Run + 1);
+            DateTime? dt = p.DateOf(d.Day + delta);
             return dt.HasValue ? DText(dt.Value) + " · " + rel : rel;
         }
 
@@ -86,6 +103,7 @@ namespace Arbeitsplan.Win
             else if (s.Repeat == RepeatMode.Weekdays) t = (s.WeekDays & 127) == 0 ? "Wochentage fehlen" : PackageStep.WeekDayText(s.WeekDays).Replace(",", ", ");
             else if (StepsView().RunCountOf(s) <= 1) t = "einmalig";
             else { int iv = Math.Max(1, s.Interval); t = iv == 1 ? "täglich" : "alle " + iv + " Tage"; }
+            if (IsPuffer(s) && !IsJe(s) && StepsView().Head != null && StepsView().RunCountOf(s) > 1) t = "eigen: " + t;   // UX-5c: eigener Rhythmus, unabhaengig vom Lauf-Raster
             return s.Shift.Count > 0 && !IsJe(s) ? t + " · " + s.Shift.Count + (s.Shift.Count == 1 ? " Ausnahme" : " Ausnahmen") : t;
         }
 

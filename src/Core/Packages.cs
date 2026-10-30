@@ -142,12 +142,16 @@ namespace Arbeitsplan.Core
                 PackageStep s = Steps[rd.Step];
                 int id = RowId(rows, rd.Row.Length > 0 ? rd.Row : s.Row);   // Raumwechsel je Lauf; Equipment bleibt
                 if (id < 0) { unknownRow++; continue; }
-                DateTime day = start.AddDays(rd.Day - 1);
-                string k = day.ToString("yyyyMMdd", CultureInfo.InvariantCulture) + "|" + id;
-                Target t;
-                if (!map.TryGetValue(k, out t)) { t = new Target(); t.Day = day; t.RowId = id; t.Data = new Entry(); map[k] = t; order.Add(t); }
-                if (s.IsBuffer) { BufferSet.AddRange(t.Data.Buffers, s.BuffersFor(rd.Run, Prefix, LaufOf(plan, rd, start.DayOfWeek) + 1)); continue; }   // mehrere Puffer am Tag: anhaengen
-                AppendText(t.Data, s.EntryFor(rd.Run, Prefix));   // Notizzeilen und Kennung (Format) kommen mit
+                bool split = CardsSplit(s, start.DayOfWeek);   // UX-5c: Puffer-Karten mit eigenem Versatz liegen an eigenen Tagen
+                foreach (int dl in split ? s.CardDeltas() : new List<int>(new[] { 0 }))
+                {
+                    DateTime day = start.AddDays(rd.Day - 1 + dl);
+                    string k = day.ToString("yyyyMMdd", CultureInfo.InvariantCulture) + "|" + id;
+                    Target t;
+                    if (!map.TryGetValue(k, out t)) { t = new Target(); t.Day = day; t.RowId = id; t.Data = new Entry(); map[k] = t; order.Add(t); }
+                    if (s.IsBuffer) { int lauf = LaufOf(plan, rd, start.DayOfWeek) + 1; BufferSet.AddRange(t.Data.Buffers, split ? s.BuffersAt(rd.Run, Prefix, lauf, dl) : s.BuffersFor(rd.Run, Prefix, lauf)); }   // mehrere Puffer am Tag: anhaengen
+                    else AppendText(t.Data, s.EntryFor(rd.Run, Prefix));   // Notizzeilen und Kennung (Format) kommen mit
+                }
             }
             return order;
         }

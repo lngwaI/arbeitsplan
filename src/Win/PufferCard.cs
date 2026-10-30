@@ -22,8 +22,11 @@ namespace Arbeitsplan.Win
         readonly Action changed, rebuild, toggled; readonly Action<int> removeMe;
         public readonly int Index;
         public bool Open, Bad;
+        public bool ShowTiming;   // UX-5c: Zeile "Zeitpunkt" (nur Schritt "zu jedem Lauf")
         readonly Button bToggle = new Button(), bRemove = new Button(), bPos = new Button();
-        readonly Label lSum = new Label(), lTitle = new Label(), lNone = new Label();
+        readonly Label lSum = new Label(), lTitle = new Label(), lNone = new Label(), lTime = new Label(), lTimeInfo = new Label();
+        readonly ComboBox cbTime = new ComboBox(), cbTimeDir = new ComboBox();
+        readonly NumericUpDown nTime = new NumericUpDown();
         readonly TextBox tName = new TextBox();
         readonly ComboBox cbTyp = new ComboBox();
         readonly Label[] heads = new Label[5];
@@ -53,6 +56,14 @@ namespace Arbeitsplan.Win
             bPos.Text = "+ Position ▾"; bPos.Click += delegate { ShowPosMenu(); };
             lNone.Text = "Keine Position – mit „+ Position“ ergänzen."; lNone.ForeColor = Section.HelpColor; lNone.TextAlign = ContentAlignment.MiddleLeft; lNone.AutoEllipsis = true;
             Controls.AddRange(new Control[] { bToggle, lSum, lTitle, tName, cbTyp, bRemove, bPos, lNone });
+            lTime.Text = "Zeitpunkt:"; lTime.TextAlign = ContentAlignment.MiddleLeft; lTime.UseMnemonic = false;
+            lTimeInfo.TextAlign = ContentAlignment.MiddleLeft; lTimeInfo.UseMnemonic = false; lTimeInfo.AutoEllipsis = true; lTimeInfo.ForeColor = Section.HelpColor;
+            cbTime.DropDownStyle = ComboBoxStyle.DropDownList; cbTime.Items.AddRange(new object[] { "wie Schritt", "eigener Versatz" });
+            cbTimeDir.DropDownStyle = ComboBoxStyle.DropDownList; cbTimeDir.Items.AddRange(new object[] { "Tag(e) vor dem Lauf", "am Tag des Laufs", "Tag(e) nach dem Lauf" });
+            nTime.Minimum = 1; nTime.Maximum = PackageStep.MaxCardOffset; nTime.Value = 1;
+            Controls.AddRange(new Control[] { lTime, lTimeInfo, cbTime, cbTimeDir, nTime });
+            tip.SetToolTip(cbTime, "Wann dieser Puffer bereitgestellt wird: wie der Schritt (gemeinsamer Abstand) oder mit eigenem Versatz zum Lauf, z. B. Puffer 1 zwei Tage, Puffer 2 einen Tag vor dem Lauf.");
+            tip.SetToolTip(nTime, "Tage zum Lauf (1–" + PackageStep.MaxCardOffset + ")");
             string[] hd = { "Position", "Gerät", "abwechselnd", "Ausweich-Gerät", "Notiz" };
             for (int i = 0; i < 5; i++) { heads[i] = new Label(); heads[i].Text = hd[i]; heads[i].AutoEllipsis = true; heads[i].UseMnemonic = false; Controls.Add(heads[i]); }
             foreach (Button b in new[] { bToggle, bRemove, bPos }) Theme.Current.StyleButton(b);
@@ -64,11 +75,52 @@ namespace Arbeitsplan.Win
 
             loading = true;
             tName.Text = Spec.Name; cbTyp.SelectedIndex = Spec.Typ == "stationaer" ? 1 : 0;
+            int off = Spec.OffsetDays.HasValue ? Spec.OffsetDays.Value : 0;
+            cbTime.SelectedIndex = Spec.OffsetDays.HasValue ? 1 : 0; cbTimeDir.SelectedIndex = off < 0 ? 0 : off == 0 ? 1 : 2; nTime.Value = Math.Max(1, Math.Min(PackageStep.MaxCardOffset, Math.Abs(off)));
             foreach (EquipAssign a in Spec.Lines) AddRow(a, null);
             foreach (PufferShare g in step.PufferShared) if (g.Covers(Index)) AddRow(g.Eq, g);
             loading = false;
             tName.TextChanged += delegate { if (!loading) { Spec.Name = tName.Text.Replace('|', '/').Trim(); changed(); } };
             cbTyp.SelectedIndexChanged += delegate { if (!loading) { Spec.Typ = cbTyp.SelectedIndex == 1 ? "stationaer" : "mobil"; changed(); } };
+            cbTime.SelectedIndexChanged += delegate { TimeChanged(); };
+            cbTimeDir.SelectedIndexChanged += delegate { TimeChanged(); };
+            nTime.ValueChanged += delegate { TimeChanged(); };
+        }
+
+        // "2 Tage vor dem Lauf", "am Tag des Laufs", "1 Tag nach dem Lauf"
+        public static string OffText(int off) { return off == 0 ? "am Tag des Laufs" : Math.Abs(off) + (Math.Abs(off) == 1 ? " Tag" : " Tage") + (off < 0 ? " vor" : " nach") + " dem Lauf"; }
+
+        // Zeitpunkt der Karte: null = wie der Schritt, sonst Versatz zum Lauf (negativ = davor)
+        void TimeChanged()
+        {
+            if (loading) return;
+            if (cbTime.SelectedIndex == 0) Spec.OffsetDays = null;
+            else if (!Spec.OffsetDays.HasValue)   // Start mit dem Versatz des Schritts
+            {
+                int o = Math.Max(-PackageStep.MaxCardOffset, Math.Min(PackageStep.MaxCardOffset, step.RunOffset)); Spec.OffsetDays = o;
+                loading = true; cbTimeDir.SelectedIndex = o < 0 ? 0 : o == 0 ? 1 : 2; nTime.Value = Math.Max(1, Math.Min(PackageStep.MaxCardOffset, Math.Abs(o))); loading = false;
+            }
+            else { int n = (int)nTime.Value, dir = cbTimeDir.SelectedIndex; Spec.OffsetDays = dir == 0 ? -n : dir == 1 ? 0 : n; }
+            PlaceTiming(); changed();
+        }
+
+        // Felder der Zeile "Zeitpunkt" je nach Auswahl ein-/ausblenden (Ort y, Breite iw)
+        int timeY, timeW;
+
+        void PlaceTiming()
+        {
+            bool on = Open && ShowTiming, own = on && cbTime.SelectedIndex == 1, num = own && cbTimeDir.SelectedIndex != 1;
+            foreach (Control c in new Control[] { lTime, cbTime }) c.Visible = on;
+            cbTimeDir.Visible = own; nTime.Visible = num; lTimeInfo.Visible = on && !own;
+            if (!on) return;
+            int ih = Math.Max(24, Font.Height + 8), lw = TextRenderer.MeasureText(lTime.Text, Font).Width + 8;
+            lTime.SetBounds(8, timeY, lw, ih);
+            cbTime.SetBounds(8 + lw, timeY + (ih - cbTime.Height) / 2, 130, cbTime.Height);
+            int x = cbTime.Right + 8;
+            if (num) { nTime.SetBounds(x, timeY + (ih - nTime.Height) / 2, 52, nTime.Height); x = nTime.Right + 6; }
+            cbTimeDir.SetBounds(x, timeY + (ih - cbTimeDir.Height) / 2, Math.Max(80, Math.Min(150, timeW - x + 8)), cbTimeDir.Height);
+            lTimeInfo.SetBounds(x, timeY, Math.Max(10, timeW - x + 8), ih);
+            lTimeInfo.Text = "(= " + OffText(step.RunOffset) + ")"; tip.SetToolTip(lTimeInfo, lTimeInfo.Text);
         }
 
         void AddRow(EquipAssign a, PufferShare g)
@@ -113,6 +165,7 @@ namespace Arbeitsplan.Win
             string nm = Index < bi.Count && bi[Index].Name.Length > 0 ? bi[Index].Name : "–";
             List<string> p = new List<string>();
             p.Add(PufferName(Index) + ": " + nm); p.Add(TypText(Spec.Typ));
+            if (ShowTiming && Spec.OffsetDays.HasValue) p.Add(OffText(Spec.OffsetDays.Value));
             foreach (EquipChoice c in step.PufferChoices(Index, 0)) { EquipPosition ep = cat.Position(c.Short); p.Add((ep != null ? ep.Name : c.Short) + " " + c.Id); }
             return string.Join(" · ", p.ToArray());
         }
@@ -199,6 +252,8 @@ namespace Arbeitsplan.Win
                 tName.SetBounds(lTitle.Right + 2, y + (ih - tName.Height) / 2, Math.Max(40, cbTyp.Left - 6 - lTitle.Right - 2), tName.Height);
             }
             y += ih + 4;
+            timeY = y; timeW = iw; PlaceTiming();
+            if (Open && ShowTiming) y += ih + 4;
             foreach (Control c in new Control[] { bPos, lNone }) c.Visible = false;
             foreach (Label l in heads) l.Visible = false;
             foreach (Row r in rows) { if (r.R != null) r.R.Visible = false; if (r.Info != null) r.Info.Visible = false; if (r.ScopeBtn != null) r.ScopeLbl.Visible = r.ScopeBtn.Visible = false; }
@@ -247,6 +302,9 @@ namespace Arbeitsplan.Win
         }
 
 #if TESTHOOKS
+        internal ComboBox TestTime { get { return cbTime; } }
+        internal ComboBox TestDir { get { return cbTimeDir; } }
+        internal NumericUpDown TestNum { get { return nTime; } }
         internal TextBox TestName { get { return tName; } }
         internal ComboBox TestTyp { get { return cbTyp; } }
         internal List<EquipRow> TestRows { get { List<EquipRow> l = new List<EquipRow>(); foreach (Row r in rows) if (r.R != null) l.Add(r.R); return l; } }

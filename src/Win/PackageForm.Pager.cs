@@ -66,8 +66,24 @@ namespace Arbeitsplan.Win
                 c.Room = cur.Row.Length > 0 ? cur.Row : "Raum fehlt"; c.Missing = cur.Row.Length == 0;
                 c.Day = RelOf(cur, d) + (!IsJe(cur) && cur.Pinned(d.Run) ? " (verschoben)" : "");
                 c.Data = cur.EntryFor(d.Run, prefix);
-                if (c.Data.Buffers.Count > 0) { int lauf = StepsView().LaufOf(Plan(), d) + 1; foreach (BufferItem bi in c.Data.Buffers) bi.LaufRef = lauf; }   // Kopf "Puffer n: Name · Lauf m" wie im Plan
-                cards.Add(c);
+                Package pv = StepsView(); List<RunDate> plan = Plan();
+                if (pv.CardsSplit(cur, pv.Day1))   // UX-5c: Karten mit eigenem Versatz, je Tag ein Block
+                {
+                    int lauf = pv.LaufOf(plan, d) + 1;
+                    foreach (int dl in cur.CardDeltas())
+                    {
+                        BlockPreview.Card cc = new BlockPreview.Card(); cc.Room = c.Room; cc.Missing = c.Missing;
+                        cc.Day = RelOf(cur, d, plan, dl); cc.Data = new Entry();
+                        cc.Data.Buffers = cur.BuffersAt(d.Run, prefix, lauf, dl);
+                        foreach (BufferItem bi in cc.Data.Buffers) bi.LaufRef = lauf;
+                        cards.Add(cc);
+                    }
+                }
+                else
+                {
+                    if (c.Data.Buffers.Count > 0) { int lauf = pv.LaufOf(plan, d) + 1; foreach (BufferItem bi in c.Data.Buffers) bi.LaufRef = lauf; }   // Kopf "Puffer n: Name · Lauf m" wie im Plan
+                    cards.Add(c);
+                }
             }
             bool run = cur != null && (IsJe(cur) || cur.Kind != StepKind.Normal);
             lPage.Text = ix >= 0 ? (run ? "Lauf " + (curDates[ix].Run + 1) + " von " + StepsView().RunCountOf(cur) : "Termin " + (ix + 1) + " von " + n) : "";   // Lauf = Nummer im Hauptlauf (Ausfaelle/Verschiebungen aendern die Position, nicht die Nummer)

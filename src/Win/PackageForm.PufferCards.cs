@@ -83,7 +83,7 @@ namespace Arbeitsplan.Win
             bool wide = WideEquip; int cy = 0;
             foreach (PufferCard c in cards)
             {
-                c.Open = openSpecs.Contains(cur.Puffers[c.Index]);
+                c.Open = openSpecs.Contains(cur.Puffers[c.Index]); c.ShowTiming = IsJe(cur);
                 c.Left = 0; c.Top = cy; cy += c.Arrange(iw, wide) + 6;
             }
             pufCards.SetBounds(8, y, iw, cy); y += cy;

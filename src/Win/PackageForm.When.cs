@@ -19,7 +19,8 @@ namespace Arbeitsplan.Win
         readonly TextBox tDays = new TextBox();
         Label lFollow, lDateNow, lRepeat, lInterval, lIntervalUnit, lEndUnit, lDaysList, lDaysHelp, lDates, lStartNo, lNoEx, lEvery, lEveryUnit;
         int[] repKinds = new int[0], endKinds = new int[0], dirKinds = new int[0];   // Art je Eintrag der Auswahllisten
-        string dirMode = "", repMode = "", endMode = "";
+        int[] bindKinds = new int[0];
+        string dirMode = "", repMode = "", endMode = "", bindMode = "";
         static readonly string[] RepeatNames = { "einmalig", "alle x Tage", "an Wochentagen", "an bestimmten Tagen" };
 
         void BuildWhen()
@@ -209,6 +210,10 @@ namespace Arbeitsplan.Win
             bool was = loading; loading = true;
             Package p = StepsView(); PackageStep head = p.Head;
             bool isHead = s == head, je = IsJe(s);
+            bool pf = IsPuffer(s) && head != null;   // UX-5c: Puffer klar zweigeteilt: fester Abstand zu jedem Lauf | eigener Rhythmus
+            FillCombo(cbBind, ref bindMode, pf ? "puf" : "std", pf ? new[] { "zu jedem Lauf (fester Abstand)", "eigener Rhythmus (unabhängig vom Lauf-Raster)" } : new[] { "zu jedem Lauf (Standard)", "eigenes Datum (Sonderfall)" }, new[] { 0, 1 }, ref bindKinds);
+            tip.SetToolTip(cbBind, pf ? "Zu jedem Lauf: jeder Lauf bekommt seinen Puffer im festen Abstand (Anzahl = Laufanzahl). Eigener Rhythmus: die Puffer haben ein eigenes Raster (alle x Tage, Wochentage, Liste), unabhängig von den Läufen; jeder Termin bedient den nächsten Lauf."
+                : "Zu jedem Lauf: der Schritt folgt jedem Lauf des Hauptlaufs (Anzahl = Laufanzahl im Kopf). Eigenes Datum: fester Termin, z. B. einmalig vor Lauf 1.");
             cbBind.SelectedIndex = je ? 0 : 1;
             if (isHead) FillCombo(cbDir, ref dirMode, "head", new string[0], new int[0], ref dirKinds);
             else if (je) FillCombo(cbDir, ref dirMode, "je", new[] { "Tag(e) vor jedem Lauf", "am Tag jedes Laufs", "Tag(e) nach jedem Lauf" }, new[] { -1, 0, 1 }, ref dirKinds);
@@ -238,13 +243,16 @@ namespace Arbeitsplan.Win
         string DatesText(PackageStep s)
         {
             int si = steps.IndexOf(s);
-            List<RunDate> mine = Plan().FindAll(delegate(RunDate d) { return d.Step == si; });
+            List<RunDate> plan = Plan();
+            List<RunDate> mine = plan.FindAll(delegate(RunDate d) { return d.Step == si; });
             mine.Sort(delegate(RunDate a, RunDate b) { return a.Day.CompareTo(b.Day); });
             if (mine.Count == 0) return "Kein Termin";
             List<string> l = new List<string>();
             l.Add(StepsView().RunsText(s));
             bool je = IsJe(s);
-            for (int i = 0; i < mine.Count && i < 3; i++) l.Add(RelOf(s, mine[i]) + (!je && s.Shifted(mine[i].Run) ? "*" : ""));
+            for (int i = 0; i < mine.Count && i < 3; i++) l.Add(RelOf(s, mine[i], plan) + (!je && s.Shifted(mine[i].Run) ? "*" : ""));
+            if (StepsView().CardsSplit(s, pk.Day1))   // UX-5c: eigener Versatz je Karte
+                foreach (int dl in s.CardDeltas()) l.Add(StepsView().CardNames(s, dl) + ": " + CardOffText(s.RunOffset + dl));
             if (mine.Count > 3) l.Add("… " + (mine.Count - 3) + " weitere (siehe Kalender)");
             if (!je && s.Shift.Count > 0) l.Add("* = einzeln verschoben");
             return string.Join("\n", l.ToArray());
@@ -260,7 +268,8 @@ namespace Arbeitsplan.Win
             bool end = own && !isHead && (rk == 1 || rk == 2);
             int y = gWhen.ContentTop;
             y = Row(y, head != null && !isHead && !locked, cbBind);
-            lFollow.Text = bk ? "Der Back-Up folgt dem Packen (1 Tag danach)." : (isHead ? "Hauptlauf: gibt den Takt vor. Läufe und Datum von Lauf 1 stehen oben im Kopf." : "");
+            lFollow.Text = bk ? "Der Back-Up folgt dem Packen (1 Tag danach)." : (isHead ? "Hauptlauf: gibt den Takt vor. Läufe und Datum von Lauf 1 stehen oben im Kopf."
+                : (head != null && IsPuffer(s) ? (je ? "Jeder Lauf bekommt seinen Puffer; eigener Zeitpunkt je Puffer in der Karte." : "Jeder Termin bedient den nächsten Lauf (siehe „für Lauf n“ unten).") : ""));
             y = Row(y, lFollow.Text.Length > 0, lFollow);
             int dk = cbDir.SelectedIndex >= 0 && cbDir.SelectedIndex < dirKinds.Length ? dirKinds[cbDir.SelectedIndex] : 0;
             y = Row(y, offs, nDay, cbDir);

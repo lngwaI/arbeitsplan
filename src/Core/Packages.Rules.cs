@@ -29,6 +29,7 @@ namespace Arbeitsplan.Core
                 case "gleichtag": return "Zwei Hauptläufe am selben Tag und Raum";
                 case "planlauf": return "Hauptlauf liegt schon im Plan";
                 case "puffer": return "Mehr Puffer-Termine als Produktläufe";
+                case "pufnach": return "Puffer liegt nach dem Lauf, den er bedient";
                 case "pufdoppelt": return "Gerät in zwei Puffern am selben Tag";
                 case "puffer-produkt": return "Puffer verschiedener Produkte zu nah beieinander";
                 case "unterlauf": return "Unterlauf fehlt";
@@ -120,6 +121,7 @@ namespace Arbeitsplan.Core
                 foreach (RunDate d in runs) first = Math.Min(first, d.Day);
                 CheckSameDay(res, plan, main, runs, start, store != null || Lauf1.HasValue);
                 CheckBuffers(res, plan, head.RunCountFor(d1));
+                CheckPufferAfter(res, plan, d1);
                 CheckSubRuns(res, plan, main, runs);
                 foreach (RunDate d in plan)
                     if (first != int.MaxValue && d.Day < first - 60 && d.Step != main)
@@ -207,19 +209,21 @@ namespace Arbeitsplan.Core
                         Add(res, Severity.Sperre, "planlauf", "Lauf " + (d.Run + 1) + " dieses Pakets und Lauf " + have[0].Run + " (schon im Plan) liegen beide am " + DateText(day) + " in " + (d.Row.Length > 0 ? d.Row : s.Row) + " (zwei Hauptläufe am selben Tag nicht erlaubt)", d.Step, d.Run).Action = "Startdatum oder Raum ändern oder „Überschreiben“ wählen";
                 }
                 if (!s.IsBuffer) continue;
+                foreach (int cd in CardsSplit(s, start.DayOfWeek) ? s.CardDeltas() : new List<int>(new[] { 0 }))   // Karten mit eigenem Versatz liegen an anderen Tagen
                 for (int off = -1; off <= 1; off++)
                 {
-                    Entry e = store.Get(day.AddDays(off), id);
+                    DateTime cday = day.AddDays(cd);
+                    Entry e = store.Get(cday.AddDays(off), id);
                     if (e == null || e.Buffers.Count == 0) continue;
                     int other = ProductOfBuffers(e, mine);   // 1 = anderes Produkt, 0 = unbekannt, -1 = dasselbe
-                    if (other < 0 || (other == 0 && off != 0) || !done.Add("p" + day.Ticks + "|" + id + "|" + off)) continue;
+                    if (other < 0 || (other == 0 && off != 0) || !done.Add("p" + cday.Ticks + "|" + id + "|" + off)) continue;
                     string when = off == 0 ? "am selben Tag" : (off < 0 ? "am Vortag" : "am Folgetag");
                     string oname = "", oprod = "";
                     foreach (BufferItem b in e.Buffers)
                         foreach (RunRef r in RunNumbers.Find(b.Name + "\n" + b.Text, null))
                             if (oname.Length == 0 && r.Product != mine) { oname = b.Name; oprod = r.Product; }
                     if (oname.Length == 0 && e.Buffers.Count > 0) oname = e.Buffers[0].Name;
-                    string txt = "Puffer „" + StepName(d.Step) + "“ (Produkt " + ProductCode + ") am " + DateText(day) + " in " + (d.Row.Length > 0 ? d.Row : s.Row)
+                    string txt = "Puffer „" + StepName(d.Step) + "“ (Produkt " + ProductCode + ") am " + DateText(cday) + " in " + (d.Row.Length > 0 ? d.Row : s.Row)
                         + " und im Plan schon Puffer „" + oname + "“" + (other == 1 ? " (Produkt " + oprod + ")" : " (Produkt nicht erkennbar, Zuordnung unsicher)") + " " + when;
                     Add(res, off == 0 && other == 1 ? Severity.Sperre : Severity.Hinweis, "puffer-produkt", txt, d.Step, d.Run).Action = "Puffer verschiedener Produkte nie am selben Tag, möglichst mit 1 Tag Abstand – Termin verschieben";
                 }

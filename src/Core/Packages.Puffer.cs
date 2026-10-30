@@ -22,6 +22,7 @@ namespace Arbeitsplan.Core
         public string Name = "", Typ = "mobil";
         public int NameNo;                      // > 1: Nummer hinter dem abgeleiteten Namen ("Titel 2"); 0/1 = ohne
         public int AltMul = 1, AltAdd;          // Index fuer "abwechselnd": Lauf * AltMul + AltAdd (alte Pakete: Anzahl Puffer / Platz)
+        public int? OffsetDays;                 // UX-5c: eigener Tag zum Lauf (nur "zu jedem Lauf"): -2 = 2 Tage davor; null = wie der Schritt (RunOffset)
         public List<EquipAssign> Lines = new List<EquipAssign>();
 
         public PufferSpec Clone()

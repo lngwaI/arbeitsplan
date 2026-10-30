@@ -48,6 +48,7 @@ namespace Arbeitsplan.Core
                 if (p.NameNo > 1) w.WriteAttributeString("nameno", I(p.NameNo));
                 if (p.AltMul != 1) w.WriteAttributeString("altmul", I(p.AltMul));
                 if (p.AltAdd != 0) w.WriteAttributeString("altadd", I(p.AltAdd));
+                if (p.OffsetDays.HasValue) w.WriteAttributeString("versatz", I(p.OffsetDays.Value));
                 foreach (EquipAssign a in p.Lines) WriteEquip(w, a);
                 w.WriteEndElement();
             }
@@ -70,6 +71,7 @@ namespace Arbeitsplan.Core
                     PufferSpec p = new PufferSpec(); p.Name = q.GetAttribute("name"); p.Typ = q.GetAttribute("typ");
                     p.NameNo = Clamp(ToInt(q.GetAttribute("nameno"), 0), 0, 99);
                     p.AltMul = Clamp(ToInt(q.GetAttribute("altmul"), 1), 1, 99); p.AltAdd = Clamp(ToInt(q.GetAttribute("altadd"), 0), 0, 98);
+                    if (q.HasAttribute("versatz")) p.OffsetDays = Clamp(ToInt(q.GetAttribute("versatz"), 0), -PackageStep.MaxCardOffset, PackageStep.MaxCardOffset);
                     foreach (XmlElement x in Elements(q)) if (x.Name == "Equipment") p.Lines.Add(ReadEquip(x));
                     s.Puffers.Add(p);
                 }

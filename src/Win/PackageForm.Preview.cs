@@ -91,7 +91,7 @@ namespace Arbeitsplan.Win
         void UpdatePreview(bool scrollTo)
         {
             List<PlanStrip.Item> items = new List<PlanStrip.Item>();
-            List<RunDate> plan = Plan();
+            List<RunDate> plan = Plan(); bool hasHead = StepsView().Head != null;
             foreach (PackageStep s in Ordered())
             {
                 int si = steps.IndexOf(s); bool je = IsJe(s), many = StepsView().RunCountOf(s) > 1;
@@ -101,6 +101,7 @@ namespace Arbeitsplan.Win
                     PlanStrip.Item it = new PlanStrip.Item(); it.Step = s; it.Day = d.Day; it.Run = d.Run; it.Shifted = !je && s.Pinned(d.Run); it.Je = je;
                     it.Title = TitleOf(s); it.Row = s.Row;
                     it.Sub = s.Numbered ? s.RunNo(prefix, d.Run) : (many ? (je || s.Kind != StepKind.Normal ? "Lauf " : "Termin ") + (d.Run + 1) : "");
+                    if (!je && IsPuffer(s) && hasHead) { int fl = StepsView().LaufOf(plan, d); it.Sub = fl >= 0 ? "für Lauf " + (fl + 1) : "ohne Lauf"; }   // UX-5c: Puffer mit eigenem Rhythmus
                     items.Add(it);
                 }
             }
