@@ -158,6 +158,7 @@ namespace Arbeitsplan.Win
                 for (int s = 0; s < 3; s++) { c.PB[s] = TextBlock.Build(PeoplePieces(c.People[s], out h2), Font, pw); if (Rows[c.RowIndex].HasShift(s)) h += h2; }
             }
             int hb; BuildBuffers(c, tw, out hb); h += hb;
+            BuildFreeze(c, tw, out hb); h += hb;   // Freeze-Vorgaenge und "gesplittet in ..." (PlanView.Freeze.cs)
             c.Hits = h;
             c.Dirty = false;
         }

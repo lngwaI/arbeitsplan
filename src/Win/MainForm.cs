@@ -115,6 +115,7 @@ namespace Arbeitsplan.Win
             view.CellActivated = BeginEdit;
             view.MarkClicked = ClickMark;
             view.BufferClicked = EditBuffer;
+            view.FreezeClicked = EditFreeze;
             view.MadeClicked = ToggleMade;
             view.RoundClicked = ToggleRound;
             view.RoundToggled = ToggleRoundFold;

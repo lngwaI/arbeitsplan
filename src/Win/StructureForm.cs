@@ -7,7 +7,7 @@ using Arbeitsplan.Core;
 namespace Arbeitsplan.Win
 {
     // Einstellungen zur Blockstruktur (getrennt vom Tagesgeschaeft): Reihenfolge, Anzahl, Namen, F/S/N-Bezeichnung,
-    // Mindesthoehe, "LKZ gemessen?"-Feld, Schichtmodus (F/S/N, F/S, Tagesaufgabe), Varianten. Zeilen werden nie geloescht (nur neue, noch ungespeicherte lassen sich entfernen).
+    // Mindesthoehe, "LKZ gemessen?"-Feld, Freeze-Zeile, Schichtmodus (F/S/N, F/S, Tagesaufgabe), Varianten. Zeilen werden nie geloescht (nur neue, noch ungespeicherte lassen sich entfernen).
     class StructureForm : Form
     {
         readonly DataGridView grid = new DataGridView();
@@ -29,17 +29,19 @@ namespace Arbeitsplan.Win
             grid.AllowUserToAddRows = false; grid.AllowUserToDeleteRows = false; grid.AllowUserToResizeRows = false;
             grid.RowHeadersVisible = false; grid.MultiSelect = false; grid.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
             grid.BackgroundColor = SystemColors.Window;
-            AddText("Name", 170, !canNames); AddText("F", 40, !canNames); AddText("S", 40, !canNames); AddText("N", 40, !canNames);
+            AddText("Name", 150, !canNames); AddText("F", 40, !canNames); AddText("S", 40, !canNames); AddText("N", 40, !canNames);
             AddText("Höhe (Zeilen)", 90, !canHeight);
             DataGridViewCheckBoxColumn lk = new DataGridViewCheckBoxColumn(); lk.HeaderText = "LKZ-Feld"; lk.Width = 70; lk.ReadOnly = !canNames;
             grid.Columns.Add(lk);
             DataGridViewComboBoxColumn md = new DataGridViewComboBoxColumn(); md.HeaderText = "Schichtmodus"; md.Width = 140; md.ReadOnly = !canNames;
             md.Items.AddRange(ModeNames); md.FlatStyle = FlatStyle.Flat; md.DisplayStyle = DataGridViewComboBoxDisplayStyle.ComboBox;
             grid.Columns.Add(md);
-            AddText("Varianten", 230, !canNames);
+            AddText("Varianten", 170, !canNames);
+            DataGridViewCheckBoxColumn fz = new DataGridViewCheckBoxColumn(); fz.HeaderText = "Freeze-Zeile"; fz.Width = 85; fz.ReadOnly = !canNames; fz.ToolTipText = "Zeile für Freeze-Vorgänge (Bag-/Tank-Freeze mit Cycles)";
+            grid.Columns.Add(fz);
             foreach (RowInfo r in rows)
             {
-                int i = grid.Rows.Add(r.Name, r.Labels[0], r.Labels[1], r.Labels[2], r.MinLines.ToString(), r.HasLkz, ModeNames[(int)r.Mode], r.Variants);
+                int i = grid.Rows.Add(r.Name, r.Labels[0], r.Labels[1], r.Labels[2], r.MinLines.ToString(), r.HasLkz, ModeNames[(int)r.Mode], r.Variants, r.Freeze);
                 grid.Rows[i].Tag = r.Clone();
                 LockLabels(i);
             }
@@ -76,6 +78,13 @@ namespace Arbeitsplan.Win
             }
         }
 
+#if TESTHOOKS
+        // Selbsttest: Haken "Freeze-Zeile" lesen/setzen, Speichern ohne Anzeige
+        public bool TestFreeze(int i) { object v = grid.Rows[i].Cells[8].Value; return v is bool && (bool)v; }
+        public void TestSetFreeze(int i, bool on) { grid.Rows[i].Cells[8].Value = on; }
+        public List<RowInfo> TestCommit() { Commit(); return Result; }
+#endif
+
         void AddText(string title, int width, bool readOnly)
         {
             DataGridViewTextBoxColumn c = new DataGridViewTextBoxColumn();
@@ -86,7 +95,7 @@ namespace Arbeitsplan.Win
         void AddRow()
         {
             RowInfo r = new RowInfo(); r.Id = 0;
-            int i = grid.Rows.Add("", r.Labels[0], r.Labels[1], r.Labels[2], r.MinLines.ToString(), false, ModeNames[0], "");
+            int i = grid.Rows.Add("", r.Labels[0], r.Labels[1], r.Labels[2], r.MinLines.ToString(), false, ModeNames[0], "", false);
             grid.Rows[i].Tag = r;
             grid.CurrentCell = grid.Rows[i].Cells[0];
         }
@@ -136,6 +145,7 @@ namespace Arbeitsplan.Win
                     List<string> v = new List<string>();
                     foreach (string x in S(row.Cells[7].Value).Split('|')) if (x.Trim().Length > 0 && !v.Contains(x.Trim())) v.Add(x.Trim());
                     r.Variants = string.Join("|", v.ToArray());
+                    r.Freeze = row.Cells[8].Value is bool && (bool)row.Cells[8].Value;
                 }
                 if (canHeight)
                 {

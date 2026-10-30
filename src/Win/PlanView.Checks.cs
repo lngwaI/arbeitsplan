@@ -7,7 +7,7 @@ using Arbeitsplan.Core;
 namespace Arbeitsplan.Win
 {
     // Platz eines Eintrags der Pruefleiste, relativ zur Leiste: Knopf "+ Puffer" (Add) oder Pflichtpunkt (Def).
-    class CheckSlot { public int Def = -1; public bool Add; public int W; public Rectangle R; }
+    class CheckSlot { public int Def = -1; public bool Add, Freeze; public int W; public Rectangle R; }   // Freeze = Knopf "+ Freeze" (Freeze-Zeile)
 
     // Pruefleiste je Block: Knopf "+ Puffer" (Zeilen mit Puffer-Typen), Pflichtpunkte mit Zustand
     // (Tagesprobe auto/fehlt/entfaellt …); nur LKZ: ein grosses, zentriertes Feld "LKZ gemessen?".
@@ -18,8 +18,8 @@ namespace Arbeitsplan.Win
         CheckSlot[][] slots = new CheckSlot[0][];
 
         List<CheckDef> DefsOf(int r) { return r < Defs.Length && Defs[r] != null ? Defs[r] : new List<CheckDef>(); }
-        bool HasChecks(int r) { return DefsOf(r).Count > 0 || Rows[r].Variants.Length > 0; }
-        bool Single(int r) { return DefsOf(r).Count == 1 && Rows[r].Variants.Length == 0; }
+        bool HasChecks(int r) { return DefsOf(r).Count > 0 || Rows[r].Variants.Length > 0 || Rows[r].Freeze; }
+        bool Single(int r) { return DefsOf(r).Count == 1 && Rows[r].Variants.Length == 0 && !Rows[r].Freeze; }
 
         public static string VarLabel(string v) { return v == "stationaer" ? "stationär" : v; }
 
@@ -54,6 +54,7 @@ namespace Arbeitsplan.Win
             List<CheckDef> d = DefsOf(r);
             int x = TP, line = 0, max = iw - 2, box = Theme.Current.CheckBox;
             if (Rows[r].Variants.Length > 0) { CheckSlot s = new CheckSlot(); s.Add = true; s.W = TextW("+ Puffer", bold) + 16; l.Add(s); }
+            if (Rows[r].Freeze) { CheckSlot s = new CheckSlot(); s.Freeze = true; s.W = TextW("+ Freeze", bold) + 16; l.Add(s); }
             for (int i = 0; i < d.Count; i++)
             {
                 CheckSlot s = new CheckSlot(); s.Def = i;
@@ -88,10 +89,10 @@ namespace Arbeitsplan.Win
             {
                 Rectangle sr = new Rectangle(c.RChecks.X + s.R.X, c.RChecks.Y + s.R.Y, s.R.Width, s.R.Height);
                 Rectangle chip = new Rectangle(sr.X, sr.Y + 3, sr.Width - 1, sr.Height - 7);
-                if (s.Add)   // Knopf "+ Puffer": Umriss in Akzentfarbe
+                if (s.Add || s.Freeze)   // Knopf "+ Puffer" / "+ Freeze": Umriss in Akzentfarbe
                 {
                     Fill(g, Color.White, chip); g.DrawRectangle(th.Pen(th.ChipOn, 1), chip);
-                    TextRenderer.DrawText(g, "+ Puffer", bold, chip, th.ChipOn, tf | TextFormatFlags.HorizontalCenter);
+                    TextRenderer.DrawText(g, s.Freeze ? "+ Freeze" : "+ Puffer", bold, chip, th.ChipOn, tf | TextFormatFlags.HorizontalCenter);
                     continue;
                 }
                 CheckDef def = d[s.Def];
@@ -168,6 +169,7 @@ namespace Arbeitsplan.Win
         string CheckTip(CellData c, CheckSlot s)
         {
             if (s.Add) return "Puffer hinzufügen (Name, Typ, Text)";
+            if (s.Freeze) return "Freeze-Vorgang hinzufügen (Bag-Freeze mit Cycles oder Tank-Freeze)";
             CheckDef d = DefsOf(c.RowIndex)[s.Def];
             DayState st = StateOf(c, s.Def);
             string mt = BufMade ? MadeRules.Tip(d, st, On(c, d)) : "";

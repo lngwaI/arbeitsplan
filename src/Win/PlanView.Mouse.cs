@@ -30,8 +30,9 @@ namespace Arbeitsplan.Win
             CellData c = CellAt(e.Location);
             CheckSlot s = c != null ? SlotAt(c, e.Location) : null;
             int bi = c != null && s == null ? BufAt(c, e.Location) : -1, mi = c != null && s == null ? MadeAt(c, e.Location) : -1;
-            Cursor = bi >= 0 ? Cursors.Hand : Cursors.Default;
-            string t = c == null ? RoundTip(e.Location) : s != null ? CheckTip(c, s) : mi >= 0 ? c.BufParts[mi].MadeTip : bi >= 0 ? c.BufParts[bi].Tip
+            int fi = c != null && s == null ? FrzAt(c, e.Location) : -1;
+            Cursor = bi >= 0 || fi >= 0 || (s != null && (s.Add || s.Freeze)) ? Cursors.Hand : Cursors.Default;
+            string t = c == null ? RoundTip(e.Location) : s != null ? CheckTip(c, s) : mi >= 0 ? c.BufParts[mi].MadeTip : bi >= 0 ? c.BufParts[bi].Tip : fi >= 0 ? c.FrzParts[fi].Tip
                 : c.RHead.Contains(e.Location) ? (c.Runs.Count > 0 ? RunNumbers.Describe(c.Runs) : c.Note) : "";
             if (t != tipText) { tipText = t; tip.SetToolTip(this, t.Length > 0 ? t : null); }
         }
@@ -58,9 +59,12 @@ namespace Arbeitsplan.Win
                 if (mi >= 0) { if (MadeClicked != null) MadeClicked(c, mi); return; }
                 int bi = BufAt(c, e.Location);
                 if (bi >= 0 && BufferClicked != null) BufferClicked(c, bi);
+                int fi = FrzAt(c, e.Location);
+                if (fi >= 0 && FreezeClicked != null) FreezeClicked(c, c.FrzParts[fi].Id, c.FrzParts[fi].Origin);
                 return;
             }
-            if (s.Add) { if (BufferClicked != null) BufferClicked(c, -1); }
+            if (s.Freeze) { if (FreezeClicked != null) FreezeClicked(c, "", c.Day); }
+            else if (s.Add) { if (BufferClicked != null) BufferClicked(c, -1); }
             else if (MarkClicked != null && StateOf(c, s.Def) != DayState.NA && StateOf(c, s.Def) != DayState.Auto) MarkClicked(c, DefsOf(c.RowIndex)[s.Def].Key);
         }
 
@@ -69,7 +73,7 @@ namespace Arbeitsplan.Win
             base.OnMouseDoubleClick(e);
             CellData c = CellAt(e.Location);
             if (c == null || Collapsed[c.RowIndex] || c.RHead.Contains(e.Location)) return;
-            if (!c.RChecks.Contains(e.Location) && !c.RBuf.Contains(e.Location) && CellActivated != null) CellActivated(c);
+            if (!c.RChecks.Contains(e.Location) && !c.RBuf.Contains(e.Location) && FrzAt(c, e.Location) < 0 && CellActivated != null) CellActivated(c);
         }
     }
 }

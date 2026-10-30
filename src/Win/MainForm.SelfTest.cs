@@ -153,6 +153,7 @@ namespace Arbeitsplan.Win
                 f = new BufferForm(bc);
             }
             else if (which == "catalog") { List<string> nm = new List<string>(); foreach (RowInfo r in store.GetRows()) nm.Add(r.Name); f = new CatalogForm(store.GetCatalog(), nm); }
+            else if (which.StartsWith("freeze")) f = TestFreezeForm(which);   // F2: Freeze-Dialog (MainForm.SelfTestFreezeUi.cs)
             else if (which == "locked" || which == "takeover" || which == "notices") f = TestNoticeForm(which);
             else if (which == "history" || which == "backup") f = TestDataForm(which);
             else if (which == "quickadd" || which == "unassigned" || which == "equipfits") f = TestQuickForm(which);
@@ -388,6 +389,7 @@ namespace Arbeitsplan.Win
             SelfTestN23(sb);   // N2: Puffer "hergestellt"; N3: Equipment-Liste mit Anzahl, Kampagne mit Puffern (MainForm.SelfTestN23.cs)
             SelfTestUX5f(sb);   // UX-5f: Equipment-Notiz kursiv (Plan, Puffer) (MainForm.SelfTestUX5f.cs)
             SelfTestFreeze(sb);   // F1: Freeze-Modul Core (Rechnung, XML, Merge, Rechte, SplitIndex, Suche) (MainForm.SelfTestFreeze.cs)
+            SelfTestFreezeUi(sb);   // F2: Freeze-Oberflaeche (Dialog, Speichern, Anzeige, Struktur) (MainForm.SelfTestFreezeUi.cs)
             sb.Append(PackageForm.TestUx5f(equip, start));   // N5: Leiste "nicht in der Equipment-Liste", Vormerkung (PackageForm.TestUx5f.cs)
             using (MainForm mx = new MainForm("ux4", true, null, null)) { mx.FitToCursorScreen(); sb.AppendLine("UX4 Hauptfenster startet maximiert: " + Ok(mx.WindowState == FormWindowState.Maximized)); }
             quiet = false;

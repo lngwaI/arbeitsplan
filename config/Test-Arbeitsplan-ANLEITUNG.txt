@@ -106,6 +106,17 @@ KURZ ERKLÄRT (zum Mittesten)
     Alter Datenbestand: der Admin wird beim Start einmal gefragt "Standard-Pflichtpunkte für
     Puffer einrichten?"; später unter Einstellungen -> Pflichtpunkte & Feiertage ->
     "Standard Puffer einrichten" (vorhandene Einstellungen bleiben).
+  Freeze / Thaw
+    In der Zeile "Freeze / Thaw" (Einstellungen -> Blockstruktur -> Haken "Freeze-Zeile") Knopf "+ Freeze"
+    (auch Rechtsklick -> "Freeze hinzufügen…"). Bag-Freeze: Start von Cycle 1 (Cycle 2/3 optional, sonst
+    1 h / 2 h später geschätzt), Dauer, Zeit zwischen zwei Cycles (je Anlage), Anzahl 1-14; Cycle n läuft
+    auf Freeze-Anlage ((n-1) mod 3)+1. Tank-Freeze: GWK-Anlage, Kreislauf, Start, Dauer.
+    Hauptlauf, Unterlauf, Tanks, Notiz sind optional. Tabelle im Dialog: unter "tatsächlicher Start"
+    eine Zeit eintragen (02:30 oder 05.03. 02:30): die Folge-Cycles derselben Anlage ziehen sofort nach,
+    Verzögerung orange (+7 h), "zurücksetzen" nimmt die Korrektur zurück. Gespeichert wird sofort.
+    Im Plan: je Vorgang Kopfzeile und die Cycles des Tages je Anlage; Cycles, die erst an späteren Tagen
+    starten, stehen dort grau kursiv "(aus Di)" (Klick öffnet den Vorgang). Am Hauptlauf-Block steht
+    grau "gesplittet in …, Tanks …" (nur angezeigt). Leser sehen den Dialog nur lesend.
   Rundgänge
     Leiste über den Zeilen je KW (1./2. GMP, Kühlraum, EHS, WFI-Probenahme). Abhaken braucht
     das Recht "Rundgänge abhaken"; neben dem Haken stehen Tag und Kürzel. Alle erledigt = grüner

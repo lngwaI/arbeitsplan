@@ -45,7 +45,7 @@ namespace Arbeitsplan.Win
             int right = 18 + (c.Editing ? 20 : 0);                                   // Platz fuer Pfeil (+ Stift im Bearbeitungsmodus)
             int mk = ProductBars(g, c);
             Rectangle nr = new Rectangle(c.RHead.X + 6 + mk, c.RHead.Y, c.RHead.Width - 8 - right - mk, c.RHead.Height - 1);
-            bool filled = collapsed && !c.Cur.IsBlank;
+            bool filled = collapsed && (!c.Cur.IsBlank || c.Conts.Count > 0);
             if (filled)   // zugeklappt, aber Inhalt vorhanden: Hinweispunkt vor dem Pfeil
             {
                 g.FillEllipse(th.Brush(th.Dot), c.RHead.Right - 29, c.RHead.Y + (c.RHead.Height - 7) / 2, 8, 8);

@@ -57,6 +57,7 @@ namespace Arbeitsplan.Win
             const TextFormatFlags tf = TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix;
             if (c.RChecks.Height > 0) PaintChecks(g, c, back);
             if (c.RBuf.Height > 0) PaintBuffers(g, c, back);
+            if (c.RFrz.Height > 0 || c.RSplit.Height > 0) PaintFreeze(g, c, back);   // PlanView.Freeze.cs
 
             if (!c.Editing) c.CB.Draw(g, c.RContent.X + TP, c.RContent.Y + TV);
             bool task = ri.Mode == ShiftMode.Task;

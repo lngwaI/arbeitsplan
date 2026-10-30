@@ -39,6 +39,11 @@ namespace Arbeitsplan.Win
         public Rectangle R, RHead, RChecks, RBuf, RContent;
         public List<BufPart> BufParts = new List<BufPart>(); // Puffer-Zeilen (PlanView.Buffers.cs)
         public int BufH;                                    // Hoehe des Puffer-Bereichs (0 = keine Puffer)
+        public List<FreezeCycle> Conts = new List<FreezeCycle>();   // Fortsetzungen von Freeze-Vorgaengen frueherer Tage (PlanView.Freeze.cs, nur Freeze-Zeile)
+        public List<FrzPart> FrzParts = new List<FrzPart>(); // Freeze-Vorgaenge dieses Tages
+        public int FrzH, SplitH;                            // Hoehe des Freeze-Bereichs (ueber dem Inhalt) und der abgeleiteten "gesplittet in"-Zeile (unter dem Inhalt)
+        public TextBlock SplitTB;
+        public Rectangle RFrz, RSplit;
         public Rectangle[] RLbl = new Rectangle[3], RPpl = new Rectangle[3];
     }
 
@@ -103,6 +108,7 @@ namespace Arbeitsplan.Win
                     d.Show(d.Cur);
                     Cells.Add(d);
                 }
+            LoadFreeze(store, start);   // Fortsetzungen und Split-Index (PlanView.Freeze.cs)
         }
 
         // Standard-Zuklappen: Zeile ohne Inhalt und ohne Haken/Variante im angezeigten Zeitraum ist zugeklappt.
@@ -110,7 +116,7 @@ namespace Arbeitsplan.Win
         {
             bool[] d = new bool[Rows.Count];
             for (int r = 0; r < d.Length; r++) d[r] = true;
-            foreach (CellData c in Cells) if (c.RowIndex < d.Length && !c.Cur.IsBlank) d[c.RowIndex] = false;
+            foreach (CellData c in Cells) if (c.RowIndex < d.Length && (!c.Cur.IsBlank || c.Conts.Count > 0)) d[c.RowIndex] = false;
             return d;
         }
         // Alle Bloecke neu umbrechen; Equipment-Status wird dabei neu abgefragt.
@@ -163,7 +169,7 @@ namespace Arbeitsplan.Win
                 c.RHead = new Rectangle(x + 1, rowY[r] + 1, iw, HeadH - 1);
                 if (Collapsed[r])
                 {
-                    c.RChecks = c.RBuf = c.RContent = Rectangle.Empty;
+                    c.RChecks = c.RBuf = c.RContent = c.RFrz = c.RSplit = Rectangle.Empty;
                     for (int s = 0; s < 3; s++) c.RLbl[s] = c.RPpl[s] = Rectangle.Empty;
                     continue;
                 }
@@ -171,7 +177,9 @@ namespace Arbeitsplan.Win
                 c.RChecks = new Rectangle(x + 1, cy, iw, lk[r]);
                 cy += lk[r];
                 c.RBuf = new Rectangle(x + 1, cy, iw, c.BufH);                       // Puffer ueber dem freien Inhalt; ch[r] umfasst beides
-                c.RContent = new Rectangle(x + 1, cy + c.BufH, iw, ch[r] - c.BufH);
+                c.RFrz = new Rectangle(x + 1, cy + c.BufH, iw, c.FrzH);               // Freeze-Vorgaenge darunter
+                c.RContent = new Rectangle(x + 1, cy + c.BufH + c.FrzH, iw, ch[r] - c.BufH - c.FrzH - c.SplitH);
+                c.RSplit = new Rectangle(x + 1, c.RContent.Bottom, iw, c.SplitH);      // abgeleitete Zeile "gesplittet in ..." unter dem Inhalt
                 int sy = cy + ch[r] + 1, lw = lblW[r];
                 for (int s = 0; s < 3; s++)   // ausgeblendete Schicht: Hoehe 0 (nicht gezeichnet, nicht anklickbar, kein Editor)
                 {
@@ -197,7 +205,7 @@ namespace Arbeitsplan.Win
             {
                 if (c.RowIndex != r) continue;
                 int extra = 0;      // Editor: gleiche Zeilenhoehe/Breite wie die Ansicht (ExactLineSpacing), keine Reserve mehr noetig
-                ch = Math.Max(ch, c.BufH + Math.Max(minC, c.CB.Height + 2 * TV + extra));
+                ch = Math.Max(ch, c.BufH + c.FrzH + Math.Max(minC, c.CB.Height + 2 * TV + extra) + c.SplitH);
                 for (int s = 0; s < 3; s++) if (sh[s] > 0) sh[s] = Math.Max(sh[s], c.PB[s].Height + 2 * TV + extra);
             }
             return ch;
@@ -234,7 +242,7 @@ namespace Arbeitsplan.Win
             if (c.Dirty) Build(c, ColW - 2 - 2 * TP, ColW - 2 - lblW[c.RowIndex] - 2 * TP);
             int[] sh;
             int ch = RowNeeds(c.RowIndex, Font.Height, out sh);
-            if (c.Hits != hits || ch != c.RContent.Height + c.RBuf.Height || c.BufH != c.RBuf.Height || sh[0] != c.RPpl[0].Height || sh[1] != c.RPpl[1].Height || sh[2] != c.RPpl[2].Height) { Relayout(); return; }
+            if (c.Hits != hits || ch != c.RContent.Height + c.RBuf.Height + c.RFrz.Height + c.RSplit.Height || c.BufH != c.RBuf.Height || c.FrzH != c.RFrz.Height || c.SplitH != c.RSplit.Height || sh[0] != c.RPpl[0].Height || sh[1] != c.RPpl[1].Height || sh[2] != c.RPpl[2].Height) { Relayout(); return; }
             Invalidate(c.R);
         }
 
