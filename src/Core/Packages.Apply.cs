@@ -53,12 +53,13 @@ namespace Arbeitsplan.Core
         {
             Entry result;
             if (cur == null) return n.Clone();
-            bool free = cur.IsEmpty && cur.Buffers.Count == 0;   // ein Block mit Puffern gilt als belegt; nur Notizen zaehlen als leer
+            bool free = cur.IsEmpty && cur.Buffers.Count == 0;   // ein Block mit Puffern oder Freeze-Vorgaengen (IsEmpty) gilt als belegt; nur Notizen zaehlen als leer
             if (free || mode == ApplyMode.Overwrite)
             {
                 result = n.Clone();
                 for (int i = 0; i < 3; i++) if (result.People[i].Length == 0) result.People[i] = cur.People[i];
                 if (n.Buffers.Count == 0) result.Buffers = BufferSet.CloneAll(cur.Buffers);   // ohne Puffer im Paket bleiben die vorhandenen
+                if (n.Freezes.Count == 0) result.Freezes = FreezeSet.CloneAll(cur.Freezes);   // ohne Freeze im Paket bleiben die vorhandenen
                 KeepNotes(result, cur);   // vorhandene Notizen bleiben (ans Ende)
             }
             else if (mode == ApplyMode.FillEmpty) return null;
@@ -68,6 +69,7 @@ namespace Arbeitsplan.Core
                 AppendText(result, n);
                 for (int i = 0; i < 3; i++) if (n.People[i].Length > 0) result.People[i] = result.People[i].Length > 0 ? result.People[i] + ", " + n.People[i] : n.People[i];
                 BufferSet.AddRange(result.Buffers, n.Buffers);   // Puffer hinten anhaengen (neue Ids)
+                FreezeSet.AddRange(result.Freezes, n.Freezes);
             }
             result.Lkz = cur.Lkz || n.Lkz;
             return result;

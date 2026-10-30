@@ -29,6 +29,7 @@ namespace Arbeitsplan.Core
                 for (int i = 0; i < 3; i++) r.Labels[i] = z.GetAttribute("l" + i);
                 r.MinLines = Int(z, "min"); r.HasLkz = Bool(z, "lkz");
                 r.Mode = En(z, "modus", ShiftMode.FSN); r.Variants = z.GetAttribute("varianten");
+                r.Freeze = z.HasAttribute("freeze") ? Bool(z, "freeze") : RowInfo.IsFreezeName(r.Name);   // alte Dateien: am Namen erkannt
                 d.Rows.Add(r);
             }
             if (d.Rows.Count == 0) throw new FormatException();
@@ -61,6 +62,7 @@ namespace Arbeitsplan.Core
             }
             XmlElement sd = Kid(k, "Stammdaten");
             if (sd != null) ReadMaster(sd, d.Catalog.Master);
+            FreezeConfig.Read(k, d.Catalog.FreezeDefaults);   // fehlt in aelteren Dateien = Standard
             ProductXml.Read(k, d.Catalog.Products);   // fehlt in aelteren Dateien = keine Produktprofile
             XmlElement pf = Kid(root, "Pflichten");
             if (pf != null) d.Duties = ReadDuties(pf);   // sonst Standard (v2-Dateien)
@@ -106,6 +108,7 @@ namespace Arbeitsplan.Core
         {
             Entry x = new Entry(); x.Version = Int(e, "ver"); x.Lkz = Bool(e, "lkz"); x.Content = e.GetAttribute("inhalt");
             for (int i = 0; i < 3; i++) x.People[i] = e.GetAttribute("p" + i);
+            x.Freezes = FreezeSet.ReadXml(e);   // alte Dateien: keine <freeze> = leer
             x.Buffers = BufferSet.ReadXml(e);   // alte Dateien: Attribut "variante" -> Puffer ohne Namen
             foreach (XmlElement m in Kids(e, "Mark")) x.Marks.Add(m.GetAttribute("k"));
             foreach (XmlElement f in Kids(e, "Fmt"))

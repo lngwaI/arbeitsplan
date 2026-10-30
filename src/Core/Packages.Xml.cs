@@ -76,6 +76,7 @@ namespace Arbeitsplan.Core
                     w.WriteAttributeString("tag", I(b.Day)); w.WriteAttributeString("zeile", b.Row); w.WriteAttributeString("lkz", b.Data.Lkz ? "1" : "0");
                     w.WriteElementString("Inhalt", b.Data.Content);
                     BufferSet.WriteXml(w, b.Data.Buffers);
+                    FreezeSet.WriteXml(w, b.Data.Freezes);
                     w.WriteStartElement("Kuerzel");
                     w.WriteAttributeString("f", b.Data.People[0]); w.WriteAttributeString("s", b.Data.People[1]); w.WriteAttributeString("n", b.Data.People[2]);
                     w.WriteEndElement();
@@ -176,7 +177,7 @@ namespace Arbeitsplan.Core
                 else if (e.Name == "Block")
                 {
                     PackageBlock b = new PackageBlock();
-                    b.Day = Clamp(ToInt(e.GetAttribute("tag"), 1), 1, 366); b.Row = e.GetAttribute("zeile"); b.Data.Lkz = e.GetAttribute("lkz") == "1"; b.Data.Buffers = BufferSet.ReadXml(e);
+                    b.Day = Clamp(ToInt(e.GetAttribute("tag"), 1), 1, 366); b.Row = e.GetAttribute("zeile"); b.Data.Lkz = e.GetAttribute("lkz") == "1"; b.Data.Buffers = BufferSet.ReadXml(e); b.Data.Freezes = FreezeSet.ReadXml(e);
                     foreach (XmlElement c in Elements(e))
                     {
                         if (c.Name == "Inhalt") b.Data.Content = c.InnerText.Replace("\r\n", "\n");

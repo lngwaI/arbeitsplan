@@ -21,7 +21,7 @@ namespace Arbeitsplan.Core
         {
             foreach (string n in DefaultRows)
             {
-                RowInfo r = new RowInfo(); r.Id = nextId++; r.Name = n; r.HasLkz = Array.IndexOf(LkzRows, n) >= 0;
+                RowInfo r = new RowInfo(); r.Id = nextId++; r.Name = n; r.HasLkz = Array.IndexOf(LkzRows, n) >= 0; r.Freeze = n == "Freeze / Thaw";
                 if (n == "Puffer") { r.Variants = "mobil|stationaer"; duties.AddPufferDefaults(r.Id); }
                 rows.Add(r);
             }
@@ -220,6 +220,7 @@ namespace Arbeitsplan.Core
                 bool hit = e.Content.IndexOf(q, StringComparison.OrdinalIgnoreCase) >= 0;
                 foreach (string p in e.People) if (p.IndexOf(q, StringComparison.OrdinalIgnoreCase) >= 0) hit = true;
                 if (BufferSet.Matches(e.Buffers, q)) hit = true;   // Puffer: Name und Text
+                if (FreezeSet.Matches(e.Freezes, q)) hit = true;   // Freeze: Laufnummern, Tanks, Notiz
                 if (!hit) continue;
                 string[] parts = kv.Key.Split('|');
                 SearchHit h = new SearchHit();

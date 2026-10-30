@@ -78,6 +78,18 @@ namespace Arbeitsplan.Core
                 if (pf[d][2].Length > 0) e.Marks.Add(pf[d][2]);
                 s.Save(monday.AddDays(d), s.IdOf("Puffer"), e);
             }
+            // Freeze / Thaw: Bag-Serie (C3 geschaetzt, C4 verspaetet) und Tank-Freeze mit erfundenen Nummern
+            int fz = s.IdOf("Freeze / Thaw");
+            Entry fb = new Entry(); fb.People = new[] { "WEPA", "", "" };
+            FreezeItem bag = new FreezeItem(); bag.Cycles = 8; bag.MainRef = "22050010"; bag.SubNo = "22059010"; bag.Tanks = "H2-T-0251";
+            bag.Start1to3[0] = monday.AddDays(1).AddHours(12); bag.Start1to3[1] = monday.AddDays(1).AddHours(13); bag.Ist[4] = monday.AddDays(2).AddHours(2);
+            FreezeSet.Add(fb.Freezes, bag);
+            s.Save(monday.AddDays(1), fz, fb);
+            Entry ft = new Entry(); ft.People = new[] { "", "BEER", "" };
+            FreezeItem tank = new FreezeItem(); tank.Art = FreezeArt.Tank; tank.Anlage = 2; tank.Kreislauf = 1; tank.MainRef = "22050011"; tank.Tanks = "H2-T-0252";
+            tank.Start1to3[0] = monday.AddDays(3).AddHours(8);
+            FreezeSet.Add(ft.Freezes, tank);
+            s.Save(monday.AddDays(3), fz, ft);
             WeekMark gmp = new WeekMark(); gmp.Monday = monday; gmp.Key = "GMP1"; gmp.Done = true; gmp.At = monday.AddHours(9.2); gmp.By = "MUMA";
             s.SaveWeekMark(gmp, null);
             return s;

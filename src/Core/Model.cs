@@ -28,6 +28,7 @@ namespace Arbeitsplan.Core
         public string[] People = { "", "", "" };   // Kuerzel je Schicht (F, S, N)
         public bool Lkz;                            // "LKZ gemessen?" (nur Zeilen mit HasLkz)
         public List<BufferItem> Buffers = new List<BufferItem>();   // Puffer (Zeile mit RowInfo.Variants); einzige Datenquelle der Herstellungstypen
+        public List<FreezeItem> Freezes = new List<FreezeItem>();   // Freeze-Vorgaenge (Zeile mit RowInfo.Freeze); Cycles werden berechnet (FreezeCalc)
         public List<string> Marks = new List<string>();   // gesetzte Pflichtpunkte (CheckDef.Key, ausser LKZ)
         public int Version;                         // Konflikterkennung
 
@@ -40,14 +41,15 @@ namespace Arbeitsplan.Core
             e.People = (string[])People.Clone();
             e.Marks = new List<string>(Marks);
             e.Buffers = BufferSet.CloneAll(Buffers);
+            e.Freezes = FreezeSet.CloneAll(Freezes);
             e.Spans = new List<FormatSpan>();
             foreach (FormatSpan s in Spans) e.Spans.Add(s.Clone());
             return e;
         }
         // Block nur mit Notizzeilen gilt als leer
-        public bool IsEmpty { get { return (Content.Length == 0 || (HasNotes && Notes.ContentText(this).Trim().Length == 0)) && People[0].Length == 0 && People[1].Length == 0 && People[2].Length == 0; } }
+        public bool IsEmpty { get { return (Content.Length == 0 || (HasNotes && Notes.ContentText(this).Trim().Length == 0)) && People[0].Length == 0 && People[1].Length == 0 && People[2].Length == 0 && Freezes.Count == 0; } }
         // Leer UND ohne Haken/Variante (Zuklappen, Hinweispunkt); IsEmpty bleibt fuer Rechte/Pakete wie bisher
-        public bool IsBlank { get { return !HasText && People[0].Trim().Length == 0 && People[1].Trim().Length == 0 && People[2].Trim().Length == 0 && !Lkz && Buffers.Count == 0 && Marks.Count == 0; } }
+        public bool IsBlank { get { return !HasText && People[0].Trim().Length == 0 && People[1].Trim().Length == 0 && People[2].Trim().Length == 0 && !Lkz && Buffers.Count == 0 && Freezes.Count == 0 && Marks.Count == 0; } }
         // Inhalt mit sichtbarem Text ohne Notizzeilen (nur Leerzeichen/Tabs/Zeilenumbrueche = leer); Daten bleiben unveraendert
         public bool HasText { get { return Notes.ContentText(this).Trim().Length > 0; } }
         // Notizzeilen vorhanden (Block mit nur Notizen gilt als leer)
@@ -67,10 +69,12 @@ namespace Arbeitsplan.Core
         public string[] Labels = { "F", "S", "N" };
         public int MinLines = 3;                    // Mindesthoehe des Inhaltsfelds in Textzeilen
         public bool HasLkz;                         // Feld "LKZ gemessen?" zwischen Titel und Inhalt
+        public bool Freeze;                         // Zeile fuer Freeze-Vorgaenge (Entry.Freezes); alte Strukturen: Name enthaelt "Freeze"
 
         public RowInfo Clone() { RowInfo r = (RowInfo)MemberwiseClone(); r.Labels = (string[])Labels.Clone(); return r; }
         // Schichtfeld s (0=F, 1=S, 2=N) sichtbar? FS ohne N, Tagesaufgabe nur ein Feld (F = "Erledigt von"); Daten bleiben erhalten.
         public bool HasShift(int s) { return s == 0 || (s == 1 && Mode != ShiftMode.Task) || (s == 2 && Mode == ShiftMode.FSN); }
+        public static bool IsFreezeName(string name) { return name != null && name.IndexOf("Freeze", StringComparison.OrdinalIgnoreCase) >= 0; }
         public string[] VariantList() { return Variants.Length == 0 ? new string[0] : Variants.Split('|'); }
     }
 

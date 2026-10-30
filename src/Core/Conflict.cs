@@ -42,6 +42,9 @@ namespace Arbeitsplan.Core
             bool bclash;
             r.Buffers = BufferSet.Merge(b.Buffers, mine.Buffers, theirs.Buffers, preferMine, out bclash);   // Puffer dreiwege je Id
             if (bclash) clashes.Add("Puffer");
+            bool fclash;
+            r.Freezes = FreezeSet.Merge(b.Freezes, mine.Freezes, theirs.Freezes, preferMine, out fclash);   // Freeze dreiwege je Id und Cycle
+            if (fclash) clashes.Add("Freeze");
             return r;
         }
 

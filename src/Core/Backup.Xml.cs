@@ -29,7 +29,7 @@ namespace Arbeitsplan.Core
                     {
                         w.WriteStartElement("Zeile"); w.WriteAttributeString("id", I(r.Id)); w.WriteAttributeString("name", r.Name);
                         for (int i = 0; i < 3; i++) w.WriteAttributeString("l" + i, r.Labels[i]);
-                        w.WriteAttributeString("min", I(r.MinLines)); w.WriteAttributeString("lkz", B(r.HasLkz));
+                        w.WriteAttributeString("min", I(r.MinLines)); w.WriteAttributeString("lkz", B(r.HasLkz)); w.WriteAttributeString("freeze", B(r.Freeze));
                         if (r.Mode != ShiftMode.FSN) w.WriteAttributeString("modus", r.Mode.ToString());
                         if (r.Variants.Length > 0) w.WriteAttributeString("varianten", r.Variants);
                         w.WriteEndElement();
@@ -82,6 +82,7 @@ namespace Arbeitsplan.Core
             for (int i = 0; i < 3; i++) w.WriteAttributeString("p" + i, e.People[i]);
             foreach (string m in e.Marks) { w.WriteStartElement("Mark"); w.WriteAttributeString("k", m); w.WriteEndElement(); }
             BufferSet.WriteXml(w, e.Buffers);
+            FreezeSet.WriteXml(w, e.Freezes);
             foreach (FormatSpan f in e.Spans)
             {
                 w.WriteStartElement("Fmt"); w.WriteAttributeString("start", I(f.Start)); w.WriteAttributeString("len", I(f.Length)); w.WriteAttributeString("rgb", I(f.Rgb));
@@ -119,6 +120,7 @@ namespace Arbeitsplan.Core
             }
             WriteMaster(w, c.Master);
             ProductXml.Write(w, c.Products);
+            FreezeConfig.Write(w, c.FreezeDefaults);
             w.WriteEndElement();
         }
 

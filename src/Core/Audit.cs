@@ -64,6 +64,7 @@ namespace Arbeitsplan.Core
             for (int i = 0; i < 3; i++) s += "\n" + labels[i] + ": " + e.People[i];
             s += "\nLKZ gemessen: " + (e.Lkz ? "ja" : "nein");
             foreach (string l in BufferSet.DisplayLines(e.Buffers, true)) s += "\n" + l;
+            foreach (string l in FreezeSet.DisplayLines(e.Freezes, true)) s += "\n" + l;
             if (e.Marks.Count > 0) s += "\nAbgehakt: " + string.Join(", ", e.Marks.ToArray());
             return s;
         }
@@ -72,7 +73,7 @@ namespace Arbeitsplan.Core
         public static string NoteChange(AuditEntry a)
         {
             Entry b = a.Before ?? new Entry(), n = a.After ?? new Entry();
-            if (b.Content != n.Content || b.People[0] != n.People[0] || b.People[1] != n.People[1] || b.People[2] != n.People[2] || b.Lkz != n.Lkz || BufferSet.Key(b.Buffers) != BufferSet.Key(n.Buffers)) return "";
+            if (b.Content != n.Content || b.People[0] != n.People[0] || b.People[1] != n.People[1] || b.People[2] != n.People[2] || b.Lkz != n.Lkz || BufferSet.Key(b.Buffers) != BufferSet.Key(n.Buffers) || FreezeSet.Key(b.Freezes) != FreezeSet.Key(n.Freezes)) return "";
             int cb = Notes.NoteLines(b).Count, cn = Notes.NoteLines(n).Count;
             return cn > cb ? "Notiz markiert" : cn < cb ? "Notiz aufgehoben" : "";
         }
@@ -88,14 +89,18 @@ namespace Arbeitsplan.Core
         public static string Preview(Entry e)
         {
             if (e == null) return "(leer)";
-            string pre = "", bufs = string.Join(" / ", BufferSet.DisplayLines(e.Buffers, false).ToArray());
-            if (e.IsEmpty)
+            List<string> extra = BufferSet.DisplayLines(e.Buffers, false);
+            extra.AddRange(FreezeSet.DisplayLines(e.Freezes, false));
+            string pre = "", bufs = string.Join(" / ", extra.ToArray());
+            Entry t = e;
+            if (e.Freezes.Count > 0) { t = e.Clone(); t.Freezes.Clear(); }   // IsEmpty zaehlt Freeze-Vorgaenge mit; hier zaehlt nur der Text
+            if (t.IsEmpty)
             {
-                if (!e.HasNotes && e.Buffers.Count == 0) return "(leer)";
+                if (!e.HasNotes && extra.Count == 0) return "(leer)";
                 if (e.HasNotes) pre = "(nur Notizen) ";   // Notizen allein zaehlen nicht als Inhalt
             }
             string s = pre + e.Content.Replace("\n", " | ");
-            if (e.IsEmpty && bufs.Length > 0) s = (e.HasNotes ? s + " | " : "") + bufs;
+            if (t.IsEmpty && bufs.Length > 0) s = (e.HasNotes ? s + " | " : "") + bufs;
             else if (s.Length == 0) s = string.Join(" / ", e.People);
             return s.Length > 60 ? s.Substring(0, 60) + "…" : s;
         }

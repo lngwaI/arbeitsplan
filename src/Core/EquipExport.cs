@@ -12,6 +12,7 @@ namespace Arbeitsplan.Core
         {
             StringBuilder sb = new StringBuilder(Notes.ContentText(e));
             foreach (BufferItem b in e.Buffers) sb.Append('\n').Append(b.Name).Append('\n').Append(BufferSet.Plain(b.Text));
+            foreach (FreezeItem f in e.Freezes) sb.Append('\n').Append(f.Tanks);   // Tanks der Freeze-Vorgaenge
             return sb.ToString();
         }
 

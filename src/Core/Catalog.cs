@@ -92,6 +92,7 @@ namespace Arbeitsplan.Core
             foreach (EquipGroup g in Groups) c.Groups.Add(g.Clone());
             foreach (Baustein b in Bausteine) c.Bausteine.Add(b.Clone());
             foreach (ProductProfile p in Products) c.Products.Add(p.Clone());
+            c.FreezeDefaults = FreezeDefaults.Clone();
             return c;
         }
 
