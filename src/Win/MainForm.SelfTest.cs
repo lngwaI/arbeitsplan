@@ -326,6 +326,7 @@ namespace Arbeitsplan.Win
         {
             System.Text.StringBuilder sb = new System.Text.StringBuilder();
             quiet = true;
+            if (Environment.GetEnvironmentVariable("AP_ONLY") == "ux6") { SelfTestUX6(sb); quiet = false; return sb.ToString(); }   // Schnelllauf nur UX-6
             if (Environment.GetEnvironmentVariable("AP_ONLY") == "ux5e") { SelfTestUX5e(sb); quiet = false; return sb.ToString(); }   // Schnelllauf nur UX-5e (MainForm.SelfTestUX5e.cs)
 #if DEMO
             if (cfg != null) return SelfTestDemo();   // Vorfuehr-Version: eigene Tests (MainForm.SelfTestDemo.cs)
@@ -395,6 +396,7 @@ namespace Arbeitsplan.Win
             SelfTestFreezeUi(sb);   // F2: Freeze-Oberflaeche (Dialog, Speichern, Anzeige, Struktur) (MainForm.SelfTestFreezeUi.cs)
             sb.Append(PackageForm.TestUx5f(equip, start));   // N5: Leiste "nicht in der Equipment-Liste", Vormerkung (PackageForm.TestUx5f.cs)
             SelfTestN7(sb);   // N7: Review-Befunde Paket-Editor + Puffer (MainForm.SelfTestN7.cs)
+            SelfTestUX6(sb);  // UX-6: Puffer-/Produkt-Dialoge (MainForm.SelfTestUX6.cs + partielle Methoden der Dialog-Tests)
             SelfTestUX7(sb);  // UX-7: Usability-Befunde (Details bei 1024x768, Enter/Esc, Hinweis Info, Datumsformat, Klartext, Zyklus) (MainForm.SelfTestUX7.cs)
             using (MainForm mx = new MainForm("ux4", true, null, null)) { mx.FitToCursorScreen(); sb.AppendLine("UX4 Hauptfenster startet maximiert: " + Ok(mx.WindowState == FormWindowState.Maximized)); }
             quiet = false;
