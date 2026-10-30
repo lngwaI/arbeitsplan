@@ -169,6 +169,7 @@ namespace Arbeitsplan.Win
                 f = new ConflictForm("Suite 1, " + Ui.DayText(start), "Paula Werk", "um 09:41 Uhr", t, m, Conflict.Merge(b, m, t, new List<string>()), true);
             }
             else if (which == "pufferpack") f = PackageForm.Ux1bPackForm(store);   // UX-1b: Pufferpaket eines Produkts
+            else if (which.StartsWith("ux6")) { Form f6 = null; Ux6FormEditor(which, ref f6); Ux6FormPack(which, ref f6); Ux6FormProducts(which, ref f6); f = f6 ?? new PackageForm(store, equip, start, demo, true, true); }   // UX-6-Dialoge (MainForm.SelfTestUX6.cs)
             else if (which == "equipadd") f = new EquipAddForm("H1-T-0999", store.GetCatalog());   // UX-2: nicht validierte Nummer aufnehmen
             else if (which == "problems") f = new PackageForm(store, equip, start, PackageForm.ProblemSample(), true, true);   // UX-2: Prueffunde mit Beteiligten
             else if (which == "campaign") { CampaignForm cf = new CampaignForm(demo, store, start, ApplyMode.FillEmpty); cf.Shift(1, 1); f = cf; }   // Lauf 13570030 (und Folgende) einen Tag spaeter

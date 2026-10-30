@@ -14,6 +14,11 @@ namespace Arbeitsplan.Win
         partial void SelfTestUX6Pack(StringBuilder sb);      // Produktwahl, Pufferpaket-Dialog
         partial void SelfTestUX6Products(StringBuilder sb);  // Produkte & Equipment
 
+        // Testbilder "--form ux6…": jede Dialog-Datei setzt f, wenn sie den Namen kennt (z. B. ux6pick, ux6add, ux6prodpick, ux6pack, ux6products)
+        partial void Ux6FormEditor(string which, ref System.Windows.Forms.Form f);
+        partial void Ux6FormPack(string which, ref System.Windows.Forms.Form f);
+        partial void Ux6FormProducts(string which, ref System.Windows.Forms.Form f);
+
         void SelfTestUX6(StringBuilder sb)
         {
             bool okName = Package.PlanBufferName("PRD-1", "Puffer-1") == "PRD-1 - Puffer-1" && Package.PlanBufferName("PRD-1", "PRD-1 - Puffer-1") == "PRD-1 - Puffer-1"
