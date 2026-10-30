@@ -34,7 +34,7 @@ namespace Arbeitsplan.Win
             cat.Products.Add(a); cat.Products.Add(b);
             bool okPick;
             using (ProductPickForm d = new ProductPickForm(cat, "CD2", true))
-                okPick = d.TestCount == 2 && d.TestSelected == "CD2" && d.TestText(0).Contains("1 Puffer") && d.TestText(1).Contains("kein Pufferpaket");
+                okPick = d.TestCount == 2 && d.TestSelected == "CD2" && d.TestText(0).Contains("1 Puffer") && d.TestText(1).Contains("Standardpuffer gilt");
             using (ProductPickForm d = new ProductPickForm(cat, "ZZ9", true)) okPick &= d.TestCount == 3 && d.TestText(0).Contains("neu") && d.TestSelected == "ZZ9";
             using (ProductPickForm d = new ProductPickForm(cat, "ZZ9", false)) okPick &= d.TestCount == 2 && d.TestSelected == "AB1";   // ohne Recht: kein neues Produkt
 

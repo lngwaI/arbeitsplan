@@ -58,7 +58,7 @@ namespace Arbeitsplan.Win
                 okDlg = d.TestList.Count == 0 && d.TestPreview.StartsWith("Kein Puffer");
                 d.TestAdd(); okDlg &= d.TestList.Count == 1 && d.TestRows == 5 && d.TestList[0].Positions[0].Short == "Ansatztank";
                 d.TestName("Lösung A"); d.TestSetDevice(0, "AT-1"); d.TestSetDevice(1, "VT-1"); d.TestShared(2, true);
-                okDlg &= d.TestList[0].Name == "Lösung A" && d.TestList[0].Positions[0].Ids[0] == "AT-1" && d.TestList[0].Positions[2].Shared && d.TestPreview.Contains("Puffer 1: Lösung A (mobil)") && d.TestPreview.Contains("Ansatztank: AT-1");
+                okDlg &= d.TestList[0].Name == "Lösung A" && d.TestList[0].Positions[0].Ids[0] == "AT-1" && d.TestList[0].Positions[2].Shared && d.TestPreview.Contains("Puffer 1: AB1 - Lösung A (mobil)") && d.TestPreview.Contains("Ansatztank: AT-1");
                 d.TestAdd(); okDlg &= d.TestList.Count == 2 && d.TestPreview.Contains("Puffer 2:");
                 okDlg &= d.TestCommit() && d.Result.Count == 2;
                 pr.Puffer = d.Result;
