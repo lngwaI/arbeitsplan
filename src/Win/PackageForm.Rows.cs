@@ -12,7 +12,7 @@ namespace Arbeitsplan.Win
         EquipRow AddEquipRow(EquipAssign a)
         {
             EquipRow er = rowPool.Get(a, cat, Product, delegate { Changed(); }, RemoveAssign, false);
-            er.Visible = true;   // aus dem Pool kommt sie versteckt
+            er.Visible = true; er.AddBelow = AddBelow;   // aus dem Pool kommt sie versteckt
             eqRows.Add(er); equipOrder.Add(er);
             return er;
         }
@@ -27,6 +27,25 @@ namespace Arbeitsplan.Win
             HoldDraw();
             try { HookLeave(AddEquipRow(a)); UpdateView(false); }
             finally { ReleaseDraw(); }
+        }
+
+        // "+": dieselbe Position direkt unter der Zeile (ohne Geraeteliste mit uebernommenem Geraet, Fokus Notiz)
+        void AddBelow(EquipAssign src)
+        {
+            int i = cur != null ? cur.Equipment.IndexOf(src) : -1;
+            if (i < 0) return;
+            EquipAssign a = EquipRow.Below(src, cat);
+            cur.Equipment.Insert(i + 1, a); dirty = true;
+            EquipRow er;
+            HoldDraw();
+            try
+            {
+                er = AddEquipRow(a); eqRows.Remove(er); eqRows.Insert(i + 1, er); SyncEquipOrder();
+                HookLeave(er); UpdateView(false);
+            }
+            finally { ReleaseDraw(); }
+            CommitUndo();
+            er.FocusNew();
         }
 
         // Position entfernen: nur diese Zeile geht in den Pool

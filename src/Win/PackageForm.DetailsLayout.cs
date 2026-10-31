@@ -63,7 +63,7 @@ namespace Arbeitsplan.Win
             tip.SetToolTip(rowHint, rowHint.Text);
             int y = gWhat.ContentTop;
             y = Row(y, true, lTitle, tTitle); y = Row(y, true, lRow, cbRow); y = Row(y, off, rowHint) - (off ? 4 : 0);
-            y = Row(y, true, lKind, cbKind); y = LayoutVariants(y, var); y = LayoutAnsatz(y, s);
+            y = Row(y, !NoKind(s), lKind, cbKind); y = LayoutPufInfo(y, s); y = LayoutVariants(y, var); y = LayoutAnsatz(y, s);
             bool packen = s.Source == Package.PackenName && !s.IsBackup;
             y = Row(y, packen, lManual, tManualNo); y = Row(y, packen && lManualHint.Text.Length > 0, lManualHint) - (packen && lManualHint.Text.Length > 0 ? 2 : 0);
             y = Row(y, sub, lSub, tSubNos); y = Row(y, sub, lSubHelp);

@@ -70,7 +70,7 @@ namespace Arbeitsplan.Win
                     demo.Steps.Add(s);
                 }
             }
-            if (which == "package3" || which == "package4" || which == "package7" || which == "package8" || which == "package9" || which == "package14" || which == "campaign2" || which == "campaign3" || which == "campaign5") demo = Package.SampleCampaign("Testpaket");
+            if (which == "p2pack" || which == "package3" || which == "package4" || which == "package7" || which == "package8" || which == "package9" || which == "package14" || which == "campaign2" || which == "campaign3" || which == "campaign5") demo = Package.SampleCampaign("Testpaket");
             if (which == "campaign4")   // Einzelpaket: einfacher Modus
             {
                 demo = new Package(); demo.Name = "Einzelpaket"; demo.Type = PackageType.Einzel;
@@ -192,6 +192,7 @@ namespace Arbeitsplan.Win
             if (pf != null && which == "package10") pf.TestSelectBuffer();
             if (pf != null && which == "package18") { pf.TestSelectBuffer(); pf.TestScrollEnd(); }
             if (pf != null && which == "equipadd2") pf.SelectStep(2);
+            if (pf != null && which == "p2pack") pf.SelectStep(0);   // P2: Packen (Wann? nur Tage vor Lauf 1)
             if (pf != null && (which == "package11" || which == "package12" || which == "package15")) { if (which == "package15") pf.Size = ClientSize.Width < 1190 ? ClientSize : new Size(1190, 980); pf.TestSelectBuffer(); if (which == "package12") pf.TestOpenCard(1); if (which == "package15") { pf.TestOpenCard(1); pf.TestShrinkPane(); } pf.TestHotRow(0, 1); if (which != "package15") pf.TestScrollEnd(); }
             if (pf != null && (which == "package16" || which == "package17")) { pf.Size = ClientSize.Width < 1190 ? ClientSize : new Size(1190, 980); pf.TestSelectBuffer(); if (which == "package17") pf.TestOpenCard(1); pf.TestShrinkPane(); }
             if (pf != null && (which == "package13" || which == "package14")) { pf.Size = ClientSize.Width < 1190 ? ClientSize : new Size(1190, 980); if (which == "package13") pf.TestSelectBuffer(); else pf.SelectStep(2); pf.TestMore(); pf.TestShrinkPane(); }   // UX-5a: hohes Fenster, "Mehr Optionen" offen (13 Puffer, 14 Lauf)
@@ -326,6 +327,7 @@ namespace Arbeitsplan.Win
         {
             try { sb.AppendLine(PackageForm.TestP1Rules()); } catch (Exception ex) { sb.AppendLine("P1 Regeln: FEHLER " + ex.GetType().Name + ": " + ex.Message + "\n" + ex.StackTrace); }
             sb.AppendLine(PackageForm.TestP1Editor(equip, start));
+            sb.AppendLine(PackageForm.TestP2Editor(equip, start));
         }
 
         // Selbsttest (Admin): Zuklappen, Bearbeiten mit Format, LKZ, Struktur, Export/Import, Paket-Schritte.

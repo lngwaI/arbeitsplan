@@ -18,11 +18,13 @@ namespace Arbeitsplan.Win
         readonly Timer doneTimer = new Timer();
         string Login { get { return By != null ? By.Login : Environment.UserName; } }   // Nutzer fuer die Vormerkung (By setzt MainForm)
         Unk barTarget;
-        string doneId = "", donePos = ""; bool doneAdded, doneHadPos, donePending; PackageStep doneStep;   // letzte Rueckmeldung (fuer Rueckgaengig)
+        internal class DoneItem { public string Id, Pos; public bool Added, HadPos, Pending; }
+        List<DoneItem> done = new List<DoneItem>(); string doneText = ""; PackageStep doneStep;   // letzte Rueckmeldung (fuer Rueckgaengig; "Alle hinzufuegen" = ein Eintrag je Geraet)
 
         void InitEquipBar()
         {
             eqBar.Main = BarMain; eqBar.Details = delegate { if (barTarget != null) AddToList(barTarget.Id, barTarget.Short); }; eqBar.Close = BarClose;
+            eqBar.All = delegate { AddAll(); }; eqBar.Undo = UndoDone; eqBar.Replace = ReplaceMenu;
             doneTimer.Interval = 9000; doneTimer.Tick += delegate { EndDone(); };
             Disposed += delegate { doneTimer.Stop(); doneTimer.Dispose(); };   // N7: kein Tick auf ein geschlossenes Fenster
         }
@@ -35,15 +37,18 @@ namespace Arbeitsplan.Win
 
         bool IsNoted(string id) { return notedIds.Contains(id) || cat.Master.PendingFor(id) != null; }
 
+        List<Unk> OpenUnk() { return unk.FindAll(delegate(Unk x) { return x.Step == cur && !ignoredIds.Contains(x.Id) && (canAdmin || !IsNoted(x.Id)); }); }   // Admin sieht auch Vorgemerktes
+
         void UpdateEquipBar()
         {
-            if (eqBar.Confirm && doneStep == cur) return;   // Rueckmeldung bleibt stehen, bis OK/Zeit/anderer Schritt
-            if (eqBar.Confirm) { EndDone(); return; }
-            List<Unk> open = unk.FindAll(delegate(Unk x) { return x.Step == cur && !ignoredIds.Contains(x.Id) && (canAdmin || !IsNoted(x.Id)); });   // Admin sieht auch Vorgemerktes
-            if (cur == null || open.Count == 0) { barTarget = null; eqBar.Hide2(); return; }
+            List<Unk> open = OpenUnk();
+            bool recent = cur != null && doneStep == cur && done.Count > 0;   // Rueckmeldung bleibt, bis OK/Zeit/anderer Schritt
+            if (cur == null || (open.Count == 0 && !recent)) { barTarget = null; eqBar.Hide2(); return; }
+            if (open.Count == 0) { barTarget = null; eqBar.ShowDone(doneText, true); return; }
             barTarget = open[0];
-            eqBar.ShowPrompt(barTarget.Id + " ist nicht in der Equipment-Liste" + (open.Count > 1 ? " (+" + (open.Count - 1) + " weitere)" : "") + " – " + (canAdmin ? "hinzufügen?" : "Admin informieren?"),
-                canAdmin ? "Hinzufügen" : "Admin informieren", canAdmin);
+            int n = open.FindAll(delegate(Unk x) { return open.FindIndex(delegate(Unk y) { return y.Id == x.Id; }) == open.IndexOf(x); }).Count;   // verschiedene Nummern
+            eqBar.ShowPrompt(barTarget.Id + " ist nicht in der Equipment-Liste" + (open.Count > 1 ? " (+" + (open.Count - 1) + " weitere)" : "") + " – " + (canAdmin ? "hinzufügen?" : "Admin informieren?")
+                + (recent ? "   Zuletzt: " + doneText : ""), canAdmin ? "Hinzufügen" : "Admin informieren", canAdmin, n, recent);
         }
 
         void BarMain()
@@ -59,22 +64,46 @@ namespace Arbeitsplan.Win
             if (barTarget != null) { ignoredIds.Add(barTarget.Id); UpdateEquipBar(); }
         }
 
-        void Done(string text, string id, string pos, bool added, bool hadPos, bool pending)
+        void Done(string text, List<DoneItem> items)
         {
-            doneId = id; donePos = pos; doneAdded = added; doneHadPos = hadPos; donePending = pending; doneStep = cur;
-            eqBar.ShowDone(text, true); doneTimer.Stop(); doneTimer.Start();
+            done = items; doneText = text; doneStep = cur;
+            doneTimer.Stop(); doneTimer.Start();
+            UpdateEquipBar();
         }
 
-        void EndDone() { doneTimer.Stop(); eqBar.Hide2(); doneId = ""; doneStep = null; UpdateEquipBar(); }
+        void EndDone() { doneTimer.Stop(); done = new List<DoneItem>(); doneText = ""; doneStep = null; UpdateEquipBar(); }
 
-        // Admin: Geraet sofort anlegen
-        internal bool QuickAdd(Unk t)
+        // Admin: Geraet sofort anlegen (null = abgebrochen); die Leiste springt danach zum naechsten unbekannten Geraet
+        DoneItem QuickAdd1(Unk t, out string text)
         {
+            text = "";
             EquipPosition pos = cat.Position(t.Short);
             EquipDevice d = cat.Master.NewDevice(t.Id, pos);
             bool had = pos != null && pos.Ids.Contains(d.Id);
-            if (!AddDevice(d, t.Short)) return false;
-            Done(d.Id + " hinzugefügt (" + (d.Class.Length > 0 ? "Art " + d.Class : "ohne Geräteart") + (pos != null ? ", Position " + pos.Short : "") + ")", d.Id, t.Short, true, had, false);
+            if (!AddDevice(d, t.Short)) return null;
+            text = d.Id + " hinzugefügt (" + (d.Class.Length > 0 ? "Art " + d.Class : "ohne Geräteart") + (pos != null ? ", Position " + pos.Short : "") + ")";
+            DoneItem i = new DoneItem(); i.Id = d.Id; i.Pos = t.Short; i.Added = true; i.HadPos = had;
+            return i;
+        }
+
+        internal bool QuickAdd(Unk t)
+        {
+            string text; DoneItem i = QuickAdd1(t, out text);
+            if (i == null) return false;
+            Done(text, new List<DoneItem>(new[] { i }));
+            return true;
+        }
+
+        // Alle unbekannten Geraete des Schritts auf einmal; ein Rueckgaengig nimmt alle zurueck
+        internal bool AddAll()
+        {
+            if (!canAdmin) return false;
+            List<Unk> open = OpenUnk(), todo = new List<Unk>();
+            foreach (Unk u in open) if (!todo.Exists(delegate(Unk x) { return x.Id == u.Id; })) todo.Add(u);
+            List<DoneItem> items = new List<DoneItem>(); string text = "", last = "";
+            foreach (Unk u in todo) { DoneItem i = QuickAdd1(u, out text); if (i == null) break; items.Add(i); last = text; }
+            if (items.Count == 0) return false;
+            Done(items.Count == 1 ? last : items.Count + " Geräte hinzugefügt (" + string.Join(", ", items.ConvertAll<string>(delegate(DoneItem x) { return x.Id; }).ToArray()) + ")", items);
             return true;
         }
 
@@ -89,29 +118,33 @@ namespace Arbeitsplan.Win
             }
             catch (Exception ex) { MessageBox.Show(this, "Die Vormerkung konnte nicht gespeichert werden:\n" + ex.Message, "Equipment", MessageBoxButtons.OK, MessageBoxIcon.Warning); return false; }
             notedIds.Add(t.Id); UpdateHints();
-            Done(t.Id + " vorgemerkt – der Admin nimmt die Nummer in die Liste auf", t.Id, t.Short, false, false, true);
+            DoneItem pi = new DoneItem(); pi.Id = t.Id; pi.Pos = t.Short; pi.Pending = true;
+            Done(t.Id + " vorgemerkt – der Admin nimmt die Nummer in die Liste auf", new List<DoneItem>(new[] { pi }));
             return true;
         }
 
         void UndoDone()
         {
-            string id = doneId;
             try
             {
-                if (donePending)
+                foreach (DoneItem i in done)
                 {
-                    Catalog fresh = store.GetCatalog(); fresh.Master.RemovePending(id); store.SaveCatalog(fresh); cat.Master.Pending = fresh.Master.Pending; notedIds.Remove(id);
-                }
-                else if (doneAdded)
-                {
-                    cat.Master.Devices.RemoveAll(delegate(EquipDevice x) { return string.Equals(x.Id, id, StringComparison.OrdinalIgnoreCase); });
-                    EquipPosition pos = cat.Position(donePos);
-                    if (pos != null && !doneHadPos) pos.Ids.Remove(id);
-                    store.SaveCatalog(cat);
+                    string id = i.Id;
+                    if (i.Pending)
+                    {
+                        Catalog fresh = store.GetCatalog(); fresh.Master.RemovePending(id); store.SaveCatalog(fresh); cat.Master.Pending = fresh.Master.Pending; notedIds.Remove(id);
+                    }
+                    else if (i.Added)
+                    {
+                        cat.Master.Devices.RemoveAll(delegate(EquipDevice x) { return string.Equals(x.Id, id, StringComparison.OrdinalIgnoreCase); });
+                        EquipPosition pos = cat.Position(i.Pos);
+                        if (pos != null && !i.HadPos) pos.Ids.Remove(id);
+                        store.SaveCatalog(cat);
+                    }
                 }
             }
             catch (Exception ex) { MessageBox.Show(this, "Rückgängig machen ist fehlgeschlagen:\n" + ex.Message, "Equipment", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
-            doneTimer.Stop(); eqBar.Hide2(); doneStep = null; doneId = "";
+            doneTimer.Stop(); done = new List<DoneItem>(); doneText = ""; doneStep = null;
             if (cur != null) Bind(cur); else UpdateHints();
         }
 

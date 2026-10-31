@@ -66,6 +66,9 @@ namespace Arbeitsplan.Win
             Bind(s);
         }
 
+        // Ziel der Tank-Hinweise: die Ansatz-Auswahl, bei stationaer (keine Wahl, Feld ausgeblendet) die Equipment-Liste
+        Control AnsatzField(PackageStep s) { return s.AnsatzChoices().Count > 1 ? (Control)cbAnsatz : (s.IsBuffer ? (Control)gPuf : gEquip); }
+
         void BindAnsatz(PackageStep s)
         {
             ansatzList = s.AnsatzChoices();

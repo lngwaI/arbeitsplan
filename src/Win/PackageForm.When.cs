@@ -59,6 +59,7 @@ namespace Arbeitsplan.Win
             tip.SetToolTip(cbEnd, "Ende der Wiederholung: für alle Läufe der Kampagne, genau n-mal oder bis zu einem Lauf");
             tip.SetToolTip(tDays, "Tage nach Beginn des Ablaufs, an denen der Schritt stattfindet (1 = erster Termin-Tag); die Termine stehen darunter");
 
+            BuildWhenPuf();
             nDay.ValueChanged += delegate { OffsetEdited(); };
             cbDir.SelectedIndexChanged += delegate { OffsetEdited(); };
             cbBind.SelectedIndexChanged += delegate { BindEdited(); };
@@ -211,12 +212,15 @@ namespace Arbeitsplan.Win
             bool was = loading; loading = true;
             Package p = StepsView(); PackageStep head = p.Head;
             bool isHead = s == head, je = IsJe(s);
+            bool pk1 = IsPacken(s);                  // Packen: nur "[x] Tag(e) vor Lauf 1", mindestens 2 mit Back-Up
             bool pf = IsPuffer(s) && head != null;   // UX-5c: Puffer klar zweigeteilt: fester Abstand zu jedem Lauf | eigener Rhythmus
             FillCombo(cbBind, ref bindMode, pf ? "puf" : "std", pf ? new[] { "zu jedem Lauf (fester Abstand)", "eigener Rhythmus (unabhängig vom Lauf-Raster)" } : new[] { "zu jedem Lauf (Standard)", "eigenes Datum (Sonderfall)" }, new[] { 0, 1 }, ref bindKinds);
             tip.SetToolTip(cbBind, pf ? "Zu jedem Lauf: jeder Lauf bekommt seinen Puffer im festen Abstand (Anzahl = Laufanzahl). Eigener Rhythmus: die Puffer haben ein eigenes Raster (alle x Tage, Wochentage, Liste), unabhängig von den Läufen; jeder Termin bedient den nächsten Lauf."
                 : "Zu jedem Lauf: der Schritt folgt jedem Lauf des Hauptlaufs (Anzahl = Laufanzahl im Kopf). Eigenes Datum: fester Termin, z. B. einmalig vor Lauf 1.");
             cbBind.SelectedIndex = je ? 0 : 1;
+            nDay.Minimum = pk1 && Package.HasBackup(steps, s) ? 2 : 1;
             if (isHead) FillCombo(cbDir, ref dirMode, "head", new string[0], new int[0], ref dirKinds);
+            else if (pk1) FillCombo(cbDir, ref dirMode, "packen", new[] { "Tag(e) vor Lauf 1" }, new[] { -1 }, ref dirKinds);
             else if (je) FillCombo(cbDir, ref dirMode, "je", new[] { "Tag(e) vor jedem Lauf", "am Tag jedes Laufs", "Tag(e) nach jedem Lauf" }, new[] { -1, 0, 1 }, ref dirKinds);
             else if (head != null) FillCombo(cbDir, ref dirMode, "lauf", new[] { "Tag(e) vor Lauf 1", "am Tag von Lauf 1", "Tag(e) nach Lauf 1" }, new[] { -1, 0, 1 }, ref dirKinds);
             else FillCombo(cbDir, ref dirMode, "beginn", new[] { "am Beginn", "Tag(e) nach Beginn" }, new[] { 0, 1 }, ref dirKinds);
@@ -237,6 +241,7 @@ namespace Arbeitsplan.Win
             for (int i = 0; i < 7; i++) chkDays[i].Checked = (s.WeekDays & (1 << i)) != 0;
             if (tDays.Text.Trim() != s.DayList) tDays.Text = s.DayList;
             nStartNo.Value = Math.Max(0, Math.Min(nStartNo.Maximum, s.StartNo));
+            if (IsJe(s) && s.IsBuffer) FillPuf(s);
             loading = was;
         }
 
@@ -264,11 +269,11 @@ namespace Arbeitsplan.Win
             Package p = StepsView(); PackageStep head = p.Head;
             bool isHead = s == head, je = IsJe(s), bk = s.IsBackup, locked = bk || Package.HasBackup(steps, s);
             int rk = RepeatKindOf(s);
-            bool own = !je && !bk;                       // eigenes Raster: Hauptlauf oder eigenes Datum
+            bool own = !je && !bk && !IsPacken(s);                       // eigenes Raster: Hauptlauf oder eigenes Datum
             bool offs = !isHead && !bk;
             bool end = own && !isHead && (rk == 1 || rk == 2);
             int y = gWhen.ContentTop;
-            y = Row(y, head != null && !isHead && !locked, cbBind);
+            y = Row(y, head != null && !isHead && !locked && !IsPacken(s), cbBind);
             lFollow.Text = bk ? "Der Back-Up folgt dem Packen (1 Tag danach)." : (isHead ? "Hauptlauf: gibt den Takt vor. Läufe und Datum von Lauf 1 stehen oben im Kopf."
                 : (head != null && IsPuffer(s) ? (je ? "Jeder Lauf bekommt seinen Puffer; eigener Zeitpunkt je Puffer in der Karte." : "Jeder Termin bedient den nächsten Lauf (siehe „für Lauf n“ unten).") : ""));
             y = Row(y, lFollow.Text.Length > 0, lFollow);
@@ -280,6 +285,7 @@ namespace Arbeitsplan.Win
             lDateNow.Text = !je && first.HasValue ? "→ " + DText(first.Value) : "";
             y = Row(y, offs && !je && first.HasValue, lDateNow);
             y = Row(y, je && more && IsPuffer(s), lEvery, nEvery, lEveryUnit);
+            cbDir.Enabled = !IsPacken(s);
             y = Row(y, own, lRepeat, cbRepeat);
             y = Row(y, own && rk == 1, lInterval, nInterval, lIntervalUnit);
             y = Row(y, own && rk == 2, chkDays);
@@ -291,6 +297,7 @@ namespace Arbeitsplan.Win
             string dt = DatesText(s);
             lDates.Text = dt; lDates.Height = (dt.Split('\n').Length) * Font.Height + 2; tip.SetToolTip(lDates, dt);
             y = Row(y, true, lDates);
+            y = LayoutPufTable(y, s);
             y = Row(y, more && s.Numbered, lStartNo, nStartNo, lNoEx);
             lStartNo.Text = s.Kind != StepKind.Normal ? "Laufnummer ab:" : "Erste Nummer:";
             lNoEx.Text = s.Numbered ? "→ " + s.RunNo(prefix, 0) : "";

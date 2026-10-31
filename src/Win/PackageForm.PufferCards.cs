@@ -169,9 +169,9 @@ namespace Arbeitsplan.Win
             if (s.UsesAnsatz && s.Ansatz.Length == 0)   // leere Tank-Zeile: Gerät wählen, "nicht benötigt" oder Ansatz ohne Tank
             {
                 for (int k = 0; k < s.Puffers.Count; k++)
-                    foreach (string t in EmptyTanks(s.Puffers[k].Lines)) h.Add(new Hint(n + ", Puffer " + (k + 1) + ": Tank (" + t + ") nicht gewählt – Gerät wählen, „" + EquipRow.NoneText + "“ wählen oder Ansatz „Flasche/Gebinde“.", s, cbAnsatz));
+                    foreach (string t in EmptyTanks(s.Puffers[k].Lines)) h.Add(new Hint(n + ", Puffer " + (k + 1) + ": Tank (" + t + ") nicht gewählt – Gerät wählen, „" + EquipRow.NoneText + "“ wählen" + (s.AnsatzChoices().Count > 1 ? " oder Ansatz „Flasche/Gebinde“." : "."), s, AnsatzField(s)));
                 List<EquipAssign> sh = new List<EquipAssign>(); foreach (PufferShare g in s.PufferShared) sh.Add(g.Eq);
-                foreach (string t in EmptyTanks(sh)) h.Add(new Hint(n + ", gemeinsame Zeile: Tank (" + t + ") nicht gewählt – Gerät wählen oder Zeile entfernen.", s, cbAnsatz));
+                foreach (string t in EmptyTanks(sh)) h.Add(new Hint(n + ", gemeinsame Zeile: Tank (" + t + ") nicht gewählt – Gerät wählen oder Zeile entfernen.", s, AnsatzField(s)));
             }
             if (s.Puffers.Count == 0 || Product.Length == 0) return;
             Package one = new Package(); one.ProductCode = Product; one.RunPrefix = prefix; one.Steps.Add(s);
