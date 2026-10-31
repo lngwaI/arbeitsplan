@@ -144,8 +144,9 @@ namespace Arbeitsplan.Win
             else if (which == "equipexport")
             {
                 try { SelfTestEquipExport(null); } catch (System.IO.IOException) { }   // --nosave
-                f = new EquipExportForm(store, start, null);
+                f = new EquipExportForm(store, start, null, PackageFolder);
             }
+            else if (which == "equipp5" || which == "equipcal") f = TestP5Form(which);   // Export mit Produkten, Kampagnen-Kalender (MainForm.SelfTestP5.cs)
             else if (which == "openduties") { DateTime mon = ShownWeek; f = new OpenDutiesForm("Offen in " + PlanView.WeekTitle(mon), delegate(int w) { return OpenDuties.List(store, store.GetDuties(), store.GetRows(), mon, w, DateTime.Today); }); }
             else if (which == "steppicker") { List<string> nm = new List<string>(); foreach (RowInfo r in store.GetRows()) nm.Add(r.Name); StepPicker sp = new StepPicker(store.GetCatalog(), new List<PackageStep>(), nm); sp.TestSelect("Puffer"); f = sp; }
             else if (which == "buffer")   // Puffer-Dialog (vorhandener Puffer mit Entfernen/Hoch/Runter)
@@ -335,6 +336,7 @@ namespace Arbeitsplan.Win
             quiet = true;
             if (Environment.GetEnvironmentVariable("AP_ONLY") == "ux6") { SelfTestUX6(sb); quiet = false; return sb.ToString(); }   // Schnelllauf nur UX-6
             if (Environment.GetEnvironmentVariable("AP_ONLY") == "p1") { SelfTestP1(sb); quiet = false; return sb.ToString(); }   // Schnelllauf nur P1 (PackageForm.TestP1.cs)
+            if (Environment.GetEnvironmentVariable("AP_ONLY") == "p5") { SelfTestEquipExport(sb); SelfTestP5(sb); quiet = false; return sb.ToString(); }   // Schnelllauf nur P5
             if (Environment.GetEnvironmentVariable("AP_ONLY") == "ux5e") { SelfTestUX5e(sb); quiet = false; return sb.ToString(); }   // Schnelllauf nur UX-5e (MainForm.SelfTestUX5e.cs)
 #if DEMO
             if (cfg != null) return SelfTestDemo();   // Vorfuehr-Version: eigene Tests (MainForm.SelfTestDemo.cs)
@@ -384,6 +386,7 @@ namespace Arbeitsplan.Win
             SelfTestBackup(sb);   // Packen (Back-Up), Kampagnen-Assistent (MainForm.SelfTestBackup.cs)
             SelfTestEquip(sb);    // Equipment-Uebersicht (Tabelle, Matrix, Serie) und manueller Status (MainForm.SelfTestEquip.cs)
             SelfTestEquipExport(sb);
+            SelfTestP5(sb);   // Export: Produkte, Geraete aus der Liste, nicht erkannt, mehrtaegige Laeufe, Kalender (MainForm.SelfTestP5.cs)
             SelfTestEquipFile(sb);   // Status aus Datei, Vorrang manuell (MainForm.SelfTestEquipFile.cs)
             SelfTestEquipQuick(sb);   // Schnellerfassung, Nicht zugeordnet, Passt zu, Felder (MainForm.SelfTestEquipQuick.cs)
             SelfTestPaket3(sb);   // Wiederholmodi, Verschieben, Varianten mit Anzahl, Ansatz, alte Pakete (MainForm.SelfTestPaket3.cs)
