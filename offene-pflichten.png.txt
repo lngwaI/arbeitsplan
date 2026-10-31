@@ -1,0 +1,1 @@
+OpenDutiesForm visible=True bounds={X=0,Y=0,Width=646,Height=469}
