@@ -13,6 +13,7 @@ namespace Arbeitsplan.Core
             w.WriteStartElement("Equipment");
             w.WriteAttributeString("kurz", a.Short);
             w.WriteAttributeString("abwechselnd", a.Alternate ? "1" : "0"); w.WriteAttributeString("ausweich", a.Fallback); w.WriteAttributeString("notiz", a.Note);
+            if (a.ParaAfter) w.WriteAttributeString("absatz", "1");   // optional: Leerzeile nach dieser Zeile im Plantext
             foreach (EquipChoice ch in a.Choices)   // je Geraet ein Element: beliebige Zeichen in Kurzname/ID moeglich
             {
                 w.WriteStartElement("Geraet"); w.WriteAttributeString("kurz", ch.Short); w.WriteAttributeString("id", ch.Id); w.WriteEndElement();
@@ -36,7 +37,7 @@ namespace Arbeitsplan.Core
                 if (a.Choices.Count == 0)
                     foreach (string id in q.GetAttribute("ids").Split(new[] { '|' }, StringSplitOptions.RemoveEmptyEntries)) a.Choices.Add(new EquipChoice(a.Short, id));
             }
-            a.Alternate = q.GetAttribute("abwechselnd") == "1"; a.Fallback = q.GetAttribute("ausweich"); a.Note = q.GetAttribute("notiz");
+            a.Alternate = q.GetAttribute("abwechselnd") == "1"; a.Fallback = q.GetAttribute("ausweich"); a.Note = q.GetAttribute("notiz"); a.ParaAfter = q.GetAttribute("absatz") == "1";
             return a;
         }
 

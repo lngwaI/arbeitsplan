@@ -127,7 +127,7 @@ namespace Arbeitsplan.Core
         List<string> Lines(int run, string prefix, int alt)
         {
             List<string> eq = new List<string>();
-            foreach (EquipAssign a in Equipment) { string l = a.LineM(alt); if (l.Length > 0) eq.Add(l); }
+            foreach (EquipAssign a in Equipment) { string l = a.LineM(alt); if (l.Length > 0) { eq.Add(l); if (a.ParaAfter) eq.Add(""); } }
             return Lines(run, prefix, eq);
         }
 
@@ -158,6 +158,7 @@ namespace Arbeitsplan.Core
             if (AnsatzLine().Length > 0) lines.Add(AnsatzLine());   // z. B. "Gebinde: Flasche 5 L"
             lines.AddRange(eq);
             lines.AddRange(NoteTexts());   // Notizzeilen ohne Praefix (im Plan kursiv, siehe EntryFor)
+            while (lines.Count > 0 && lines[lines.Count - 1].Length == 0) lines.RemoveAt(lines.Count - 1);   // Leerzeile ganz am Ende faellt weg
             if (IdentFor(run).Length > 0) lines.Add(IdentFor(run));   // immer die letzte Zeile (Format in BuildTargets)
             return lines;
         }
@@ -167,7 +168,8 @@ namespace Arbeitsplan.Core
         public List<string> NoteTexts()
         {
             List<string> res = new List<string>();
-            foreach (string n in Note.Replace("\r", "").Split('\n')) if (n.Trim().Length > 0) res.Add(n.Trim());
+            foreach (string n in Note.Replace("\r", "").Split('\n')) if (n.Trim().Length > 0 || res.Count > 0) res.Add(n.Trim());   // Leerzeilen zwischen Notizen bleiben
+            while (res.Count > 0 && res[res.Count - 1].Length == 0) res.RemoveAt(res.Count - 1);
             return res;
         }
 

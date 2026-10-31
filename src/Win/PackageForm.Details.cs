@@ -33,7 +33,8 @@ namespace Arbeitsplan.Win
 
         Section Group(string title, string help, int w)
         {
-            Section g = new Section(title, help, false, w);
+            Section g = new Section(title, "", false, w);   // Hilfetext nur noch als Tooltip der Gruppe (weniger Text)
+            if (help.Length > 0) tip.SetToolTip(g, help);
             body.Controls.Add(g); return g;
         }
 
@@ -48,11 +49,11 @@ namespace Arbeitsplan.Win
             Panel wrap = new Panel(); wrap.Tag = "keep"; wrap.Dock = DockStyle.Fill; wrap.Padding = new Padding(8, 8, 8, 8);
             Section sec = new Section("2   Schritt-Details", "", true, 700);
             sec.Dock = DockStyle.Fill;
-            marker.Height = Font.Height + 14; marker.TabStop = false;
+            marker.Height = Font.Height + 8; marker.TabStop = false;
             scroll.Dock = DockStyle.Fill; scroll.AutoScroll = true; scroll.Tag = "keep";
             body.Dock = DockStyle.Top; body.Tag = "keep"; body.Width = 680;   // Resize -> LayoutDetails (PackageForm.Sizing.cs)
             scroll.Controls.Add(body);
-            Panel gap = new Panel(); gap.Tag = "keep"; gap.Dock = DockStyle.Top; gap.Height = 8;
+            Panel gap = new Panel(); gap.Tag = "keep"; gap.Dock = DockStyle.Top; gap.Height = 3;
             sec.Controls.Add(scroll); sec.Controls.Add(eqBar); InitEquipBar(); sec.Controls.Add(gap); sec.Controls.Add(marker);   // eqBar: Leiste "nicht in der Liste" (N5)
             wrap.Controls.Add(sec);
 
@@ -231,7 +232,7 @@ namespace Arbeitsplan.Win
             bDup.Enabled = cur != null;
             bool canDel = cur != null && StepsView().CanRemove(cur);   // sperrt vorab (Grund im Tooltip)
             bDel.Enabled = canDel;
-            tip.SetToolTip(bDel, cur == null || canDel ? "Gewählten Schritt entfernen (Entf)" : "Nicht möglich: der Hauptlauf ist die Grundlage der Kampagne. Erst einen anderen Lauf-Schritt anlegen.");
+            bDel.ToolTipText = (cur == null || canDel ? "Gewählten Schritt entfernen (Entf)" : "Nicht möglich: der Hauptlauf ist die Grundlage der Kampagne. Erst einen anderen Lauf-Schritt anlegen.");
             bUp.Enabled = n > 1; bDown.Enabled = n > 0 && n < steps.Count;   // am Listenrand gesperrt
             PerfB(PfPreview); UpdatePreview(scrollTo); PerfE(PfPreview);
             PerfB(PfHints); UpdateHints(); PerfE(PfHints);

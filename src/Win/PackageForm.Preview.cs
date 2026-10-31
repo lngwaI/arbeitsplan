@@ -15,7 +15,7 @@ namespace Arbeitsplan.Win
         readonly BlockPreview blockPreview = new BlockPreview();
         readonly ListBox lbHints = new ListBox();
         Label lPreview;
-        Panel hintsCol, pagerCol;   // rechte Spalten von Abschnitt 3: schmal bei kleinem Fenster, damit der Kalender Platz hat
+        Panel hintsCol, pagerCol, spHints, spPager;   // rechte Spalten von Abschnitt 3 (ein-/ausklappbar, schmal bei kleinem Fenster) mit ihren Abstandhaltern
         List<Hint> hintList = new List<Hint>();   // alle Hinweise (Gruppenkoepfe samt Einzelhinweisen)
         List<Hint> shownHints = new List<Hint>(); // Inhalt von lbHints (fuer MeasureItem): zugeklappte Gruppen ohne Einzelhinweise
 
@@ -34,13 +34,15 @@ namespace Arbeitsplan.Win
         {
             paneWrap.Tag = "keep"; paneWrap.Dock = DockStyle.Bottom; paneWrap.Padding = new Padding(8, 0, 8, 0);
             InitPane();   // Hoehe (gemerkt), Teiler zwischen Abschnitt 2 und 3 (PackageForm.Pane.cs)
-            Section sec = new Section("3   Vorschau & Prüfung", "Kalender wie im Plan; der gewählte Schritt ist blau. Klick wählt, Ziehen verschiebt nur diesen Block (Umschalt = dieser und alle folgenden).", true, 1000);
+            Section sec = new Section("3   Vorschau & Prüfung", "", true, 1000);   // Hilfetext nur als Tooltip
+            tip.SetToolTip(sec, "Kalender wie im Plan; der gewählte Schritt ist blau. Klick wählt, Ziehen verschiebt nur diesen Block (Umschalt = dieser und alle folgenden). Prüfhinweise und „So steht es im Plan“ klappen über die Knöpfe in der Kalenderleiste rechts auf.");
             sec.Dock = DockStyle.Fill;
             previewScroll.AutoScroll = true; previewScroll.BackColor = Color.White; previewScroll.BorderStyle = BorderStyle.FixedSingle; previewScroll.Tag = "keep";
             blockPreview.Location = Point.Empty; blockPreview.Font = Font; previewScroll.Controls.Add(blockPreview);
             previewScroll.Resize += delegate { if (sizing) sizePending = true; else blockPreview.Relayout(PreviewW); };   // beim Ziehen erst am Ende (PackageForm.Sizing.cs)
             Panel right = pagerCol = BuildPager(previewScroll, 372);   // Ein Eintrag mit ◀ ▶ (PackageForm.Pager.cs)
-            Panel hints = hintsCol = Column(sec, "Prüfhinweise (Klick = hinspringen):", lbHints, 290);
+            Panel hints = hintsCol = Column(sec, "", lbHints, 290);
+            tip.SetToolTip(lbHints, "Prüfhinweise: Klick = hinspringen");
             lbHints.IntegralHeight = false; lbHints.DrawMode = DrawMode.OwnerDrawVariable;   // Hinweise umbrechen statt abschneiden
             lbHints.MeasureItem += delegate(object o, MeasureItemEventArgs e)
             {
@@ -66,9 +68,11 @@ namespace Arbeitsplan.Win
             stripScroll.Dock = DockStyle.Fill; stripScroll.BackColor = Color.White; stripScroll.BorderStyle = BorderStyle.FixedSingle; stripScroll.Tag = "keep";
             strip.Dock = DockStyle.Fill; strip.SetRows(rowNames); strip.ItemClicked += StripClicked;
             strip.ItemMoved += delegate(PlanStrip.Item it, int day, bool onlyRun) { MoveInCalendar(it.Step, it.Run, day, onlyRun); };
-            strip.ItemMenu += StripMenu;
+            strip.ItemMenu += StripMenu; InitPalette();
             stripScroll.Controls.Add(strip); stripScroll.Controls.Add(BuildStripBar());   // Leiste (oben) zuletzt: wird zuerst angedockt
-            sec.Controls.Add(stripScroll); sec.Controls.Add(Spacer()); sec.Controls.Add(hints); sec.Controls.Add(Spacer()); sec.Controls.Add(right);
+            spHints = Spacer(); spPager = Spacer();
+            sec.Controls.Add(stripScroll); sec.Controls.Add(spHints); sec.Controls.Add(hints); sec.Controls.Add(spPager); sec.Controls.Add(right);
+            ApplyColumns();   // Prüfung / Im Plan: gemerkt je Sitzung (PackageForm.Zoom.cs)
             paneWrap.Controls.Add(sec);
             return paneWrap;
         }
@@ -82,9 +86,8 @@ namespace Arbeitsplan.Win
         Panel Column(Control parent, string title, Control content, int w)
         {
             Panel p = new Panel(); p.Tag = "keep"; p.Dock = DockStyle.Right; p.Width = w;
-            Label l = new Label(); l.Text = title; l.Dock = DockStyle.Top; l.Height = Font.Height + 4; l.AutoEllipsis = true;
             content.Dock = DockStyle.Fill;
-            p.Controls.Add(content); p.Controls.Add(l);
+            p.Controls.Add(content);
             parent.Controls.Add(p);
             return p;
         }
@@ -115,6 +118,7 @@ namespace Arbeitsplan.Win
             strip.HeadText = StripHead;
             PerfB(PfStrip); strip.Set(items, cur, curRun); PerfE(PfStrip);
             if (scrollTo) strip.ScrollTo(cur, curRun);
+            BuildPalette();
             UpdateStripBar();
             lPreview.Text = "So steht es im Plan:";
             tip.SetToolTip(lPreview, pk.Lauf1.HasValue ? "Vorschau mit den Daten ab Lauf 1 am " + DText(pk.Lauf1.Value) + "." : "Vorschau relativ zu Lauf 1; das Datum steht fest, sobald „Lauf 1 am“ im Kopf gesetzt ist oder beim Kampagnenstart.");
@@ -131,7 +135,7 @@ namespace Arbeitsplan.Win
             if (FirstRunError() != null) h.Add(new Hint(FirstRunError(), null, tFirst));
             else if (prefix.Length == 0 && runs) h.Add(new Hint("Erste Laufnummer fehlt – Läufe bekommen keine 8-stellige Nummer.", null, tFirst));
             if (PackNoError() != null) h.Add(new Hint(PackNoError(), null, PackNoBad()));
-            if (steps.Count == 0 && blocks.Count == 0) h.Add(new Hint("Der Ablauf ist leer – mit „+ Schritt hinzufügen“ beginnen.", null, bAdd));
+            if (steps.Count == 0 && blocks.Count == 0) h.Add(new Hint("Der Ablauf ist leer – mit „+ Schritt“ beginnen.", null, bAdd));
             List<PackageStep> o = Ordered();
             for (int i = 0; i < o.Count; i++)
             {
@@ -159,6 +163,7 @@ namespace Arbeitsplan.Win
             bool ok = !h.Exists(delegate(Hint x) { return !x.Info; });   // reine Infos machen die Pruefung nicht auffaellig
             if (ok) h.Insert(0, new Hint("Keine Auffälligkeiten – das Muster kann übernommen werden.", null, null));
             FillHintList(BlocksFirst(h));
+            HintsState(h.FindAll(delegate(Hint x) { return !x.Info && !(ok && x.Step == null && x.Field == null); }).Count, h.Exists(delegate(Hint x) { return x.Blocks; }));
             UpdateEquipBar();   // unbekanntes Geraet im aktuellen Schritt: Leiste (PackageForm.EquipBar.cs)
             MarkCards(); FlagRows();
             strip.Mark(null, -1);

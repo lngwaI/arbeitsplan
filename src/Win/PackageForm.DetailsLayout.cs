@@ -14,7 +14,7 @@ namespace Arbeitsplan.Win
         {
             int h = 0;
             foreach (Control c in cs) { c.Visible = show; c.Top = y; h = Math.Max(h, c.Height); }
-            return show ? y + Math.Max(h, IH) + 6 : y;
+            return show ? y + Math.Max(h, IH) + 3 : y;
         }
 
         // Equipment mit Spalten abwechselnd/Ausweich: aufgeklappt oder wenn ein Wert gesetzt ist (nichts verschwindet still)

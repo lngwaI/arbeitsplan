@@ -240,6 +240,31 @@ namespace Arbeitsplan.Win
             FitSimple();
         }
 
+        // Puffer-Rhythmus nur fuer diese Kampagne (Kopie des Pakets, die Datei bleibt unveraendert): Fenster und Tagesliste wie im Editor,
+        // Spaltenkoepfe mit echten Daten. Neue Puffer-Schritte gibt es hier nicht (nur vorhandene Puffer).
+        PufferRhythmForm BuildRhythm()
+        {
+            return PackageForm.RhythmFor(pkg, Schedule, delegate(int day)
+            {
+                DateTime d = Start.AddDays(day - 1);
+                return PackageStep.DayNames[((int)d.DayOfWeek + 6) % 7] + " " + d.ToString("dd.MM.", CultureInfo.InvariantCulture);
+            }, false, false);
+        }
+
+        void ShowRhythm() { using (PufferRhythmForm f = BuildRhythm()) if (f.ShowDialog(this) == DialogResult.OK) ApplyRhythm(f.Rows); }
+
+        void ApplyRhythm(List<PufferRhythmForm.RRow> rows)
+        {
+            foreach (PufferRhythmForm.RRow r in rows)
+            {
+                if (r.Step == null || !r.Changed || r.Days.Count == 0) continue;
+                PackageForm.SetPufferDays(r.Step, r.Days);
+                long si = pkg.Steps.IndexOf(r.Step);
+                foreach (long k in new List<long>(offs.Keys)) if (k / 100000 == si) offs.Remove(k);   // Verschiebungen waren relativ zum alten Vorschlag
+            }
+            Recalc();
+        }
+
         // Einzelpaket: Höhe nach Inhalt (Zusammenfassung, Hinweiszeile, darunter Modus und Knöpfe)
         void FitSimple()
         {

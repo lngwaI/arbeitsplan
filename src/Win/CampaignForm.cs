@@ -29,7 +29,7 @@ namespace Arbeitsplan.Win
         readonly List<Label> lPacks = new List<Label>();
         readonly Label lFirst = new Label(), lPack = new Label(), info = new Label(), lSum = new Label(), lRule = new Label(), lBusy = new Label();
         readonly ComboBox cbRoom = new ComboBox(), cbMode = new ComboBox();
-        readonly Button ok = new Button();
+        readonly Button ok = new Button(), bRhythm = new Button();
         readonly Label lWhy = new Label();       // Grund, warum "In Plan uebernehmen" gesperrt ist (neben dem Knopf)
         readonly ToolTip tip = new ToolTip();
         readonly CheckBox chkShift = new CheckBox(), chkRooms = new CheckBox(), chkRhythm = new CheckBox();
@@ -159,6 +159,9 @@ namespace Arbeitsplan.Win
             tCode.TextChanged += delegate { pkg.ProductCode = tCode.Text.Trim(); };
             Label lt = L("Datum in der Spalte „Gewünscht“ als TT.MM.JJJJ eintippen, oder mit „Tage −“ / „Tage +“ um einen Tag verschieben.", 10, y + 28); lt.ForeColor = Section.HelpColor; Controls.Add(lt);   // eigene Zeile
             lt.Visible = !simple;
+            bRhythm.Text = "Puffer-Rhythmus…"; bRhythm.SetBounds(740, y + 24, 150, 26); bRhythm.Click += delegate { ShowRhythm(); }; Controls.Add(bRhythm);   // nur diese Kampagne (Kopie des Pakets)
+            bRhythm.Visible = !simple && pkg.Steps.Exists(delegate(PackageStep s) { return !s.IsEmpty && (s.IsBuffer || s.UsesAnsatz); });
+            tip.SetToolTip(bRhythm, "Tage der Puffer für diese Kampagne setzen (die Paketdatei bleibt unverändert)");
 
             grid.SetBounds(10, y + 50, 880, 508 - (y + 50));
             lBusy.SetBounds(10, 511, 880, 18); lBusy.AutoEllipsis = true; lBusy.Visible = !simple; Controls.Add(lBusy);
@@ -215,7 +218,7 @@ namespace Arbeitsplan.Win
             ok.Font = new Font(Font, FontStyle.Bold);
             List<Control> tab = new List<Control> { dtLauf1, nRuns, tFirst, tCode, chkCode };   // Tab-Reihenfolge = Lesereihenfolge
             foreach (TextBox tp in tPacks) tab.Add(tp);
-            tab.AddRange(new Control[] { chkRhythm, chkShift, chkRooms, grid, cbMode, ok, cancel });
+            tab.AddRange(new Control[] { chkRhythm, chkShift, chkRooms, bRhythm, grid, cbMode, ok, cancel });
             for (int i = 0; i < tab.Count; i++) tab[i].TabIndex = i;
             if (simple) foot = new Control[] { lMode, cbMode, lWhy, ok, cancel };
 
@@ -255,6 +258,9 @@ namespace Arbeitsplan.Win
         public string TestHeaders { get { List<string> h = new List<string>(); foreach (DataGridViewColumn c in grid.Columns) h.Add(c.HeaderText); return string.Join("|", h.ToArray()); } }
         public bool TestPackVisible { get { return tPack.Parent != null && needPack; } }
         public bool TestSimple { get { return simple; } }
+        public bool TestRhythmButton { get { return bRhythm.Visible && bRhythm.Parent == this; } }
+        public void TestApplyRhythm(List<PufferRhythmForm.RRow> rows) { ApplyRhythm(rows); }
+        public PufferRhythmForm TestBuildRhythm() { return BuildRhythm(); }
         public string TestRoom { get { return cbRoom.Text; } set { cbRoom.SelectedItem = value; } }
         public int TestRowCount { get { return sched.Count; } }
         public bool TestSkipped(int i) { return skipped[i]; }

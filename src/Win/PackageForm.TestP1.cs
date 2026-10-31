@@ -186,14 +186,15 @@ namespace Arbeitsplan.Win
                 Predicate<PackageStep> isLauf = delegate(PackageStep x) { return x.Kind == StepKind.Run; }, isBk = delegate(PackageStep x) { return x.IsBackup; }, isPk = delegate(PackageStep x) { return x.Source == Package.PackenName && !x.IsBackup; },
                     isMo = delegate(PackageStep x) { return x.Variant == "mobil"; }, isSt = delegate(PackageStep x) { return x.Variant == "stationaer"; };
 
-                // ▲ beim letzten Element (Lauf): Puffer wandern mit, Position bliebe gleich -> keine Datumsaenderung, sondern Meldung
+                // ▲ beim letzten Element (Lauf): der Lauf tauscht mit dem Puffer davor die Seite (Puffer bekommt +1 statt -1), Lauf behaelt seinen Tag; ▼ stellt es wieder her
                 PackageStep lauf = f.P1Step(isLauf);
                 f.Bind(lauf); Application.DoEvents();
                 bool okEdge = f.bUp.Enabled && !f.bDown.Enabled;
+                int lday = f.FirstOf(lauf, f.Plan());
                 f.MoveStep(-1); Application.DoEvents();
-                string say = f.stripMsg.Text;
-                bool okUp = f.P1Order() == o0 && say.Contains("liegt 1 Tag vor jedem Lauf") && say.Contains("„Wann?“") && !f.dirty;
-                f.MoveStep(1); okUp &= f.P1Order() == o0;   // Rand: nichts
+                bool okUp = f.P1Order() == "P1 B2 M2 L3 S4" && f.FirstOf(lauf, f.Plan()) == lday && f.dirty && f.Ordered().IndexOf(lauf) == 3;
+                f.MoveStep(1); okUp &= f.P1Order() == o0 && f.stripMsg.Text.Length == 0;
+                f.dirty = false;
                 f.Bind(f.Ordered()[0]); Application.DoEvents(); okEdge &= !f.bUp.Enabled && f.bDown.Enabled;
                 // Back-Up ▲: er bleibt beim Packen
                 f.Bind(f.P1Step(isBk)); Application.DoEvents(); f.MoveStep(-1); Application.DoEvents();
@@ -240,7 +241,7 @@ namespace Arbeitsplan.Win
                 f.Bind(f.P1Step(isSt)); Application.DoEvents();
                 okAns &= !f.cbAnsatz.Visible && !f.lAnsatz.Visible && f.P1Step(isSt).Ansatz == "" && f.cbAnsatz.Items.Count == 1;
 
-                return "P1 Editor: neue Kampagne " + T(okFresh) + (okFresh ? "" : " [" + o0 + "]") + " ▲▼ am Rand gesperrt " + T(okEdge) + " Lauf ▲ ohne Datumsänderung " + T(okUp) + (okUp ? "" : " [" + f.P1Order() + " | " + say + "]") + " Back-Up ▲ " + T(okBk) + " Puffer am selben Tag " + T(okSameDay)
+                return "P1 Editor: neue Kampagne " + T(okFresh) + (okFresh ? "" : " [" + o0 + "]") + " ▲▼ am Rand gesperrt " + T(okEdge) + " Lauf ▲ tauscht die Seite mit dem Puffer, Tag bleibt " + T(okUp) + (okUp ? "" : " [" + f.P1Order() + "]") + " Back-Up ▲ " + T(okBk) + " Puffer am selben Tag " + T(okSameDay)
                     + " Lauf am Back-Up-Tag " + T(okDay) + " Lauf nicht entfernbar " + T(okRun) + " Back-Up allein " + T(okAlone) + " Packen nimmt Back-Up mit " + T(okBoth) + " Puffer entfernbar, Hinweis ohne Puffer " + T(okPuf) + " Abstand je Lauf " + T(okShift) + " Ansatz-Auswahl " + T(okAns);
             }
             catch (Exception ex) { return "P1 Editor: FEHLER " + ex.GetType().Name + ": " + ex.Message + "\n" + ex.StackTrace; }

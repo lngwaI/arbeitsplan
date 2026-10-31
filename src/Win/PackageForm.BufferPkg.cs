@@ -10,16 +10,12 @@ namespace Arbeitsplan.Win
     // in jeder Kampagne als Kopie wieder eingesetzt (nicht verknuepft: spaetere Aenderungen am Pufferpaket aendern die Kampagne nicht).
     partial class PackageForm
     {
-        readonly Button bBufPkg = new Button();
-        readonly ContextMenuStrip menuBufPkg = new ContextMenuStrip();
-
-        void BuildBufferPkg(Panel btns, int bh, int w)
+        // Eintraege im Menue "Mehr ▾" unter dem Ablauf
+        void BuildBufferPkg(ContextMenuStrip m)
         {
-            Btn(bBufPkg, "Pufferpaket ▾", 290, bh + 10, w - 16 - 290, delegate { menuBufPkg.Show(bBufPkg, new Point(0, bBufPkg.Height)); }).Anchor = TLR;
-            btns.Controls.Add(bBufPkg);
-            menuBufPkg.Items.Add("Gewählten Puffer-Schritt als Pufferpaket speichern…", null, delegate { SaveBufferPackage(); });
-            menuBufPkg.Items.Add("Pufferpaket einfügen…", null, delegate { InsertBufferPackage(); });
-            tip.SetToolTip(bBufPkg, "Wiederverwendbare Puffer als kleines Paket speichern oder als Kopie in diese Kampagne einsetzen");
+            m.Items.Add(new ToolStripSeparator());
+            m.Items.Add("Puffer-Schritt als Pufferpaket speichern…", null, delegate { SaveBufferPackage(); }).ToolTipText = "Wiederverwendbare Puffer als kleines Paket speichern";
+            m.Items.Add("Pufferpaket einfügen…", null, delegate { InsertBufferPackage(); }).ToolTipText = "Pufferpaket als Kopie in diese Kampagne einsetzen";
         }
 
         void SaveBufferPackage()

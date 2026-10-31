@@ -100,7 +100,17 @@ namespace Arbeitsplan.Win
             stripMsg.AutoEllipsis = true; stripMsg.TextAlign = ContentAlignment.MiddleLeft; stripMsg.Tag = "keep"; stripMsg.ForeColor = Color.Firebrick;
             InitBig(); InitRhythm();
             stripMsg.SetBounds(x += 34, 2, 100, h); stripMsg.Anchor = TLR;
-            stripBar.Controls.AddRange(new Control[] { bUndo, bRedo, bZoomOut, lZoom, bZoomIn, chOnly, bStepPrev, bStepNext, bBig, bRhythm, stripMsg });
+            Theme th = Theme.Current;
+            foreach (CheckBox c in new[] { tgHints, tgPlan })   // Umschalter rechts: klappen die Spalten Prüfung / Im Plan auf (gemerkt je Sitzung)
+            {
+                c.Appearance = Appearance.Button; c.TextAlign = ContentAlignment.MiddleCenter; c.FlatStyle = FlatStyle.Flat; c.UseVisualStyleBackColor = false; c.Tag = "keep"; c.TabStop = false; c.Font = Font;
+                c.BackColor = th.ButtonBack; c.FlatAppearance.BorderColor = th.ButtonBorder; c.FlatAppearance.CheckedBackColor = th.ButtonOn; c.FlatAppearance.MouseOverBackColor = th.ButtonHover;
+                c.CheckedChanged += delegate { if (columnsBusy) return; if (c == tgHints) hintsOpenPref = c.Checked; else planOpenPref = c.Checked; ShowColumns(); };
+            }
+            tgHints.Text = "Prüfung"; tgPlan.Text = "Im Plan";
+            tip.SetToolTip(tgHints, "Prüfhinweise rechts ein-/ausklappen (öffnet sich von selbst, wenn eine Sperre vorliegt; rot = Sperre)");
+            tip.SetToolTip(tgPlan, "„So steht es im Plan“ rechts ein-/ausklappen");
+            stripBar.Controls.AddRange(new Control[] { bUndo, bRedo, bZoomOut, lZoom, bZoomIn, chOnly, bStepPrev, bStepNext, bBig, bRhythm, stripMsg, tgHints, tgPlan });
             stripBar.Resize += delegate { LayoutBarEnd(h); };
             LayoutBarEnd(h);
             msgTimer.Interval = 9000; msgTimer.Tick += delegate { msgTimer.Stop(); Say(""); };
@@ -117,15 +127,45 @@ namespace Arbeitsplan.Win
             return stripBar;
         }
 
-        // "Groß" und "Puffer-Rhythmus…" hinter ◀ ▶, danach die Rueckmeldung; in schmaler Leiste heisst der zweite Knopf kurz "Rhythmus"
+        readonly CheckBox tgHints = new CheckBox(), tgPlan = new CheckBox();
+        static bool? hintsOpenPref, planOpenPref;   // gemerkt je Sitzung (Programmlauf)
+        bool columnsBusy, hadBlock;
+
+#if TESTHOOKS
+        internal static void TestColumnPrefs(bool? v) { hintsOpenPref = planOpenPref = v; }
+#endif
+
+        // Gemerkte Stellung der Umschalter uebernehmen
+        void ApplyColumns()
+        {
+            columnsBusy = true; tgHints.Checked = hintsOpenPref ?? false; tgPlan.Checked = planOpenPref ?? false; columnsBusy = false;
+            ShowColumns();
+        }
+
+        void ShowColumns() { hintsCol.Visible = spHints.Visible = tgHints.Checked; pagerCol.Visible = spPager.Visible = tgPlan.Checked; }
+
+        // Beschriftung "Prüfung (n)", rot bei Sperre; eine neue Sperre klappt die Spalte von selbst auf
+        void HintsState(int n, bool block)
+        {
+            tgHints.Text = "Prüfung" + (n > 0 ? " (" + n + ")" : ""); tgHints.ForeColor = block ? Color.Firebrick : SystemColors.ControlText;
+            if (block && !hadBlock) { columnsBusy = true; tgHints.Checked = true; columnsBusy = false; ShowColumns(); }
+            hadBlock = block;
+            LayoutBarEnd(stripBar.Height - 4);
+        }
+
+        // Rechts "Prüfung (n)" und "Im Plan"; links davon "Groß" und "Puffer-Rhythmus…" hinter ◀ ▶, dazwischen die Rueckmeldung;
+        // in schmaler Leiste heisst der Rhythmus-Knopf kurz "Rhythmus" ("Groß"/"Klein" bleibt immer sichtbar)
         void LayoutBarEnd(int h)
         {
-            int x = bStepNext.Right + 4, bw = TextRenderer.MeasureText("Klein", Font).Width + 14;
+            int x = bStepNext.Right + 4, bw = TextRenderer.MeasureText("Klein", Font).Width + 14, right = stripBar.ClientSize.Width - 4;
+            tgPlan.Visible = big == null;   // in der grossen Vorschau gibt es "So steht es im Plan" nicht
+            if (tgPlan.Visible) { int wp = TextRenderer.MeasureText("Im Plan", Font).Width + 18; tgPlan.SetBounds(right - wp, 2, wp, h); right = tgPlan.Left - 4; }
+            int wh = TextRenderer.MeasureText("Prüfung (99)", Font).Width + 18; tgHints.SetBounds(right - wh, 2, wh, h); right = tgHints.Left - 6;
             int full = TextRenderer.MeasureText("Puffer-Rhythmus…", Font).Width + 14, shrt = TextRenderer.MeasureText("Rhythmus", Font).Width + 14;
-            bool wide = stripBar.ClientSize.Width - (x + bw + 4) >= full + 110;
+            bool wide = right - (x + bw + 4) >= full + 110;
             bRhythm.Text = wide ? "Puffer-Rhythmus…" : "Rhythmus";
             bBig.SetBounds(x, 2, bw, h); bRhythm.SetBounds(bBig.Right + 4, 2, wide ? full : shrt, h);
-            stripMsg.SetBounds(bRhythm.Right + 6, 2, Math.Max(0, stripBar.ClientSize.Width - bRhythm.Right - 10), h);
+            stripMsg.SetBounds(bRhythm.Right + 6, 2, Math.Max(0, right - bRhythm.Right - 6), h);
         }
 
         // Zustand der Knoepfe: Zoom-Grenzen, ◀ ▶ nur mit "nur Auswahl" und wenn es einen vorigen/naechsten Schritt gibt

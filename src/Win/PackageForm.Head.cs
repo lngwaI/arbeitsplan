@@ -17,7 +17,7 @@ namespace Arbeitsplan.Win
         readonly ComboBox cbType = new ComboBox();
         readonly NumericUpDown nRuns = new NumericUpDown();
         readonly DateTimePicker dtLauf1 = new DateTimePicker();
-        readonly Label lRuns = new Label();
+        readonly Label lRuns = new Label(), lStatus = new Label();   // lStatus: Speicherstand rechts in der Feldzeile
         readonly List<Control[]> headItems = new List<Control[]>();   // Beschriftung + Feld je Eintrag (Umbruch bei schmalem Fenster)
         Panel headPanel;
         int headH;
@@ -28,14 +28,15 @@ namespace Arbeitsplan.Win
         Panel BuildHead()
         {
             Panel head = headPanel = new Panel(); head.Dock = DockStyle.Top; head.Tag = "keep"; head.BackColor = Color.White;
-            Font big = new Font(Font.FontFamily, Font.SizeInPoints + 1f, FontStyle.Bold);
-            int h = headH = big.Height + 10;
-            cbType.DropDownStyle = ComboBoxStyle.DropDownList; cbType.Font = big; cbType.Items.AddRange(new object[] { "Kampagne", "Einzelpaket", "Ereignis" });
-            cbType.Width = TextRenderer.MeasureText("Einzelpaket", big).Width + 36;
-            nRuns.Font = big; nRuns.Minimum = 1; nRuns.Maximum = PackageStep.MaxRuns; nRuns.TextAlign = HorizontalAlignment.Right; nRuns.Width = 58;
-            dtLauf1.Font = big; dtLauf1.Format = DateTimePickerFormat.Custom; dtLauf1.CustomFormat = "dd.MM.yyyy"; dtLauf1.ShowCheckBox = true; dtLauf1.Checked = false;
-            dtLauf1.Width = TextRenderer.MeasureText("00.00.0000", big).Width + 44;
-            tName.Width = 150; tProduct.Width = 80; tFirst.Width = 104;
+            Font big = new Font(Font, FontStyle.Bold);   // Beschriftungen fett, Felder in Normalschrift: eine Zeile reicht bei 1200 px
+            int h = headH = Font.Height + 10;
+            cbType.DropDownStyle = ComboBoxStyle.DropDownList; cbType.Items.AddRange(new object[] { "Kampagne", "Einzelpaket", "Ereignis" });
+            cbType.Width = TextRenderer.MeasureText("Einzelpaket", Font).Width + 36;
+            nRuns.Minimum = 1; nRuns.Maximum = PackageStep.MaxRuns; nRuns.TextAlign = HorizontalAlignment.Right; nRuns.Width = 58;
+            dtLauf1.Format = DateTimePickerFormat.Custom; dtLauf1.CustomFormat = "dd.MM.yyyy"; dtLauf1.ShowCheckBox = true; dtLauf1.Checked = false;
+            dtLauf1.Width = TextRenderer.MeasureText("00.00.0000", Font).Width + 44;
+            tName.Width = 130; tProduct.Width = 80; tFirst.Width = 104;
+            lStatus.TextAlign = ContentAlignment.MiddleRight; lStatus.AutoSize = false; lStatus.UseMnemonic = false; head.Controls.Add(lStatus);
             headItems.Add(new Control[] { null, cbType });
             headItems.Add(new Control[] { Head_("Produkt:", big, h), tName });
             headItems.Add(new Control[] { Head_("Produktcode:", big, h), tProduct });
@@ -49,7 +50,7 @@ namespace Arbeitsplan.Win
             foreach (Control[] c in headItems)
             {
                 if (c[0] != null) head.Controls.Add(c[0]);
-                c[1].Font = big; head.Controls.Add(c[1]);
+                head.Controls.Add(c[1]);
                 TextBox t = c[1] as TextBox; if (t != null) Ui.SimpleMenu(t);
             }
             tProduct.MaxLength = 12; tFirst.MaxLength = 8; tPackNo.MaxLength = 8; tPackNo2.MaxLength = 8;
@@ -104,11 +105,14 @@ namespace Arbeitsplan.Win
                 c[1].Location = new Point(x, y + (h - c[1].Height) / 2);
                 x = c[1].Right + gap;
             }
-            int avail = w - x - 10;
+            int sw = lStatus.Text.Length > 0 ? TextRenderer.MeasureText(lStatus.Text, Font).Width + 12 : 0;
+            if (x > 10 && x + sw > w - 10) { x = 10; y += h + 4; }   // Status passt nicht mehr hinter die Felder: eigene Zeile (bei 1024 px hoechstens zwei Zeilen)
+            int avail = w - x - 10 - sw;
             bool err = lRuns.ForeColor == Color.Firebrick && lRuns.Text.Length > 0;
-            if (avail < 200 && err) { x = 10; y += h + 4; avail = w - 20; }   // Fehlermeldung bekommt eine eigene Zeile, der Hinweis "→ Laufnummern" entfaellt bei Platzmangel
+            if (avail < 200 && err) { x = 10; y += h + 4; avail = w - 20 - sw; }   // Fehlermeldung bekommt eine eigene Zeile, der Hinweis "→ Laufnummern" entfaellt bei Platzmangel
             lRuns.Visible = avail >= 200;
             lRuns.SetBounds(x, y, Math.Max(40, avail), h);
+            lStatus.SetBounds(w - sw - 10, y, sw, h);
             int nh = y + h + 8;
             if (headPanel.Height != nh) { headPanel.Height = nh; if (paneWant > 0) ClampPane(); }   // Kopfhoehe aendert den Platz fuer Abschnitt 3
         }

@@ -46,7 +46,7 @@ namespace Arbeitsplan.Win
                 okHead &= f.pk.RunCount == 6 && lauf.Until == 0 && f.pk.RunsText(misch) == "Lauf 1–6 · 6 Termine" && Row3(f, misch).Contains("Lauf 1–6 · 6 Termine") && Row3(f, lauf).Contains("Lauf 1–6 · 6 Termine");
                 // Tabelle: Wann relativ zu Lauf 1, Laeufe/Termine, Wiederholung im Klartext, Reihenfolge wie im Plan
                 bool okTab = Row3(f, packen) == "2 Tage vor Lauf 1|1 Termin|einmalig" && Row3(f, misch) == "1 Tag nach jedem Lauf|Lauf 1–6 · 6 Termine|zu jedem Lauf" && Row3(f, lauf) == "Lauf 1 – Lauf 6|Lauf 1–6 · 6 Termine|alle 6 Tage"
-                    && f.lv.Items[0].SubItems[3].Text == "Packen" && f.lv.Columns[1].Text == "Wann" && f.lv.Columns[4].Text == "Läufe/Termine";
+                    && f.lv.Items[0].SubItems[2].Text == "Packen" && f.lv.Columns[1].Text == "Wann" && f.lv.Columns.Count == 3 && f.lv.Items[0].SubItems[3].Text.Length > 0 && f.lv.Items[0].ToolTipText.Contains(f.lv.Items[0].SubItems[3].Text);   // Raum und Wiederholung nur im Tooltip
                 lauf.SetSkip(2, true); f.Changed(); Application.DoEvents();
                 okTab &= Row3(f, misch).Contains("Lauf 1, 2, 4–6 · 5 Termine");
                 lauf.SetSkip(2, false); f.Changed();

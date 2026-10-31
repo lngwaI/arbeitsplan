@@ -27,11 +27,12 @@ namespace Arbeitsplan.Win
         public string Folder;   // Paketordner (Standard fuer Oeffnen/Speichern); null = klassischer Dateidialog
         public User By;        // angemeldeter Nutzer (fuer das Aenderungsprotokoll bei der Uebernahme)
 
-        readonly Crumbs crumbs = new Crumbs();
         readonly Panel left = new Panel();
         readonly Label lBlocks = new Label();
         readonly ListView lv = new ListView();
-        readonly Button bAdd = new Button(), bUp = new Button(), bDown = new Button(), bDup = new Button(), bDel = new Button();
+        readonly Button bAdd = new Button(), bUp = new Button(), bDown = new Button(), bMoreStep = new Button();
+        readonly ToolStripMenuItem bDup = new ToolStripMenuItem(), bDel = new ToolStripMenuItem();   // Menue "Mehr ▾" unter dem Ablauf
+        readonly ContextMenuStrip menuStep = new ContextMenuStrip();
         readonly ToolTip tip = new ToolTip();
         Button bApplyBtn;   // "In Plan uebernehmen" (Standardschaltflaeche)
 
@@ -56,8 +57,7 @@ namespace Arbeitsplan.Win
             BuildLeft();
             Control preview = BuildPreview();
             Panel bar = BuildBar();
-            crumbs.Height = Font.Height * 2 + 8; crumbs.TabStop = false; crumbs.PartClicked += CrumbClicked;
-            Controls.Add(details); Controls.Add(left); Controls.Add(paneSplit); Controls.Add(preview); Controls.Add(bar); Controls.Add(head); Controls.Add(crumbs);   // zuletzt hinzugefuegt = zuerst angedockt
+            Controls.Add(details); Controls.Add(left); Controls.Add(paneSplit); Controls.Add(preview); Controls.Add(bar); Controls.Add(head);   // zuletzt hinzugefuegt = zuerst angedockt
             head.TabIndex = 0; left.TabIndex = 1; details.TabIndex = 2; preview.TabIndex = 3; bar.TabIndex = 4;
             InitSizing();   // Doppelpuffer, Layoutsperre beim Ziehen (PackageForm.Sizing.cs)
             Theme.Current.Style(this);
@@ -100,31 +100,32 @@ namespace Arbeitsplan.Win
         {
             left.Dock = DockStyle.Left; left.Width = 520; left.Padding = new Padding(8, 8, 0, 8); left.Tag = "keep";
             int w = 480;
-            Section flow = new Section("1   Ablauf", "Nach Datum sortiert (wie im Plan); gleicher Tag: deine Reihenfolge (▲▼).", true, w);
+            Section flow = new Section("1   Ablauf", "", true, w);
             lv.View = View.Details; lv.FullRowSelect = true; lv.HideSelection = false; lv.MultiSelect = false; lv.ShowItemToolTips = true;
             lv.HeaderStyle = ColumnHeaderStyle.Nonclickable; lv.Dock = DockStyle.Fill;
-            lv.Columns.Add("Nr", 26); lv.Columns.Add("Wann", 140); lv.Columns.Add("Raum", 56); lv.Columns.Add("Schritt", 90); lv.Columns.Add("Läufe/Termine", 112); lv.Columns.Add("Wiederholung", 92);
+            lv.Columns.Add("Nr", 26); lv.Columns.Add("Wann", 160); lv.Columns.Add("Schritt", 140);   // Raum, Läufe/Termine, Wiederholung: Tooltip der Zeile (Unterelemente 3-5 bleiben gefuellt)
             lv.SelectedIndexChanged += delegate { if (!loading && lv.SelectedItems.Count > 0 && lv.SelectedItems[0].Tag != cur) Bind((PackageStep)lv.SelectedItems[0].Tag); };
             lv.MouseUp += delegate { if (lv.SelectedItems.Count == 0) FillList(); };   // Klick ins Leere: Auswahl bleibt beim aktuellen Schritt
             lv.Resize += delegate { FitColumns(); };
             InitListDrag();   // Ziehen = Reihenfolge aendern, Einfuegelinie zeigt das Ziel (PackageForm.Order.cs)
 
             int bh = Theme.Current.ButtonH - 2;
-            Panel btns = new Panel(); btns.Tag = "keep"; btns.Dock = DockStyle.Bottom; btns.Height = 2 * bh + 12; btns.Width = w - 16;
-            Btn(bAdd, "+ Schritt hinzufügen…", 0, 6, w - 16, delegate { AddStepDialog(); }).Anchor = TLR;
+            Panel btns = new Panel(); btns.Tag = "keep"; btns.Dock = DockStyle.Bottom; btns.Height = bh + 8; btns.Width = w - 16;
+            Btn(bAdd, "+ Schritt", 0, 4, 100, delegate { AddStepDialog(); });
             bAdd.Font = new Font(Font, FontStyle.Bold);
-            Btn(bUp, "▲", 0, bh + 10, 34, delegate { MoveStep(-1); });
-            Btn(bDown, "▼", 38, bh + 10, 34, delegate { MoveStep(1); });
-            Btn(bDup, "Duplizieren", 78, bh + 10, 100, delegate { Duplicate(); });
-            Btn(bDel, "Entfernen…", 184, bh + 10, 100, delegate { RemoveStep(); });
-            btns.Controls.AddRange(new Control[] { bAdd, bUp, bDown, bDup, bDel });
-            BuildBufferPkg(btns, bh, w);   // Pufferpaket (PackageForm.BufferPkg.cs)
+            Btn(bUp, "▲", 106, 4, 34, delegate { MoveStep(-1); });
+            Btn(bDown, "▼", 144, 4, 34, delegate { MoveStep(1); });
+            Btn(bMoreStep, "Mehr ▾", 184, 4, 90, delegate { menuStep.Show(bMoreStep, new Point(0, bMoreStep.Height)); });
+            bDup.Text = "Duplizieren"; bDup.ShortcutKeyDisplayString = "Strg+D"; bDup.Click += delegate { Duplicate(); };
+            bDel.Text = "Entfernen…"; bDel.ShortcutKeyDisplayString = "Entf"; bDel.Click += delegate { RemoveStep(); };
+            menuStep.Items.Add(bDup); menuStep.Items.Add(bDel);
+            btns.Controls.AddRange(new Control[] { bAdd, bUp, bDown, bMoreStep });
+            BuildBufferPkg(menuStep);   // Pufferpaket (PackageForm.BufferPkg.cs)
             tip.SetToolTip(bAdd, "Baustein (Packen, Lauf, Splitten …) oder leeren Schritt hinzufügen");
-            tip.SetToolTip(lv, "Anklicken = rechts bearbeiten. Ziehen oder Alt+↑/↓ = Reihenfolge ändern (über die Tagesgrenze: übernimmt den Tag des Nachbarn).");
+            tip.SetToolTip(lv, "Nach Datum sortiert (wie im Plan); gleicher Tag: deine Reihenfolge. Anklicken = rechts bearbeiten. Ziehen oder Alt+↑/↓ = Reihenfolge ändern (über die Tagesgrenze: übernimmt den Tag des Nachbarn). Raum und Wiederholung stehen im Tooltip der Zeile.");
             tip.SetToolTip(bUp, "Schritt nach oben (Alt+Hoch); übernimmt dabei ggf. den Tag des Vorgängers");
             tip.SetToolTip(bDown, "Schritt nach unten (Alt+Runter); übernimmt dabei ggf. den Tag des Nachfolgers");
-            tip.SetToolTip(bDup, "Gewählten Schritt kopieren (Strg+D)");
-            tip.SetToolTip(bDel, "Gewählten Schritt entfernen (Entf)");
+            tip.SetToolTip(bMoreStep, "Duplizieren (Strg+D), Entfernen (Entf), Pufferpaket");
             lBlocks.Dock = DockStyle.Bottom; lBlocks.Height = 2 * Font.Height + 4; lBlocks.ForeColor = Section.HelpColor; lBlocks.Visible = false;
             flow.Controls.Add(lv); flow.Controls.Add(lBlocks); flow.Controls.Add(btns);
             flow.Dock = DockStyle.Fill;
@@ -136,24 +137,25 @@ namespace Arbeitsplan.Win
         {
             Panel bar = new Panel(); bar.Dock = DockStyle.Bottom; bar.Height = Theme.Current.ButtonH + 14;
             int y = 7;
-            Button bOpen = Btn(new Button(), "Öffnen…", 8, y, 96, delegate { OpenFile(); });
+            ContextMenuStrip menuFile = new ContextMenuStrip();   // Datei ▾: Oeffnen, Speichern unter, Katalog einrichten (mit Recht)
+            Button bFile = new Button(); Btn(bFile, "Datei ▾", 8, y, 96, delegate { menuFile.Show(bFile, new Point(0, 0), ToolStripDropDownDirection.AboveRight); });
+            menuFile.Items.Add("Öffnen…", null, delegate { OpenFile(); });
+            menuFile.Items.Add("Speichern unter…", null, delegate { SaveFile(true); });
+            if (canAdmin) menuFile.Items.Add("Katalog einrichten…", null, delegate { Setup(); }).ToolTipText = "Equipment-Positionen und Bausteine einrichten (Recht \"Pakete einrichten\")";
             Button bSave = Btn(new Button(), "Speichern", 110, y, 96, delegate { SaveFile(false); });
-            Button bSaveAs = Btn(new Button(), "Speichern unter…", 212, y, 130, delegate { SaveFile(true); });
-            Button bSetup = Btn(new Button(), "Katalog einrichten…", 360, y, 150, delegate { Setup(); });
-            bSetup.Visible = canAdmin;
             Button bClose = Btn(new Button(), "Schließen", 0, y, 100, delegate { Close(); });
             Button bApply = Btn(new Button(), "In Plan übernehmen…", 0, y, 170, delegate { DoApply(); });
             bApply.Enabled = canApply; bApply.Font = new Font(Font, FontStyle.Bold);
             if (canApply) AcceptButton = bApply;   // Enter = Primaraktion (Kampagne starten), Esc = Schliessen (mit Rueckfrage bei ungespeicherten Aenderungen)
             CancelButton = bClose; bApplyBtn = bApply;
-            Control[] ord = { bOpen, bSave, bSaveAs, bSetup, bApply, bClose };
+            Control[] ord = { bFile, bSave, bApply, bClose };
             for (int i = 0; i < ord.Length; i++) ord[i].TabIndex = i;
             bClose.Left = ClientSize.Width - 108; bApply.Left = bClose.Left - 176;
             bClose.Anchor = bApply.Anchor = AnchorStyles.Top | AnchorStyles.Right;
             bar.Width = ClientSize.Width;
-            bar.Controls.AddRange(new Control[] { bOpen, bSave, bSaveAs, bSetup, bApply, bClose });
+            bar.Controls.AddRange(ord);
+            tip.SetToolTip(bFile, "Öffnen, Speichern unter" + (canAdmin ? ", Katalog einrichten" : ""));
             tip.SetToolTip(bSave, "Muster als Datei (.apkg) speichern (Strg+S)");
-            tip.SetToolTip(bSetup, "Equipment-Positionen und Bausteine einrichten (Recht \"Pakete einrichten\")");
             tip.SetToolTip(bApply, "Kampagne starten: Startdatum, erste Laufnummer und Umgang mit vorhandenen Einträgen wählen");
             return bar;
         }
@@ -269,11 +271,10 @@ namespace Arbeitsplan.Win
             string camp = CampaignText();
             parts.Add("Ablauf: " + steps.Count + (steps.Count == 1 ? " Schritt" : " Schritte") + (camp != null ? " (" + camp + ")" : ""));
             if (cur != null) parts.Add("Schritt " + No(cur) + ": " + TitleOf(cur));
-            if (dirty) crumbs.Set(parts.ToArray(), "● Ungespeicherte Änderungen", Theme.Current.BorderEdit);
-            else crumbs.Set(parts.ToArray(), file != null ? "Gespeichert: " + System.IO.Path.GetFileName(file) : "Noch nicht als Datei gespeichert", Section.HelpColor);
+            lStatus.Text = dirty ? "● Ungespeicherte Änderungen" : file != null ? "Gespeichert: " + System.IO.Path.GetFileName(file) : "Noch nicht gespeichert";
+            lStatus.ForeColor = dirty ? Theme.Current.BorderEdit : Section.HelpColor;
+            tip.SetToolTip(lStatus, string.Join("  ›  ", parts.ToArray()));   // frueherer Weg "Produkt › Ablauf › Schritt"
         }
-
-        void CrumbClicked(int i) { if (i == 0) tName.Focus(); else lv.Focus(); }
 
         protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
         {

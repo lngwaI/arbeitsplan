@@ -282,6 +282,7 @@ namespace Arbeitsplan.Win
             y = Row(y, head != null && !isHead && (IsPacken(s) ? !PkSimple(s) : !locked), cbBind);
             lFollow.Text = bk ? "Der Back-Up folgt dem Packen (1 Tag danach)." : (isHead ? "Hauptlauf: gibt den Takt vor. Läufe und Datum von Lauf 1 stehen oben im Kopf."
                 : (head != null && IsPuffer(s) ? (je ? "Jeder Lauf bekommt seinen Puffer; eigener Zeitpunkt je Puffer in der Karte." : "Jeder Termin bedient den nächsten Lauf (siehe „für Lauf n“ unten).") : ""));
+            lFollow.Height = Font.Height + 2; lFollow.AutoEllipsis = true; tip.SetToolTip(lFollow, lFollow.Text);   // eine Zeile, der volle Text im Tooltip
             y = Row(y, lFollow.Text.Length > 0, lFollow);
             int dk = cbDir.SelectedIndex >= 0 && cbDir.SelectedIndex < dirKinds.Length ? dirKinds[cbDir.SelectedIndex] : 0;
             y = Row(y, offs, nDay, cbDir);
@@ -295,13 +296,13 @@ namespace Arbeitsplan.Win
             y = Row(y, own, lRepeat, cbRepeat);
             y = Row(y, own && rk == 1, lInterval, nInterval, lIntervalUnit);
             y = Row(y, own && rk == 2, chkDays);
-            y = Row(y, own && rk == 3, lDaysList, tDays); y = Row(y, own && rk == 3, lDaysHelp) - (own && rk == 3 ? 4 : 0);
+            y = Row(y, own && rk == 3, lDaysList, tDays); lDaysHelp.Visible = false; tip.SetToolTip(lDaysList, lDaysHelp.Text);   // Hilfetext nur als Tooltip
             y = Row(y, end, cbEnd, nCount, nUntil, lEndUnit);
             int ek = cbEnd.SelectedIndex >= 0 && cbEnd.SelectedIndex < endKinds.Length ? endKinds[cbEnd.SelectedIndex] : 1;
             nCount.Visible = end && ek == 1; nUntil.Visible = end && ek == 2; lEndUnit.Visible = end && ek != 0;
             lEndUnit.Text = ek == 2 ? "" : "mal";
             string dt = DatesText(s);
-            lDates.Text = dt; lDates.Height = (dt.Split('\n').Length) * Font.Height + 2; tip.SetToolTip(lDates, dt);
+            lDates.Text = dt.Replace("\n", " · "); lDates.Height = Font.Height + 2; lDates.AutoEllipsis = true; tip.SetToolTip(lDates, dt);   // einzeilig zusammengefasst, alle Termine im Tooltip
             y = Row(y, true, lDates);
             y = Row(y, head != null && IsPuffer(s), bRhythmWhen);
             y = LayoutPufTable(y, s);

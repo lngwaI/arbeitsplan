@@ -100,8 +100,8 @@ namespace Arbeitsplan.Core
             for (int i = 0; i <= sp.Lines.Count; i++)   // gemeinsame Zeilen an ihrer Stelle der Vorlage (After), sonst am Ende
             {
                 foreach (PufferShare g in PufferShared)
-                    if (g.Covers(k) && (g.After == i || (i == sp.Lines.Count && (g.After < 0 || g.After > i)))) { string l = g.Eq.LineM(run); if (l.Length > 0) r.Add(l); }
-                if (i < sp.Lines.Count) { string l = sp.Lines[i].LineM(alt); if (l.Length > 0) r.Add(l); }   // mit Notiz-Marker (BufferSet.NoteMark)
+                    if (g.Covers(k) && (g.After == i || (i == sp.Lines.Count && (g.After < 0 || g.After > i)))) { string l = g.Eq.LineM(run); if (l.Length > 0) { r.Add(l); if (g.Eq.ParaAfter) r.Add(""); } }
+                if (i < sp.Lines.Count) { string l = sp.Lines[i].LineM(alt); if (l.Length > 0) { r.Add(l); if (sp.Lines[i].ParaAfter) r.Add(""); } }   // mit Notiz-Marker (BufferSet.NoteMark)
             }
             return r;
         }

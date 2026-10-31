@@ -102,18 +102,30 @@ namespace Arbeitsplan.Win
             PackageStep n = o[to];
             List<RunDate> plan = Plan();
             int delta = FirstOf(n, plan) - FirstOf(s, plan);
+            // Hauptlauf ueber seinen "zu jedem Lauf"-Nachbarn: beide tauschen die Seite (Nachbar spiegelt seinen Versatz), der Hauptlauf bleibt am Tag
+            bool swap = s == StepsView().Head && IsJe(n);
+            if (swap) delta = 0;
             // Erst auf einer Kopie: Der Hauptlauf zieht seine "zu jedem Lauf"-Schritte mit, der Back-Up springt zum Packen zurueck. Dann bliebe die
             // Position gleich und nur das Datum wanderte still (z. B. Lauf auf den Tag des Back-Ups).
             Package trial = StepsView().Clone();
             PackageStep ts = trial.Steps[steps.IndexOf(s)], tn = trial.Steps[steps.IndexOf(n)];
+            if (swap) { FlipSide(tn); trial.Normalize(false); }
             if (delta != 0 && !MoveBy(trial, ts, delta)) { Say("Nicht verschoben: Dort ist kein Termin möglich (Versatz zu groß)."); return false; }
             Package.SyncBackups(trial.Steps);
             PlaceAt(trial.Steps, ts, tn, from < to);
             if (OrderOf(trial).IndexOf(ts) == from) { Say(StaysText(s, n)); return false; }
+            if (swap) FlipSide(n);
             if (delta != 0 && !MoveBy(StepsView(), s, delta)) return false;
             PlaceAt(steps, s, n, from < to);
             Say("");
             return true;
+        }
+
+        // Andere Seite des Hauptlaufs: Versatz (und Abstaende je Lauf) spiegeln
+        static void FlipSide(PackageStep j)
+        {
+            j.RunOffset = -j.RunOffset;
+            foreach (int k in new List<int>(j.Shift.Keys)) j.Shift[k] = -j.Shift[k];
         }
 
         static void PlaceAt(List<PackageStep> l, PackageStep s, PackageStep n, bool after)
@@ -237,6 +249,11 @@ namespace Arbeitsplan.Win
                 stripMenu.Items.Add(new ToolStripSeparator());
                 stripMenu.Items.Add("Diesen Lauf auf Regel zurücksetzen", null, delegate { ResetRun(s, run); }).Enabled = s.Pinned(run);
                 stripMenu.Items.Add("Alle Verschiebungen dieses Schritts zurücksetzen", null, delegate { ResetRun(s, -1); });
+            }
+            if (IsPuffer(s) && !s.IsEmpty)
+            {
+                stripMenu.Items.Add(new ToolStripSeparator());
+                stripMenu.Items.Add("Diesen Termin entfernen", null, delegate { PufferOff(s, day); });
             }
             stripMenu.Show(strip, at);
         }

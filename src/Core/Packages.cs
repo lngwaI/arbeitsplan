@@ -16,6 +16,7 @@ namespace Arbeitsplan.Core
         public bool Alternate;
         public string Fallback = "";
         public string Note = "";
+        public bool ParaAfter;                                      // Leerzeile nach dieser Zeile im Plantext (Paket-Editor: Rechtsklick "Leerzeile danach")
 
         public EquipAssign Clone()
         {

@@ -142,11 +142,11 @@ namespace Arbeitsplan.Win
             {
                 PackageStep s = o[i];
                 string when = WhenText(s), runs = p.RunsText(s), rep = RepeatPlain(s);
-                string[] t = { (i + 1).ToString(), when, s.Row.Length > 0 ? s.Row : "– fehlt –", TitleOf(s), runs, rep };
+                string[] t = { (i + 1).ToString(), when, TitleOf(s), s.Row.Length > 0 ? s.Row : "– fehlt –", runs, rep };   // sichtbar: Nr, Wann, Schritt; der Rest im Tooltip
                 if (i >= lv.Items.Count) { ListViewItem n = new ListViewItem(t); n.UseItemStyleForSubItems = false; lv.Items.Add(n); }
                 ListViewItem it = lv.Items[i];
                 for (int k = 0; k < t.Length; k++) if (it.SubItems[k].Text != t[k]) it.SubItems[k].Text = t[k];
-                it.SubItems[2].ForeColor = s.Row.Length > 0 ? SystemColors.WindowText : Color.Firebrick;
+                it.SubItems[2].ForeColor = s.Row.Length > 0 ? SystemColors.WindowText : Color.Firebrick;   // ohne Raum: Schritt rot
                 it.Tag = s;
                 it.ToolTipText = when + " · " + (s.Row.Length > 0 ? s.Row : "Raum fehlt") + " · " + TitleOf(s) + " · " + runs + " · " + rep;
                 if (it.Selected != (s == cur)) it.Selected = s == cur;
@@ -161,10 +161,9 @@ namespace Arbeitsplan.Win
 
         void FitColumns()
         {
-            // Nr, Raum, Wiederholung fest; Wann, Schritt, Laeufe/Termine teilen den Rest (volle Texte stehen im Tooltip)
-            int rest = lv.ClientSize.Width - 26 - 56 - 92;
-            lv.Columns[0].Width = 26; lv.Columns[2].Width = 56; lv.Columns[5].Width = 92;
-            lv.Columns[1].Width = Math.Max(60, rest * 40 / 100); lv.Columns[3].Width = Math.Max(60, rest * 28 / 100); lv.Columns[4].Width = Math.Max(60, rest * 32 / 100);
+            // Nr fest; Wann und Schritt teilen den Rest (volle Texte stehen im Tooltip)
+            int rest = lv.ClientSize.Width - 26;
+            lv.Columns[0].Width = 26; lv.Columns[1].Width = Math.Max(60, rest * 48 / 100); lv.Columns[2].Width = Math.Max(60, rest - lv.Columns[1].Width);
         }
     }
 }

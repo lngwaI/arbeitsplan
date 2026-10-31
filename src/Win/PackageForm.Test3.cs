@@ -41,7 +41,7 @@ namespace Arbeitsplan.Win
                 Control eq0 = f.eqRows.Count > 0 ? f.eqRows[0] : null;
                 f.MoveStep(1); f.MoveStep(1); f.MoveStep(-1); Application.DoEvents();
                 bool ord = eq0 != null && f.Ordered().IndexOf(pk) == 1 && f.cur == pk && f.lv.SelectedItems.Count == 1 && f.lv.SelectedItems[0].Tag == pk
-                    && f.eqRows[0] == eq0 && f.lv.Items[1].SubItems[3].Text == "Packen";
+                    && f.eqRows[0] == eq0 && f.lv.Items[1].SubItems[2].Text == "Packen";
                 f.DropAt(f.lv.Items.Count - 1); Application.DoEvents();
                 ord &= f.Ordered().IndexOf(pk) == f.steps.Count - 1 && f.lv.Items[f.lv.Items.Count - 1].Selected && f.eqRows[0] == eq0;
                 f.lv.Focus(); Message m = new Message();

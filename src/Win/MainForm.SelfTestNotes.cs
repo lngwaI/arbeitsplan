@@ -48,8 +48,8 @@ namespace Arbeitsplan.Win
             // mehrere Notizen aus dem Paket (Enter im Notizfeld = naechste Notiz), ohne Praefix "Notiz:", Kennung bleibt letzte Zeile
             PackageStep st = new PackageStep(); st.Title = "Packen"; st.Text = "Zeile a\nZeile b"; st.Note = "Eins\r\nZwei\n\n  Drei  "; st.Ident = "PA 40010001"; st.Row = "Suite 1";
             Entry pk = st.EntryFor(0, "");
-            bool okPkgNotes = pk.Content == "Packen\nZeile a\nZeile b\nEins\nZwei\nDrei\nPA 40010001" && NJoin(Notes.NoteTexts(pk)) == "Eins|Zwei|Drei"
-                && Notes.ContentText(pk) == "Packen\nZeile a\nZeile b\nPA 40010001" && pk.Spans.Exists(delegate(FormatSpan f) { return f.Bold && f.Rgb == 0xFF0000 ; }) && pk.Content.IndexOf("Notiz:", StringComparison.Ordinal) < 0;
+            bool okPkgNotes = pk.Content == "Packen\nZeile a\nZeile b\nEins\nZwei\n\nDrei\nPA 40010001" && NJoin(Notes.NoteTexts(pk)) == "Eins|Zwei|Drei"   // Leerzeile zwischen Notizen bleibt (Absatz)
+                && Notes.ContentText(pk) == "Packen\nZeile a\nZeile b\n\nPA 40010001" && pk.Spans.Exists(delegate(FormatSpan f) { return f.Bold && f.Rgb == 0xFF0000 ; }) && pk.Content.IndexOf("Notiz:", StringComparison.Ordinal) < 0;
             PackageStep st0 = new PackageStep(); st0.Title = "Nur Titel"; st0.Row = "Suite 1";
             okPkgNotes &= !st0.EntryFor(0, "").HasNotes;
 

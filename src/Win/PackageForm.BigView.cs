@@ -58,7 +58,9 @@ namespace Arbeitsplan.Win
                 stripScroll.Dock = DockStyle.Fill; hintsCol.Dock = DockStyle.Right;
                 f.Controls.Add(stripScroll); f.Controls.Add(gap); f.Controls.Add(hintsCol);   // Fill zuerst, Raender danach (wie im Editor)
                 f.Padding = new Padding(8);
-                bBig.Text = "Klein"; tip.SetToolTip(bBig, "Zurück in den Editor (Esc)");
+                palette = new Panel(); palette.Dock = DockStyle.Left; palette.Width = 170; palette.BackColor = Color.White; palette.BorderStyle = BorderStyle.FixedSingle;
+                f.Controls.Add(palette); strip.EqualDays = true; BuildPalette();
+                bBig.Text = "Klein"; tip.SetToolTip(bBig, "Zurück in den Editor (Esc)"); LayoutBarEnd(stripBar.Height - 4);
             }
             finally { bigHome.ResumeLayout(true); }
             try { if (modal) f.ShowDialog(this); else f.Show(this); }
@@ -75,6 +77,7 @@ namespace Arbeitsplan.Win
             try
             {
                 f.Controls.Remove(stripScroll); f.Controls.Remove(hintsCol);
+                palette = null; strip.EqualDays = false;
                 bool stripFirst = bigStripAt < bigHintsAt;   // kleineren Index zuerst einsetzen, dann stimmt SetChildIndex fuer beide
                 for (int k = 0; k < 2; k++)
                 {
@@ -84,6 +87,7 @@ namespace Arbeitsplan.Win
                 }
                 stripScroll.Dock = DockStyle.Fill; hintsCol.Dock = DockStyle.Right;
                 bBig.Text = "Groß"; tip.SetToolTip(bBig, "Kalender und Prüfhinweise im großen Fenster (Esc schließt, Strg+Z / Strg+Y gelten weiter)");
+                ShowColumns(); LayoutBarEnd(stripBar.Height - 4);
             }
             finally { home.ResumeLayout(true); }
             UpdatePreview(false);

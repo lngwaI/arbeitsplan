@@ -49,6 +49,7 @@ namespace Arbeitsplan.Win
         public Form TestForm(string which)
         {
             Package demo = null;
+            PackageForm.PrefsFile = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "shot_paketeditor.ini");   // Testbild: Standardhoehen statt der gemerkten Einstellung des Nutzers
             if (which.StartsWith("package2") || which == "campaign")   // Produkt 1357: Packen, Lauf (3x alle 3 Tage, abwechselnd), Splitten in Unterlaeufe
             {
                 demo = new Package(); demo.Name = "Produkt Beispiel"; demo.ProductCode = "1357";
@@ -122,6 +123,12 @@ namespace Arbeitsplan.Win
                 if (which == "campaign3" || which == "campaign6") { cf.TestRuns = 5; cf.SetSkip(cf.TestIndexOf(2, 2), true); }
                 f = cf;
             }
+            else if (which == "campaign8")   // Kampagne mit Puffer-Schritt: Knopf "Puffer-Rhythmus…" (Rhythmus nur fuer diese Kampagne)
+            {
+                CampaignForm cf = new CampaignForm(Package.SampleBuffers("Testpaket"), store, start, ApplyMode.FillEmpty);
+                cf.TestPackNo = "12340001";
+                f = cf;
+            }
             else if (which == "campaign7")   // zwei Packen: je ein Feld, zweite Nummer fehlt noch
             {
                 PackageForm.Ux1bPrepare(store);
@@ -188,7 +195,7 @@ namespace Arbeitsplan.Win
             Hide();                                   // nur fuer das Testbild: Hauptfenster nicht dahinter
             f.StartPosition = FormStartPosition.Manual; f.Location = new Point(0, 0); f.TopMost = true;
             PackageForm pf = f as PackageForm;
-            if (pf != null && ClientSize.Width < 1190) pf.Size = ClientSize;   // --size 1024x768: Editor wie auf einem kleinen Bildschirm
+            if (pf != null && (ClientSize.Width < 1190 || (TestSizeGiven && ClientSize.Width > 1300))) pf.Size = ClientSize;   // --size 1024x768 / 1600x1000: Editor wie auf kleinem bzw. grossem Bildschirm
             if (pf == null && TestSizeGiven) f.ClientSize = ClientSize;        // übrige Dialoge: Größe aus --size
             if (pf != null && which.StartsWith("rt:")) pf.Text = pf.TestSave(which.Substring(3) + ".rt.apkg");
             f.Show();
@@ -350,6 +357,8 @@ namespace Arbeitsplan.Win
         {
             System.Text.StringBuilder sb = new System.Text.StringBuilder();
             quiet = true;
+            PackageForm.TestColumnPrefs(true);   // Prüfhinweise und "Im Plan" offen (Ausgangslage der älteren Tests); der Test "Lego2 Spalten" prüft das Einklappen
+            if (Environment.GetEnvironmentVariable("AP_ONLY") == "lego2") { sb.Append(PackageForm.TestLego2(new MemoryStore(), equip, start)); quiet = false; return sb.ToString(); }   // Schnelllauf nur Lego2 (PackageForm.TestLego2.cs)
             if (Environment.GetEnvironmentVariable("AP_ONLY") == "ux6") { SelfTestUX6(sb); quiet = false; return sb.ToString(); }   // Schnelllauf nur UX-6
             if (Environment.GetEnvironmentVariable("AP_ONLY") == "p1") { SelfTestP1(sb); quiet = false; return sb.ToString(); }   // Schnelllauf nur P1 (PackageForm.TestP1.cs)
             if (Environment.GetEnvironmentVariable("AP_ONLY") == "p5") { SelfTestEquipExport(sb); SelfTestP5(sb); quiet = false; return sb.ToString(); }   // Schnelllauf nur P5
@@ -411,6 +420,7 @@ namespace Arbeitsplan.Win
             SelfTestE1(sb);   // Zeitmodell des Pakets: Golden-Test, JeLauf, Ausfall, Kennung, Normalize, Paketformat 7 (MainForm.SelfTestE1*.cs)
             SelfTestE3(sb); SelfTestE2(sb); SelfTestE4(sb); SelfTestV(sb); SelfTestE5(sb);   // Kennungstabelle, Notizen aus Paketen, Materialvorlage (MainForm.SelfTestE2.cs)
             sb.Append(PackageForm.TestLego(new MemoryStore(), equip, start));   // Puffer-Muster/-Rhythmus, Regeln von Hand, große Vorschau (PackageForm.TestLego.cs)
+            sb.Append(PackageForm.TestLego2(new MemoryStore(), equip, start));   // Pfeil hoch, Rhythmus per Palette, Absatz, Kampagne (PackageForm.TestLego2.cs)
             SelfTestPB(sb);   // Puffer im Paket: Standard-Anzahl, mehrere Puffer je Termin, Namen, Pufferpaket (MainForm.SelfTestPB.cs)
             SelfTestUX1(sb);   // UX-1a: Equipment je Puffer, Migration, Standardpuffer, Pufferpaket je Produkt (MainForm.SelfTestUX1.cs)
             SelfTestUX1b(sb);  // UX-1b: Puffer-Karten im Paket-Editor, Geltungsbereich, Pufferpaket-Dialog (MainForm.SelfTestUX1b.cs)

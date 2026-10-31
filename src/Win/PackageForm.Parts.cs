@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Windows.Forms;
@@ -55,56 +55,6 @@ namespace Arbeitsplan.Win
                 TextRenderer.DrawText(g, help, Font, new Rectangle(8, HeadH + 2, Width - 14, Font.Height + 2), HelpColor, TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
             using (Pen p = new Pen(major ? t.CellBorder : t.Separator)) g.DrawRectangle(p, 0, 0, Width - 1, Height - 1);
         }
-    }
-
-    // Kopfzeile "Produkt … › Ablauf › Schritt 3: Lauf": zeigt jederzeit, wo man ist; Klick auf einen Teil springt dorthin.
-    class Crumbs : Control
-    {
-        public string[] Parts = new string[0];
-        public string Status = "";
-        public Color StatusColor = Color.Black;
-        public event Action<int> PartClicked;
-        readonly List<Rectangle> hit = new List<Rectangle>();
-
-        public Crumbs()
-        {
-            SetStyle(ControlStyles.ResizeRedraw | ControlStyles.OptimizedDoubleBuffer | ControlStyles.AllPaintingInWmPaint | ControlStyles.UserPaint, true);
-            Dock = DockStyle.Top;
-        }
-
-        public void Set(string[] parts, string status, Color statusColor) { Parts = parts; Status = status; StatusColor = statusColor; Invalidate(); }
-
-        protected override void OnPaint(PaintEventArgs e)
-        {
-            Theme t = Theme.Current; Graphics g = e.Graphics;
-            g.Clear(t.Bar);
-            if (t.Stripe) using (SolidBrush b = new SolidBrush(t.BorderSel)) g.FillRectangle(b, 0, 0, Width, 3);
-            using (Pen p = new Pen(t.CellBorder)) g.DrawLine(p, 0, Height - 1, Width, Height - 1);
-            hit.Clear();
-            TextFormatFlags ff = TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix | TextFormatFlags.SingleLine;
-            using (Font big = new Font(Font.FontFamily, Font.SizeInPoints + 2f))
-            using (Font bold = new Font(big, FontStyle.Bold))
-            {
-                int sw = Status.Length > 0 ? TextRenderer.MeasureText(g, Status, Font, Size.Empty, ff).Width + 16 : 0;
-                int x = 12, y = (Height - big.Height) / 2 + (t.Stripe ? 1 : 0);
-                int sepW = TextRenderer.MeasureText(g, "›", big, Size.Empty, ff).Width;
-                for (int i = 0; i < Parts.Length; i++)
-                {
-                    bool last = i == Parts.Length - 1;
-                    Font f = last ? bold : big;
-                    int w = Math.Max(20, Math.Min(TextRenderer.MeasureText(g, Parts[i], f, Size.Empty, ff).Width + 2, Width - sw - x - 8));
-                    Rectangle r = new Rectangle(x, y, w, big.Height + 2);
-                    TextRenderer.DrawText(g, Parts[i], f, r, last ? t.BorderSel : t.HeadText, ff | TextFormatFlags.EndEllipsis);
-                    hit.Add(r); x = r.Right + 8;
-                    if (!last) { TextRenderer.DrawText(g, "›", big, new Point(x, y), t.Arrow, ff); x += sepW + 8; }
-                }
-                if (sw > 0) TextRenderer.DrawText(g, Status, Font, new Rectangle(Width - sw, 0, sw - 8, Height), StatusColor, ff | TextFormatFlags.VerticalCenter | TextFormatFlags.Right);
-            }
-        }
-
-        int HitPart(Point p) { for (int i = 0; i < hit.Count - 1; i++) if (hit[i].Contains(p)) return i; return -1; }
-        protected override void OnMouseMove(MouseEventArgs e) { base.OnMouseMove(e); Cursor = HitPart(e.Location) >= 0 ? Cursors.Hand : Cursors.Default; }
-        protected override void OnMouseClick(MouseEventArgs e) { base.OnMouseClick(e); int i = HitPart(e.Location); if (i >= 0 && PartClicked != null) PartClicked(i); }
     }
 
     // "Du bearbeitest gerade: …" ueber den Schritt-Details (orange wie der Bearbeitungsmodus im Plan).

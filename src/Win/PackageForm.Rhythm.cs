@@ -22,14 +22,20 @@ namespace Arbeitsplan.Win
 
         PufferRhythmForm BuildRhythm()
         {
-            Package p = StepsView(); List<RunDate> plan = Plan(); PackageStep head = p.Head;
+            return RhythmFor(StepsView(), Plan(), delegate(int day) { return StripHead(day, true); }, cat.Baustein_("Puffer mobil") != null, cat.Baustein_("Puffer stationär") != null);
+        }
+
+        // Rhythmus-Fenster fuer ein Paket mit seinem Plan (Editor und Kampagnenstart); newMob/newStat: neue Puffer-Schritte anlegbar
+        internal static PufferRhythmForm RhythmFor(Package p, List<RunDate> plan, Func<int, string> headText, bool newMob, bool newStat)
+        {
+            PackageStep head = p.Head; List<PackageStep> steps = p.Steps;
             HashSet<int> runs = new HashSet<int>(); int last = 1, maxDay = 1;
             foreach (RunDate d in plan) { maxDay = Math.Max(maxDay, d.Day); if (head != null && d.Step == steps.IndexOf(head)) { runs.Add(d.Day); last = Math.Max(last, d.Day); } }
             if (head == null) last = maxDay;
             List<PufferRhythmForm.RRow> rows = new List<PufferRhythmForm.RRow>();
-            foreach (PackageStep s in Ordered())
+            foreach (PackageStep s in OrderOf(p))
             {
-                if (s.IsEmpty || !IsPuffer(s)) continue;
+                if (s.IsEmpty || !(s.IsBuffer || s.UsesAnsatz)) continue;
                 int si = steps.IndexOf(s);
                 PufferRhythmForm.RRow r = new PufferRhythmForm.RRow(); r.Step = s; r.Name = TitleOf(s);
                 List<string> v = VariantSet.Of(s.PufferVariant());
@@ -38,8 +44,7 @@ namespace Arbeitsplan.Win
                 r.Days = new HashSet<int>(r.Orig);
                 rows.Add(r);
             }
-            return new PufferRhythmForm(rows, last, Math.Max(last, maxDay) + 7, delegate(int day) { return StripHead(day, true); }, runs,
-                cat.Baustein_("Puffer mobil") != null, cat.Baustein_("Puffer stationär") != null);
+            return new PufferRhythmForm(rows, last, Math.Max(last, maxDay) + 7, headText, runs, newMob, newStat);
         }
 
         void ShowRhythm()
@@ -64,12 +69,18 @@ namespace Arbeitsplan.Win
                     s = FromBaustein(b); if (s.Row.Length == 0) s.Row = b.Row;
                     steps.Add(s);
                 }
-                List<int> d = new List<int>(r.Days); d.Sort();
-                s.Bind = StepBind.Frei; s.RunOffset = 0; s.RunEvery = 1; s.Repeat = RepeatMode.DayList; s.DayList = PackageStep.JoinDays(d); s.Day = d[0];
-                s.Shift.Clear(); s.Move.Clear(); s.Skip.Clear(); s.Until = 0;
+                SetPufferDays(s, r.Days);
                 last = s;
             }
             if (last != null) AfterMove(last);
+        }
+
+        // Feste Tage eines Puffers (Frei + Tagesliste): gemeinsam fuer Rhythmus-Fenster, Palette und Kampagnenstart
+        internal static void SetPufferDays(PackageStep s, ICollection<int> days)
+        {
+            List<int> d = new List<int>(days); d.Sort();
+            s.Bind = StepBind.Frei; s.RunOffset = 0; s.RunEvery = 1; s.Repeat = RepeatMode.DayList; s.DayList = PackageStep.JoinDays(d); s.Day = d[0];
+            s.Shift.Clear(); s.Move.Clear(); s.Skip.Clear(); s.Until = 0;
         }
     }
 }

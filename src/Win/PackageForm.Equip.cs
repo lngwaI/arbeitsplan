@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Windows.Forms;
@@ -82,6 +82,10 @@ namespace Arbeitsplan.Win
             Controls.AddRange(new Control[] { name, cbId, chkAlt, btnAlt, cbFb, note, del, plus, grip, up, down });
             foreach (Button b in new[] { btnAlt, del, plus, up, down }) Theme.Current.StyleButton(b);
             Enter += delegate { ShowArrows(); }; Leave += delegate { ShowArrows(); };
+            ContextMenuStrip cm = new ContextMenuStrip(); ToolStripMenuItem para = new ToolStripMenuItem("Leerzeile danach");   // Absatz im Plantext (EquipAssign.ParaAfter)
+            para.Click += delegate { this.a.ParaAfter = !this.a.ParaAfter; SetName(); this.changed(); };
+            cm.Opening += delegate { para.Checked = this.a.ParaAfter; };
+            cm.Items.Add(para); ContextMenuStrip = cm; name.ContextMenuStrip = cm;
             tip.SetToolTip(btnAlt, "Geräte für den Wechsel auswählen"); tip.SetToolTip(del, "Zeile entfernen"); tip.SetToolTip(plus, "Dieselbe Position direkt darunter noch einmal einfügen (z. B. weiterer Schlauch)");
             tip.SetToolTip(cbFb, "Ausweich-Gerät (Backup), falls das geplante ausfällt." + UndoTip);
             tip.SetToolTip(note, "Notiz/Bezeichnung zu diesem Gerät (steht im Plan hinter der Nummer).");
@@ -133,11 +137,10 @@ namespace Arbeitsplan.Win
         {
             loading = true;
             this.a = a; this.product = product; this.pos = cat.Position(a.Short); this.changed = changed; this.remove = remove; this.allowNone = allowNone;
-            name.Text = pos != null && pos.Name != a.Short ? pos.Name + " (" + a.Short + ")" : a.Short;
+            SetName();
             itemsStale = fbStale = true;   // Listen erst beim Aufklappen fuellen (EnsureItems/EnsureFallbacks)
             bool fix = cat.IsFixed(product, a.Short);          // festes Geraet je Kampagne: nur Abschalten einer vorhandenen Rotation erlaubt
             chkAlt.Enabled = !fix || a.Alternate;   // Sichtbarkeit von abwechselnd/Ausweich setzt Arrange (nur bei Mehr Optionen oder gesetztem Wert)
-            tip.SetToolTip(name, name.Text);
             tip.SetToolTip(cbId, "Gerät aus der validierten Liste wählen oder eigenes eintippen (nicht validierte Eingabe wird orange)." + UndoTip);
             SetFlag(false);
             tip.SetToolTip(chkAlt, fix ? "Für dieses Produkt ist ein festes Gerät je Kampagne vorgegeben – kein Wechsel." : "Läufe wechseln reihum zwischen den gewählten Geräten (Lauf 1 → A, Lauf 2 → B, Lauf 3 → wieder A …). Zur Auswahl stehen alle Geräte, die laut Admin gleich eingesetzt werden können.");
@@ -148,6 +151,13 @@ namespace Arbeitsplan.Win
             loading = false;
         }
 
+        // Positionsname; "¶" = Leerzeile danach im Plantext
+        void SetName()
+        {
+            name.Text = (a.ParaAfter ? "¶ " : "") + (pos != null && pos.Name != a.Short ? pos.Name + " (" + a.Short + ")" : a.Short);
+            tip.SetToolTip(name, name.Text + (a.ParaAfter ? "\nLeerzeile danach (Rechtsklick ändert das)" : "\nRechtsklick: Leerzeile danach"));
+        }
+
         public void Arrange(int w, bool wide)
         {
             bool rot = (pos != null && pos.AllowRotation) || a.Alternate;
@@ -156,20 +166,20 @@ namespace Arbeitsplan.Win
             arrW = w; arrWide = wide; arrRot = rot;
             int[] x = Cols(w, wide);
             int h = cbId.Height;
-            Size = new Size(x[6], h + 6);
-            grip.SetBounds(0, 3, GripW, h);
+            Size = new Size(x[6], h + 4);
+            grip.SetBounds(0, 2, GripW, h);
             Font small = FontCache.Get(Font.Name, Math.Max(6.5f, Font.SizeInPoints - 2f), FontStyle.Regular, Font);
             up.Font = down.Font = small; up.Padding = down.Padding = Padding.Empty;
-            up.SetBounds(GripW + 2, 3, ArrowW, h); down.SetBounds(GripW + 2 + ArrowW, 3, ArrowW, h);
-            name.SetBounds(x[0] + 2, 3, x[1] - Gap - x[0] - 2, h);
+            up.SetBounds(GripW + 2, 2, ArrowW, h); down.SetBounds(GripW + 2 + ArrowW, 2, ArrowW, h);
+            name.SetBounds(x[0] + 2, 2, x[1] - Gap - x[0] - 2, h);
             name.TextAlign = ContentAlignment.MiddleLeft;
-            cbId.SetBounds(x[1], 3, x[2] - x[1] - Gap, h);
+            cbId.SetBounds(x[1], 2, x[2] - x[1] - Gap, h);
             chkAlt.Visible = btnAlt.Visible = wide && rot; cbFb.Visible = wide;
-            chkAlt.SetBounds(x[2], 3, AltW - 30, h);
-            btnAlt.SetBounds(x[2] + AltW - 28, 3, 28, h);
-            cbFb.SetBounds(x[3], 3, Math.Max(0, x[4] - x[3] - Gap), h);
-            note.SetBounds(x[4], 3, x[5] - x[4] - Gap, h);
-            del.SetBounds(x[5], 3, DelW, h); plus.SetBounds(x[5] + DelW + 2, 3, PlusW, h);
+            chkAlt.SetBounds(x[2], 2, AltW - 30, h);
+            btnAlt.SetBounds(x[2] + AltW - 28, 2, 28, h);
+            cbFb.SetBounds(x[3], 2, Math.Max(0, x[4] - x[3] - Gap), h);
+            note.SetBounds(x[4], 2, x[5] - x[4] - Gap, h);
+            del.SetBounds(x[5], 2, DelW, h); plus.SetBounds(x[5] + DelW + 2, 2, PlusW, h);
             if (resized) foreach (ComboBox c in new[] { cbId, cbFb }) if (!c.Focused) c.SelectionLength = 0;   // Groessenaenderung markiert sonst den ganzen Text
         }
 

@@ -133,14 +133,17 @@ namespace Arbeitsplan.Win
             return s;
         }
 
-        // Eintraege je Anlage (aufsteigend) in Zeilen umbrechen; Rueckgabe = Hoehe
+        // Eintraege nach tatsaechlicher Startzeit (gleiche Zeit: Anlage, Zyklus) in Zeilen umbrechen; Rueckgabe = Hoehe
         int FlowSegs(FrzPart p, List<FreezeCycle> cys, bool cont, int maxW)
         {
             int lh = Font.Height + 1, y = 0, x = 0, gap = TextW("a a", Font) - TextW("aa", Font);
-            for (int a = 1; a <= FreezeCalc.Anlagen; a++)
             {
-                List<FreezeCycle> l = cys.FindAll(delegate(FreezeCycle c) { return c.Anlage == a; });
-                l.Sort(delegate(FreezeCycle u, FreezeCycle v) { return u.Actual.CompareTo(v.Actual); });
+                List<FreezeCycle> l = cys.FindAll(delegate(FreezeCycle c) { return c.Anlage >= 1 && c.Anlage <= FreezeCalc.Anlagen; });
+                l.Sort(delegate(FreezeCycle u, FreezeCycle v)
+                {
+                    int r = u.Actual.CompareTo(v.Actual);
+                    return r != 0 ? r : (u.Anlage != v.Anlage ? u.Anlage.CompareTo(v.Anlage) : u.N.CompareTo(v.N));
+                });
                 foreach (FreezeCycle c in l)
                 {
                     FrzSeg s = Seg(c, cont, maxW);

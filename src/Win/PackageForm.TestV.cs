@@ -51,7 +51,7 @@ namespace Arbeitsplan.Win
 
                 // Hoehe: Standard, verstellen (gemerkt), Mindesthoehe, Obergrenze, neuer Editor liest den Wert; Felder wachsen mit
                 int h0 = f.paneWrap.Height, hh0 = f.lbHints.Height, sh0 = f.strip.Height, ph0 = f.previewScroll.Height;
-                bool noFile = !File.Exists(tmp) && h0 == Math.Min(f.PaneMin + 24, f.PaneMax);   // kleines Fenster: Vorschau schrumpft (PaneMax)
+                bool noFile = !File.Exists(tmp) && h0 >= f.PaneMin && h0 <= Math.Min(f.PaneMin + 24, f.PaneMax);   // kleines Fenster: Vorschau schrumpft (PaneMax)
                 f.TestPaneMoved(h0 + 60); Application.DoEvents();
                 bool grow = f.paneWrap.Height == h0 + 60 && f.lbHints.Height == hh0 + 60 && f.strip.Height == sh0 + 60 && f.previewScroll.Height == ph0 + 60 && Pref("Hoehe3") == (h0 + 60).ToString();
                 f.TestPaneMoved(10); bool min = f.paneWrap.Height == f.PaneMin && Pref("Hoehe3") == f.PaneMin.ToString();

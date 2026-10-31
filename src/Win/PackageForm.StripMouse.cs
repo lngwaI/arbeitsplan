@@ -28,7 +28,12 @@ namespace Arbeitsplan.Win
             base.OnMouseDown(e);
             Item it = ItemAt(e.Location);
             if (hover != null) { hover = null; tt.Hide(this); }
-            if (e.Button == MouseButtons.Right) { if (it != null && ItemMenu != null) ItemMenu(it, e.Location); return; }
+            if (e.Button == MouseButtons.Right)
+            {
+                if (it != null && ItemMenu != null) ItemMenu(it, e.Location);
+                else if (it == null && EmptyMenu != null && e.X >= rowW && e.Y >= HeadH) EmptyMenu(DayAt(widths, e.X - rowW + sx), RowAt(e.Y - HeadH + sy), e.Location);
+                return;
+            }
             if (e.Button != MouseButtons.Left) return;
             press = it; pressAt = e.Location; dropDay = -1;
             if (it != null && CanFocus) Focus();   // Esc bricht das Ziehen ab (ProcessCmdKey)
@@ -73,6 +78,32 @@ namespace Arbeitsplan.Win
             else if (ItemClicked != null) ItemClicked(it);   // nur geklickt (oder auf denselben Tag gezogen)
         }
 
+        public event Action<int, string, Point> EmptyMenu;   // Rechtsklick ohne Eintrag: Tag, Raum (leer = unter den Zeilen), Position
+        public event Action<int, object> PaletteDropped;     // Baustein aus der Palette (grosse Vorschau) auf einen Tag gezogen
+
+        string RowAt(int y) { foreach (RowL r in rowsL) if (y >= r.Y && y < r.Y + r.H) return r.Name; return ""; }
+
+        public int DayAtPoint(Point p) { return DayAt(widths, p.X - rowW + sx); }
+
+        protected override void OnDragOver(DragEventArgs e)
+        {
+            base.OnDragOver(e);
+            Point p = PointToClient(new Point(e.X, e.Y));
+            bool ok = e.Data.GetDataPresent(typeof(PalItem)) && p.X >= rowW;
+            e.Effect = ok ? DragDropEffects.Copy : DragDropEffects.None;
+            int d = ok ? DayAtPoint(p) : -1;
+            if (d != dropDay) { dropDay = d; Invalidate(); }
+        }
+
+        protected override void OnDragLeave(EventArgs e) { base.OnDragLeave(e); if (press == null && dropDay > 0) { dropDay = -1; Invalidate(); } }
+
+        protected override void OnDragDrop(DragEventArgs e)
+        {
+            base.OnDragDrop(e);
+            int d = dropDay; dropDay = -1; Invalidate();
+            if (d > 0 && e.Data.GetDataPresent(typeof(PalItem)) && PaletteDropped != null) PaletteDropped(d, e.Data.GetData(typeof(PalItem)));
+        }
+
 #if TESTHOOKS
         internal void TestDrag(Item it, int day) { press = it; dropDay = day; }
         internal bool TestDragging { get { return press != null || dropDay > 0; } }
@@ -83,7 +114,7 @@ namespace Arbeitsplan.Win
         protected override void OnMouseCaptureChanged(EventArgs e)
         {
             base.OnMouseCaptureChanged(e);
-            if (!Capture && dropDay > 0) CancelDrag();   // z. B. Esc/Fensterwechsel: abbrechen
+            if (!Capture && dropDay > 0 && press != null) CancelDrag();   // z. B. Esc/Fensterwechsel: abbrechen
         }
     }
 }

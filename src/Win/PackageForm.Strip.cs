@@ -25,6 +25,8 @@ namespace Arbeitsplan.Win
         readonly HScrollBar hb = new HScrollBar();
         readonly VScrollBar vb = new VScrollBar();
         PackageStep selected; int selRun;
+        bool equalDays;   // grosse Vorschau: alle Tage gleich breit (leere Tage lassen sich treffen)
+        public bool EqualDays { get { return equalDays; } set { if (equalDays == value) return; equalDays = value; Rebuild(); Invalidate(); } }
         public Func<int, bool, string> HeadText;           // Kopf je Tag (Tag, breite Spalte): Datum bzw. Bezug zu Lauf 1, nie "Tag n"
         public event Action<Item> ItemClicked;
         public event Action<Item, int, bool> ItemMoved;    // Eintrag, Zieltag, nur dieser Lauf
@@ -33,7 +35,7 @@ namespace Arbeitsplan.Win
         public PlanStrip()
         {
             SetStyle(ControlStyles.ResizeRedraw | ControlStyles.OptimizedDoubleBuffer | ControlStyles.AllPaintingInWmPaint | ControlStyles.UserPaint, true);
-            hb.Visible = vb.Visible = false; hb.SmallChange = vb.SmallChange = Wheel;
+            AllowDrop = true; hb.Visible = vb.Visible = false; hb.SmallChange = vb.SmallChange = Wheel;
             hb.ValueChanged += delegate { sx = hb.Value; Invalidate(); };
             vb.ValueChanged += delegate { sy = vb.Value; Invalidate(); };
             Controls.Add(hb); Controls.Add(vb);
@@ -88,7 +90,7 @@ namespace Arbeitsplan.Win
             widths = new int[nd]; xs = new int[nd]; contentW = 0; dayW = CalcDayW();
             for (int d = 1; d <= nd; d++)
             {
-                widths[d - 1] = items.Exists(delegate(Item i) { return i.Day == d; }) ? dayW : EmptyW;
+                widths[d - 1] = equalDays || items.Exists(delegate(Item i) { return i.Day == d; }) ? dayW : EmptyW;
                 xs[d - 1] = contentW; contentW += widths[d - 1];
             }
             cells.Clear(); contentH = 0;

@@ -21,12 +21,13 @@ namespace Arbeitsplan.Win
         // Datei der gemerkten Einstellungen (Tests setzen einen anderen Pfad)
         internal static string PrefsFile = Path.Combine(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), Arbeitsplan.Core.AppId.Dir), "paketeditor.ini");
 
-        int PaneMin { get { return 9 * Font.Height / 2 + 84; } }
+        // Mindesthoehe: Abschnittskopf + Leiste + Tageskopf + mindestens 3 Zeilen im Kalender (+ Bildlaufleiste)
+        int PaneMin { get { int fh = Font.Height; return (fh + 10) + 6 + 8 + 2 + (fh + 12) + (fh + 6) + 3 * (2 * fh + 13) + SystemInformation.HorizontalScrollBarHeight; } }
         int PaneMax
         {
             get
             {
-                int fixedH = crumbs.Height + (headPanel != null ? headPanel.Height : 0) + Theme.Current.ButtonH + 14 + paneSplit.Height;
+                int fixedH = (headPanel != null ? headPanel.Height : 0) + Theme.Current.ButtonH + 14 + paneSplit.Height;
                 return Math.Max(PaneMin, ClientSize.Height - fixedH - (paneDragged ? MiddleHard : MiddleMin));
             }
         }
@@ -34,7 +35,7 @@ namespace Arbeitsplan.Win
         void InitPane()
         {
             int saved = PrefInt("Hoehe3");
-            paneWant = saved > 0 ? saved : PaneMin + 24;
+            paneWant = saved > 0 ? saved : PaneMin + 12;
             paneSplit.Dock = DockStyle.Bottom; paneSplit.Height = 7; paneSplit.Tag = "keep"; paneSplit.MinSize = PaneMin; paneSplit.MinExtra = MiddleHard;
             paneSplit.SplitterMoved += delegate { PaneMoved(); };
             tip.SetToolTip(paneSplit, "Ziehen = Höhe von „3 Vorschau & Prüfung“ ändern (wird gemerkt)");
