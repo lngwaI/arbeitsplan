@@ -11,12 +11,15 @@ namespace Arbeitsplan.Core
     {
         public string BackupOf = "";        // Source des Packen-Schritts, zu dem dieser Schritt der Back-Up ist; "" = normaler Schritt
 
+        public int PackNo;                  // Zuordnung bei mehreren Packen: Packen und sein Back-Up tragen dieselbe Nummer (XML "packnr" nur wenn > 0)
+
         public bool IsBackup { get { return BackupOf.Length > 0; } }
+        public bool IsPack { get { return Source == Package.PackenName && !IsBackup; } }
 
         // true, wenn dieser Schritt der Back-Up von m ist
         public bool BacksUp(PackageStep m)
         {
-            return m != null && m != this && BackupOf.Length > 0 && m.BackupOf.Length == 0 && string.Equals(BackupOf, m.Source, StringComparison.OrdinalIgnoreCase);
+            return m != null && m != this && BackupOf.Length > 0 && m.BackupOf.Length == 0 && PackNo == m.PackNo && string.Equals(BackupOf, m.Source, StringComparison.OrdinalIgnoreCase);
         }
 
         string DaysKey() { List<int> d = Days(); return string.Join(",", d.ConvertAll<string>(delegate(int x) { return x.ToString(); }).ToArray()); }
@@ -25,17 +28,41 @@ namespace Arbeitsplan.Core
         internal bool FollowMaster(PackageStep m)
         {
             string before = DaysKey() + "|" + Count + "|" + Repeat;
+            SameTimes(m);
+            MoveAll(1);
+            return before != DaysKey() + "|" + Count + "|" + Repeat;
+        }
+
+        // Zeitplan von m uebernehmen
+        public void SameTimes(PackageStep m)
+        {
             Repeat = m.Repeat; WeekDays = m.WeekDays; DayList = m.DayList; Count = m.Count; Interval = m.Interval; Until = m.Until; Day = m.Day;
             Shift = new Dictionary<int, int>(m.Shift);
             Move = new Dictionary<int, int>(m.Move);
-            MoveAll(1);
-            return before != DaysKey() + "|" + Count + "|" + Repeat;
         }
     }
 
     public partial class Package
     {
         public const string PackenName = "Packen", BackupName = "Packen (Back-Up)";
+
+        // Kleinste freie PackNo unter den anderen Packen
+        public static void AssignPackNo(List<PackageStep> steps, PackageStep s)
+        {
+            int n = 0;
+            while (steps.Exists(delegate(PackageStep x) { return x != s && x.IsPack && x.PackNo == n; })) n++;
+            s.PackNo = n;
+        }
+
+        // Aeltere Pakete mit mehreren Packen ohne "packnr": eindeutig machen; ein vorhandener Back-Up (0) bleibt beim ersten Packen
+        internal void FixPackNos()
+        {
+            for (int i = 0; i < Steps.Count; i++)
+            {
+                PackageStep s = Steps[i];
+                if (s.IsPack && Steps.FindIndex(delegate(PackageStep x) { return x.IsPack && x.PackNo == s.PackNo; }) < i) AssignPackNo(Steps, s);
+            }
+        }
 
         // Packen-Schritt, zu dem b der Back-Up ist; null = keiner
         public static PackageStep MasterOf(List<PackageStep> steps, PackageStep b)
@@ -76,7 +103,7 @@ namespace Arbeitsplan.Core
         public static PackageStep MakeBackup(PackageStep m, Baustein proto)
         {
             PackageStep b = new PackageStep();
-            b.Title = BackupName; b.Source = BackupName; b.BackupOf = m.Source; b.Row = m.Row; b.Text = proto != null ? proto.Text : "";
+            b.Title = BackupName; b.Source = BackupName; b.BackupOf = m.Source; b.PackNo = m.PackNo; b.Row = m.Row; b.Text = proto != null ? proto.Text : "";
             foreach (EquipAssign a in m.Equipment)
             {
                 EquipAssign n = new EquipAssign(); n.Short = a.Short;

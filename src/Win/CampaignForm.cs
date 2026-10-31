@@ -23,7 +23,10 @@ namespace Arbeitsplan.Win
         readonly ApplyMode initialMode;
         readonly DateTimePicker dtLauf1 = new DateTimePicker();
         readonly NumericUpDown nRuns = new NumericUpDown();
-        readonly TextBox tFirst = new TextBox(), tPack = new TextBox();   // tFirst: komplette 8-stellige erste Laufnummer; tPack: Nummer des Packens von Hand
+        readonly TextBox tFirst = new TextBox(), tPack = new TextBox();   // tFirst: komplette 8-stellige erste Laufnummer; tPack: Nummer des ersten Packens von Hand
+        readonly List<PackageStep> hand;   // Schritte mit Nummer von Hand; je Schritt ein Feld in tPacks/lPacks (das erste: tPack/lPack)
+        readonly List<TextBox> tPacks = new List<TextBox>();
+        readonly List<Label> lPacks = new List<Label>();
         readonly Label lFirst = new Label(), lPack = new Label(), info = new Label(), lSum = new Label(), lRule = new Label(), lBusy = new Label();
         readonly ComboBox cbRoom = new ComboBox(), cbMode = new ComboBox();
         readonly Button ok = new Button();
@@ -39,7 +42,7 @@ namespace Arbeitsplan.Win
         readonly Dictionary<long, int> offs = new Dictionary<long, int>();      // (Schritt, Lauf) -> Verschiebung in Tagen (gewuenscht - vorgeschlagen)
         readonly Dictionary<long, string> rooms = new Dictionary<long, string>();   // (Schritt, Lauf) -> gewaehlter Block, falls abweichend
         bool filling, building = true, modeTouched;
-        string packInit = "", packLast = "";   // Packen-Nr. aus dem Paket-Kopf (vorbelegt) und zuletzt uebernommener Feldwert
+        readonly string[] packInit, packLast;   // je Feld: Packen-Nr. aus dem Paket (vorbelegt) und zuletzt uebernommener Feldwert
         Control[] foot;   // nur Einzelmodus: untere Zeile (Modus, Knöpfe), wandert mit der Höhe
         int firstRunDay = int.MaxValue;
         Font strike;
@@ -86,9 +89,10 @@ namespace Arbeitsplan.Win
             pkg = p.Clone();
             DateTime? saved = pkg.Lauf1; pkg.Lauf1 = null;
             simple = pkg.Type == PackageType.Einzel;
-            needPack = pkg.HandNoSteps().Count > 0;
-            foreach (PackageStep hs in pkg.HandNoSteps()) if (hs.ManualNo.Length > 0) { packInit = hs.ManualNo; break; }   // Kopfwert des Paket-Editors: vorbelegt, nur aenderbar
-            packLast = packInit;
+            hand = pkg.HandNoSteps();
+            needPack = hand.Count > 0;
+            packInit = hand.ConvertAll<string>(delegate(PackageStep hs) { return hs.ManualNo; }).ToArray();   // Wert aus dem Paket-Editor: vorbelegt, nur aenderbar
+            packLast = (string[])packInit.Clone();
             if (!saved.HasValue) pkg.Day1 = start.DayOfWeek;   // Wiederholung an Wochentagen haengt vom Starttag ab
             DateTime lauf1 = saved.HasValue ? saved.Value.Date : start.Date.AddDays(pkg.Lauf1Day - 1);   // im Paket gespeicherte Vorgabe "Lauf 1 am" hat Vorrang
             foreach (RowInfo r in store.GetRows()) if (r.Name.Length > 0 && !ids.ContainsKey(r.Name)) ids[r.Name] = r.Id;
@@ -122,11 +126,14 @@ namespace Arbeitsplan.Win
             else info.Text = pre.Length > 0 ? "Keine früheren Läufe " + pre + "xxxx im Plan gefunden." : "Paket ohne 8-stellige Laufnummer: Läufe werden einfach durchnummeriert.";
 
             int y = 42;
-            if (needPack)
+            for (int i = 0; i < hand.Count; i++)
             {
-                Label lp = L(simple ? "Laufnummer:" : "Laufnummer Packen:", 10, y + 2); lp.Font = big; Controls.Add(lp);
-                tPack.Font = big; tPack.MaxLength = 8; tPack.SetBounds(lp.Left + lp.PreferredWidth + 4, y - 2, 112, tPack.PreferredHeight); Ui.SimpleMenu(tPack); tPack.Text = packInit; Controls.Add(tPack);   // kein Vorschlag; vorbelegt nur mit der Nummer aus dem Paket-Kopf
-                lPack.SetBounds(tPack.Right + 8, y + 4, 890 - tPack.Right - 8, 18); lPack.AutoEllipsis = true; Controls.Add(lPack);
+                TextBox tp = i == 0 ? tPack : new TextBox(); Label ls = i == 0 ? lPack : new Label();
+                Label lp = L(simple && hand.Count == 1 ? "Laufnummer:" : hand.Count > 1 ? "Laufnummer Packen " + (i + 1) + ":" : "Laufnummer Packen:", 10, y + 2); lp.Font = big; Controls.Add(lp);
+                tp.Font = big; tp.MaxLength = 8; tp.SetBounds(lp.Left + lp.PreferredWidth + 4, y - 2, 112, tp.PreferredHeight); Ui.SimpleMenu(tp); tp.Text = packInit[i]; Controls.Add(tp);   // kein Vorschlag; vorbelegt nur mit der Nummer aus dem Paket
+                ls.SetBounds(tp.Right + 8, y + 4, 890 - tp.Right - 8, 18); ls.AutoEllipsis = true; Controls.Add(ls);
+                tp.TextChanged += delegate { Recalc(); };
+                tPacks.Add(tp); lPacks.Add(ls);
                 y += 34;
             }
             info.SetBounds(10, y, 880, 18); Controls.Add(info); info.Visible = !simple; y += 20;
@@ -190,13 +197,14 @@ namespace Arbeitsplan.Win
             lWhy.SetBounds(358, 561, 274, 18); lWhy.AutoEllipsis = true; lWhy.ForeColor = Color.Firebrick; lWhy.UseMnemonic = false; Controls.Add(lWhy);
             Controls.Add(ok); Controls.Add(cancel); CancelButton = cancel; AcceptButton = ok;   // Enter = In Plan uebernehmen (nur wenn freigegeben), Esc = Abbrechen
             ok.Font = new Font(Font, FontStyle.Bold);
-            Control[] tab = { dtLauf1, nRuns, tFirst, tPack, chkRhythm, chkShift, chkRooms, grid, cbMode, ok, cancel };   // Tab-Reihenfolge = Lesereihenfolge
-            for (int i = 0; i < tab.Length; i++) tab[i].TabIndex = i;
+            List<Control> tab = new List<Control> { dtLauf1, nRuns, tFirst };   // Tab-Reihenfolge = Lesereihenfolge
+            foreach (TextBox tp in tPacks) tab.Add(tp);
+            tab.AddRange(new Control[] { chkRhythm, chkShift, chkRooms, grid, cbMode, ok, cancel });
+            for (int i = 0; i < tab.Count; i++) tab[i].TabIndex = i;
             if (simple) foot = new Control[] { lMode, cbMode, lWhy, ok, cancel };
 
             dtLauf1.ValueChanged += delegate { Recalc(); };
             tFirst.TextChanged += delegate { Recalc(); };
-            tPack.TextChanged += delegate { Recalc(); };
             nRuns.ValueChanged += delegate { if (!building) { pkg.SetRunCount((int)nRuns.Value); Recalc(); } };
             chkRhythm.CheckedChanged += delegate { Recalc(); };
             building = false;
@@ -222,6 +230,9 @@ namespace Arbeitsplan.Win
         public DateTime TestLauf1 { get { return dtLauf1.Value.Date; } set { dtLauf1.Value = value; } }
         public int TestRuns { get { return (int)nRuns.Value; } set { nRuns.Value = value; } }
         public string TestPackNo { get { return tPack.Text; } set { tPack.Text = value; } }
+        public int TestPackFields { get { return tPacks.Count; } }
+        public void TestSetPackNo(int i, string v) { tPacks[i].Text = v; }
+        public string TestPackLabel(int i) { return lPacks[i].Text; }
         public bool TestOkEnabled { get { return ok.Enabled; } }
         public string TestWhy { get { return lWhy.Text; } }
         public bool TestButtons { get { return AcceptButton == ok && CancelButton != null && ok.Text == "In Plan übernehmen"; } }

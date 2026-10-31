@@ -139,7 +139,7 @@ namespace Arbeitsplan.Win
             };
             tManualNo.TextChanged += delegate { if (Edit()) { cur.ManualNo = StepPackNo(tManualNo.Text); tManualNo.ForeColor = tManualNo.Text.Trim().Length == 0 || PackageStep.IsManualNo(tManualNo.Text.Trim()) ? SystemColors.WindowText : Color.Firebrick; ShowManualHint(cur); Changed(); } };
             tSubNos.TextChanged += delegate { if (Edit()) { cur.SubNos = tSubNos.Text.Trim(); Changed(); } };
-            cbRow.SelectedIndexChanged += delegate { if (Edit()) { cur.Row = cbRow.Text; loading = true; FillVariants(cur); loading = false; Changed(); } };
+            cbRow.SelectedIndexChanged += delegate { if (Edit()) { foreach (PackageStep bs in steps) if (bs.BacksUp(cur) && bs.Row == cur.Row) bs.Row = cbRow.Text; cur.Row = cbRow.Text; loading = true; FillVariants(cur); loading = false; Changed(); } };   // Back-Up im selben Raum zieht mit
             tIdent.TextChanged += delegate { if (Edit()) { cur.Ident = ""; cur.IdentStart = tIdent.Text.Trim(); Changed(); } };
             tNote.TextChanged += delegate { if (Edit()) { cur.Note = tNote.Text.Replace("\r", "").Trim(); Changed(); } };
             return wrap;

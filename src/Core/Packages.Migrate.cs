@@ -10,6 +10,7 @@ namespace Arbeitsplan.Core
     {
         public void Migrate()
         {
+            FixPackNos();
             int hi = HeadIndex(DayOfWeek.Monday);
             if (hi >= 0)
                 for (int i = 0; i < Steps.Count; i++)

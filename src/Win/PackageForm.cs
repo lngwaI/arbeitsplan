@@ -160,11 +160,11 @@ namespace Arbeitsplan.Win
 
         // ---------- Schritte ----------
 
-        // "Packen" o. Ae. ist nur einmal je Kampagne vorgesehen; ein weiterer braucht PackageAdmin.
+        // Einmal-Bausteine: ein weiterer braucht PackageAdmin. Packen nie (zweites Packen in anderem Raum, Hinweis in AddStep).
         bool UniqueBlocked(string source)
         {
             Baustein b = cat.Baustein_(source);
-            if (b == null || !b.Unique || canAdmin || !steps.Exists(delegate(PackageStep s) { return s.Source == b.Name; })) return false;
+            if (b == null || !b.Unique || canAdmin || b.Name == Package.PackenName || !steps.Exists(delegate(PackageStep s) { return s.Source == b.Name; })) return false;
             MessageBox.Show(this, "\"" + b.Name + "\" ist in jeder Kampagne nur einmal vorgesehen. Ein weiterer Schritt braucht das Recht \"Pakete einrichten\".", "Paket-Editor", MessageBoxButtons.OK, MessageBoxIcon.Information);
             return true;
         }
@@ -184,10 +184,10 @@ namespace Arbeitsplan.Win
                 PackageStep s;
                 if (p.Result != null && p.Result.Name == Package.BackupName)
                 {
-                    PackageStep m = steps.Find(delegate(PackageStep x) { return x.BackupOf.Length == 0 && x.Source == Package.PackenName; });
-                    if (m == null || Package.HasBackup(steps, m))
+                    PackageStep m = FreePacken();
+                    if (m == null)
                     {
-                        MessageBox.Show(this, m == null ? "Der Back-Up gehört zu \"Packen\" – zuerst den Schritt \"Packen\" einfügen." : "Zu \"Packen\" gibt es schon einen Back-Up.", "Paket-Editor", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        MessageBox.Show(this, !steps.Exists(delegate(PackageStep x) { return x.IsPack; }) ? "Der Back-Up gehört zu \"Packen\" – zuerst den Schritt \"Packen\" einfügen." : "Zu \"Packen\" gibt es schon einen Back-Up.", "Paket-Editor", MessageBoxButtons.OK, MessageBoxIcon.Information);
                         return;
                     }
                     s = Package.MakeBackup(m, p.Result);
@@ -208,12 +208,13 @@ namespace Arbeitsplan.Win
             s.Bind = StepBind.JeLauf; s.RunOffset = s.IsBuffer || s.UsesAnsatz ? -1 : 0; s.RunEvery = 1; s.NumberRuns = false;
         }
 
-        void AddStep(PackageStep s) { steps.Add(s); AdoptPackNo(s); StepsView().Normalize(); dirty = true; Bind(s); CommitUndo(); }   // Normalize: ein Puffer "1 Tag vor Lauf 1" darf nicht vor Tag 1 landen
+        void AddStep(PackageStep s) { bool more = NewPacken(s); steps.Add(s); AdoptPackNo(s); if (more) steps.Add(Package.MakeBackup(s, cat.Baustein_(Package.BackupName))); StepsView().Normalize(); dirty = true; Bind(s); CommitUndo(); if (more) Say("Zweites Packen: anderen Raum und Skid wählen"); }   // Normalize: ein Puffer "1 Tag vor Lauf 1" darf nicht vor Tag 1 landen
 
         void Duplicate()
         {
             if (cur == null || cur.IsBackup || UniqueBlocked(cur.Source)) return;   // Back-Up gibt es nur einmal je Packen
             PackageStep c = cur.Clone();
+            if (c.IsPack) c.ManualNo = "";   // jedes Packen hat seine eigene Nummer
             if (!IsJe(c)) { List<int> d = c.Days(pk.Day1); int first = d[0]; foreach (int x in d) first = Math.Min(first, x); c.MoveAll(NextDay() - first, pk.Day1); }   // auch Tagesliste/Wochentage wandern mit
             AddStep(c);
         }

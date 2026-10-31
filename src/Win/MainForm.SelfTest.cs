@@ -122,6 +122,13 @@ namespace Arbeitsplan.Win
                 if (which == "campaign3" || which == "campaign6") { cf.TestRuns = 5; cf.SetSkip(cf.TestIndexOf(2, 2), true); }
                 f = cf;
             }
+            else if (which == "campaign7")   // zwei Packen: je ein Feld, zweite Nummer fehlt noch
+            {
+                PackageForm.Ux1bPrepare(store);
+                CampaignForm cf = new CampaignForm(PackageForm.P1bCamp(store), store, start, ApplyMode.FillEmpty);
+                cf.TestSetPackNo(0, "12340001");
+                f = cf;
+            }
             else if (which == "campaign5")   // Regelverstoss: Lauf 2 auf den Tag von Lauf 1 geschoben = zwei Hauptlaeufe am selben Tag (rote Zeile, Uebernehmen gesperrt)
             {
                 CampaignForm cf = new CampaignForm(demo, store, start, ApplyMode.FillEmpty);
@@ -332,6 +339,7 @@ namespace Arbeitsplan.Win
             sb.AppendLine(PackageForm.TestP1Editor(equip, start));
             sb.AppendLine(PackageForm.TestP2Editor(equip, start));
             try { sb.AppendLine(PackageForm.TestP3(equip, start)); } catch (Exception ex) { sb.AppendLine("P3: FEHLER " + ex.GetType().Name + ": " + ex.Message + "\n" + ex.StackTrace); }
+            try { sb.AppendLine(PackageForm.TestP1b(equip, start)); } catch (Exception ex) { sb.AppendLine("P1b: FEHLER " + ex.GetType().Name + ": " + ex.Message + "\n" + ex.StackTrace); }
         }
 
         // Selbsttest (Admin): Zuklappen, Bearbeiten mit Format, LKZ, Struktur, Export/Import, Paket-Schritte.
