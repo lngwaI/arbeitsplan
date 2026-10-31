@@ -113,6 +113,7 @@ namespace Arbeitsplan.Win
             gEquip.Controls.Add(bPos);
             BuildPosMenu();
             BuildPuffer();   // Karten je Puffer (PackageForm.PufferCards.cs)
+            BuildFreeze();   // Freeze-Vorlage (PackageForm.Freeze.cs)
             bMore.TabIndex = 3; gEquip.TabIndex = 4; gExtra.TabIndex = 5;
 
             foreach (TextBox t in new[] { tTitle, tSubNos, tIdent, tNote }) Ui.SimpleMenu(t);
@@ -197,7 +198,7 @@ namespace Arbeitsplan.Win
                 tManualNo.Text = s.ManualNo; tManualNo.ForeColor = SystemColors.WindowText; ShowManualHint(s);
                 if (s.Row.Length > 0 && !cbRow.Items.Contains(s.Row)) cbRow.Items.Add(s.Row);   // unbekannter Block bleibt sichtbar
                 cbRow.SelectedIndex = cbRow.Items.IndexOf(s.Row);
-                FillVariants(s); BindAnsatz(s); BindWhen(s);
+                FillVariants(s); BindAnsatz(s); BindWhen(s); BindFreeze(s);
                 s.IdentToStart(StepsView().RunCountOf(s));   // alte Kommaliste -> Start + Ueberschreibungen (gleiches Ergebnis)
                 tNote.Text = s.Note.Replace("\r", "").Replace("\n", "\r\n"); tIdent.Text = s.IdentStart;
             }

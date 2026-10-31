@@ -7,7 +7,7 @@ using Arbeitsplan.Core;
 namespace Arbeitsplan.Win
 {
     // Einrichten fuer hoehere Nutzer: Equipment-Positionen (mit validierten Geraeten) und Bausteine (wiederverwendbare Ablaufschritte).
-    class CatalogForm : Form
+    partial class CatalogForm : Form
     {
         readonly Catalog cat;
         readonly List<string> rowNames;
@@ -47,7 +47,8 @@ namespace Arbeitsplan.Win
             tabs.SelectedIndexChanged += delegate { if (tabs.SelectedIndex == 1) { RefillPos(); LoadBau(); } else if (tabs.SelectedIndex == 2) { RefillGroupPos(); LoadGrp(); } };
             TabPage t3 = new TabPage("Positionsgruppen");
             tabs.TabPages.Add(t1); tabs.TabPages.Add(t2); tabs.TabPages.Add(t3);
-            BuildPositions(t1); BuildBausteine(t2); BuildGroups(t3);
+            TabPage t4 = new TabPage("Freeze"); tabs.TabPages.Add(t4);
+            BuildPositions(t1); BuildBausteine(t2); BuildGroups(t3); BuildFreeze(t4);
 
             Button ok = new Button(); ok.Text = "Speichern"; ok.SetBounds(560, 500, 95, 30); ok.Click += delegate { Commit(); };
             Button cancel = new Button(); cancel.Text = "Abbrechen"; cancel.SetBounds(660, 500, 95, 30); cancel.DialogResult = DialogResult.Cancel;

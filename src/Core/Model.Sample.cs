@@ -89,6 +89,9 @@ namespace Arbeitsplan.Core
             FreezeItem tank = new FreezeItem(); tank.Art = FreezeArt.Tank; tank.Anlage = 2; tank.Kreislauf = 1; tank.MainRef = "22050011"; tank.Tanks = "H2-T-0252";
             tank.Start1to3[0] = monday.AddDays(3).AddHours(8);
             FreezeSet.Add(ft.Freezes, tank);
+            // Freeze aus dem Paket, Uhrzeit noch offen
+            Entry fo = new Entry(); FreezeItem offen = new FreezeItem(); offen.TimeOpen = true; offen.MainRef = "22050012"; offen.Tanks = "H2-T-0251"; offen.Start1to3[0] = monday.AddDays(4);
+            FreezeSet.Add(fo.Freezes, offen); s.Save(monday.AddDays(4), fz, fo);
             s.Save(monday.AddDays(3), fz, ft);
             WeekMark gmp = new WeekMark(); gmp.Monday = monday; gmp.Key = "GMP1"; gmp.Done = true; gmp.At = monday.AddHours(9.2); gmp.By = "MUMA";
             s.SaveWeekMark(gmp, null);

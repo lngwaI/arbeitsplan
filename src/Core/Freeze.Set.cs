@@ -68,6 +68,9 @@ namespace Arbeitsplan.Core
                 if (f.SubNo.Length > 0) w.WriteAttributeString("unter", f.SubNo);
                 if (f.Tanks.Length > 0) w.WriteAttributeString("tanks", f.Tanks);
                 if (f.CycleNames.Length > 0) w.WriteAttributeString("zyklen", f.CycleNames);
+                if (f.Offset2Min != 60) w.WriteAttributeString("versatz2", f.Offset2Min.ToString(inv));
+                if (f.Offset3Min != 120) w.WriteAttributeString("versatz3", f.Offset3Min.ToString(inv));
+                if (f.TimeOpen) w.WriteAttributeString("zeitoffen", "1");
                 for (int i = 0; i < 3; i++)
                     if (f.Start1to3[i] != DateTime.MinValue) { w.WriteStartElement("s"); w.WriteAttributeString("c", (i + 1).ToString(inv)); w.WriteAttributeString("t", FreezeCalc.Fmt(f.Start1to3[i])); w.WriteEndElement(); }
                 foreach (KeyValuePair<int, DateTime> kv in f.Ist) { w.WriteStartElement("ist"); w.WriteAttributeString("c", kv.Key.ToString(inv)); w.WriteAttributeString("t", FreezeCalc.Fmt(kv.Value)); w.WriteEndElement(); }
@@ -90,6 +93,7 @@ namespace Arbeitsplan.Core
                 f.DauerMin = FreezeCalc.Num(c, "dauer", 360, 1, FreezeCalc.MaxMin); f.AbstandMin = FreezeCalc.Num(c, "abstand", 420, 1, FreezeCalc.MaxMin);
                 f.Cycles = FreezeCalc.Num(c, "cycles", 14, 1, FreezeCalc.MaxCycles);
                 f.MainRef = c.GetAttribute("haupt"); f.SubNo = c.GetAttribute("unter"); f.Tanks = c.GetAttribute("tanks"); f.CycleNames = c.GetAttribute("zyklen");
+                f.Offset2Min = FreezeCalc.Num(c, "versatz2", 60, 0, FreezeCalc.MaxMin); f.Offset3Min = FreezeCalc.Num(c, "versatz3", 120, 0, FreezeCalc.MaxMin); f.TimeOpen = c.GetAttribute("zeitoffen") == "1";
                 StringBuilder note = new StringBuilder();
                 foreach (XmlNode k in c.ChildNodes)
                 {
@@ -120,6 +124,7 @@ namespace Arbeitsplan.Core
                 if (f.SubNo.Length > 0) head += " · Unterlauf " + f.SubNo + (f.MainRef.Length > 0 ? " (aus " + f.MainRef + ")" : "");
                 else if (f.MainRef.Length > 0) head += " · Lauf " + f.MainRef;
                 if (f.Valid) head += " · Z1 " + FreezeCalc.Short(f.Start1to3[0]) + (f.Art == FreezeArt.Bag ? " · " + FreezeCalc.Count(f) + " Zyklen" : " · " + FreezeCalc.Dur(f.DauerMin));
+                if (f.TimeOpen) head += " · Zeit offen";
                 if (f.Tanks.Length > 0) head += " · Tanks " + f.Tanks;
                 r.Add(head);
                 if (!detail) continue;
@@ -159,6 +164,42 @@ namespace Arbeitsplan.Core
             return r;
         }
 
+        // Tank der Position FZ-E aus dem Lauf vor run (8 Ziffern), nur Vorschlag: an Tagen dieses Laufs die Zeile "FZ-E: <Geraet>", sonst ein Geraet der Position
+        // in den Tanks seines Freeze-Vorgangs; "" = keiner. Sucht bis SpareBack Tage zurueck.
+        const int SpareBack = 60;
+        public static string SpareTank(IDataStore store, List<RowInfo> rows, string run, DateTime day, Catalog cat)
+        {
+            long no;
+            if (run == null || run.Length != 8 || !long.TryParse(run, NumberStyles.None, CultureInfo.InvariantCulture, out no) || no < 1) return "";
+            string prev = (no - 1).ToString("00000000", CultureInfo.InvariantCulture);
+            EquipPosition pos = cat.Positions.Find(delegate(EquipPosition p) { return p.Short == "FZ-E"; });
+            for (int k = 0; k <= SpareBack; k++)
+            {
+                List<Entry> es = new List<Entry>(); bool hit = false;
+                foreach (RowInfo r in rows)
+                {
+                    Entry e = store.Get(day.Date.AddDays(-k), r.Id);
+                    if (e == null) continue;
+                    es.Add(e);
+                    foreach (FreezeItem f in e.Freezes) hit |= f.MainRef == prev;
+                    foreach (RunRef x in RunNumbers.Find(e)) hit |= x.Product + x.Run == prev;
+                }
+                if (!hit) continue;
+                foreach (Entry e in es)
+                    foreach (string line in Notes.ContentText(e).Split('\n'))
+                    {
+                        System.Text.RegularExpressions.Match m = EquipmentMatcher.Pattern.Match(line);
+                        if (m.Success && line.TrimStart().StartsWith("FZ-E:", StringComparison.Ordinal)) return m.Value;
+                    }
+                if (pos == null) continue;
+                foreach (Entry e in es)
+                    foreach (FreezeItem f in e.Freezes)
+                        if (f.MainRef == prev)
+                            foreach (string t in f.Tanks.Split(',')) if (pos.Ids.Contains(t.Trim())) return t.Trim();
+            }
+            return "";
+        }
+
         // ---------- Rechte, Dreiwege-Merge ----------
 
         // Neu = AddText, Entfernen = DeleteText, Aendern (auch Ist-Starts, Reihenfolge) = EditText
@@ -192,6 +233,8 @@ namespace Arbeitsplan.Core
             r.MainRef = Pick(b.MainRef, m.MainRef, t.MainRef, pm, ref clash); r.SubNo = Pick(b.SubNo, m.SubNo, t.SubNo, pm, ref clash);
             r.Tanks = Pick(b.Tanks, m.Tanks, t.Tanks, pm, ref clash); r.Note = Pick(b.Note, m.Note, t.Note, pm, ref clash);
             r.CycleNames = Pick(b.CycleNames, m.CycleNames, t.CycleNames, pm, ref clash);
+            r.Offset2Min = Pick(b.Offset2Min, m.Offset2Min, t.Offset2Min, pm, ref clash); r.Offset3Min = Pick(b.Offset3Min, m.Offset3Min, t.Offset3Min, pm, ref clash);
+            r.TimeOpen = Pick(b.TimeOpen, m.TimeOpen, t.TimeOpen, pm, ref clash);
             List<int> keys = new List<int>(b.Ist.Keys);
             foreach (int k in m.Ist.Keys) if (!keys.Contains(k)) keys.Add(k);
             foreach (int k in t.Ist.Keys) if (!keys.Contains(k)) keys.Add(k);

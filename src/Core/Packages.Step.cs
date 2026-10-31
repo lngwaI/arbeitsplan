@@ -27,6 +27,7 @@ namespace Arbeitsplan.Core
         public int PufferCount = 1;         // Puffer-Schritt: so viele Puffer des Typs je Vorkommen am selben Tag (1..9, XML "puffer")
         public string PufferNames = "";     // Namen der Puffer, "|"-getrennt (XML "pufnamen"); leer = Titel (+ Nummer)
         public List<EquipAssign> Equipment = new List<EquipAssign>();
+        public FreezeItem Freeze;           // Vorlage (Baustein "Freeze / Thaw"), null = nur Text (z. B. Thaw). Start1to3[0] = Vorgabe-Uhrzeit (Datum egal), nicht gesetzt = Zeit offen
 
         // Format der Kennungszeile (rot, gross, fett).
         public static FormatSpan IdentSpan(int start, int length)
@@ -43,6 +44,7 @@ namespace Arbeitsplan.Core
             s.Equipment = new List<EquipAssign>();
             foreach (EquipAssign a in Equipment) s.Equipment.Add(a.Clone());
             ClonePuffers(s);
+            if (Freeze != null) s.Freeze = Freeze.Clone();
             return s;
         }
 
@@ -50,7 +52,7 @@ namespace Arbeitsplan.Core
         {
             get
             {
-                if (Title.Length > 0 || Text.Length > 0 || Note.Length > 0 || Ident.Trim().Length > 0 || IdentStart.Length > 0 || IdentOver.Count > 0 || ManualNo.Length > 0 || Kind == StepKind.SubRun || Puffers.Count > 0) return false;
+                if (Title.Length > 0 || Text.Length > 0 || Note.Length > 0 || Ident.Trim().Length > 0 || IdentStart.Length > 0 || IdentOver.Count > 0 || ManualNo.Length > 0 || Kind == StepKind.SubRun || Puffers.Count > 0 || Freeze != null) return false;
                 foreach (EquipAssign a in Equipment) if (a.Line(0).Length > 0) return false;
                 return true;
             }
@@ -62,6 +64,16 @@ namespace Arbeitsplan.Core
         public string RunNo(string prefix, int run)
         {
             return Kind != StepKind.Normal ? Package.FormatRun(prefix, StartNo + run) : (StartNo + run).ToString(CultureInfo.InvariantCulture);
+        }
+
+        // Erste Unterlauf-Nummer dieses Laufs als 8 Ziffern; "" = keine. shortcut: je Vorgang nur ein Unterlauf, weitere ("/") bleiben als Textzeile im Block; bei Bedarf je Unterlauf ein Vorgang.
+        public string SubNoFor(int run, string prefix)
+        {
+            string[] per = SubNos.Split(',');
+            if (Kind != StepKind.SubRun || run >= per.Length) return "";
+            string n = per[run].Split('/')[0].Trim();
+            if (Package.IsCode4(n) && Package.IsCode4(prefix)) n = prefix + n;
+            return System.Text.RegularExpressions.Regex.IsMatch(n, @"^\d{8}$") ? n : "";
         }
 
         // Kurzbezeichnung fuer Tabellen (z. B. "Lauf 13570030").

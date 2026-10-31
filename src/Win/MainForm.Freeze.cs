@@ -50,10 +50,12 @@ namespace Arbeitsplan.Win
             ch.Mains = RunsAround(t.Day); ch.Tanks = FreezeTanks();
             if (isNew)
             {
-                FreezeItem f = new FreezeItem(); f.DauerMin = ch.Cfg.DauerMin; f.AbstandMin = ch.Cfg.AbstandMin; f.Cycles = ch.Cfg.Cycles; f.Start1to3[0] = t.Day.AddHours(6);
+                FreezeItem f = new FreezeItem(); f.DauerMin = ch.Cfg.DauerMin; f.AbstandMin = ch.Cfg.AbstandMin; f.Cycles = ch.Cfg.Cycles; f.Offset2Min = ch.Cfg.Offset2Min; f.Offset3Min = ch.Cfg.Offset3Min; f.Start1to3[0] = t.Day.AddHours(6);
                 ch.Item = f;
             }
             else ch.Item = cur.Clone();
+            string laufNr = ch.Item.MainRef.Length > 0 ? ch.Item.MainRef : ch.Mains.Count > 0 ? ch.Mains[0] : "";
+            ch.SpareTank = FreezeSet.SpareTank(store, rowInfo, laufNr, t.Day, store.GetCatalog());
             if (!AskFreeze(ch) || ch.ReadOnly) return;
 
             List<FreezeItem> baseList = FreezeSet.CloneAll(t.Cur.Freezes), mine = FreezeSet.CloneAll(baseList);

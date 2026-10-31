@@ -95,9 +95,10 @@ namespace Arbeitsplan.Win
             }
             finally { loading = false; }
             if (!selCleared) { grid.ClearSelection(); grid.CurrentCell = null; selCleared = grid.Rows.Count > 0; }   // keine Vorauswahl
-            if (it.Art == FreezeArt.Tank && it.Valid) lbEndV.Text = Stamp(cy[0].End);
+            lbEndV.Text = it.Art == FreezeArt.Tank && it.Valid ? Stamp(cy[0].End) : "";
             List<string> hints = FreezeCalc.Hints(it);
             if (msg.Length > 0) { lbHint.ForeColor = Color.FromArgb(185, 30, 30); lbHint.Text = msg; }
+            else if (it.TimeOpen) { lbHint.ForeColor = FreezeStyle.Delay; lbHint.Text = "Die Startzeit ist noch offen. Zeit eintragen: Die Zyklen werden berechnet. Speichern ohne Eintrag lässt sie offen."; }
             else if (hints.Count > 0) { lbHint.ForeColor = Color.FromArgb(170, 80, 0); lbHint.Text = "Hinweis: " + string.Join("\n", hints.ToArray()); }
             else { lbHint.ForeColor = Section.HelpColor; lbHint.Text = it.Art == FreezeArt.Bag ? "Zyklus n läuft auf Anlage ((n − 1) mod 3) + 1. Gespeichert werden nur Ihre Eingaben; alle weiteren Zeiten werden berechnet." : "Der Tank-Freeze hat einen Start und eine Dauer."; }
         }
@@ -182,6 +183,10 @@ namespace Arbeitsplan.Win
         public void TestSetGap(decimal h) { nGap.Value = h; }
         public void TestSetMain(string s) { cMain.Text = s; }
         public string TestCheck() { Collect(); return Check(); }
+        public void TestSetOffsets(decimal h2, decimal h3) { n2.Value = h2; n3.Value = h3; }
+        public string TestPickText(int i) { return cPick.Items[i].ToString(); }
+        public void TestPick(int i) { cPick.SelectedIndex = i; PickTank(); }
+        public bool TestOpen { get { return kOpen.Checked; } }
 #endif
     }
 }
