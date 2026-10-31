@@ -130,7 +130,7 @@ namespace Arbeitsplan.Win
             if (ProductError() != null) h.Add(new Hint(ProductError(), null, tProduct));
             if (FirstRunError() != null) h.Add(new Hint(FirstRunError(), null, tFirst));
             else if (prefix.Length == 0 && runs) h.Add(new Hint("Erste Laufnummer fehlt – Läufe bekommen keine 8-stellige Nummer.", null, tFirst));
-            if (PackNoError() != null) h.Add(new Hint(PackNoError(), null, tPackNo));
+            if (PackNoError() != null) h.Add(new Hint(PackNoError(), null, PackNoBad()));
             if (steps.Count == 0 && blocks.Count == 0) h.Add(new Hint("Der Ablauf ist leer – mit „+ Schritt hinzufügen“ beginnen.", null, bAdd));
             List<PackageStep> o = Ordered();
             for (int i = 0; i < o.Count; i++)

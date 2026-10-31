@@ -45,11 +45,13 @@ namespace Arbeitsplan.Win
                 okStep &= pack[0].ManualNo == "12340003" && f.lManualHint.Text.Contains("wie Nr. für Packen");
                 PackageStep np = new PackageStep(); np.Title = "Packen"; np.Source = Package.PackenName; np.Row = "Suite 2"; np.Day = 2;   // vor Lauf 1 (Regel packen-tag)
                 f.AddStep(np); Application.DoEvents();
-                okTake &= np.ManualNo == "12340003";
+                okTake &= np.ManualNo == "" && f.tPackNo2.Visible;   // zweites Packen: eigene Nummer, eigenes Feld
+                f.tPackNo2.Text = "12340008"; Application.DoEvents();
+                okTake &= np.ManualNo == "12340008" && pack[0].ManualNo == "12340003";
                 f.tPackNo.Text = "1234"; Application.DoEvents();   // ungueltig: Hinweis, Schritte unveraendert
-                bool okBad = f.PackNoError() != null && f.hintList.Exists(delegate(Hint h) { return h.Field == f.tPackNo; }) && np.ManualNo == "12340003" && f.tPackNo.ForeColor == Color.Firebrick;
+                bool okBad = f.PackNoError() != null && f.hintList.Exists(delegate(Hint h) { return h.Field == f.tPackNo; }) && pack[0].ManualNo == "12340003" && f.tPackNo.ForeColor == Color.Firebrick;
                 f.tPackNo.Text = "12340004"; Application.DoEvents();
-                okBad &= f.PackNoError() == null && np.ManualNo == "12340004" && !f.hintList.Exists(delegate(Hint h) { return h.Field == f.tPackNo; });
+                okBad &= f.PackNoError() == null && pack[0].ManualNo == "12340004" && np.ManualNo == "12340008" && !f.hintList.Exists(delegate(Hint h) { return h.Field == f.tPackNo; });
 
                 // (2) Speichern/Laden: der Kopfwert steckt in den Packen-Schritten und kommt wieder; Kampagnenstart vorbelegt, ohne Zusatzfrage
                 Package col = f.Collect();
@@ -67,7 +69,7 @@ namespace Arbeitsplan.Win
                     {
                         okCamp = cf.TestPackVisible && cf.TestPackNo == "12340004" && cf.PackWarning == null && cf.TestOkEnabled;   // sofort uebernehmbar
                         cf.TestPackNo = "12340077";
-                        okCamp &= cf.TestOkEnabled && PackenSteps(cf.Result).TrueForAll(delegate(PackageStep s) { return s.ManualNo == "12340077"; });
+                        okCamp &= cf.TestOkEnabled && PackenSteps(cf.Result)[0].ManualNo == "12340077" && PackenSteps(cf.Result)[1].ManualNo == "12340008";
                         cf.TestPackNo = "";
                         okCamp &= !cf.TestOkEnabled && cf.PackWarning != null;   // Pflicht nur, wenn leer
                     }

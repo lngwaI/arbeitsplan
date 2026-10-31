@@ -59,7 +59,7 @@ namespace Arbeitsplan.Win
             if (b.Name == "Lauf") d.Add("Lauf mit Laufnummer"); else if (b.Name == "Splitten") d.Add("Unterläufe");
             d.Add(b.Row.Length > 0 ? "Raum: " + b.Row : "Raum frei wählbar");
             d.Add(b.Positions.Count > 0 ? "Equipment: " + string.Join(", ", b.Positions.ToArray()) : "ohne Equipment");
-            if (b.Unique) d.Add("nur einmal je Kampagne");
+            if (b.Unique && b.Name != Package.PackenName) d.Add("nur einmal je Kampagne");
             if (b.Special) d.Add("Sonderereignis");
             if (steps.Exists(delegate(PackageStep s) { return s.Source == b.Name; })) d.Add("schon im Ablauf");
             items.Add(b); names.Add(name); descs.Add(string.Join(" · ", d.ToArray())); list.Items.Add(name);
