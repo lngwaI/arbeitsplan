@@ -53,18 +53,19 @@ namespace Arbeitsplan.Win
             if (!HasChecks(r)) { slots[r] = l.ToArray(); return 0; }
             List<CheckDef> d = DefsOf(r);
             int x = TP, line = 0, max = iw - 2, box = Theme.Current.CheckBox;
+            bool stacked = Rows[r].Variants.Length > 0;   // Puffer-Zeile: je Eintrag eine eigene Zeile
             if (Rows[r].Variants.Length > 0) { CheckSlot s = new CheckSlot(); s.Add = true; s.W = TextW("+ Puffer", bold) + 16; l.Add(s); }
             if (Rows[r].Freeze) { CheckSlot s = new CheckSlot(); s.Freeze = true; s.W = TextW("+ Freeze", bold) + 16; l.Add(s); }
             for (int i = 0; i < d.Count; i++)
             {
                 CheckSlot s = new CheckSlot(); s.Def = i;
-                if (Single(r)) s.W = max - TP;
+                if (Single(r) || stacked) s.W = max - TP;
                 else foreach (CellData c in Cells) if (c.RowIndex == r) s.W = Math.Max(s.W, TextW(DefLabel(c, i), Font) + (StateOf(c, i) != DayState.NA ? box + 12 : 10));
                 l.Add(s);
             }
             foreach (CheckSlot s in l)
             {
-                if (x + s.W > max && x > TP) { line++; x = TP; }
+                if ((stacked || x + s.W > max) && x > TP) { line++; x = TP; }
                 s.R = new Rectangle(x, line * LkzH, Math.Min(s.W, max - x), LkzH); x += s.W + 3;
             }
             slots[r] = l.ToArray();
