@@ -20,6 +20,7 @@ namespace Arbeitsplan.Win
             }
             r.R = pool.Get(a, cat, product, changed, RemoveLine, true);
             reorder.Add(r.R);
+            if (g == null) r.R.AddBelow = AddLineBelow;   // gemeinsame Zeilen: kein "+"
             if (a.Short.Equals(ShareShort, StringComparison.OrdinalIgnoreCase) || g != null)
             {
                 r.ScopeLbl = new Label(); r.ScopeLbl.Text = "gilt für:"; r.ScopeLbl.TextAlign = ContentAlignment.MiddleRight; r.ScopeLbl.UseMnemonic = false;
@@ -69,6 +70,18 @@ namespace Arbeitsplan.Win
             if (from >= own) { rebuild(); return; }   // N7: gemeinsame Zeile = globale Reihenfolge, andere Karten zeigen sie auch: alles neu binden
             Row x = rows[from]; rows.RemoveAt(from); rows.Insert(to, x);
             Resync(); structure();
+        }
+
+        // "+": dieselbe Position direkt unter der Zeile (eigene Zeilen stehen in rows an derselben Stelle wie in Spec.Lines)
+        internal void AddLineBelow(EquipAssign src)
+        {
+            int i = Spec.Lines.IndexOf(src);
+            if (i < 0) return;
+            EquipAssign a = EquipRow.Below(src, cat); Spec.Lines.Insert(i + 1, a);
+            AddRow(a, null);
+            Row nr = rows[rows.Count - 1]; rows.RemoveAt(rows.Count - 1); rows.Insert(i + 1, nr);
+            Resync(); structure();
+            if (nr.R != null) nr.R.FocusNew();
         }
 
         public void AddLine(string shortName)

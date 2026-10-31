@@ -227,7 +227,10 @@ namespace Arbeitsplan.Win
             if (mtip != markerTip) { markerTip = mtip; tip.SetToolTip(marker, mtip); }
             marker.Invalidate();
             UpdateRunsLabel();
-            bDup.Enabled = bDel.Enabled = cur != null;
+            bDup.Enabled = cur != null;
+            bool canDel = cur != null && StepsView().CanRemove(cur);   // sperrt vorab (Grund im Tooltip)
+            bDel.Enabled = canDel;
+            tip.SetToolTip(bDel, cur == null || canDel ? "Gewählten Schritt entfernen (Entf)" : "Nicht möglich: der Hauptlauf ist die Grundlage der Kampagne. Erst einen anderen Lauf-Schritt anlegen.");
             bUp.Enabled = n > 1; bDown.Enabled = n > 0 && n < steps.Count;   // am Listenrand gesperrt
             PerfB(PfPreview); UpdatePreview(scrollTo); PerfE(PfPreview);
             PerfB(PfHints); UpdateHints(); PerfE(PfHints);
