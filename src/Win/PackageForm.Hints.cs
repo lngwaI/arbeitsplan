@@ -42,6 +42,17 @@ namespace Arbeitsplan.Win
                 if (!heads.TryGetValue(key, out head)) { head = new Hint("", null, null); head.Code = p.Code; head.Blocks = p.Blocks; head.Kids = new List<Hint>(); head.Text = key; heads[key] = head; res.Add(head); }
                 head.Kids.Add(h);
             }
+            Package v = StepsView();
+            if (v.Lauf1.HasValue && v.Head != null)   // gleiche Pruefung wie der Kampagnenstart (Package.CountBusy)
+            {
+                int busy = v.CountBusy(store, v.StartFor(v.Lauf1.Value), null);
+                if (busy > 0)
+                {
+                    PackageProblem bp = new PackageProblem(); bp.Severity = Severity.Info; bp.Code = "belegt";
+                    bp.Text = busy + (busy == 1 ? " Block" : " Blöcke") + " im Plan schon belegt (Lauf 1 am " + v.Lauf1.Value.ToString("dd.MM.yyyy") + ")"; bp.Action = "der Kampagnenstart fragt: anhängen, überschreiben oder überspringen";
+                    res.Add(RuleHint(bp, o));
+                }
+            }
             for (int i = 0; i < res.Count; i++)
             {
                 Hint head = res[i];

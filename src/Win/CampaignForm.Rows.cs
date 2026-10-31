@@ -68,13 +68,31 @@ namespace Arbeitsplan.Win
                 effHead.Add(d); firstRunDay = Math.Min(firstRunDay, d.Day);
             }
             bool anyBusy = false;
-            for (int i = 0; i < sched.Count; i++) { UpdateRow(i); anyBusy |= IsBusy(i); }
-            if (!modeTouched) cbMode.SelectedIndex = anyBusy ? (int)ApplyMode.Append : (int)initialMode;   // Vorkampagne trifft belegte Bloecke: anhaengen
+            for (int i = 0; i < sched.Count; i++) anyBusy |= IsBusy(i) && effHead.Count > 0 && sched[i].Day + Off(i) < firstRunDay;   // nur Zeilen vor Lauf 1 (Vorkampagne)
+            if (!modeTouched) cbMode.SelectedIndex = anyBusy ? (int)ApplyMode.Append : (int)initialMode;   // Vorkampagne trifft belegte Bloecke: anhaengen, solange der Nutzer nichts gewaehlt hat
+            for (int i = 0; i < sched.Count; i++) UpdateRow(i);
             Problems = pkg.Check(store, Start, Mode, Schedule);
             ShowRules();
             ok.Enabled = Warning == null && PackWarning == null && !Package.HasBlock(Problems);
             ShowWhy();
+            ShowBusy();
             SimpleSummary();
+        }
+
+        // Was passiert mit einem belegten Block im gewaehlten Modus (Package.Merge ist die Referenz)
+        static void ModeInfo(ApplyMode m, out string text, out Color c)
+        {
+            if (m == ApplyMode.Overwrite) { text = "wird überschrieben"; c = Color.FromArgb(255, 190, 120); }
+            else if (m == ApplyMode.Append) { text = "wird angehängt"; c = Color.FromArgb(255, 243, 150); }
+            else { text = "wird übersprungen"; c = Color.FromArgb(215, 215, 215); }
+        }
+
+        // Zeile unter der Tabelle: wie viele Bloecke schon belegt sind und was damit passiert
+        void ShowBusy()
+        {
+            string t; Color c; ModeInfo(Mode, out t, out c);
+            int n = pkg.CountBusy(store, Start, Schedule);
+            lBusy.Text = n == 0 ? "Kein Block im Plan belegt." : n + (n == 1 ? " Block belegt: " + t : " Blöcke belegt: werden " + t.Substring(5));
         }
 
         // Neben dem gesperrten Knopf: warum (kurz), Volltext im Tooltip
@@ -102,7 +120,7 @@ namespace Arbeitsplan.Win
                 for (int i = 0; i < sched.Count && i < grid.Rows.Count; i++)
                     if ((p.Run >= 0 && sched[i].Step == p.Step && sched[i].Run == p.Run) || (p.Run2 >= 0 && sched[i].Step == p.Step2 && sched[i].Run == p.Run2))   // beide Beteiligte rot
                     {
-                        grid.Rows[i].Cells[cLabel].Style.BackColor = p.Blocks ? Rot : Belegt;
+                        grid.Rows[i].Cells[cLabel].Style.BackColor = p.Blocks ? Rot : Orange;
                         grid.Rows[i].Cells[cLabel].ToolTipText = pkg.Describe(p);
                     }
             PackageProblem first = shown.Find(delegate(PackageProblem p) { return p.Blocks; }) ?? (shown.Count > 0 ? shown[0] : null);
@@ -110,14 +128,15 @@ namespace Arbeitsplan.Win
             lRule.ForeColor = first != null && first.Blocks ? Color.Firebrick : Color.FromArgb(150, 60, 0);
         }
 
-        // Zeile liegt vor Lauf 1 und der Block ist im Plan schon belegt (Vorkampagne: Packen/Puffer)
-        bool IsBusy(int i)
+        // Block der Zeile ist im Plan schon belegt (Package.Occupied, wie Merge)
+        bool IsBusy(int i) { return BusyEntry(i) != null; }
+
+        Entry BusyEntry(int i)
         {
-            if (skipped[i] || effHead.Count == 0 || sched[i].Day + Off(i) >= firstRunDay) return false;
             int id;
-            if (!ids.TryGetValue(Room(i), out id)) return false;
+            if (skipped[i] || !ids.TryGetValue(Room(i), out id)) return null;
             Entry e = store.Get(Start.AddDays(sched[i].Day + Off(i) - 1), id);
-            return e != null && (!e.IsEmpty || e.Buffers.Count > 0);
+            return Package.Occupied(e) ? e : null;
         }
 
         void UpdateRow(int i)
@@ -125,10 +144,20 @@ namespace Arbeitsplan.Win
             if (i >= grid.Rows.Count) return;
             bool was = filling; filling = true;
             DataGridViewRow row = grid.Rows[i];
-            bool sk = skipped[i], busy = IsBusy(i);
-            row.Cells[cLabel].Value = sched[i].Label;
-            row.Cells[cRel].Value = pkg.RelTextOf(sched[i], sched[i].Day + Off(i), effHead) + (busy ? " · belegt" : "");
-            row.Cells[cRel].Style.BackColor = busy ? Belegt : Color.Empty;
+            bool sk = skipped[i]; Entry be = BusyEntry(i);
+            string lf = pkg.ForLaufText(sched[i], sched[i].Day + Off(i), effHead);
+            row.Cells[cLabel].Value = sched[i].Label + (lf.Length > 0 ? " · " + lf : "");
+            string bt = ""; Color bc = Color.Empty;
+            if (be != null)
+            {
+                ModeInfo(Mode, out bt, out bc);
+                string old = be.Content.Replace("\n", " ").Trim();
+                if (old.Length > 160) old = old.Substring(0, 160) + " …";
+                row.Cells[cRel].ToolTipText = "Im Plan schon vorhanden (" + bt + "): " + (old.Length > 0 ? old : "kein Text") + (be.Buffers.Count > 0 ? " [+ " + be.Buffers.Count + " Puffer]" : "");
+            }
+            else row.Cells[cRel].ToolTipText = "";
+            row.Cells[cRel].Value = pkg.RelTextOf(sched[i], sched[i].Day + Off(i), effHead) + (be != null ? " · " + bt : "");
+            row.Cells[cRel].Style.BackColor = bc;
             row.Cells[cProp].Value = Ui.DayText(Proposed(i));
             row.Cells[cWant].Value = Ui.DayText(Proposed(i).AddDays(Off(i)));
             row.Cells[cWant].Style.BackColor = Off(i) != 0 ? Orange : Color.Empty;
@@ -194,11 +223,13 @@ namespace Arbeitsplan.Win
             UpdateAll();
         }
 
+        string BusyText() { string t; Color c; ModeInfo(Mode, out t, out c); return t; }
+
         void SimpleSummary()
         {
             if (!simple) return;
             List<string> l = new List<string>();
-            for (int i = 0; i < sched.Count; i++) l.Add(sched[i].Label.Replace("\n", " ") + "  →  " + Ui.DayText(Proposed(i).AddDays(Off(i))) + ", " + Room(i) + (IsBusy(i) ? " (belegt)" : ""));
+            for (int i = 0; i < sched.Count; i++) l.Add(sched[i].Label.Replace("\n", " ") + "  →  " + Ui.DayText(Proposed(i).AddDays(Off(i))) + ", " + Room(i) + (IsBusy(i) ? " (belegt: " + BusyText() + ")" : ""));
             lSum.Text = string.Join("\r\n", l.ToArray());
             FitSimple();
         }
