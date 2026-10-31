@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.Windows.Forms;
 using Arbeitsplan.Core;
@@ -41,8 +42,18 @@ namespace Arbeitsplan.Win
 
         int PufRuns() { PackageStep h = StepsView().Head; return h == null ? 0 : Math.Min(PackageStep.MaxRuns, h.Days(pk.Day1).Count); }
 
-        internal void SetPufDist(int run, string text)
+        // Laufnummern (0-basiert), die der Puffer wirklich bedient (RunEvery, ausgefallene Laeufe): eine Tabellenzeile je Termin
+        List<int> PufRunList(PackageStep s)
         {
+            List<int> l = new List<int>(); int si = steps.IndexOf(s);
+            foreach (RunDate d in Plan()) if (d.Step == si && !l.Contains(d.Run)) l.Add(d.Run);
+            l.Sort(); return l;
+        }
+
+        internal void SetPufDist(int row, string text)
+        {
+            List<int> rl = PufRunList(cur); if (row < 0 || row >= rl.Count) return;
+            int run = rl[row];
             int v, have; cur.Shift.TryGetValue(run, out have); have += cur.RunOffset;
             if (!int.TryParse((text ?? "").Trim(), out v)) { FillPuf(cur); return; }
             int delta = -v - have;
@@ -62,9 +73,9 @@ namespace Arbeitsplan.Win
         void FillPuf(PackageStep s)
         {
             bool was = loading; loading = true;
-            DataGridView g = gridPuf; int n = PufRuns();
+            DataGridView g = gridPuf; List<int> rl = PufRunList(s); int n = rl.Count;
             g.Rows.Clear();
-            for (int r = 0; r < n; r++) { int v; s.Shift.TryGetValue(r, out v); g.Rows.Add("Lauf " + (r + 1), (-(s.RunOffset + v)).ToString()); }
+            foreach (int r in rl) { int v; s.Shift.TryGetValue(r, out v); g.Rows.Add("Lauf " + (r + 1), (-(s.RunOffset + v)).ToString()); }
             g.Height = g.ColumnHeadersHeight + Math.Min(n, 5) * g.RowTemplate.Height + 2;
             loading = was;
         }

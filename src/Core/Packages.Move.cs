@@ -74,6 +74,7 @@ namespace Arbeitsplan.Core
             {
                 int o = s.RunOffset + delta;
                 if (Math.Abs(o) > PackageStep.MaxOffset) return false;
+                foreach (int v in s.Shift.Values) if (Math.Abs(o + v) > PackageStep.MaxOffset) return false;   // auch der Abstand je Lauf
                 s.RunOffset = o; Normalize(); return true;
             }
             List<int> d = s.Days(Day1);

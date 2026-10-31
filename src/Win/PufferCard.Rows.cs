@@ -20,7 +20,7 @@ namespace Arbeitsplan.Win
             }
             r.R = pool.Get(a, cat, product, changed, RemoveLine, true);
             reorder.Add(r.R);
-            if (g == null) r.R.AddBelow = AddLineBelow;   // gemeinsame Zeilen: kein "+"
+            r.R.AddBelow = g == null ? (Action<EquipAssign>)AddLineBelow : null;   // gemeinsame Zeilen: kein "+" (Setter blendet ihn aus, auch bei neuer Zeile)
             if (a.Short.Equals(ShareShort, StringComparison.OrdinalIgnoreCase) || g != null)
             {
                 r.ScopeLbl = new Label(); r.ScopeLbl.Text = "gilt für:"; r.ScopeLbl.TextAlign = ContentAlignment.MiddleRight; r.ScopeLbl.UseMnemonic = false;

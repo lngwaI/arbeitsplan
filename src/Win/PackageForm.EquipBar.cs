@@ -18,7 +18,7 @@ namespace Arbeitsplan.Win
         readonly Timer doneTimer = new Timer();
         string Login { get { return By != null ? By.Login : Environment.UserName; } }   // Nutzer fuer die Vormerkung (By setzt MainForm)
         Unk barTarget;
-        internal class DoneItem { public string Id, Pos; public bool Added, HadPos, Pending; }
+        internal class DoneItem { public string Id, Pos; public bool Added, HadPos, HadDev, Pending; public EquipPending HadPend; }
         List<DoneItem> done = new List<DoneItem>(); string doneText = ""; PackageStep doneStep;   // letzte Rueckmeldung (fuer Rueckgaengig; "Alle hinzufuegen" = ein Eintrag je Geraet)
 
         void InitEquipBar()
@@ -79,10 +79,11 @@ namespace Arbeitsplan.Win
             text = "";
             EquipPosition pos = cat.Position(t.Short);
             EquipDevice d = cat.Master.NewDevice(t.Id, pos);
-            bool had = pos != null && pos.Ids.Contains(d.Id);
+            bool had = pos != null && pos.Ids.Contains(d.Id), hadDev = cat.Master.Device(d.Id) != null;
+            EquipPending hadPend = cat.Master.PendingFor(d.Id);
             if (!AddDevice(d, t.Short)) return null;
             text = d.Id + " hinzugefügt (" + (d.Class.Length > 0 ? "Art " + d.Class : "ohne Geräteart") + (pos != null ? ", Position " + pos.Short : "") + ")";
-            DoneItem i = new DoneItem(); i.Id = d.Id; i.Pos = t.Short; i.Added = true; i.HadPos = had;
+            DoneItem i = new DoneItem(); i.Id = d.Id; i.Pos = t.Short; i.Added = true; i.HadPos = had; i.HadDev = hadDev; i.HadPend = hadPend;
             return i;
         }
 
@@ -136,7 +137,8 @@ namespace Arbeitsplan.Win
                     }
                     else if (i.Added)
                     {
-                        cat.Master.Devices.RemoveAll(delegate(EquipDevice x) { return string.Equals(x.Id, id, StringComparison.OrdinalIgnoreCase); });
+                        if (!i.HadDev) cat.Master.Devices.RemoveAll(delegate(EquipDevice x) { return string.Equals(x.Id, id, StringComparison.OrdinalIgnoreCase); });
+                        if (i.HadPend != null && cat.Master.PendingFor(id) == null) cat.Master.Pending.Add(i.HadPend);
                         EquipPosition pos = cat.Position(i.Pos);
                         if (pos != null && !i.HadPos) pos.Ids.Remove(id);
                         store.SaveCatalog(cat);

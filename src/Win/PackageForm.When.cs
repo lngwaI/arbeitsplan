@@ -123,7 +123,7 @@ namespace Arbeitsplan.Win
         void OffsetEdited()
         {
             if (!Edit() || cur.IsBackup || cur == StepsView().Head || cbDir.SelectedIndex < 0 || cbDir.SelectedIndex >= dirKinds.Length) return;
-            int want = dirKinds[cbDir.SelectedIndex] * (int)nDay.Value, delta = want - OffOf(cur);
+            int want = IsPacken(cur) ? -Math.Max((int)nDay.Value, Package.HasBackup(steps, cur) ? 2 : 1) : dirKinds[cbDir.SelectedIndex] * (int)nDay.Value, delta = want - OffOf(cur);
             if (delta == 0) { BindWhen(cur); LayoutDetails(); return; }
             if (!MoveBy(cur, delta)) { BindWhen(cur); return; }
             AfterMove(cur);
@@ -218,13 +218,15 @@ namespace Arbeitsplan.Win
             tip.SetToolTip(cbBind, pf ? "Zu jedem Lauf: jeder Lauf bekommt seinen Puffer im festen Abstand (Anzahl = Laufanzahl). Eigener Rhythmus: die Puffer haben ein eigenes Raster (alle x Tage, Wochentage, Liste), unabhängig von den Läufen; jeder Termin bedient den nächsten Lauf."
                 : "Zu jedem Lauf: der Schritt folgt jedem Lauf des Hauptlaufs (Anzahl = Laufanzahl im Kopf). Eigenes Datum: fester Termin, z. B. einmalig vor Lauf 1.");
             cbBind.SelectedIndex = je ? 0 : 1;
-            nDay.Minimum = pk1 && Package.HasBackup(steps, s) ? 2 : 1;
+            int off = isHead || s.IsBackup ? 0 : OffOf(s);
+            bool pkBad = pk1 && off >= 0;            // altes Paket: Packen am/nach Lauf 1 -> ehrlich anzeigen, jede Eingabe korrigiert auf "vor Lauf 1"
+            nDay.Minimum = pk1 && Package.HasBackup(steps, s) && off <= -2 ? 2 : 1;   // erst beim Aendern begrenzen (OffsetEdited), sonst klemmt die Anzeige 1 -> 2
             if (isHead) FillCombo(cbDir, ref dirMode, "head", new string[0], new int[0], ref dirKinds);
+            else if (pkBad) FillCombo(cbDir, ref dirMode, "packenx", new[] { "Tag(e) vor Lauf 1", "am Tag von Lauf 1", "Tag(e) nach Lauf 1" }, new[] { -1, 0, 1 }, ref dirKinds);
             else if (pk1) FillCombo(cbDir, ref dirMode, "packen", new[] { "Tag(e) vor Lauf 1" }, new[] { -1 }, ref dirKinds);
             else if (je) FillCombo(cbDir, ref dirMode, "je", new[] { "Tag(e) vor jedem Lauf", "am Tag jedes Laufs", "Tag(e) nach jedem Lauf" }, new[] { -1, 0, 1 }, ref dirKinds);
             else if (head != null) FillCombo(cbDir, ref dirMode, "lauf", new[] { "Tag(e) vor Lauf 1", "am Tag von Lauf 1", "Tag(e) nach Lauf 1" }, new[] { -1, 0, 1 }, ref dirKinds);
             else FillCombo(cbDir, ref dirMode, "beginn", new[] { "am Beginn", "Tag(e) nach Beginn" }, new[] { 0, 1 }, ref dirKinds);
-            int off = isHead || s.IsBackup ? 0 : OffOf(s);
             int di = Array.IndexOf(dirKinds, off < 0 ? -1 : off > 0 ? 1 : 0);
             if (cbDir.Items.Count > 0) cbDir.SelectedIndex = di < 0 ? 0 : di;
             nDay.Value = Math.Max(nDay.Minimum, Math.Min(nDay.Maximum, Math.Abs(off)));
@@ -264,16 +266,19 @@ namespace Arbeitsplan.Win
             return string.Join("\n", l.ToArray());
         }
 
+        // Packen mit genau einem freien Termin: Bezug/Wiederholung entfallen; alles andere (alte Daten) bleibt bearbeitbar
+        bool PkSimple(PackageStep s) { return IsPacken(s) && !IsJe(s) && s.RunCountFor(pk.Day1) == 1; }
+
         int LayoutWhen(PackageStep s)
         {
             Package p = StepsView(); PackageStep head = p.Head;
             bool isHead = s == head, je = IsJe(s), bk = s.IsBackup, locked = bk || Package.HasBackup(steps, s);
             int rk = RepeatKindOf(s);
-            bool own = !je && !bk && !IsPacken(s);                       // eigenes Raster: Hauptlauf oder eigenes Datum
+            bool own = !je && !bk && !PkSimple(s);                       // eigenes Raster: Hauptlauf oder eigenes Datum
             bool offs = !isHead && !bk;
             bool end = own && !isHead && (rk == 1 || rk == 2);
             int y = gWhen.ContentTop;
-            y = Row(y, head != null && !isHead && !locked && !IsPacken(s), cbBind);
+            y = Row(y, head != null && !isHead && (IsPacken(s) ? !PkSimple(s) : !locked), cbBind);
             lFollow.Text = bk ? "Der Back-Up folgt dem Packen (1 Tag danach)." : (isHead ? "Hauptlauf: gibt den Takt vor. Läufe und Datum von Lauf 1 stehen oben im Kopf."
                 : (head != null && IsPuffer(s) ? (je ? "Jeder Lauf bekommt seinen Puffer; eigener Zeitpunkt je Puffer in der Karte." : "Jeder Termin bedient den nächsten Lauf (siehe „für Lauf n“ unten).") : ""));
             y = Row(y, lFollow.Text.Length > 0, lFollow);
@@ -285,7 +290,7 @@ namespace Arbeitsplan.Win
             lDateNow.Text = !je && first.HasValue ? "→ " + DText(first.Value) : "";
             y = Row(y, offs && !je && first.HasValue, lDateNow);
             y = Row(y, je && more && IsPuffer(s), lEvery, nEvery, lEveryUnit);
-            cbDir.Enabled = !IsPacken(s);
+            cbDir.Enabled = !IsPacken(s) || dirKinds.Length > 1;
             y = Row(y, own, lRepeat, cbRepeat);
             y = Row(y, own && rk == 1, lInterval, nInterval, lIntervalUnit);
             y = Row(y, own && rk == 2, chkDays);

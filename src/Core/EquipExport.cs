@@ -203,10 +203,11 @@ namespace Arbeitsplan.Core
         // ein Produkt im Puffertext (Laufnummer) darf der Kampagne nicht widersprechen.
         static bool Serves(CampaignSpan c, BufferItem b, DateTime d)
         {
-            if (b.LaufRef <= 0) return false;
-            int run = c.FirstNo + b.LaufRef - 1; DateTime rd;
+            int run, n = 0; DateTime rd; bool exact = b.LaufNo.Length == 8 && int.TryParse(b.LaufNo.Substring(4), out n);   // LaufNo hat Vorrang, LaufRef nur fuer alte Daten
+            if (exact) { if (b.LaufNo.Substring(0, 4) != c.Prefix) return false; run = n; }
+            else { if (b.LaufRef <= 0) return false; run = c.FirstNo + b.LaufRef - 1; }
             if (run > c.LastNo || !c.Runs.TryGetValue(run, out rd) || d > rd || (rd - d).Days > 30) return false;
-            foreach (RunRef x in RunNumbers.Find(b.Name + "\n" + BufferSet.Plain(b.Text))) if (x.Product != c.Prefix) return false;
+            if (!exact) foreach (RunRef x in RunNumbers.Find(b.Name + "\n" + BufferSet.Plain(b.Text))) if (x.Product != c.Prefix) return false;
             return true;
         }
 

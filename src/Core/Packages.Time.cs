@@ -73,6 +73,7 @@ namespace Arbeitsplan.Core
         public List<PackageStep> HandNoSteps()
         {
             List<PackageStep> l = new List<PackageStep>();
+            if (Type == PackageType.Ereignis && TypeIsSet) return l;   // Ereignis hat keine Laufnummer von Hand
             foreach (PackageStep s in Steps) if (s.Source == PackenName && !s.IsBackup && !s.IsEmpty) l.Add(s);
             if (l.Count == 0 && Type == PackageType.Einzel)
                 foreach (PackageStep s in Steps) if (!s.IsBackup && !s.IsEmpty) { l.Add(s); break; }

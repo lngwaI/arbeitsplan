@@ -340,6 +340,7 @@ namespace Arbeitsplan.Win
             sb.AppendLine(PackageForm.TestP2Editor(equip, start));
             try { sb.AppendLine(PackageForm.TestP3(equip, start)); } catch (Exception ex) { sb.AppendLine("P3: FEHLER " + ex.GetType().Name + ": " + ex.Message + "\n" + ex.StackTrace); }
             try { sb.AppendLine(PackageForm.TestP1b(equip, start)); } catch (Exception ex) { sb.AppendLine("P1b: FEHLER " + ex.GetType().Name + ": " + ex.Message + "\n" + ex.StackTrace); }
+            try { sb.AppendLine(PackageForm.TestP7(equip, start)); } catch (Exception ex) { sb.AppendLine("P7: FEHLER " + ex.GetType().Name + ": " + ex.Message + "\n" + ex.StackTrace); }
             try { sb.AppendLine(PackageForm.TestP6(equip, start)); } catch (Exception ex) { sb.AppendLine("P6: FEHLER " + ex.GetType().Name + ": " + ex.Message + "\n" + ex.StackTrace); }
         }
 
