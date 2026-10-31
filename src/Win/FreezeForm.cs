@@ -43,7 +43,7 @@ namespace Arbeitsplan.Win
         {
             ch = choice; it = ch.Item;
             Text = ch.IsNew ? "Freeze hinzufügen" : ch.ReadOnly ? "Freeze ansehen" : "Freeze bearbeiten";
-            Ui.Dialog(this, 780, 650, false);
+            Ui.Dialog(this, 780, 680, false);
             Theme th = Theme.Current;
 
             rBag.Text = "&Bag-Freeze"; rBag.SetBounds(LblX, 12, 120, 24); rBag.Checked = it.Art == FreezeArt.Bag; Place(rBag);
@@ -66,7 +66,7 @@ namespace Arbeitsplan.Win
             lbDur.SetBounds(LblX, Row(3), LblW, 20); lbDur.AutoSize = false; Place(lbDur);
             Hours(nDur, Row(3)); Place(nDur); Hint("Stunden", 3);
             Label ab = Lbl("Z&eit zwischen zwei Zyklen:", 4); Hours(nGap, Row(4)); Place(nGap); Label abh = Hint("Std. je Anlage", 4); abh.Width = 98;
-            Label an = Lbl("&Anzahl Zyklen:", 5); nCnt.Minimum = 1; nCnt.Maximum = FreezeCalc.MaxCycles; nCnt.SetBounds(FldX, Row(5) - 2, 70, 24); Place(nCnt); Label anh = Hint("1 bis " + FreezeCalc.MaxCycles + ", Anlagen reihum", 5); anh.Width = 200;
+            Label an = Lbl("&Anzahl Zyklen:", 5); nCnt.Minimum = 1; nCnt.Maximum = FreezeCalc.MaxCycles; nCnt.SetBounds(FldX, Row(5) - 2, 70, 24); Place(nCnt); Label anh = Hint("1 bis " + FreezeCalc.MaxCycles + ", Anlagen reihum", 5); anh.Width = RFldX - HintX - 4;
             bagOnly.AddRange(new Control[] { ab, nGap, abh, an, nCnt, anh });
             lbEnd.Text = "Ende:"; lbEnd.SetBounds(LblX, Row(4), LblW, 20); lbEndV.SetBounds(FldX, Row(4), 260, 20); Controls.Add(lbEnd); Controls.Add(lbEndV);
             tankOnly.AddRange(new Control[] { lbEnd, lbEndV });
@@ -78,11 +78,15 @@ namespace Arbeitsplan.Win
             RLbl("Tank &wählen:", 3); cPick.SetBounds(RFldX, Row(3) - 2, RFldW, 24); cPick.DropDownStyle = ComboBoxStyle.DropDownList; cPick.Items.Add("(aus Katalog hinzufügen)");
             foreach (string t in ch.Tanks) cPick.Items.Add(t);
             cPick.SelectedIndex = 0; Place(cPick);
-            RLbl("&Notiz:", 4); tNote.SetBounds(RFldX, Row(4) - 2, RFldW, 54); tNote.Multiline = true; tNote.AcceptsReturn = true; tNote.ScrollBars = ScrollBars.Vertical; Ui.SimpleMenu(tNote); Place(tNote);
+            RLbl("&Notiz:", 4); tNote.SetBounds(RFldX, Row(4) - 2, RFldW, 66); tNote.Multiline = true; tNote.AcceptsReturn = true; tNote.ScrollBars = ScrollBars.Vertical; Ui.SimpleMenu(tNote); Place(tNote);
 
             lbCycles.Text = "Zyklen – unter „tatsächlicher Start“ eine Zeit eintragen: Folge-Zyklen derselben Anlage ziehen nach."; lbCycles.SetBounds(LblX, 240, 756, 18); lbCycles.AutoSize = false; Controls.Add(lbCycles);
-            BuildGrid(258);
-            lbHint.SetBounds(LblX, 566, 756, 40); lbHint.AutoSize = false; Controls.Add(lbHint);
+            Label lq = new Label(); lq.Text = "Namen vergeben:"; lq.AutoSize = false; lq.SetBounds(LblX, 262, 110, 20); Controls.Add(lq);
+            cQuick.DropDownStyle = ComboBoxStyle.DropDownList; cQuick.SetBounds(LblX + 112, 258, 170, 24); cQuick.Items.AddRange(new object[] { "(Schnellbelegung)", "Z1, Z2, Z3 …", "A, B, C …", "1, 2, 3 …" });
+            cQuick.SelectedIndex = 0; cQuick.SelectionChangeCommitted += delegate { QuickNames(cQuick.SelectedIndex); cQuick.SelectedIndex = 0; }; Controls.Add(cQuick);
+            bagOnly.AddRange(new Control[] { lq, cQuick });
+            BuildGrid(286);
+            lbHint.SetBounds(LblX, 594, 756, 40); lbHint.AutoSize = false; Controls.Add(lbHint);
 
             bRemove.Text = "Entfernen"; bRemove.Width = 90; bRemove.Height = 30; bRemove.Visible = !ch.IsNew && !ch.ReadOnly; bRemove.Click += delegate { Remove(); }; Place(bRemove);
             bOk.Text = "Speichern"; bOk.Width = 100; bOk.Height = 30; bOk.Visible = !ch.ReadOnly; bOk.Click += delegate { Accept(); }; Place(bOk);
@@ -166,7 +170,7 @@ namespace Arbeitsplan.Win
             foreach (Control c in tankOnly) c.Visible = !bag;
             lbDur.Text = bag ? "&Dauer je Zyklus:" : "&Dauer:";
             lbCycles.Visible = grid.Visible = bag;
-            int hy = bag ? 566 : 240, by = bag ? 612 : 288;
+            int hy = bag ? 594 : 240, by = bag ? 640 : 288;
             lbHint.Top = hy; lbHint.Height = bag ? 40 : 40;
             bRemove.SetBounds(LblX, by, 90, 30); bCancel.SetBounds(668, by, 100, 30); bOk.SetBounds(560, by, 100, 30);
             ClientSize = new Size(780, by + 42);

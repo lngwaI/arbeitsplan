@@ -43,7 +43,7 @@ namespace Arbeitsplan.Win
                 Entry e = h.EntryFor(2, p.Prefix);
                 string[] lines = e.Content.Split('\n');
                 bool okOut = lines.Length == 4 && lines[1] == "Eins" && lines[2] == "Zwei" && lines[3] == "PA 40010003" && Notes.NoteTexts(e).Count == 2
-                    && e.Spans.Exists(delegate(FormatSpan s) { return !s.Note && s.Start == e.Content.Length - 11 && s.Length == 11; });
+                    && e.Spans.Exists(delegate(FormatSpan s) { return s.Start == e.Content.Length - 11 && s.Length == 11; });
                 sb.AppendLine("E2 Kennung: Start+1=" + K(okAuto) + " Ausfall/Aussetzen im XML=" + K(okXml) + " Notizen+Kennungszeile=" + K(okOut) + " Katalog NoteTemplate=" + K(okCat));
             }
             catch (Exception ex) { sb.AppendLine("E2 Kennung: FEHLER " + ex.GetType().Name + ": " + ex.Message); }

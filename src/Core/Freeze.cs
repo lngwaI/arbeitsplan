@@ -55,6 +55,13 @@ namespace Arbeitsplan.Core
         public int DauerMin = 360, AbstandMin = 420, Cycles = 14;      // Abstand = Zeit zwischen zwei Cycles je Anlage
         public SortedDictionary<int, DateTime> Ist = new SortedDictionary<int, DateTime>();   // Cycle -> tatsaechlicher Start
         public string MainRef = "", SubNo = "", Tanks = "", Note = ""; // Hauptlauf (8 Stellen), Unterlauf (8 Stellen oder leer), Tanks (Komma-Liste)
+        public string CycleNames = "";                                 // Namen der Zyklen, "|"-getrennt (leer/fehlend = "Z"+N)
+
+        public string CycleName(int n)
+        {
+            string[] a = CycleNames.Split('|');
+            return n >= 1 && n <= a.Length && a[n - 1].Trim().Length > 0 ? a[n - 1].Trim() : "Z" + n;
+        }
 
         public FreezeItem Clone()
         {
@@ -74,7 +81,7 @@ namespace Arbeitsplan.Core
             foreach (DateTime d in Start1to3) sb.Append(FreezeCalc.Fmt(d)).Append(',');
             sb.Append('|').Append(DauerMin).Append('|').Append(AbstandMin).Append('|').Append(Cycles).Append('|');
             foreach (KeyValuePair<int, DateTime> kv in Ist) sb.Append(kv.Key).Append('=').Append(FreezeCalc.Fmt(kv.Value)).Append(',');
-            sb.Append('|').Append(MainRef).Append('|').Append(SubNo).Append('|').Append(Tanks).Append('|').Append(Note);
+            sb.Append('|').Append(MainRef).Append('|').Append(SubNo).Append('|').Append(Tanks).Append('|').Append(Note).Append('|').Append(CycleNames);
             return sb.ToString();
         }
         public bool SameValue(FreezeItem o) { return o != null && Core() == o.Core(); }
@@ -92,7 +99,7 @@ namespace Arbeitsplan.Core
         public bool HasIst, Estimated;   // tatsaechlicher Start eingetragen / Start aus Cycle 1 geschaetzt (C2/C3 ohne Eingabe)
         public DateTime OriginDay = DateTime.MinValue;   // nur Fortsetzungen: Tag des Blocks mit dem Vorgang (FreezeSet.Continuations)
         public DateTime Day { get { return Actual.Date; } }   // ein Cycle gehoert zum Kalendertag seines Starts
-        public string Label { get { return "Z" + N; } }
+        public string Label { get { return Item.CycleName(N); } }
     }
 
     public static class FreezeCalc
@@ -167,7 +174,7 @@ namespace Arbeitsplan.Core
                 {
                     DateTime e;
                     if (f.Ist.TryGetValue(n, out e) && e < Actual(f, n - Anlagen).AddMinutes(f.DauerMin))
-                        h.Add("Z" + n + " startet vor dem Ende von Z" + (n - Anlagen) + " (gleiche Anlage).");
+                        h.Add(f.CycleName(n) + " startet vor dem Ende von " + f.CycleName(n - Anlagen) + " (gleiche Anlage).");
                 }
             return h;
         }

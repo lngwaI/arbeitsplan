@@ -13,12 +13,10 @@ namespace Arbeitsplan.Core
         public int Start, Length, Rgb;      // Rgb 0xRRGGBB
         public float Size;                  // Punkt; 0 = Standardgroesse
         public bool Bold, Italic;
-        public bool Note;                   // Notizzeile (immer ganze Zeilen, zusaetzlich Italic), zaehlt nicht als Inhalt
-        public bool NoteWasItalic;          // nur bei Note: Zeile war vor der Markierung manuell kursiv (Aufheben stellt es wieder her)
         public string Font;                 // null = Standardschrift
 
         public FormatSpan Clone() { return (FormatSpan)MemberwiseClone(); }
-        public string Key() { return Start + "," + Length + "," + Rgb + "," + Size + "," + Bold + "," + Italic + "," + Font + (Note ? ",N" : "") + (Note && NoteWasItalic ? "o" : "") + ";"; }
+        public string Key() { return Start + "," + Length + "," + Rgb + "," + Size + "," + Bold + "," + Italic + "," + Font + ";"; }
     }
 
     public class Entry   // Inhalt eines Blocks (Tag x Zeile)
