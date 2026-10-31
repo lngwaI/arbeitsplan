@@ -124,7 +124,7 @@ namespace Arbeitsplan.Core
                     {
                         if (Steps[main].Skips(r)) continue;
                         if (ord++ % Math.Max(1, s.RunEvery) != 0) continue;
-                        int own = 0; if (s.IsBuffer) s.Shift.TryGetValue(r, out own);   // Puffer: eigener Abstand je Lauf (DragRun "nur dieser Lauf")
+                        int own; s.Shift.TryGetValue(r, out own);   // eigener Abstand je Lauf (DragRun "nur dieser Lauf")
                         RunDate d = new RunDate(); d.Step = i; d.Run = r; d.Group = r; d.Day = mainDay[r] + shift[r] + s.RunOffset + own;
                         d.Label = s.Label(Prefix, r); d.Row = s.Row;
                         res.Add(d);

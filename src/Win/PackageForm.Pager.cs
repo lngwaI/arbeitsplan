@@ -64,7 +64,7 @@ namespace Arbeitsplan.Win
                 RunDate d = curDates[ix];
                 BlockPreview.Card c = new BlockPreview.Card();
                 c.Room = cur.Row.Length > 0 ? cur.Row : "Raum fehlt"; c.Missing = cur.Row.Length == 0;
-                c.Day = RelOf(cur, d) + (!IsJe(cur) && cur.Pinned(d.Run) ? " (verschoben)" : "");
+                c.Day = RelOf(cur, d) + (cur.Pinned(d.Run) ? " (verschoben)" : "");
                 Package pv = StepsView(); List<RunDate> plan = Plan();
                 c.Data = cur.EntryFor(d.Run, prefix); pv.WithCode(c.Data.Buffers);   // Puffernamen mit Produktcode wie im Plan
                 if (cur.Freeze != null && RowIsFreeze(cur)) { c.Data = pv.FreezeRest(cur, d.Run); string fh = PlanView.FreezeHead(pv.FreezeFor(cur, d.Run, pv.LaufOf(plan, d) + 1, DateTime.Today, pv.Day1)); c.Data.Content = c.Data.Content.Length > 0 ? c.Data.Content + "\n" + fh : fh; }

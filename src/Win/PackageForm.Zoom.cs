@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Windows.Forms;
@@ -83,7 +83,7 @@ namespace Arbeitsplan.Win
         readonly Label lZoom = new Label(), stripMsg = new Label();
         readonly CheckBox chOnly = new CheckBox();
         readonly System.Windows.Forms.Timer msgTimer = new System.Windows.Forms.Timer();
-        const string DragHint = "Ziehen: dieser und alle folgenden Läufe · Umschalt: nur dieser Lauf";
+        const string DragHint = "Ziehen: nur dieser Block · Umschalt: dieser und alle folgenden";
 
         Control BuildStripBar()
         {
@@ -91,16 +91,18 @@ namespace Arbeitsplan.Win
             int h = stripBar.Height - 4, x = 2;
             foreach (Button b in new[] { bUndo, bRedo, bZoomOut, bZoomIn, bStepPrev, bStepNext }) { b.TabStop = false; b.Tag = "keep"; b.Font = Font; }
             bUndo.Text = "↶"; bRedo.Text = "↷"; bZoomOut.Text = "−"; bZoomIn.Text = "+"; bStepPrev.Text = "◀"; bStepNext.Text = "▶";
-            bUndo.SetBounds(x, 2, 28, h); bRedo.SetBounds(x += 30, 2, 28, h);
-            bZoomOut.SetBounds(x += 38, 2, 28, h);
-            lZoom.AutoSize = false; lZoom.TextAlign = ContentAlignment.MiddleCenter; lZoom.Tag = "keep"; lZoom.SetBounds(x += 30, 2, 8 * Font.Height / 2 + 36, h);
-            bZoomIn.SetBounds(x += lZoom.Width + 2, 2, 28, h);
-            chOnly.Text = "nur Auswahl"; chOnly.AutoSize = true; chOnly.Tag = "keep"; chOnly.Location = new Point(x += 38, 2 + (h - chOnly.PreferredSize.Height) / 2);
-            bStepPrev.SetBounds(x += chOnly.PreferredSize.Width + 6, 2, 28, h); bStepNext.SetBounds(x += 30, 2, 28, h);
+            bUndo.SetBounds(x, 2, 26, h); bRedo.SetBounds(x += 28, 2, 26, h);
+            bZoomOut.SetBounds(x += 34, 2, 26, h);
+            lZoom.AutoSize = false; lZoom.TextAlign = ContentAlignment.MiddleCenter; lZoom.Tag = "keep"; lZoom.SetBounds(x += 28, 2, TextRenderer.MeasureText("2 Wochen", Font).Width + 14, h);
+            bZoomIn.SetBounds(x += lZoom.Width + 2, 2, 26, h);
+            chOnly.Text = "nur Auswahl"; chOnly.AutoSize = true; chOnly.Tag = "keep"; chOnly.Location = new Point(x += 32, 2 + (h - chOnly.PreferredSize.Height) / 2);
+            bStepPrev.SetBounds(x += chOnly.PreferredSize.Width + 4, 2, 26, h); bStepNext.SetBounds(x += 28, 2, 26, h);
             stripMsg.AutoEllipsis = true; stripMsg.TextAlign = ContentAlignment.MiddleLeft; stripMsg.Tag = "keep"; stripMsg.ForeColor = Color.Firebrick;
+            InitBig(); InitRhythm();
             stripMsg.SetBounds(x += 34, 2, 100, h); stripMsg.Anchor = TLR;
-            stripBar.Controls.AddRange(new Control[] { bUndo, bRedo, bZoomOut, lZoom, bZoomIn, chOnly, bStepPrev, bStepNext, stripMsg });
-            stripBar.Resize += delegate { stripMsg.Width = Math.Max(0, stripBar.ClientSize.Width - stripMsg.Left - 4); };
+            stripBar.Controls.AddRange(new Control[] { bUndo, bRedo, bZoomOut, lZoom, bZoomIn, chOnly, bStepPrev, bStepNext, bBig, bRhythm, stripMsg });
+            stripBar.Resize += delegate { LayoutBarEnd(h); };
+            LayoutBarEnd(h);
             msgTimer.Interval = 9000; msgTimer.Tick += delegate { msgTimer.Stop(); Say(""); };
             bZoomOut.Click += delegate { strip.Zoom = strip.Zoom + 1; }; bZoomIn.Click += delegate { strip.Zoom = strip.Zoom - 1; };
             strip.ZoomChanged += UpdateStripBar;
@@ -113,6 +115,17 @@ namespace Arbeitsplan.Win
             InitUndoButtons();
             UpdateStripBar();
             return stripBar;
+        }
+
+        // "Groß" und "Puffer-Rhythmus…" hinter ◀ ▶, danach die Rueckmeldung; in schmaler Leiste heisst der zweite Knopf kurz "Rhythmus"
+        void LayoutBarEnd(int h)
+        {
+            int x = bStepNext.Right + 4, bw = TextRenderer.MeasureText("Klein", Font).Width + 14;
+            int full = TextRenderer.MeasureText("Puffer-Rhythmus…", Font).Width + 14, shrt = TextRenderer.MeasureText("Rhythmus", Font).Width + 14;
+            bool wide = stripBar.ClientSize.Width - (x + bw + 4) >= full + 110;
+            bRhythm.Text = wide ? "Puffer-Rhythmus…" : "Rhythmus";
+            bBig.SetBounds(x, 2, bw, h); bRhythm.SetBounds(bBig.Right + 4, 2, wide ? full : shrt, h);
+            stripMsg.SetBounds(bRhythm.Right + 6, 2, Math.Max(0, stripBar.ClientSize.Width - bRhythm.Right - 10), h);
         }
 
         // Zustand der Knoepfe: Zoom-Grenzen, ◀ ▶ nur mit "nur Auswahl" und wenn es einen vorigen/naechsten Schritt gibt

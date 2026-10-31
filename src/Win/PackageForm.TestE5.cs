@@ -38,7 +38,7 @@ namespace Arbeitsplan.Win
 
                 // Tooltip: voller Titel, Datum/Bezug, Lauf, Schloss, Bedienung
                 string tipText = f.StripTip(f.ItemOf(lauf, 3));
-                bool tipOk = tipText.Contains(TitleOf(lauf)) && tipText.Contains("Lauf 4 von 4") && tipText.Contains("Ziehen: dieser und alle folgenden Läufe · Umschalt: nur dieser Lauf") && tipText.Contains("Schloss")
+                bool tipOk = tipText.Contains(TitleOf(lauf)) && tipText.Contains("Lauf 4 von 4") && tipText.Contains("Ziehen: nur dieser Block · Umschalt: dieser und alle folgenden") && tipText.Contains("Schloss")
                     && !f.StripTip(f.ItemOf(lauf, 0)).Contains("Schloss") && f.StripTip(f.ItemOf(misch, 1)).Contains("alle Läufe") && f.strip.TipFor != null;
 
                 // Zuruecksetzen: ein Lauf (Menue-Weg), dann alle
@@ -47,11 +47,16 @@ namespace Arbeitsplan.Win
                 f.ResetRun(lauf, -1); Application.DoEvents();
                 reset &= DaysOf2(lauf) == baseDays && lauf.Move.Count == 0 && !f.ItemOf(lauf, 1).Shifted;
 
-                // Ablehnung: Lauf 2 auf den Tag von Lauf 1 = zwei Hauptlaeufe am selben Tag im Block
+                // Gleicher Tag von Hand: wird verschoben, die Pruefliste zeigt nur einen Hinweis ("von Hand gesetzt"), keine Sperre
                 f.MoveInCalendar(lauf, 1, 3, false); Application.DoEvents();
-                bool reject = DaysOf2(lauf) == baseDays && lauf.Move.Count == 0 && f.stripMsg.Text.Contains("Hauptläufe") && f.stripMsg.Text.Contains("Nicht verschoben");
-                f.MoveInCalendar(lauf, 1, 15, true); Application.DoEvents();   // Umschalt auf Lauf 3: ebenfalls
-                reject &= DaysOf2(lauf) == baseDays && lauf.Shift.Count == 0;
+                List<PackageProblem> clash = f.StepsView().Check();
+                bool reject = DaysOf2(lauf) == "3,3,9,15" && lauf.Move.Count == 1 && f.stripMsg.Text.Length == 0 && P1Has(clash, "gleichtag", Severity.Hinweis)
+                    && clash.Exists(delegate(PackageProblem cp) { return cp.Code == "gleichtag" && cp.Text.Contains("von Hand gesetzt"); }) && !Package.HasBlock(clash);
+                f.ResetRun(lauf, -1);
+                f.MoveInCalendar(lauf, 1, 15, true); Application.DoEvents();   // nur dieser Lauf auf den Tag von Lauf 3: ebenfalls Hinweis
+                reject &= DaysOf2(lauf) == "3,15,15,21" && lauf.Shift.Count == 1 && P1Has(f.StepsView().Check(), "gleichtag", Severity.Hinweis) && !Package.HasBlock(f.StepsView().Check());
+                f.ResetRun(lauf, -1);
+                reject &= DaysOf2(lauf) == baseDays;
                 f.MoveInCalendar(lauf, 1, 10, false); Application.DoEvents();
                 reject &= DaysOf2(lauf) == "3,10,16,22" && f.stripMsg.Text.Length == 0;
                 f.ResetRun(lauf, -1);
@@ -124,7 +129,7 @@ namespace Arbeitsplan.Win
                 only &= f.strip.RowNames().Count == allRows && !f.bStepPrev.Enabled;
 
                 return "Paket-Editor Kalender: Ziehen ab Lauf (Move) mit Schloss " + T(drag) + ", Umschalt nur dieser Lauf " + T(shift) + ", Tooltip " + T(tipOk) + ", Zurücksetzen " + T(reset)
-                    + ", gleicher Tag abgelehnt " + T(reject) + ", feste Läufe bei Regeländerung " + T(pin) + ", Rückgängig/Wiederholen " + T(undo) + ", 50er Grenze " + T(lim)
+                    + ", gleicher Tag nur Hinweis " + T(reject) + ", feste Läufe bei Regeländerung " + T(pin) + ", Rückgängig/Wiederholen " + T(undo) + ", 50er Grenze " + T(lim)
                     + ", Zoom " + T(zoom) + ", nur Auswahl " + T(only);
             }
             catch (Exception ex) { return "Paket-Editor Kalender: FEHLER " + ex.GetType().Name + ": " + ex.Message + " " + ex.StackTrace.Split('\n')[0]; }

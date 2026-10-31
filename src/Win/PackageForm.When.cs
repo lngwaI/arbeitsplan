@@ -60,6 +60,7 @@ namespace Arbeitsplan.Win
             tip.SetToolTip(tDays, "Tage nach Beginn des Ablaufs, an denen der Schritt stattfindet (1 = erster Termin-Tag); die Termine stehen darunter");
 
             BuildWhenPuf();
+            gWhen.Controls.Add(bRhythmWhen); bRhythmWhen.SetBounds(8, 0, 140, IH);
             nDay.ValueChanged += delegate { OffsetEdited(); };
             cbDir.SelectedIndexChanged += delegate { OffsetEdited(); };
             cbBind.SelectedIndexChanged += delegate { BindEdited(); };
@@ -258,11 +259,11 @@ namespace Arbeitsplan.Win
             List<string> l = new List<string>();
             l.Add(StepsView().RunsText(s));
             bool je = IsJe(s);
-            for (int i = 0; i < mine.Count && i < 3; i++) l.Add(RelOf(s, mine[i], plan) + (!je && s.Shifted(mine[i].Run) ? "*" : ""));
+            for (int i = 0; i < mine.Count && i < 3; i++) l.Add(RelOf(s, mine[i], plan) + (s.Shifted(mine[i].Run) ? "*" : ""));
             if (StepsView().CardsSplit(s, pk.Day1))   // UX-5c: eigener Versatz je Karte
                 foreach (int dl in s.CardDeltas()) l.Add(StepsView().CardNames(s, dl) + ": " + CardOffText(s.RunOffset + dl));
             if (mine.Count > 3) l.Add("… " + (mine.Count - 3) + " weitere (siehe Kalender)");
-            if (!je && s.Shift.Count > 0) l.Add("* = einzeln verschoben");
+            if (s.Shift.Count > 0) l.Add("* = einzeln verschoben");
             return string.Join("\n", l.ToArray());
         }
 
@@ -302,6 +303,7 @@ namespace Arbeitsplan.Win
             string dt = DatesText(s);
             lDates.Text = dt; lDates.Height = (dt.Split('\n').Length) * Font.Height + 2; tip.SetToolTip(lDates, dt);
             y = Row(y, true, lDates);
+            y = Row(y, head != null && IsPuffer(s), bRhythmWhen);
             y = LayoutPufTable(y, s);
             y = Row(y, more && s.Numbered, lStartNo, nStartNo, lNoEx);
             lStartNo.Text = s.Kind != StepKind.Normal ? "Laufnummer ab:" : "Erste Nummer:";

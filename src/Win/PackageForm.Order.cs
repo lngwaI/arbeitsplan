@@ -8,7 +8,7 @@ namespace Arbeitsplan.Win
 {
     // Paket-Editor: Reihenfolge und Termine aendern, ohne die Ansicht neu aufzubauen. Ablaufliste: ▲/▼, Alt+Hoch/Runter und Ziehen
     // (Einfuegelinie, auch bis ans Ende); Auswahl bleibt auf dem verschobenen Schritt. Kalender (PlanStrip): Block auf einen anderen
-    // Tag ziehen = dieser und alle folgenden Laeufe (Move), mit Umschalt = nur dieser Lauf (Shift); verschobene Laeufe sind fest (Schloss)
+    // Tag ziehen = nur dieser Lauf (Shift), mit Umschalt = dieser und alle folgenden (Move); verschobene Laeufe sind fest (Schloss)
     // und bleiben bei Regelaenderungen an ihrem Tag (Repin); Rechtsklick-Menue fuer dasselbe tageweise und zum Zuruecksetzen.
     partial class PackageForm
     {
@@ -190,8 +190,8 @@ namespace Arbeitsplan.Win
 
         // ---------- Kalender ----------
 
-        // Block im Kalender auf toDay gezogen: dieser und alle folgenden Laeufe (der erste Lauf = ganzer Schritt) oder (onlyRun) nur dieser Lauf.
-        // Vorher wird auf einer Kopie geprueft (Package.Check, Regel E4): entstuenden zwei Hauptlaeufe am selben Tag im selben Block, passiert nichts.
+        // Block im Kalender auf toDay gezogen: nur dieser Lauf (onlyRun) oder dieser und alle folgenden (der erste Lauf = ganzer Schritt).
+        // Vorher wird auf einer Kopie geprueft, ob der Termin moeglich ist; Regelverstoesse zeigt danach die Pruefliste (feste Laeufe nur als Hinweis).
         void MoveInCalendar(PackageStep s, int run, int toDay, bool onlyRun)
         {
             CommitUndo();
@@ -202,22 +202,11 @@ namespace Arbeitsplan.Win
             Package trial = StepsView().Clone();
             if (!trial.DragRun(trial.Steps[si], run, delta, onlyRun))
             {
-                Say(onlyRun && IsJe(s) && !s.IsBuffer ? "Dieser Schritt folgt dem Hauptlauf – er lässt sich nur für alle Läufe verschieben." : "Nicht verschoben: Dort ist kein Termin möglich (vor dem ersten Tag oder Versatz zu groß).");
+                Say("Nicht verschoben: Dort ist kein Termin möglich (vor dem ersten Tag oder Versatz zu groß).");
                 return;
             }
-            string clash = NewClash(StepsView(), trial);
-            if (clash != null) { Say("Nicht verschoben: " + clash); return; }
             if (!StepsView().DragRun(s, run, delta, onlyRun)) return;
             Say(""); nextRun = run; AfterMove(s);
-        }
-
-        // Erste Sperre "Zwei Hauptläufe am selben Tag", die nur nach dem Verschieben besteht; null = keine neue
-        static string NewClash(Package before, Package after)
-        {
-            List<string> old = new List<string>();
-            foreach (PackageProblem p in before.Check()) if (p.Code == "gleichtag") old.Add(p.Text);
-            foreach (PackageProblem p in after.Check()) if (p.Code == "gleichtag" && !old.Contains(p.Text)) return p.Text;
-            return null;
         }
 
         // Verschiebung(en) entfernen: run >= 0 = nur dieser Lauf (Move und Shift), -1 = alle des Schritts
@@ -237,14 +226,13 @@ namespace Arbeitsplan.Win
             string who = many && run > 0 && !je ? "Diesen und alle folgenden Läufe" : (je ? "Alle Läufe" : "Ganzen Schritt");
             stripMenu.Items.Add(who + " 1 Tag früher", null, delegate { MoveInCalendar(s, run, day - 1, false); });
             stripMenu.Items.Add(who + " 1 Tag später", null, delegate { MoveInCalendar(s, run, day + 1, false); });
-            bool single = !je || s.IsBuffer;   // Puffer "zu jedem Lauf": eigener Abstand je Lauf
-            if (many && single)
+            if (many)
             {
                 stripMenu.Items.Add(new ToolStripSeparator());
                 stripMenu.Items.Add("Nur diesen Lauf 1 Tag früher", null, delegate { MoveInCalendar(s, run, day - 1, true); }).Enabled = day > 1;
                 stripMenu.Items.Add("Nur diesen Lauf 1 Tag später", null, delegate { MoveInCalendar(s, run, day + 1, true); });
             }
-            if (single && s.Shift.Count + s.Move.Count > 0)
+            if (s.Shift.Count + s.Move.Count > 0)
             {
                 stripMenu.Items.Add(new ToolStripSeparator());
                 stripMenu.Items.Add("Diesen Lauf auf Regel zurücksetzen", null, delegate { ResetRun(s, run); }).Enabled = s.Pinned(run);

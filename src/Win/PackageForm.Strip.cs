@@ -9,7 +9,7 @@ namespace Arbeitsplan.Win
     // Kalender der Kampagne als Mini-Arbeitsplan ohne Details: links je Raum eine Zeile (Reihenfolge wie im Plan, Raeume ohne Schritt
     // ausgeblendet), Spalten = Tage (Kopf: Datum bzw. "3 Tage vor Lauf 1"), je Schritt ein Kaestchen (Name + Laufnummer) in Raum und Tag.
     // Kopf und Raumnamen bleiben beim Scrollen stehen. Der gewaehlte Schritt ist blau (sein gewaehlter Lauf kraeftig umrandet), Klick waehlt,
-    // Ziehen auf einen anderen Tag verschiebt diesen und alle folgenden Laeufe (Umschalt = nur dieser Lauf), von Hand verschobene Laeufe
+    // Ziehen auf einen anderen Tag verschiebt nur diesen Block (Umschalt = dieser und alle folgenden), von Hand verschobene Laeufe
     // tragen ein Schloss, Rechtsklick = Menue (Maus: PackageForm.StripMouse.cs; Zoom, "nur Auswahl", Tooltip: PackageForm.Zoom.cs).
     partial class PlanStrip : Control
     {

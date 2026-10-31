@@ -68,9 +68,12 @@ namespace Arbeitsplan.Win
             bool d2 = lauf.Pinned(1) && lauf.Pinned(2) && lauf.ResetMoves() && DaysOf(lauf) == base0 && !lauf.ResetMoves();
             // Grenzen: vor Tag 1, erster Lauf = ganzer Schritt, einzelner Lauf; JeLauf nie einzeln
             bool e = !p.DragRun(lauf, 1, -20, false) && DaysOf(lauf) == base0 && p.DragRun(lauf, 0, 1, false) && DaysOf(lauf) == "4,10,16,22" && lauf.Move.Count == 0 && lauf.Shift.Count == 0;
-            bool f = !p.DragRun(misch, 1, 1, true) && misch.Shift.Count == 0 && p.DragRun(misch, 1, 1, false) && misch.RunOffset == 2;
+            int mDay = p.Schedule().Find(delegate(RunDate d) { return d.Step == 3 && d.Run == 1; }).Day;
+            bool f = p.DragRun(misch, 1, 1, true) && misch.Shift.Count == 1 && misch.Pinned(1) && misch.RunOffset == 1   // JeLauf einzeln: nur dieser Lauf wandert
+                && p.Schedule().Find(delegate(RunDate d) { return d.Step == 3 && d.Run == 1; }).Day == mDay + 1 && misch.ResetRun(1) && misch.Shift.Count == 0
+                && p.DragRun(misch, 1, 1, false) && misch.RunOffset == 2;   // alle Laeufe: Versatz zum Lauf
             sb.AppendLine("E5 Kern: Move ab Lauf " + K(a) + " JeLauf folgt " + K(follow) + " Shift nur dieser " + K(b) + " addiert " + K(c) + " XML-Rundreise " + K(rt)
-                + " Zurücksetzen " + K(d1 && d2) + " Grenzen " + K(e) + " JeLauf nur ganz " + K(f));
+                + " Zurücksetzen " + K(d1 && d2) + " Grenzen " + K(e) + " JeLauf einzeln und ganz " + K(f));
         }
     }
 }

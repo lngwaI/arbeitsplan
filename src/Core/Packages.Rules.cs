@@ -30,6 +30,7 @@ namespace Arbeitsplan.Core
                 case "gleichtag": return "Zwei Hauptläufe am selben Tag und Raum";
                 case "planlauf": return "Hauptlauf liegt schon im Plan";
                 case "puffer": return "Mehr Puffer-Termine als Produktläufe";
+                case "pufrhythmus": return "Puffer-Rhythmus endet vor dem letzten Lauf";
                 case "pufnach": return "Puffer liegt nach dem Lauf, den er bedient";
                 case "pufdoppelt": return "Gerät in zwei Puffern am selben Tag";
                 case "puffer-produkt": return "Puffer verschiedener Produkte zu nah beieinander";
@@ -126,7 +127,7 @@ namespace Arbeitsplan.Core
                 int first = int.MaxValue;
                 foreach (RunDate d in runs) first = Math.Min(first, d.Day);
                 CheckSameDay(res, plan, main, runs, start, store != null || Lauf1.HasValue);
-                CheckBuffers(res, plan, head.RunCountFor(d1));
+                CheckBuffers(res, plan, head.RunCountFor(d1), main);
                 CheckPufferAfter(res, plan, d1);
                 CheckSubRuns(res, plan, main, runs);
                 CheckPackenTag(res, plan, main, start, store != null || Lauf1.HasValue);   // Packages.RulesPacken.cs
@@ -162,21 +163,40 @@ namespace Arbeitsplan.Core
                 {
                     PackageProblem p = Add(res, Severity.Sperre, "gleichtag", "Lauf " + (o.Run + 1) + " und Lauf " + (d.Run + 1) + " liegen beide am " + DayLabel(d.Day, start, known) + " in " + (d.Row.Length > 0 ? d.Row : Steps[main].Row) + " (zwei Hauptläufe am selben Tag nicht erlaubt)", main, d.Run);
                     p.Step2 = main; p.Run2 = o.Run; p.Action = "einen der beiden Läufe auf einen anderen Tag oder Raum legen";
+                    Hand(p, main, d.Run, main, o.Run);
                 }
                 else seen[k] = d;
             }
         }
 
-        // Freie Puffer-Schritte: nicht mehr Termine als Laeufe geplant sind (JeLauf und "reicht fuer n Laeufe" erfuellen es von selbst)
-        void CheckBuffers(List<PackageProblem> res, List<RunDate> plan, int planned)
+        // Von Hand gesetzter Lauf (PackageStep.Pinned): der Verstoss bleibt sichtbar, sperrt aber nicht
+        PackageProblem Hand(PackageProblem p, int step, int run, int step2 = -1, int run2 = -1)
         {
+            bool pin = (step >= 0 && step < Steps.Count && Steps[step].Pinned(run)) || (step2 >= 0 && step2 < Steps.Count && Steps[step2].Pinned(run2));
+            if (pin) { p.Severity = Severity.Hinweis; p.Text += " – von Hand gesetzt"; }
+            return p;
+        }
+
+        // Freie Puffer-Schritte: nicht mehr Termine als Laeufe geplant sind (JeLauf und "reicht fuer n Laeufe" erfuellen es von selbst).
+        // Tagesliste (Rhythmus) ist nur ein Hinweis; deckt sie den letzten Lauf nicht ab, ebenfalls (Kampagnenstart mit mehr Laeufen).
+        void CheckBuffers(List<PackageProblem> res, List<RunDate> plan, int planned, int main)
+        {
+            List<int> runDays = new List<int>();
+            foreach (RunDate d in plan) if (d.Step == main) runDays.Add(d.Day);
+            runDays.Sort();
             for (int i = 0; i < Steps.Count; i++)
             {
                 PackageStep s = Steps[i];
                 if (s.IsEmpty || !s.IsBuffer || s.Bind != StepBind.Frei) continue;
-                int cnt = plan.FindAll(delegate(RunDate d) { return d.Step == i; }).Count;
-                if (cnt > planned)
-                    Add(res, Severity.Sperre, "puffer", "Pufferläufe (" + cnt + ") von Puffer „" + StepName(i) + "“ übersteigen Produktläufe (" + planned + ")", i).Action = "„Zu jedem Lauf“ wählen oder die Anzahl verringern";
+                List<RunDate> mine = plan.FindAll(delegate(RunDate d) { return d.Step == i; });
+                if (mine.Count > planned)
+                    Add(res, s.Repeat == RepeatMode.DayList ? Severity.Hinweis : Severity.Sperre, "puffer", "Pufferläufe (" + mine.Count + ") von Puffer „" + StepName(i) + "“ übersteigen Produktläufe (" + planned + ")", i).Action = "„Zu jedem Lauf“ wählen oder die Anzahl verringern";
+                if (s.Repeat == RepeatMode.DayList && mine.Count > 0 && runDays.Count > 1)
+                {
+                    int last = runDays[runDays.Count - 1], prev = runDays[runDays.Count - 2];
+                    if (!mine.Exists(delegate(RunDate d) { return d.Day > prev && d.Day <= last; }))
+                        Add(res, Severity.Hinweis, "pufrhythmus", "Die festen Tage von Puffer „" + StepName(i) + "“ reichen nicht bis zum letzten Lauf (Tag " + last + ")", i).Action = "Tage ergänzen (Puffer-Rhythmus) – bei mehr Läufen wächst der Rhythmus nicht mit";
+                }
             }
         }
 

@@ -34,7 +34,7 @@ namespace Arbeitsplan.Win
         {
             paneWrap.Tag = "keep"; paneWrap.Dock = DockStyle.Bottom; paneWrap.Padding = new Padding(8, 0, 8, 0);
             InitPane();   // Hoehe (gemerkt), Teiler zwischen Abschnitt 2 und 3 (PackageForm.Pane.cs)
-            Section sec = new Section("3   Vorschau & Prüfung", "Kalender wie im Plan; der gewählte Schritt ist blau. Klick wählt, Ziehen verschiebt diesen und alle folgenden Läufe (Umschalt = nur diesen Lauf).", true, 1000);
+            Section sec = new Section("3   Vorschau & Prüfung", "Kalender wie im Plan; der gewählte Schritt ist blau. Klick wählt, Ziehen verschiebt nur diesen Block (Umschalt = dieser und alle folgenden).", true, 1000);
             sec.Dock = DockStyle.Fill;
             previewScroll.AutoScroll = true; previewScroll.BackColor = Color.White; previewScroll.BorderStyle = BorderStyle.FixedSingle; previewScroll.Tag = "keep";
             blockPreview.Location = Point.Empty; blockPreview.Font = Font; previewScroll.Controls.Add(blockPreview);
@@ -101,7 +101,7 @@ namespace Arbeitsplan.Win
                 foreach (RunDate d in plan)
                 {
                     if (d.Step != si) continue;
-                    PlanStrip.Item it = new PlanStrip.Item(); it.Step = s; it.Day = d.Day; it.Run = d.Run; it.Shifted = (!je || s.IsBuffer) && s.Pinned(d.Run); it.Je = je;
+                    PlanStrip.Item it = new PlanStrip.Item(); it.Step = s; it.Day = d.Day; it.Run = d.Run; it.Shifted = s.Pinned(d.Run); it.Je = je;
                     it.Title = TitleOf(s); it.Row = s.Row; it.Bad = StepsView().CardBeforeStart(d, pk.Day1);   // N7: Karte vor dem Start rot
                     it.Sub = s.Numbered ? s.RunNo(prefix, d.Run) : (many ? (je || s.Kind != StepKind.Normal ? "Lauf " : "Termin ") + (d.Run + 1) : "");
                     if (!je && IsPuffer(s) && hasHead) { int fl = StepsView().LaufOf(plan, d); it.Sub = fl >= 0 ? "für Lauf " + (fl + 1) : "ohne Lauf"; }   // UX-5c: Puffer mit eigenem Rhythmus

@@ -79,8 +79,10 @@ namespace Arbeitsplan.Win
                 int pd = -1; foreach (RunDate d in f.Plan()) if (d.Step == pi && d.Run == 0) pd = d.Day;
                 f.MoveInCalendar(pu, 0, pd - 1, false); Application.DoEvents();
                 bool okMove = pu.RunOffset == -2;
-                f.MoveInCalendar(pu, 0, pd + 5, true); Application.DoEvents();
-                okMove &= pu.RunOffset == -2 && !pu.Shifted(0);
+                f.MoveInCalendar(pu, 0, pd + 5, true); Application.DoEvents();   // JeLauf einzeln: nur dieser Lauf, Versatz bleibt
+                okMove &= pu.RunOffset == -2 && pu.Shifted(0);
+                f.ResetRun(pu, 0); Application.DoEvents();
+                okMove &= !pu.Shifted(0) && pu.RunOffset == -2;
                 // eigenes Datum: Wiederholung mit Ende "fuer alle Laeufe" / "bis Lauf k"; folgt der Laufanzahl
                 PackageStep x = new PackageStep(); x.Title = "Zwischen"; x.Row = "Suite 1"; x.Day = f.NextDay(); f.AddStep(x); Application.DoEvents();
                 f.cbRepeat.SelectedIndex = 1; f.nInterval.Value = 2; f.cbDir.SelectedIndex = 0; f.nDay.Value = 3; Application.DoEvents();   // alle 2 Tage, ab 3 Tage vor Lauf 1

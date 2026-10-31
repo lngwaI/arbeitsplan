@@ -180,6 +180,7 @@ namespace Arbeitsplan.Win
             }
             else if (which == "pufferpack") f = PackageForm.Ux1bPackForm(store);   // UX-1b: Pufferpaket eines Produkts
             else if (which.StartsWith("ux6")) { Form f6 = null; Ux6FormEditor(which, ref f6); Ux6FormPack(which, ref f6); Ux6FormProducts(which, ref f6); f = f6 ?? new PackageForm(store, equip, start, demo, true, true); }   // UX-6-Dialoge (MainForm.SelfTestUX6.cs)
+            else if (which == "bigview" || which.StartsWith("rhythm")) f = new PackageForm(store, equip, start, Package.SampleBuffers("Beispiel"), true, true).TestLegoForm(which);   // große Vorschau, Puffer-Rhythmus (PackageForm.TestLego.cs)
             else if (which == "equipadd") f = new EquipAddForm("H1-T-0999", store.GetCatalog());   // UX-2: nicht validierte Nummer aufnehmen
             else if (which == "problems") f = new PackageForm(store, equip, start, PackageForm.ProblemSample(), true, true);   // UX-2: Prueffunde mit Beteiligten
             else if (which == "campaign") { CampaignForm cf = new CampaignForm(demo, store, start, ApplyMode.FillEmpty); cf.Shift(1, 1); f = cf; }   // Lauf 13570030 (und Folgende) einen Tag spaeter
@@ -409,6 +410,7 @@ namespace Arbeitsplan.Win
             SelfTestTakeOver(sb);   // Soft-Lock: Uebernahme, Nachrichten, Sperrenwechsel (MainForm.SelfTestTakeOver.cs)
             SelfTestE1(sb);   // Zeitmodell des Pakets: Golden-Test, JeLauf, Ausfall, Kennung, Normalize, Paketformat 7 (MainForm.SelfTestE1*.cs)
             SelfTestE3(sb); SelfTestE2(sb); SelfTestE4(sb); SelfTestV(sb); SelfTestE5(sb);   // Kennungstabelle, Notizen aus Paketen, Materialvorlage (MainForm.SelfTestE2.cs)
+            sb.Append(PackageForm.TestLego(new MemoryStore(), equip, start));   // Puffer-Muster/-Rhythmus, Regeln von Hand, große Vorschau (PackageForm.TestLego.cs)
             SelfTestPB(sb);   // Puffer im Paket: Standard-Anzahl, mehrere Puffer je Termin, Namen, Pufferpaket (MainForm.SelfTestPB.cs)
             SelfTestUX1(sb);   // UX-1a: Equipment je Puffer, Migration, Standardpuffer, Pufferpaket je Produkt (MainForm.SelfTestUX1.cs)
             SelfTestUX1b(sb);  // UX-1b: Puffer-Karten im Paket-Editor, Geltungsbereich, Pufferpaket-Dialog (MainForm.SelfTestUX1b.cs)

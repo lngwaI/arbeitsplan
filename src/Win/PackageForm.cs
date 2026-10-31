@@ -279,8 +279,7 @@ namespace Arbeitsplan.Win
         {
             if (keyData == (Keys.Control | Keys.S)) { SaveFile(false); return true; }
             if (keyData == (Keys.Control | Keys.D)) { Duplicate(); return true; }
-            bool redo = keyData == (Keys.Control | Keys.Y) || keyData == (Keys.Control | Keys.Shift | Keys.Z);
-            if ((redo || keyData == (Keys.Control | Keys.Z)) && !TextUndo()) { UndoStep(redo ? 1 : -1); return true; }
+            if (UndoKey(keyData)) return true;
             if ((keyData == (Keys.Alt | Keys.Up) || keyData == (Keys.Alt | Keys.Down)) && (lv.Focused || bUp.Focused || bDown.Focused)) { MoveStep(keyData == (Keys.Alt | Keys.Up) ? -1 : 1); return true; }
             if (keyData == Keys.Delete && (lv.Focused || strip.Focused)) { RemoveStep(); return true; }
             return base.ProcessCmdKey(ref msg, keyData);

@@ -79,6 +79,7 @@ namespace Arbeitsplan.Core
                 PackageProblem p = Add(res, Severity.Sperre, "pufvor", "Puffer „" + StepName(d.Step) + "“ (" + string.Join(", ", who.ToArray()) + ", Lauf " + (d.Run + 1) + ") läge "
                     + days + (days == 1 ? " Tag" : " Tage") + " vor dem Kampagnen-Start – beim Übernehmen würde ein Block außerhalb des gezeigten Zeitraums geschrieben", d.Step, d.Run);
                 p.Action = "eigenen Versatz der Karte verkleinern oder Lauf 1 (Startdatum) entsprechend später legen";
+                Hand(p, d.Step, d.Run);
             }
         }
 

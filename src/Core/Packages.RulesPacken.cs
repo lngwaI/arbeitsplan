@@ -32,7 +32,7 @@ namespace Arbeitsplan.Core
                     p = Add(res, Severity.Sperre, "packen-tag", StepName(d.Step) + " liegt nach Lauf " + (first.Run + 1) + " (gepackt wird immer vor dem ersten Lauf)", d.Step, d.Run);
                     p.Step2 = main; p.Run2 = first.Run;
                 }
-                if (p != null) p.Action = "Packen z. B. 2 Tage vor Lauf 1 legen (der Back-Up liegt 1 Tag danach)";
+                if (p != null) { p.Action = "Packen z. B. 2 Tage vor Lauf 1 legen (der Back-Up liegt 1 Tag danach)"; Hand(p, d.Step, d.Run); }
             }
         }
 
@@ -48,6 +48,7 @@ namespace Arbeitsplan.Core
                 {
                     PackageProblem p = Add(res, Severity.Sperre, "lauffolge", "Lauf " + (r.Run + 1) + " (" + FormatRun(Prefix, Steps[main].StartNo + r.Run) + ") liegt vor Lauf " + (top.Run + 1) + " (" + FormatRun(Prefix, Steps[main].StartNo + top.Run) + ") – Laufnummern steigen mit dem Datum", main, r.Run);
                     p.Step2 = main; p.Run2 = top.Run; p.Action = "Läufe in der Reihenfolge ihrer Nummern legen";
+                    Hand(p, main, r.Run, main, top.Run);
                 }
                 else top = r;
             }

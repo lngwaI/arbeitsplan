@@ -139,15 +139,12 @@ namespace Arbeitsplan.Win
             int lh = Font.Height + 1, y = 0, x = 0, gap = TextW("a a", Font) - TextW("aa", Font);
             for (int a = 1; a <= FreezeCalc.Anlagen; a++)
             {
-                bool first = true;
                 List<FreezeCycle> l = cys.FindAll(delegate(FreezeCycle c) { return c.Anlage == a; });
                 l.Sort(delegate(FreezeCycle u, FreezeCycle v) { return u.Actual.CompareTo(v.Actual); });
                 foreach (FreezeCycle c in l)
                 {
                     FrzSeg s = Seg(c, cont, maxW);
-                    if (first) { if (x > 0) { y += lh; x = 0; } first = false; }
-                    else if (x + SegGap + s.W > maxW && x > 0) { y += lh; x = 0; }
-                    else if (x > 0) x += SegGap;
+                    if (x > 0) { y += lh; x = 0; } // jeder Zyklus eigene Zeile
                     s.X = x; s.Y = y; x += s.W; p.Segs.Add(s);
                     if (c.DelayMin == 0) continue;
                     FrzSeg d = DelaySeg(c, cont);

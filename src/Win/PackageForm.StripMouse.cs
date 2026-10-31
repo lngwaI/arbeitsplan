@@ -5,14 +5,15 @@ using System.Windows.Forms;
 
 namespace Arbeitsplan.Win
 {
-    // Maus im Kalender (PlanStrip): Klick waehlt, Ziehen auf einen anderen Tag verschiebt diesen und alle folgenden Laeufe (Umschalt = nur dieser), Rechtsklick = Menue.
+    // Maus im Kalender (PlanStrip): Klick waehlt, Ziehen auf einen anderen Tag verschiebt nur diesen Block (Umschalt = dieser und alle folgenden), Rechtsklick = Menue.
     partial class PlanStrip
     {
         Item press;            // Eintrag unter der gedrueckten Maustaste
         Point pressAt;
         int dropDay = -1;      // Zieltag beim Ziehen, -1 = es wird nicht gezogen
 
-        static bool OnlyRun { get { return (ModifierKeys & Keys.Shift) != 0; } }
+        // Ziehen = nur dieser Block, Umschalt = dieser und alle folgenden
+        static bool OnlyRun { get { return (ModifierKeys & Keys.Shift) == 0; } }
 
         Item ItemAt(Point p)
         {

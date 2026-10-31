@@ -73,7 +73,7 @@ namespace Arbeitsplan.Win
             bool okNorm = !P1Any(lf.Check(), "lauffolge");
             lf.Head.Shift[2] = 7;   // Tage 3, 9, 22, 21: Reihenfolge 1 2 4 3
             PackageProblem lp = lf.Check().Find(delegate(PackageProblem x) { return x.Code == "lauffolge"; });
-            bool okBad = lp != null && lp.Blocks && lp.Run == 3 && lp.Run2 == 2 && lp.Text.Contains("12340004") && PackageProblem.RuleTitle("lauffolge").Length > 0;
+            bool okBad = lp != null && !lp.Blocks && lp.Severity == Severity.Hinweis && lp.Text.Contains("von Hand gesetzt") && lp.Run == 3 && lp.Run2 == 2 && lp.Text.Contains("12340004") && PackageProblem.RuleTitle("lauffolge").Length > 0;
             lf.Head.Shift.Clear(); lf.Head.SetSkip(2, true);   // 1 2 4: Luecke erlaubt
             bool okGap = !P1Any(lf.Check(), "lauffolge") && !Package.HasBlock(lf.Check());
             lf.Head.Skip.Clear();
@@ -85,7 +85,7 @@ namespace Arbeitsplan.Win
             List<RunDate> same = lf.Schedule(null, P1D0.DayOfWeek);
             P1Day(same, 2, 1).Day = P1Day(same, 2, 0).Day; P1Day(same, 2, 1).Row = "Suite 2";   // gleicher Tag, anderer Raum: keine Bruch der Folge
             bool okSame = !P1Any(lf.Check(mv, P1D0, ApplyMode.FillEmpty, same), "lauffolge");
-            sb.AppendLine("P1 Regel lauffolge: normal " + T(okNorm) + " 1 2 4 3 gesperrt " + T(okBad) + " 1 2 4 erlaubt " + T(okGap) + " Kampagnenstart " + T(okStart) + " Folgetag " + T(okNext) + " gleicher Tag anderer Raum " + T(okSame));
+            sb.AppendLine("P1 Regel lauffolge: normal " + T(okNorm) + " 1 2 4 3 von Hand nur Hinweis " + T(okBad) + " 1 2 4 erlaubt " + T(okGap) + " Kampagnenstart " + T(okStart) + " Folgetag " + T(okNext) + " gleicher Tag anderer Raum " + T(okSame));
 
             // (4) lauffolge gegen den Plan: nur Hinweis, Ueber-Nacht-Lauf ok, zu ersetzende Bloecke zaehlen nicht
             IDataStore mp = new MemoryStore();
@@ -114,9 +114,8 @@ namespace Arbeitsplan.Win
             Package back = Package.FromXml(ds.ToXml());
             bool okXml = back.Steps[3].Shift.Count == 1 && back.Steps[3].Shift[1] == -1 && back.ToXml() == ds.ToXml() && P1Day(back.Schedule(), 3, 1).Day == 7 && ds.Clone().Steps[3].Shift[1] == -1;
             PackageStep nonBuf = new PackageStep(); nonBuf.Title = "Mischen"; nonBuf.Row = "Suite 1"; nonBuf.Bind = StepBind.JeLauf; nonBuf.RunOffset = 1; ds.Steps.Add(nonBuf);
-            bool okOther = !ds.DragRun(nonBuf, 1, 1, true) && nonBuf.Shift.Count == 0;
-            ds.Steps.Remove(nonBuf);
-            nonBuf.Shift[1] = 5; ds.Steps.Add(nonBuf); okOther &= P1Day(ds.Schedule(), 5, 1).Day == 10; ds.Steps.Remove(nonBuf);   // alte Werte ohne Wirkung
+            bool okOther = ds.DragRun(nonBuf, 1, 1, true) && nonBuf.Shift.Count == 1 && nonBuf.Pinned(1) && P1Day(ds.Schedule(), 5, 1).Day == 11;   // auch ohne Puffer einzeln verschiebbar
+            nonBuf.Shift[1] = 5; okOther &= P1Day(ds.Schedule(), 5, 1).Day == 15; ds.Steps.Remove(nonBuf);
             string rel = ds.RelTextOf(P1Day(dp, 3, 1), P1Day(dp, 3, 1).Day, dp), rel2 = ds.RelTextOf(P1Day(dp, 4, 2), P1Day(dp, 4, 2).Day, dp);
             bool okRel = rel == "2 Tage vor Lauf 2" && rel2 == "1 Tag vor Lauf 3" && ds.RelTextOf(P1Day(dp, 2, 1), P1Day(dp, 2, 1).Day, dp) == "Lauf 2" && ds.RelTextOf(P1Day(dp, 0, 0), 1, dp) == "2 Tage vor Lauf 1";
             bool okNorm2 = ds.DragRun(mob, 0, -3, true) && lauf.FirstDay == 5 && P1Day(ds.Schedule(), 3, 0).Day == 1 && !P1Any(ds.Check(), "pufvor");   // vor Tag 1: alles wandert nach hinten
@@ -124,7 +123,7 @@ namespace Arbeitsplan.Win
             Package old = P1Camp(st, 3, 6); PackageStep leg = new PackageStep(); leg.Title = "Puffer alt"; leg.Row = "Puffer"; leg.Variant = "mobil"; leg.Day = 4; leg.Count = 3; leg.Interval = 6;
             old.Steps.RemoveRange(3, 2); old.Steps.Add(leg); old.Head.Shift[2] = 1; leg.Shift[2] = 1; old.Migrate();
             bool okMig = leg.Bind == StepBind.JeLauf && leg.Shift.Count == 0 && P1Day(old.Schedule(), 3, 2).Day == 17;   // 15 + 1 (Versatz) + 1 (Ausnahme nur einmal gerechnet)
-            sb.AppendLine("P1 Abstand je Lauf: Ziehen nur dieser Lauf " + T(okDrag) + " XML-Rundlauf " + T(okXml) + " nur Puffer " + T(okOther) + " Bezug zum bedienten Lauf " + T(okRel) + (okRel ? "" : " [" + rel + " | " + rel2 + "]") + " vor Tag 1 " + T(okNorm2) + " Lauf entfällt " + T(okDrop) + " Migration " + T(okMig));
+            sb.AppendLine("P1 Abstand je Lauf: Ziehen nur dieser Lauf " + T(okDrag) + " XML-Rundlauf " + T(okXml) + " auch ohne Puffer " + T(okOther) + " Bezug zum bedienten Lauf " + T(okRel) + (okRel ? "" : " [" + rel + " | " + rel2 + "]") + " vor Tag 1 " + T(okNorm2) + " Lauf entfällt " + T(okDrop) + " Migration " + T(okMig));
 
             // (6) LaufNo: im Plan, XML, Regel "Puffer verschiedener Produkte" ohne Nummer im Text
             IDataStore la = new MemoryStore(); int pr = P1Row(la, "Puffer");

@@ -89,7 +89,7 @@ namespace Arbeitsplan.Win
         {
             Package p = StepsView();
             if (!IsJe(s)) return p.RelText(d.Day) + ForLauf(s, d, plan);
-            int own = 0; if (s.IsBuffer) s.Shift.TryGetValue(d.Run, out own);   // Abstand je Lauf
+            int own; s.Shift.TryGetValue(d.Run, out own);   // Abstand je Lauf
             int off = s.RunOffset + delta + own;
             string rel = off == 0 ? "Lauf " + (d.Run + 1) : DayW(Math.Abs(off)) + (off < 0 ? " vor" : " nach") + " Lauf " + (d.Run + 1);
             DateTime? dt = p.DateOf(d.Day + delta);
