@@ -70,7 +70,7 @@ namespace Arbeitsplan.Win
                     demo.Steps.Add(s);
                 }
             }
-            if (which == "package3" || which == "package4" || which == "package7" || which == "package8" || which == "package9" || which == "package14" || which == "campaign2" || which == "campaign3" || which == "campaign5") demo = Package.SampleCampaign("Testpaket");
+            if (which == "package3" || which == "package4" || which == "package7" || which == "package8" || which == "package9" || which == "package14" || which == "campaign2" || which == "campaign3" || which == "campaign5" || which == "campaign6") demo = Package.SampleCampaign("Testpaket");
             if (which == "campaign4")   // Einzelpaket: einfacher Modus
             {
                 demo = new Package(); demo.Name = "Einzelpaket"; demo.Type = PackageType.Einzel;
@@ -111,13 +111,15 @@ namespace Arbeitsplan.Win
             if (which == "campaign2")   // fruehere Kampagne (Laeufe 1-4, Abstaende 5, 5, 7) sechs Wochen vorher
                 try { Package.SampleCampaign("alt").Apply(store, start.AddDays(-42), ApplyMode.Overwrite, Package.SampleCampaign("alt").Schedule(new List<int>(new[] { 5, 5, 7 }))); }
                 catch (System.IO.IOException) { }   // --nosave: ohne Vorkampagne
+            if (which == "campaign6")   // belegte Bloecke (Zeilen gelb/orange/grau je Modus: --form campaign6 [Modus ueber Selbsttest P3])
+                foreach (RowInfo ri in store.GetRows()) if (ri.Name == "Suite 1" || ri.Name == "Suite 2") for (int dd = 1; dd < 12; dd += 2) { Entry be = new Entry(); be.Content = "Vorhandener Text Tag " + dd; try { store.Save(start.AddDays(dd), ri.Id, be); } catch (System.IO.IOException) { } }
             Form f;
             if (which == "campaign2") { CampaignForm cf = new CampaignForm(demo, store, start, ApplyMode.Overwrite); cf.SetRoom(7, "Suite 2", false); f = cf; }
-            else if (which == "campaign3" || which == "campaign4")   // Kampagnenstart: 5 Laeufe, Packen-Nummer, Lauf 3 faellt aus / Einzelpaket
+            else if (which == "campaign3" || which == "campaign4" || which == "campaign6")   // Kampagnenstart: 5 Laeufe, Packen-Nummer, Lauf 3 faellt aus / Einzelpaket
             {
                 CampaignForm cf = new CampaignForm(demo, store, start, ApplyMode.FillEmpty);
                 cf.TestPackNo = "12340001";
-                if (which == "campaign3") { cf.TestRuns = 5; cf.SetSkip(cf.TestIndexOf(2, 2), true); }
+                if (which == "campaign3" || which == "campaign6") { cf.TestRuns = 5; cf.SetSkip(cf.TestIndexOf(2, 2), true); }
                 f = cf;
             }
             else if (which == "campaign5")   // Regelverstoss: Lauf 2 auf den Tag von Lauf 1 geschoben = zwei Hauptlaeufe am selben Tag (rote Zeile, Uebernehmen gesperrt)
@@ -326,6 +328,7 @@ namespace Arbeitsplan.Win
         {
             try { sb.AppendLine(PackageForm.TestP1Rules()); } catch (Exception ex) { sb.AppendLine("P1 Regeln: FEHLER " + ex.GetType().Name + ": " + ex.Message + "\n" + ex.StackTrace); }
             sb.AppendLine(PackageForm.TestP1Editor(equip, start));
+            try { sb.AppendLine(PackageForm.TestP3(equip, start)); } catch (Exception ex) { sb.AppendLine("P3: FEHLER " + ex.GetType().Name + ": " + ex.Message + "\n" + ex.StackTrace); }
         }
 
         // Selbsttest (Admin): Zuklappen, Bearbeiten mit Format, LKZ, Struktur, Export/Import, Paket-Schritte.

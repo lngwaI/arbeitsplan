@@ -16,7 +16,6 @@ namespace Arbeitsplan.Win
         public static bool Quiet;   // Selbsttest: keine Meldungen
         static readonly Color Orange = Color.FromArgb(255, 228, 190);   // abweichend vom Vorschlag
         static readonly Color Rot = Color.FromArgb(255, 150, 150);       // Zeile verletzt eine Sperr-Regel
-        static readonly Color Belegt = Color.FromArgb(255, 205, 205);   // Zeile vor Lauf 1 trifft einen belegten Block
         const int cLabel = 0, cRel = 1, cRoom = 2, cProp = 3, cWant = 4, cMinus = 5, cPlus = 6, cSkip = 7;
         readonly Package pkg;      // Kopie des Pakets: Laufanzahl, Nummern, Ausfaelle
         readonly IDataStore store;
@@ -25,7 +24,7 @@ namespace Arbeitsplan.Win
         readonly DateTimePicker dtLauf1 = new DateTimePicker();
         readonly NumericUpDown nRuns = new NumericUpDown();
         readonly TextBox tFirst = new TextBox(), tPack = new TextBox();   // tFirst: komplette 8-stellige erste Laufnummer; tPack: Nummer des Packens von Hand
-        readonly Label lFirst = new Label(), lPack = new Label(), info = new Label(), lSum = new Label(), lRule = new Label();
+        readonly Label lFirst = new Label(), lPack = new Label(), info = new Label(), lSum = new Label(), lRule = new Label(), lBusy = new Label();
         readonly ComboBox cbRoom = new ComboBox(), cbMode = new ComboBox();
         readonly Button ok = new Button();
         readonly Label lWhy = new Label();       // Grund, warum "In Plan uebernehmen" gesperrt ist (neben dem Knopf)
@@ -143,22 +142,23 @@ namespace Arbeitsplan.Win
             Label lt = L("Datum in der Spalte „Gewünscht“ als TT.MM.JJJJ eintippen, oder mit „Tage −“ / „Tage +“ um einen Tag verschieben.", 10, y + 28); lt.ForeColor = Section.HelpColor; Controls.Add(lt);   // eigene Zeile
             lt.Visible = !simple;
 
-            grid.SetBounds(10, y + 50, 880, 526 - (y + 50));
+            grid.SetBounds(10, y + 50, 880, 508 - (y + 50));
+            lBusy.SetBounds(10, 511, 880, 18); lBusy.AutoEllipsis = true; lBusy.Visible = !simple; Controls.Add(lBusy);
             lRule.SetBounds(10, 530, 880, 18); lRule.AutoEllipsis = true; Controls.Add(lRule);
             grid.AllowUserToAddRows = false; grid.AllowUserToDeleteRows = false; grid.AllowUserToResizeRows = false; grid.RowHeadersVisible = false;
             grid.SelectionMode = DataGridViewSelectionMode.CellSelect; grid.MultiSelect = false; grid.BackgroundColor = Color.White;
-            Col(new DataGridViewTextBoxColumn(), "Schritt / Lauf", 235, true);
-            Col(new DataGridViewTextBoxColumn(), "Bezug", 135, true);
+            Col(new DataGridViewTextBoxColumn(), "Schritt / Lauf", 190, true);
+            Col(new DataGridViewTextBoxColumn(), "Bezug", 225, true);
             List<string> names = new List<string>();
             foreach (RowInfo r in store.GetRows()) if (r.Name.Length > 0 && !names.Contains(r.Name)) names.Add(r.Name);
             foreach (PackageStep s in pkg.Steps) if (s.Row.Length > 0 && !names.Contains(s.Row)) names.Add(s.Row);   // unbekannter Block bleibt sichtbar
             DataGridViewComboBoxColumn cr = new DataGridViewComboBoxColumn(); cr.FlatStyle = FlatStyle.Flat; cr.Items.AddRange(names.ToArray());
-            Col(cr, "Block (Raum)", 100, false);
-            Col(new DataGridViewTextBoxColumn(), "Vorschlag", 100, true);
-            Col(new DataGridViewTextBoxColumn(), "Gewünscht", 100, false);
-            Col(new DataGridViewButtonColumn(), "Tage −", 58, true); ((DataGridViewButtonColumn)grid.Columns[cMinus]).Text = "−";   // Kopf nennt die Einheit, Knopf nur das Zeichen
-            Col(new DataGridViewButtonColumn(), "Tage +", 58, true); ((DataGridViewButtonColumn)grid.Columns[cPlus]).Text = "+";
-            Col(new DataGridViewCheckBoxColumn(), "entfällt", 70, false);
+            Col(cr, "Block (Raum)", 90, false);
+            Col(new DataGridViewTextBoxColumn(), "Vorschlag", 95, true);
+            Col(new DataGridViewTextBoxColumn(), "Gewünscht", 95, false);
+            Col(new DataGridViewButtonColumn(), "Tage −", 50, true); ((DataGridViewButtonColumn)grid.Columns[cMinus]).Text = "−";   // Kopf nennt die Einheit, Knopf nur das Zeichen
+            Col(new DataGridViewButtonColumn(), "Tage +", 50, true); ((DataGridViewButtonColumn)grid.Columns[cPlus]).Text = "+";
+            Col(new DataGridViewCheckBoxColumn(), "entfällt", 60, false);
             grid.CellContentClick += delegate(object s, DataGridViewCellEventArgs e) { if (e.RowIndex >= 0 && (e.ColumnIndex == cMinus || e.ColumnIndex == cPlus)) Shift(e.RowIndex, e.ColumnIndex == cMinus ? -1 : 1); };
             grid.CellEndEdit += delegate(object s, DataGridViewCellEventArgs e) { if (e.ColumnIndex == cWant) Typed(e.RowIndex); };
             grid.CurrentCellDirtyStateChanged += delegate { if (grid.IsCurrentCellDirty && (grid.CurrentCell.ColumnIndex == cRoom || grid.CurrentCell.ColumnIndex == cSkip)) grid.CommitEdit(DataGridViewDataErrorContexts.Commit); };
@@ -236,6 +236,11 @@ namespace Arbeitsplan.Win
         public string TestLabel(int i) { return sched[i].Label; }
         public int TestIndexOf(int step, int run) { return sched.FindIndex(delegate(RunDate d) { return d.Step == step && d.Run == run; }); }
         public string TestSummary { get { return lSum.Text; } }
+        public string TestShown(int i) { return Convert.ToString(grid.Rows[i].Cells[cLabel].Value); }
+        public string TestBusyLine { get { return lBusy.Text; } }
+        public Color TestRelColor(int i) { return grid.Rows[i].Cells[cRel].Style.BackColor; }
+        public string TestRelTip(int i) { return grid.Rows[i].Cells[cRel].ToolTipText; }
+        public ApplyMode TestMode { get { return Mode; } set { cbMode.SelectedIndex = (int)value; modeTouched = true; UpdateAll(); } }
 #endif
 
         // Eingetipptes Datum nur vollstaendig als TT.MM.JJJJ (GMP; auch "Fr 13.03.2026"), sonst Meldung und alter Wert.

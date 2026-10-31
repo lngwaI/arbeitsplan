@@ -111,7 +111,7 @@ namespace Arbeitsplan.Win
             bool okBusy;
             using (CampaignForm cf = new CampaignForm(sp, bs, mo, ApplyMode.FillEmpty))
             {
-                okBusy = cf.TestRel(0) == "2 Tage vor Lauf 1 · belegt" && cf.Mode == ApplyMode.Append && !cf.TestRel(cf.TestIndexOf(2, 0)).EndsWith("belegt");
+                okBusy = cf.TestRel(0) == "2 Tage vor Lauf 1 · wird angehängt" && cf.Mode == ApplyMode.Append && !cf.TestRel(cf.TestIndexOf(2, 0)).EndsWith("angehängt");
             }
             using (CampaignForm cf = new CampaignForm(sp, new MemoryStore(), mo, ApplyMode.FillEmpty)) okBusy &= cf.Mode == ApplyMode.FillEmpty && cf.TestRel(0) == "2 Tage vor Lauf 1";
 
