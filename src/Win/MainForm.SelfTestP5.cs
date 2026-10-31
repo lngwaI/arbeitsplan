@@ -30,7 +30,7 @@ namespace Arbeitsplan.Win
             Put(s, d0.AddDays(4), r, "Lauf 11110002\nTP: H1-T-0333\nvorTFF1-2 nicht treffen");   // ueber Nacht: zweiter Tag
             Put(s, d0.AddDays(9), r, "Lauf 11110003");
             Entry note = s.Get(d0.AddDays(9), r);
-            note.Content = "Lauf 11110003\nTP: QX88\nTP: S12"; FormatSpan ns = new FormatSpan(); ns.Start = 14; ns.Length = 8; ns.Note = ns.Italic = true; note.Spans.Add(ns);   // Notizzeile
+            note.Content = "Lauf 11110003\nTP: QX88\nTP: S12"; FormatSpan ns = new FormatSpan(); ns.Start = 14; ns.Length = 8; ns.Italic = true; note.Spans.Add(ns);   // Notizzeile
             FormatSpan it = new FormatSpan(); it.Start = 27; it.Length = 3; it.Italic = true; note.Spans.Add(it);                                                                   // kursive Notiz hinter dem Kurznamen
             s.Save(d0.AddDays(9), r, note);
             Put(s, d0.AddDays(5), r2, "Lauf 22040030");

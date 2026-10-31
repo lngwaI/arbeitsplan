@@ -150,7 +150,8 @@ namespace Arbeitsplan.Core
                 {
                     r.Value.Sort();
                     DateTime first = r.Value[0], last = r.Value[r.Value.Count - 1];
-                    if (c == null || (first - prevLast).Days > 30 || first < prevFirst)
+                    // shortcut: bis 2 ausgefallene Laeufe gelten als Luecke (1 2 4), groessere Spruenge als neue Kampagne; aufheben, wenn Kampagnen im Plan eine Kennung bekommen
+                    if (c == null || r.Key - prev > 3 || (first - prevLast).Days > 30 || first < prevFirst)
                     {
                         c = new CampaignSpan(); c.Prefix = kv.Key; c.FirstNo = r.Key; c.First = first; c.Last = last; res.Add(c);
                     }

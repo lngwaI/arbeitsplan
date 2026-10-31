@@ -42,7 +42,11 @@ namespace Arbeitsplan.Win
             List<string> k1 = cs.Count > 0 ? EquipExport.CollectCampaign(s, cs[0], 1, 0) : new List<string>();
             List<string> k2 = cs.Count > 0 ? EquipExport.CollectCampaign(s, cs[0], 2, 0) : new List<string>();
             bool okKamp = k1.Count == 3 && k1[0] == "H1-P-0900" && k1[2] == "H1-T-0778" && k2.Count == 4 && k2[0] == "H1-T-0999";
-            sb.AppendLine("Equipment-Liste Kampagne: erkannt=" + Ok(okCamps) + " Vorlauf zaehlt zur Kampagne=" + Ok(okKamp));
+            IDataStore g = new MemoryStore();   // ausgefallener Lauf: 1 2 4 bleibt eine Kampagne
+            Put(g, d0, rows[0].Id, "Lauf 13570001"); Put(g, d0.AddDays(3), rows[0].Id, "Lauf 13570002"); Put(g, d0.AddDays(6), rows[0].Id, "Lauf 13570004");
+            List<EquipExport.CampaignSpan> gs = EquipExport.Campaigns(g, d0, d0.AddDays(7), "");
+            bool okGap = gs.Count == 1 && gs[0].FirstNo == 1 && gs[0].LastNo == 4;
+            sb.AppendLine("Equipment-Liste Kampagne: erkannt=" + Ok(okCamps) + " Vorlauf zaehlt zur Kampagne=" + Ok(okKamp) + " Luecke bleibt eine Kampagne=" + Ok(okGap));
         }
 
         static void Put(IDataStore s, DateTime d, int row, string content)
