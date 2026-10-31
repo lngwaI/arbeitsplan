@@ -30,39 +30,26 @@ namespace Arbeitsplan.Win
             Entry mixed = NoteEntry("Lauf 12340001\nHinweis", 1);
             bool okEmpty = only.HasNotes && !only.HasText && only.IsEmpty && only.IsBlank && Notes.NoteLines(only).Count == 2 && Notes.ContentText(only) == ""
                 && mixed.HasText && !mixed.IsEmpty && !mixed.IsBlank && Notes.ContentText(mixed) == "Lauf 12340001" && Notes.NoteTexts(mixed)[0] == "Hinweis"
-                && only.Spans.TrueForAll(delegate(FormatSpan f) { return f.Note && f.Italic; }) && !new Entry().HasNotes;
+                && only.Spans.TrueForAll(delegate(FormatSpan f) { return f.Italic; }) && !new Entry().HasNotes;
             Entry pe = only.Clone(); pe.People[0] = "ABCD";
             okEmpty &= !pe.IsEmpty && !pe.IsBlank;   // Kuerzel machen den Block belegt
 
-            // Normalize: Teilmarkierung wird ganze Zeile, kursiv; leere Zeilen und Leerzeichen sind keine Notiz; idempotent
+            // Kursiv = Notiz: einzelnes kursives Wort nicht, ganz kursive Zeile ja; leere Zeilen und Leerzeichen zaehlen nicht dazu
             Entry part = new Entry(); part.Content = "Alpha beta gamma\n \nZeile drei";
-            FormatSpan ps = new FormatSpan(); ps.Start = 6; ps.Length = 4; ps.Note = true; part.Spans.Add(ps);
-            FormatSpan ws = new FormatSpan(); ws.Start = 16; ws.Length = 5; ws.Note = true; ws.Bold = true; part.Spans.Add(ws);   // reicht ueber Leerzeile in Zeile drei
-            Notes.Normalize(part);
-            string k1 = part.SpanKey(); Notes.Normalize(part);
+            FormatSpan ps = new FormatSpan(); ps.Start = 6; ps.Length = 4; ps.Italic = true; part.Spans.Add(ps);
+            bool okNorm = Notes.NoteLines(part).Count == 0 && part.HasText;
+            FormatSpan ws = new FormatSpan(); ws.Start = 0; ws.Length = 16; ws.Italic = true; part.Spans.Add(ws);
+            FormatSpan zs = new FormatSpan(); zs.Start = 17; zs.Length = 13; zs.Italic = true; part.Spans.Add(zs);   // Leerzeile + Zeile drei
             List<int[]> pl = Notes.NoteLines(part);
-            bool okNorm = pl.Count == 2 && pl[0][0] == 0 && pl[0][2] == 16 && pl[1][0] == 2 && part.SpanKey() == k1 && part.Spans.Exists(delegate(FormatSpan f) { return f.Start == 0 && f.Length == 16 && f.Note && f.Italic; });
-            Entry none = new Entry(); none.Content = "a\nb"; Notes.SetNote(none, 0, 0, true); Notes.SetNote(none, 0, 0, false);
+            okNorm &= pl.Count == 2 && pl[0][0] == 0 && pl[0][2] == 16 && pl[1][0] == 2 && !part.HasText;
+            Entry none = new Entry(); none.Content = "a\nb"; Notes.SetNote(none, 0, 0, true); okNorm &= none.HasNotes && none.Spans.Count == 1; Notes.SetNote(none, 0, 0, false);
             okNorm &= none.Spans.Count == 0 && !none.HasNotes;
-
-            // manuelles Kursiv bleibt beim Aufheben der Notiz (nur die kursive Zeile), auch nach XML-Rundweg
-            Entry it = new Entry(); it.Content = "kursiv\nnormal";
-            FormatSpan fi = new FormatSpan(); fi.Start = 0; fi.Length = 6; fi.Italic = true; it.Spans.Add(fi);
-            Notes.SetNote(it, 0, 1, true);
-            MemoryStore ms0 = new MemoryStore(); int sid0 = SuiteId(ms0); ms0.Save(D(2031, 5, 5), sid0, it);
-            string xo = Encoding.UTF8.GetString(Backup.ToXml(ms0.Snapshot()));
-            Entry itRt = EntryIn(Backup.FromXml(Encoding.UTF8.GetBytes(xo)), D(2031, 5, 5), sid0);
-            okNorm &= xo.Contains(" oi=\"1\"");
-            Notes.SetNote(it, 0, 1, false);
-            bool okOi = it.Spans.Count == 1 && it.Spans[0].Italic && !it.Spans[0].Note && it.Spans[0].Start == 0 && it.Spans[0].Length == 6;
-            if (itRt != null) { Notes.SetNote(itRt, 0, 1, false); okOi &= itRt.Spans.Count == 1 && itRt.Spans[0].Italic && itRt.Spans[0].Length == 6; } else okOi = false;
-            okNorm &= okOi;
 
             // mehrere Notizen aus dem Paket (Enter im Notizfeld = naechste Notiz), ohne Praefix "Notiz:", Kennung bleibt letzte Zeile
             PackageStep st = new PackageStep(); st.Title = "Packen"; st.Text = "Zeile a\nZeile b"; st.Note = "Eins\r\nZwei\n\n  Drei  "; st.Ident = "PA 40010001"; st.Row = "Suite 1";
             Entry pk = st.EntryFor(0, "");
             bool okPkgNotes = pk.Content == "Packen\nZeile a\nZeile b\nEins\nZwei\nDrei\nPA 40010001" && NJoin(Notes.NoteTexts(pk)) == "Eins|Zwei|Drei"
-                && Notes.ContentText(pk) == "Packen\nZeile a\nZeile b\nPA 40010001" && pk.Spans.Exists(delegate(FormatSpan f) { return f.Bold && f.Rgb == 0xFF0000 && !f.Note; }) && pk.Content.IndexOf("Notiz:", StringComparison.Ordinal) < 0;
+                && Notes.ContentText(pk) == "Packen\nZeile a\nZeile b\nPA 40010001" && pk.Spans.Exists(delegate(FormatSpan f) { return f.Bold && f.Rgb == 0xFF0000 ; }) && pk.Content.IndexOf("Notiz:", StringComparison.Ordinal) < 0;
             PackageStep st0 = new PackageStep(); st0.Title = "Nur Titel"; st0.Row = "Suite 1";
             okPkgNotes &= !st0.EntryFor(0, "").HasNotes;
 
@@ -74,15 +61,13 @@ namespace Arbeitsplan.Win
             byte[] xml = Backup.ToXml(s.Snapshot());
             StoreData back = Backup.FromXml(xml);
             Entry rt = EntryIn(back, w, sid), rt2 = EntryIn(back, w.AddDays(1), sid);
-            bool okBackup = rt != null && rt.SpanKey() == s.Get(w, sid).SpanKey() && Notes.NoteLines(rt).Count == 1 && rt.HasText && rt2 != null && rt2.IsEmpty && rt2.HasNotes
-                && Encoding.UTF8.GetString(xml).Contains(" n=\"1\"");
+            bool okBackup = rt != null && rt.SpanKey() == s.Get(w, sid).SpanKey() && Notes.NoteLines(rt).Count == 1 && rt.HasText && rt2 != null && rt2.IsEmpty && rt2.HasNotes;
             string path = Path.Combine(Path.GetTempPath(), "selftest_notiz.apkg");
             Package fw = Package.FromWeek(s, w, "Notizen");
             fw.Save(path);
             Package ld = Package.Load(path);
             PackageBlock b0 = ld.Blocks.Find(delegate(PackageBlock bl) { return bl.Day == 1; }), b1 = ld.Blocks.Find(delegate(PackageBlock bl) { return bl.Day == 2; });
-            bool okPkgFile = ld.Blocks.Count == 2 && b0 != null && b0.Data.SpanKey() == s.Get(w, sid).SpanKey() && b1 != null && b1.Data.HasNotes   // Block nur mit Notiz wird mit exportiert
-                && File.ReadAllText(path).Contains("notiz=\"1\"");
+            bool okPkgFile = ld.Blocks.Count == 2 && b0 != null && b0.Data.SpanKey() == s.Get(w, sid).SpanKey() && b1 != null && b1.Data.HasNotes;   // Block nur mit Notiz wird mit exportiert
             File.Delete(path);
             string plan = Path.Combine(Path.GetTempPath(), "selftest_notiz.applan");
             PlanFile.Write(PlanFile.Take(s, w, 7), plan);
@@ -190,11 +175,11 @@ namespace Arbeitsplan.Win
                 bool okView = c != null && c.Cur.HasNotes && c.Cur.HasText && cc != null && cc.Cur.IsBlank && cc.Cur.HasNotes && view.DefaultFold()[cr]
                     && c.CB != null && c.CB.Para.Count >= 2 && c.CB.Para[c.CB.Para.Count - 1] == 1 && c.CB.ParaAt(1) == 0 && c.CB.ParaAt(c.CB.LineH[0] + 1) == 1;
 
-                // Editor: Notizzeile wird als Hintergrund geladen und unveraendert zurueckgelesen
+                // Editor: Notizzeile (kursiv) wird geladen und unveraendert zurueckgelesen, ohne Hintergrund
                 BeginEdit(c);
                 int p2 = edContent.Text.IndexOf("Probe");
-                edContent.Select(p2, 1); bool back2 = edContent.SelectionBackColor.ToArgb() == NoteArgb;
-                edContent.Select(0, 1); bool back1 = edContent.SelectionBackColor.ToArgb() == NoteArgb;
+                edContent.Select(p2, 1); bool back2 = edContent.SelectionFont != null && edContent.SelectionFont.Italic && edContent.SelectionBackColor.ToArgb() == edContent.BackColor.ToArgb();
+                edContent.Select(0, 1); bool back1 = edContent.SelectionFont != null && edContent.SelectionFont.Italic;
                 Entry w0 = WorkEntry(c);
                 bool okLoad = back2 && !back1 && w0.SpanKey() == c.Cur.SpanKey() && !EntryDirty(c, w0) && Notes.NoteLines(w0).Count == 1;
 
@@ -207,7 +192,7 @@ namespace Arbeitsplan.Win
                 bool okUnmark = Notes.NoteLines(w2).Count == 0 && w2.Spans.Count == 0 && w2.HasText;
                 edContent.Select(p2, 2); EditorNote(true);
 
-                // Enter am Ende der Notizzeile: neue Zeile ohne Notizformat; Standardformat hebt Notizen nicht auf
+                // Enter am Ende der Notizzeile: neue Zeile ohne Notizformat; Standardformat nimmt Kursiv weg
                 edContent.Select(edContent.TextLength, 0);
                 bool enter = NoteEnter();
                 edContent.SelectedText = "Neuer Text";
@@ -215,7 +200,7 @@ namespace Arbeitsplan.Win
                 bool okEnter = enter && w3.Content == "Lauf 22040030\nProbe bis 10:00 bringen\nNeuer Text" && Notes.NoteLines(w3).Count == 1 && NJoin(Notes.NoteTexts(w3)) == "Probe bis 10:00 bringen";
                 edContent.SelectAll(); ClearFormat();
                 Entry w4 = WorkEntry(c);
-                bool okClear = Notes.NoteLines(w4).Count == 1 && w4.Spans.Exists(delegate(FormatSpan f) { return f.Note && f.Italic; });
+                bool okClear = Notes.NoteLines(w4).Count == 0 && w4.HasText;   // Standardformat nimmt das Kursiv und damit die Notiz weg
                 edContent.Select(0, 0);
                 bool okEnter2 = !NoteEnter();   // am Zeilenanfang / ausserhalb einer Notiz: normale Eingabe
                 EndEdit(false);

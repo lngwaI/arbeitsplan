@@ -59,11 +59,12 @@ namespace Arbeitsplan.Win
                 Font f = SpanFont(sp, plain);
                 for (int i = sp.Start; i < sp.Start + sp.Length && i < fore.Length; i++)
                 {
-                    if (sp.Rgb != 0) fore[i] = Rgb(sp.Rgb); else if (sp.Note) fore[i] = Theme.Current.NoteText;
+                    if (sp.Rgb != 0) fore[i] = Rgb(sp.Rgb);
                     fnt[i] = f;
-                    if (sp.Note) mode[i] = 3;   // Notizzeile: abgesetzt (Suchtreffer gelb gewinnt unten)
                 }
             }
+            foreach (int[] nl in Notes.NoteLines(c.Cur))   // Notizzeile (ganz kursiv): abgesetzt (Suchtreffer gelb gewinnt unten)
+                for (int i = nl[1]; i < nl[1] + nl[2] && i < fore.Length; i++) { if (fore[i] == Color.Black) fore[i] = Theme.Current.NoteText; mode[i] = 3; }
             // Erkannte Equipment-Nummer: Statusfarbe; Status unbekannt/nicht abrufbar -> Standard schwarz (Lesbarkeit).
             foreach (Match m in EquipmentMatcher.Pattern.Matches(text))
             {

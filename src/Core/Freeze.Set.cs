@@ -67,6 +67,7 @@ namespace Arbeitsplan.Core
                 if (f.MainRef.Length > 0) w.WriteAttributeString("haupt", f.MainRef);
                 if (f.SubNo.Length > 0) w.WriteAttributeString("unter", f.SubNo);
                 if (f.Tanks.Length > 0) w.WriteAttributeString("tanks", f.Tanks);
+                if (f.CycleNames.Length > 0) w.WriteAttributeString("zyklen", f.CycleNames);
                 for (int i = 0; i < 3; i++)
                     if (f.Start1to3[i] != DateTime.MinValue) { w.WriteStartElement("s"); w.WriteAttributeString("c", (i + 1).ToString(inv)); w.WriteAttributeString("t", FreezeCalc.Fmt(f.Start1to3[i])); w.WriteEndElement(); }
                 foreach (KeyValuePair<int, DateTime> kv in f.Ist) { w.WriteStartElement("ist"); w.WriteAttributeString("c", kv.Key.ToString(inv)); w.WriteAttributeString("t", FreezeCalc.Fmt(kv.Value)); w.WriteEndElement(); }
@@ -88,7 +89,7 @@ namespace Arbeitsplan.Core
                 f.Anlage = FreezeCalc.Num(c, "anlage", 1, 1, 9); f.Kreislauf = FreezeCalc.Num(c, "kreislauf", 1, 1, 9);
                 f.DauerMin = FreezeCalc.Num(c, "dauer", 360, 1, FreezeCalc.MaxMin); f.AbstandMin = FreezeCalc.Num(c, "abstand", 420, 1, FreezeCalc.MaxMin);
                 f.Cycles = FreezeCalc.Num(c, "cycles", 14, 1, FreezeCalc.MaxCycles);
-                f.MainRef = c.GetAttribute("haupt"); f.SubNo = c.GetAttribute("unter"); f.Tanks = c.GetAttribute("tanks");
+                f.MainRef = c.GetAttribute("haupt"); f.SubNo = c.GetAttribute("unter"); f.Tanks = c.GetAttribute("tanks"); f.CycleNames = c.GetAttribute("zyklen");
                 StringBuilder note = new StringBuilder();
                 foreach (XmlNode k in c.ChildNodes)
                 {
@@ -190,6 +191,7 @@ namespace Arbeitsplan.Core
             r.Cycles = Pick(b.Cycles, m.Cycles, t.Cycles, pm, ref clash);
             r.MainRef = Pick(b.MainRef, m.MainRef, t.MainRef, pm, ref clash); r.SubNo = Pick(b.SubNo, m.SubNo, t.SubNo, pm, ref clash);
             r.Tanks = Pick(b.Tanks, m.Tanks, t.Tanks, pm, ref clash); r.Note = Pick(b.Note, m.Note, t.Note, pm, ref clash);
+            r.CycleNames = Pick(b.CycleNames, m.CycleNames, t.CycleNames, pm, ref clash);
             List<int> keys = new List<int>(b.Ist.Keys);
             foreach (int k in m.Ist.Keys) if (!keys.Contains(k)) keys.Add(k);
             foreach (int k in t.Ist.Keys) if (!keys.Contains(k)) keys.Add(k);

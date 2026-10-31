@@ -29,7 +29,7 @@ namespace Arbeitsplan.Win
 
     // Freeze-Bereich eines Blocks (Zeile mit RowInfo.Freeze): je Vorgang eine Kopfzeile "Bag-Freeze · Unterlauf X (aus Y) · Tanks ..." und darunter
     // die Cycles des Tages kompakt je Anlage ("Z1 · FA1 · 12:00   Z4 · FA1 · 19:00", Verzoegerung orange, geschaetzte Zeiten kursiv).
-    // Fortsetzungen frueherer Tage kursiv grau "(aus Mo)" (nur berechnet, nie gespeichert). Unter dem Inhalt jedes Hauptlauf-Blocks die abgeleitete
+    // Fortsetzungen frueherer Tage wie am Starttag (Farben, Tint, Streifen), mit Praefix "(aus Mo)" (nur berechnet, nie gespeichert). Unter dem Inhalt jedes Hauptlauf-Blocks die abgeleitete
     // graue Zeile "gesplittet in X1, X2 · Tanks ..." (SplitIndex, einmal je Wochenaufbau).
     partial class PlanView
     {
@@ -92,7 +92,7 @@ namespace Arbeitsplan.Win
                   .Append(f.Art == FreezeArt.Bag ? ", " + FreezeCalc.Count(f) + " Zyklen, Abstand " + FreezeCalc.Dur(f.AbstandMin) : "");
             foreach (FreezeCycle c in today)
                 if (c.DelayMin != 0) sb.Append("\n").Append(c.Label).Append(" ").Append(FreezeCalc.DelayText(c.DelayMin)).Append(c.HasIst ? " (eingetragen)" : " (folgt aus früherem Zyklus)");
-            foreach (FreezeCycle c in today) if (c.Estimated) { sb.Append("\nZ2/Z3 ohne Eingabe: geschätzt (kursiv)"); break; }
+            foreach (FreezeCycle c in today) if (c.Estimated) { sb.Append("\n" + f.CycleName(2) + "/" + f.CycleName(3) + " ohne Eingabe: geschätzt (kursiv)"); break; }
             foreach (string h in FreezeCalc.Hints(f)) sb.Append("\nHinweis: ").Append(h);
             sb.Append(cont ? "\nFortsetzung aus " + Ui.DayText(origin) + " – Klick öffnet den Vorgang." : "\nKlick: Vorgang bearbeiten");
             return sb.ToString();
@@ -106,14 +106,14 @@ namespace Arbeitsplan.Win
         {
             Theme th = Theme.Current;
             Font plain = FontCache.Get(Font.Name, Font.SizeInPoints, FontStyle.Regular, Font), ital = FontCache.Get(Font.Name, Font.SizeInPoints, FontStyle.Italic, Font);
-            Font f = cont || c.Estimated ? ital : plain, fa = cont ? ital : bold;
-            Color dark = cont ? th.Muted : Color.Black, ac = cont ? th.Muted : FreezeStyle.Anlage(c.Anlage);
+            Font f = c.Estimated ? ital : plain, fa = bold;
+            Color dark = Color.Black, ac = FreezeStyle.Anlage(c.Anlage);
             int sp = TextW("a a", plain) - TextW("aa", plain);
             for (int dots = 1; dots >= 0; dots--)
             {
                 FrzSeg s = new FrzSeg(); int x = 0;
                 List<FrzRun> rs = new List<FrzRun>();
-                rs.Add(Run(c.Label, cont ? ital : bold, dark)); if (dots > 0) rs.Add(Run("·", plain, th.Muted));
+                rs.Add(Run(c.Label, bold, dark)); if (dots > 0) rs.Add(Run("·", plain, th.Muted));
                 rs.Add(Run("FA" + c.Anlage, fa, ac)); if (dots > 0) rs.Add(Run("·", plain, th.Muted));
                 rs.Add(Run(c.Actual.ToString("HH:mm"), f, dark));
                 foreach (FrzRun r in rs) { r.X = x; x += r.W + sp; s.Runs.Add(r); }
@@ -126,7 +126,7 @@ namespace Arbeitsplan.Win
         // Verzoegerung "(+7 h)" als eigener Eintrag direkt hinter dem Cycle (passt er nicht mehr in die Zeile, steht er darunter)
         FrzSeg DelaySeg(FreezeCycle c, bool cont)
         {
-            FrzSeg s = new FrzSeg(); FrzRun r = Run("(" + FreezeCalc.DelayText(c.DelayMin) + ")", cont ? FontCache.Get(Font.Name, Font.SizeInPoints, FontStyle.Italic, Font) : bold, FreezeStyle.Delay);
+            FrzSeg s = new FrzSeg(); FrzRun r = Run("(" + FreezeCalc.DelayText(c.DelayMin) + ")", bold, FreezeStyle.Delay);
             s.Runs.Add(r); s.W = r.W;
             return s;
         }
@@ -161,8 +161,8 @@ namespace Arbeitsplan.Win
             Color[] fore = new Color[text.Length];
             Font[] fnt = new Font[text.Length];
             int[] mode = new int[text.Length];
-            Font plain = FontCache.Get(Font.Name, Font.SizeInPoints, FontStyle.Regular, Font), ital = FontCache.Get(Font.Name, Font.SizeInPoints, FontStyle.Italic, Font);
-            for (int i = 0; i < text.Length; i++) { fore[i] = cont ? Theme.Current.Muted : Color.Black; fnt[i] = cont ? ital : boldFont ? bold : plain; }
+            Font plain = FontCache.Get(Font.Name, Font.SizeInPoints, FontStyle.Regular, Font);
+            for (int i = 0; i < text.Length; i++) { fore[i] = Color.Black; fnt[i] = boldFont ? bold : plain; }
             hits = search && !cont ? MarkQuery(text, mode) : 0;
             return Group(text, fore, fnt, mode);
         }
@@ -182,7 +182,7 @@ namespace Arbeitsplan.Win
                 p.NoteY = h; h += p.Note.Height;
             }
             p.H = h + FrzPad;
-            p.Stripe = cont ? Theme.Current.Muted : FreezeStyle.Anlage(f.Art == FreezeArt.Tank ? 2 : 1);
+            p.Stripe = FreezeStyle.Anlage(f.Art == FreezeArt.Tank ? 2 : 1);
             p.Tip = FreezeTip(f, cys, cont, origin);
             return p;
         }
@@ -241,7 +241,7 @@ namespace Arbeitsplan.Win
                 {
                     FrzPart p = c.FrzParts[i];
                     int y = c.RFrz.Y + p.Y;
-                    if (!p.Cont) Fill(g, FreezeStyle.Tint(own++), new Rectangle(c.RFrz.X, y, c.RFrz.Width, p.H));
+                    Fill(g, FreezeStyle.Tint(own++), new Rectangle(c.RFrz.X, y, c.RFrz.Width, p.H));
                     Fill(g, p.Stripe, new Rectangle(c.RFrz.X, y, StripeW, p.H));
                     p.Head.Draw(g, x, y + FrzPad);
                     int bx = x + FrzIndent, by = y + p.BodyY;

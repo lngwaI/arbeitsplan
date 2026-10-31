@@ -98,3 +98,5 @@ Dateien liegen nach Thema in `partial`-Dateien (`Backup.*`, `Packages.*`, `PlanV
 - Equipment-Leiste und Vormerkung: `EquipBar.cs`, `EquipPending.cs`.
 - CI-Workflow: `continue-on-error` gesetzt.
 - Weitere Doku: `docs/Demo.md`, `beispiel/README.md` (Beispiel-Umgebung), `docs/Equipment-Status.md`, `docs/UX-Hilfen.md`.
+- Entfernen des Knopfs "+ Puffer" (aktuell beibehalten) betrifft `PlanView.Checks.cs:56,92` und `MainForm.Buffers.cs`.
+- P4: Kursiv = Notiz (ganz kursive Zeile, `Core/Notes.cs`; kein Notiz-Span mehr, alte `n`/`notiz`-Attribute werden als kursiv gelesen); Zyklen-Namen `FreezeItem.CycleNames` (Attribut `zyklen`); Rundgangsleiste einzeilig (Modus 0/1/2, `PlanView.Rounds.cs`).

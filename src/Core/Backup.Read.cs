@@ -114,7 +114,7 @@ namespace Arbeitsplan.Core
             foreach (XmlElement f in Kids(e, "Fmt"))
             {
                 FormatSpan s = new FormatSpan(); s.Start = Int(f, "start"); s.Length = Int(f, "len"); s.Rgb = Int(f, "rgb");
-                s.Size = float.Parse(f.GetAttribute("size"), Inv); s.Bold = Bool(f, "b"); s.Italic = Bool(f, "i"); s.Note = Bool(f, "n"); s.NoteWasItalic = s.Note && Bool(f, "oi");
+                s.Size = float.Parse(f.GetAttribute("size"), Inv); s.Bold = Bool(f, "b"); s.Italic = Bool(f, "i") || Bool(f, "n");   // "n" = alte Notiz-Markierung: gilt als kursiv (Kursiv = Notiz)
                 s.Font = f.HasAttribute("font") ? f.GetAttribute("font") : null;
                 x.Spans.Add(s);
             }

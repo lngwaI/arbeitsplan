@@ -46,21 +46,21 @@ namespace Arbeitsplan.Win
             bool okRows, okLive, okReset, okTime, okSame, okBad, okHint, okArt, okParam, okStart, okCheck, okRo;
             using (FreezeForm f = new FreezeForm(ch))
             {
-                string c5 = f.TestCell(5, 3), c6 = f.TestCell(6, 3), c7 = f.TestCell(7, 3);
-                okRows = f.TestRows == 14 && f.TestCell(1, 1) == "FA1" && f.TestCell(3, 1) == "FA3" && f.TestCell(4, 1) == "FA1" && f.TestCell(14, 1) == "FA2"
-                    && f.TestCell(2, 2).Contains("geschätzt") && !f.TestCell(1, 2).Contains("geschätzt") && f.TestCell(4, 3) == FzSt(FzD0.AddHours(7)) && f.TestCell(4, 4) == FzSt(FzD0.AddHours(13));
+                string c5 = f.TestCell(5, 4), c6 = f.TestCell(6, 4), c7 = f.TestCell(7, 4);
+                okRows = f.TestRows == 14 && f.TestCell(1, 2) == "FA1" && f.TestCell(3, 2) == "FA3" && f.TestCell(4, 2) == "FA1" && f.TestCell(14, 2) == "FA2"
+                    && f.TestCell(2, 3).Contains("geschätzt") && !f.TestCell(1, 3).Contains("geschätzt") && f.TestCell(4, 4) == FzSt(FzD0.AddHours(7)) && f.TestCell(4, 5) == FzSt(FzD0.AddHours(13));
                 f.TestSetIst(4, "04.03. 02:00");   // C4 real Dienstag 02:00 (geplant Montag 19:00 = +7 h)
                 DateTime e4 = new DateTime(2031, 3, 4, 2, 0, 0);
-                okLive = f.TestCell(4, 3) == FzSt(e4) && f.TestCell(7, 3) == FzSt(e4.AddHours(7)) && f.TestCell(10, 3) == FzSt(e4.AddHours(14)) && f.TestCell(5, 3) == c5 && f.TestCell(6, 3) == c6
-                    && f.TestCell(4, 5) == "+7 h" && f.TestCell(7, 5) == "+7 h" && f.TestCell(5, 5) == "" && f.TestCell(4, 6) == "zurücksetzen" && f.TestCell(7, 6) == "" && f.TestItem.Ist.Count == 1;
+                okLive = f.TestCell(4, 4) == FzSt(e4) && f.TestCell(7, 4) == FzSt(e4.AddHours(7)) && f.TestCell(10, 4) == FzSt(e4.AddHours(14)) && f.TestCell(5, 4) == c5 && f.TestCell(6, 4) == c6
+                    && f.TestCell(4, 6) == "+7 h" && f.TestCell(7, 6) == "+7 h" && f.TestCell(5, 6) == "" && f.TestCell(4, 7) == "zurücksetzen" && f.TestCell(7, 7) == "" && f.TestItem.Ist.Count == 1;
                 f.TestClickReset(4);
-                okReset = f.TestCell(7, 3) == c7 && f.TestCell(4, 6) == "" && f.TestCell(4, 5) == "" && f.TestItem.Ist.Count == 0;
+                okReset = f.TestCell(7, 4) == c7 && f.TestCell(4, 7) == "" && f.TestCell(4, 6) == "" && f.TestItem.Ist.Count == 0;
                 f.TestSetIst(5, "21:30");   // nur Uhrzeit: Tag wie berechnet; C8 folgt (+7 h)
-                okTime = f.TestCell(5, 3) == FzSt(new DateTime(2031, 3, 3, 21, 30, 0)) && f.TestCell(8, 3) == FzSt(new DateTime(2031, 3, 4, 4, 30, 0)) && f.TestCell(5, 5) == "+1 h 30 min" && f.TestCell(6, 3) == c6;
+                okTime = f.TestCell(5, 4) == FzSt(new DateTime(2031, 3, 3, 21, 30, 0)) && f.TestCell(8, 4) == FzSt(new DateTime(2031, 3, 4, 4, 30, 0)) && f.TestCell(5, 6) == "+1 h 30 min" && f.TestCell(6, 4) == c6;
                 f.TestSetIst(5, FzSt(FzD0.AddHours(8)));   // gleich dem berechneten Wert = keine Korrektur
                 bool same1 = f.TestItem.Ist.Count == 0;
                 f.TestSetIst(5, "21:00"); f.TestSetIst(5, "");
-                okSame = same1 && f.TestItem.Ist.Count == 0 && f.TestCell(5, 3) == c5;
+                okSame = same1 && f.TestItem.Ist.Count == 0 && f.TestCell(5, 4) == c5;
                 f.TestSetIst(6, "abc");
                 bool bad1 = f.TestHint.Contains("nicht lesbar") && f.TestItem.Ist.Count == 0;
                 f.TestSetIst(6, "");
@@ -74,18 +74,18 @@ namespace Arbeitsplan.Win
                 f.TestSetArt(true);
                 okArt = tank && f.TestBagVisible && !f.TestTankVisible && f.TestRows == 14;
                 f.TestSetGap(5);
-                bool gap1 = f.TestHint.Contains("kleiner") && f.TestCell(4, 3) == FzSt(FzD0.AddHours(5));
+                bool gap1 = f.TestHint.Contains("kleiner") && f.TestCell(4, 4) == FzSt(FzD0.AddHours(5));
                 f.TestSetGap(7);
-                okParam = gap1 && f.TestCell(4, 3) == FzSt(FzD0.AddHours(7)) && !f.TestHint.Contains("kleiner");
+                okParam = gap1 && f.TestCell(4, 4) == FzSt(FzD0.AddHours(7)) && !f.TestHint.Contains("kleiner");
                 f.TestSetStart(FzD0.AddHours(2));
-                okStart = f.TestCell(1, 3) == FzSt(FzD0.AddHours(2)) && f.TestCell(2, 3) == FzSt(FzD0.AddHours(3)) && f.TestCell(4, 3) == FzSt(FzD0.AddHours(9));
+                okStart = f.TestCell(1, 4) == FzSt(FzD0.AddHours(2)) && f.TestCell(2, 4) == FzSt(FzD0.AddHours(3)) && f.TestCell(4, 4) == FzSt(FzD0.AddHours(9));
                 f.TestSetMain("123"); bool m1 = f.TestCheck() != null;
                 f.TestSetMain("13570030"); bool m2 = f.TestCheck() == null;
                 f.TestSetMain("");
                 okCheck = m1 && m2;
             }
             FreezeChoice ro = new FreezeChoice(); ro.Item = FzBag(FzD0); ro.Item.Ist[4] = FzD0.AddHours(14); ro.ReadOnly = true;
-            using (FreezeForm f2 = new FreezeForm(ro)) okRo = f2.TestRows == 14 && f2.TestCell(4, 6) == "" && f2.TestCell(7, 3) == FzSt(FzD0.AddHours(21));
+            using (FreezeForm f2 = new FreezeForm(ro)) okRo = f2.TestRows == 14 && f2.TestCell(4, 7) == "" && f2.TestCell(7, 4) == FzSt(FzD0.AddHours(21));
             DateTime t, calc = new DateTime(2031, 3, 3, 12, 0, 0);
             bool p1 = FreezeForm.ParseTime("02:30", calc, out t) && t == new DateTime(2031, 3, 3, 2, 30, 0);
             bool p2 = FreezeForm.ParseTime("Di 04.03. 02:30", calc, out t) && t == new DateTime(2031, 3, 4, 2, 30, 0);
@@ -131,7 +131,7 @@ namespace Arbeitsplan.Win
                 bool okOwn = wc.FrzParts.Count == 1 && !wc.FrzParts[0].Cont && wc.FrzParts[0].Segs.Count == 2 && wc.FrzParts[0].Segs[0].Runs[0].Text == "Z1" && wc.FrzParts[0].Segs[1].Y > wc.FrzParts[0].Segs[0].Y
                     && headTxt.Replace(" ", "") == PlanView.FreezeHead(e.Freezes[0]).Replace(" ", "") && headTxt.StartsWith("Bag-Freeze");
                 bool okCont = tc.Conts.Count == 6 && tc.FrzParts.Count == 1 && tc.FrzParts[0].Cont && tc.FrzParts[0].Origin == d2 && tc.FrzParts[0].Id == "f1" && tc.FrzParts[0].Segs.Count == 6
-                    && tc.FrzParts[0].Segs[0].Runs[0].Font.Italic && tc.FrzParts[0].Head.Lines[0][0].Text == "(aus";
+                    && !tc.FrzParts[0].Segs[0].Runs[0].Font.Italic && tc.FrzParts[0].Segs[0].Runs[0].Color == Color.Black && tc.FrzParts[0].Stripe == wc.FrzParts[0].Stripe && tc.FrzParts[0].Head.Lines[0][0].Text == "(aus";
                 bool okLayout = FzuLayout(fr);
                 // 3) Klick auf die Fortsetzung oeffnet den Vorgang im Block des Ursprungstags (nicht neu)
                 string where = null; bool wasNew = true; string wid = "";
@@ -200,7 +200,7 @@ namespace Arbeitsplan.Win
                 Entry gone = store.Get(wk.AddDays(4), fid);
                 bool okDel = gone == null || gone.Freezes.Count == 0;
                 bool okRight = noIst && addOk && noDel && noInt && noNew;
-                sb.AppendLine("Freeze Plan: neu über + Freeze, Protokoll=" + Ok(okNew) + " Vorgang C1/C2 je Anlage=" + Ok(okOwn) + " Fortsetzung kursiv (aus Mi)=" + Ok(okCont) + " Höhen ohne Überlappung=" + Ok(okLayout)
+                sb.AppendLine("Freeze Plan: neu über + Freeze, Protokoll=" + Ok(okNew) + " Vorgang C1/C2 je Anlage=" + Ok(okOwn) + " Fortsetzung wie Starttag (aus Mi)=" + Ok(okCont) + " Höhen ohne Überlappung=" + Ok(okLayout)
                     + " Klick öffnet Ursprung=" + Ok(okClick) + " Ist C4: +3 h in Fortsetzung=" + Ok(okIst) + " Konflikt, fremde Notiz bleibt=" + Ok(okConf) + " gesplittet-Zeile=" + Ok(okSplit)
                     + " Editor/Speichern=" + Ok(okEd) + " Zeile offen mit Fortsetzung=" + Ok(okFold) + " Rechte=" + Ok(okRight) + " Entfernen=" + Ok(okDel));
             }

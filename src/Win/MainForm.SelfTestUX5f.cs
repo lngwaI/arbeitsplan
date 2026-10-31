@@ -21,7 +21,7 @@ namespace Arbeitsplan.Win
         static string UxItalics(Entry e)
         {
             List<string> r = new List<string>();
-            foreach (FormatSpan sp in e.Spans) if (sp.Italic && !sp.Note && sp.Rgb == 0 && sp.Size == 0f) r.Add(e.Content.Substring(sp.Start, sp.Length));
+            foreach (FormatSpan sp in e.Spans) if (sp.Italic && sp.Rgb == 0 && sp.Size == 0f) r.Add(e.Content.Substring(sp.Start, sp.Length));
             return string.Join("|", r.ToArray());
         }
 
@@ -36,12 +36,12 @@ namespace Arbeitsplan.Win
             const string Plain = "Lauf\nVS: H1-F-0103-04 (nur eins vorhanden)\nTFF: H1-X-0101 (Ausweich: H1-X-0103) Reserve\nSchlauch: DN 25\nPumpe: H1-P-0101-05";
             Entry e = s.EntryFor(0, "");
             bool okText = s.Compose(0, "") == Plain && e.Content == Plain && Plain.IndexOf(BufferSet.NoteMark) < 0 && s.Equipment[1].Line(0) == "TFF: H1-X-0101 (Ausweich: H1-X-0103) Reserve";
-            bool okSpan = UxItalics(e) == "(nur eins vorhanden)|Reserve|DN 25" && e.Spans.TrueForAll(delegate(FormatSpan x) { return !x.Note; });
+            bool okSpan = UxItalics(e) == "(nur eins vorhanden)|Reserve|DN 25";
             bool okInhalt = !e.HasNotes && !e.IsEmpty && Notes.ContentText(e) == Plain;   // Geraetezeile bleibt Inhalt, keine Notizzeile
             // mit eigener Notizzeile (A3) und Kennung: Positionen der Spans stimmen weiterhin
             PackageStep s2 = s.Clone(); s2.Note = "Hinweis A"; s2.Kind = StepKind.Run; s2.IdentStart = "PA 40010001";
             Entry e2 = s2.EntryFor(0, "");
-            bool okMix = UxItalics(e2) == "(nur eins vorhanden)|Reserve|DN 25" && e2.HasNotes && Notes.NoteTexts(e2)[0] == "Hinweis A" && e2.Content.EndsWith("PA 40010001") && e2.Spans.Exists(delegate(FormatSpan x) { return x.Bold && x.Rgb == 0xFF0000; });
+            bool okMix = UxItalics(e2).StartsWith("(nur eins vorhanden)|Reserve|DN 25") && e2.HasNotes && Notes.NoteTexts(e2)[0] == "Hinweis A" && e2.Content.EndsWith("PA 40010001") && e2.Spans.Exists(delegate(FormatSpan x) { return x.Bold && x.Rgb == 0xFF0000; });
             // ohne Notizen: kein Span (Alt-Daten unveraendert)
             PackageStep s3 = new PackageStep(); s3.Title = "Lauf"; s3.Equipment.Add(UxNoteEq("TFF", "H1-X-0101", "", "")); s3.Equipment.Add(UxNoteEq("Pumpe", "H1-P-0101-05", "", "H1-P-0102-05"));
             Entry e3 = s3.EntryFor(0, "");
@@ -56,7 +56,7 @@ namespace Arbeitsplan.Win
                     {
                         Entry x = st.EntryFor(r, pk.Prefix); runs++;
                         if (x.Content != st.Compose(r, pk.Prefix)) badGold++;
-                        foreach (FormatSpan sp in x.Spans) if (sp.Italic && !sp.Note && sp.Rgb == 0 && sp.Start + sp.Length > x.Content.Length) badGold++;
+                        foreach (FormatSpan sp in x.Spans) if (sp.Italic && sp.Rgb == 0 && sp.Start + sp.Length > x.Content.Length) badGold++;
                     }
                 }
             // Plan: uebernehmen -> Spans im Block, Rundweg Datei

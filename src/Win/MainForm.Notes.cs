@@ -6,19 +6,17 @@ using Arbeitsplan.Core;
 
 namespace Arbeitsplan.Win
 {
-    // Notizzeilen (Core/Notes.cs): ganze Zeilen des Inhalts, kursiv mit hellem Hintergrund, zaehlen nicht als Inhalt.
-    // Ansicht: Rechtsklick auf eine Textzeile -> "Als Notiz markieren" / "Notiz aufheben", gespeichert wie der LKZ-Haken (Change).
-    // Editor: gleiche Eintraege im Kontextmenue; die Markierung ist der Hintergrund (SelectionBackColor), ExtractSpans liest ihn.
+    // Notizzeilen (Core/Notes.cs): ganz kursive Zeilen, zaehlen nicht als Inhalt (Kursiv = Notiz).
+    // Ansicht: Rechtsklick auf eine Textzeile -> "Zeile kursiv setzen" / "Kursiv entfernen", gespeichert wie der LKZ-Haken (Change).
+    // Editor: gleiche Eintraege im Kontextmenue (Zeilen der Auswahl).
     partial class MainForm
     {
-        int NoteArgb { get { return Theme.Current.NoteBack.ToArgb(); } }
-
         // vm = Menue der Ansicht, cm = Menue des Editors (aus InitData)
         void InitNotes(ContextMenuStrip vm, ContextMenuStrip cm)
         {
             ToolStripSeparator vsep = new ToolStripSeparator();
-            ToolStripItem vOn = new ToolStripMenuItem("Als Notiz markieren", null, delegate { ViewNote(true); });
-            ToolStripItem vOff = new ToolStripMenuItem("Notiz aufheben", null, delegate { ViewNote(false); });
+            ToolStripItem vOn = new ToolStripMenuItem("Zeile kursiv setzen (= Notiz)", null, delegate { ViewNote(true); });
+            ToolStripItem vOff = new ToolStripMenuItem("Kursiv entfernen", null, delegate { ViewNote(false); });
             vm.Items.Add(vsep); vm.Items.Add(vOn); vm.Items.Add(vOff);
             vm.Closed += delegate { BeginInvoke((MethodInvoker)delegate { view.MenuPara = -1; }); };   // erst nach dem Klick auf den Eintrag zuruecksetzen
             vm.Opening += delegate
@@ -30,8 +28,8 @@ namespace Arbeitsplan.Win
                 vOn.Visible = line && !note; vOff.Visible = line && note; vsep.Visible = line;
                 vOn.Enabled = vOff.Enabled = me.Has(Perm.EditText);
             };
-            ToolStripItem eOn = cm.Items.Add("Als Notiz markieren", null, delegate { EditorNote(true); });
-            ToolStripItem eOff = cm.Items.Add("Notiz aufheben", null, delegate { EditorNote(false); });
+            ToolStripItem eOn = cm.Items.Add("Zeile kursiv setzen (= Notiz)", null, delegate { EditorNote(true); });
+            ToolStripItem eOff = cm.Items.Add("Kursiv entfernen", null, delegate { EditorNote(false); });
             cm.Opening += delegate { eOn.Enabled = eOff.Enabled = me.Has(Perm.EditText); };
         }
 
@@ -57,7 +55,7 @@ namespace Arbeitsplan.Win
             if (c == null || c.Editing || p < 0) return;
             if (!me.Has(Perm.EditText))
             {
-                if (!quiet) MessageBox.Show("Notizen markieren dürfen nur Nutzer mit dem Recht \"Text ändern\".", "Arbeitsplan", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                if (!quiet) MessageBox.Show("Kursiv setzen dürfen nur Nutzer mit dem Recht \"Text ändern\".", "Arbeitsplan", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
             string[] ls = c.Cur.Content.Split('\n');
@@ -70,7 +68,7 @@ namespace Arbeitsplan.Win
 
         // ---------- Editor ----------
 
-        // Zeilen a..a+n im Editor als Notiz darstellen (Hintergrund + kursiv) bzw. zuruecksetzen; Aufrufer sperrt die Auswahl-Handler.
+        // Zeilen a..a+n im Editor kursiv setzen bzw. das Kursiv entfernen; Aufrufer sperrt die Auswahl-Handler.
         void StyleLine(int a, int n, bool on)
         {
             edContent.Select(a, n);
@@ -79,7 +77,6 @@ namespace Arbeitsplan.Win
             float size = f != null ? f.SizeInPoints : plainFont.SizeInPoints;
             FontStyle st = f != null ? f.Style : FontStyle.Regular;
             if (f != null) f.Dispose();
-            edContent.SelectionBackColor = on ? Theme.Current.NoteBack : edContent.BackColor;
             edContent.SelectionFont = MakeFont(name, size, on ? st | FontStyle.Italic : st & ~FontStyle.Italic);
         }
 
@@ -109,33 +106,7 @@ namespace Arbeitsplan.Win
             edContent.Focus();
         }
 
-        // Nach "Standardformat"/Kursiv-Schalter: Notizzeilen behalten ihr Aussehen (die Markierung ist der Hintergrund)
-        void RestoreNoteLook()
-        {
-            if (editCell == null) return;
-            string text = edContent.Text;
-            int s0 = edContent.SelectionStart, l0 = edContent.SelectionLength;
-            extracting = true;
-            SendMessage(edContent.Handle, WM_SETREDRAW, 0, 0);
-            try
-            {
-                foreach (int[] l in Notes.Lines(text))
-                {
-                    if (l[1] == 0) continue;
-                    edContent.Select(l[0], 1);
-                    if (edContent.SelectionBackColor.ToArgb() == NoteArgb) StyleLine(l[0], l[1], true);
-                }
-            }
-            finally
-            {
-                edContent.Select(s0, l0);
-                SendMessage(edContent.Handle, WM_SETREDRAW, 1, 0);
-                extracting = false;
-                edContent.Invalidate();
-            }
-        }
-
-        // Enter am Ende einer Notizzeile: neue Zeile ohne Notizformat. true = behandelt.
+        // Enter am Ende einer kursiven Zeile: neue Zeile ohne Kursiv (sonst wuerde sie sofort wieder zur Notiz). true = behandelt.
         bool NoteEnter()
         {
             if (editCell == null || edContent.SelectionLength != 0) return false;
@@ -143,11 +114,11 @@ namespace Arbeitsplan.Win
             if (p == 0 || t[p - 1] == '\n' || (p < t.Length && t[p] != '\n')) return false;
             extracting = true;
             bool note;
-            try { edContent.Select(p - 1, 1); note = edContent.SelectionBackColor.ToArgb() == NoteArgb; edContent.Select(p, 0); }
+            try { edContent.Select(p - 1, 1); Font f = edContent.SelectionFont; note = f != null && f.Italic; if (f != null) f.Dispose(); edContent.Select(p, 0); }
             finally { extracting = false; }
             if (!note) return false;
             edContent.SelectedText = "\n";
-            edContent.SelectionBackColor = edContent.BackColor; edContent.SelectionFont = plainFont; edContent.SelectionColor = Color.Black;
+            edContent.SelectionFont = plainFont; edContent.SelectionColor = Color.Black;
             return true;
         }
     }
