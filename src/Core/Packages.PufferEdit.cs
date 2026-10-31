@@ -103,6 +103,7 @@ namespace Arbeitsplan.Core
             if (fr == tr) return false;
             List<int> slots = new List<int>(); List<PufferShare> cov = new List<PufferShare>();
             for (int i = 0; i < PufferShared.Count; i++) if (PufferShared[i].Covers(k)) { slots.Add(i); cov.Add(PufferShared[i]); }
+            foreach (PufferShare g in cov) g.After = -1;   // P6: manuell sortiert = am Ende
             MoveItem(cov, fr, tr);
             for (int i = 0; i < slots.Count; i++) PufferShared[slots[i]] = cov[i];
             return true;

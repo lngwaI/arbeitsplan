@@ -31,10 +31,12 @@ namespace Arbeitsplan.Win
         readonly ComboBox bVar = new ComboBox();
         string[] varVals;   // Index 0 = kein Typ, danach die Varianten der Puffer-Zeile
         bool loading;
+        readonly Dictionary<EquipPosition, string> origShort = new Dictionary<EquipPosition, string>();   // Kurzform beim Oeffnen (P6)
 
         public CatalogForm(Catalog catalog, List<string> rowNames, string[] variants = null, bool fromProducts = false)
         {
             cat = catalog.Clone(); this.rowNames = rowNames;
+            foreach (EquipPosition p in cat.Positions) origShort[p] = p.Short;
             List<string> vl = new List<string>(); vl.Add("");
             foreach (string v in variants ?? new[] { "mobil", "stationaer" }) if (v.Length > 0 && !vl.Contains(v)) vl.Add(v);
             varVals = vl.ToArray();
@@ -281,6 +283,16 @@ namespace Arbeitsplan.Win
         {
             foreach (EquipPosition e in cat.Positions)
                 if (e.Short.Length == 0) { MessageBox.Show("Jede Position braucht eine Kurzform (z. B. PT).", "Einrichten", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
+            for (int i = 0; i < cat.Positions.Count; i++) for (int j = i + 1; j < cat.Positions.Count; j++)
+                if (string.Equals(cat.Positions[i].Short, cat.Positions[j].Short, StringComparison.OrdinalIgnoreCase))
+                { MessageBox.Show("Die Kurzform „" + cat.Positions[i].Short + "“ gibt es doppelt.", "Einrichten", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
+            Dictionary<string, string> ren = new Dictionary<string, string>();
+            foreach (KeyValuePair<EquipPosition, string> kv in origShort) if (kv.Key.Short != kv.Value && cat.Positions.Contains(kv.Key)) ren[kv.Value] = kv.Key.Short;
+            if (ren.Count > 0)
+            {
+                cat.RenameShorts(ren);
+                MessageBox.Show("Verweise im Katalog (Bausteine, Gruppen, Produkte) wurden angepasst. Bestehende Pakete behalten die alte Kurzform.", "Einrichten", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
             Result = cat;
             DialogResult = DialogResult.OK;
         }

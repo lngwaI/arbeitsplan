@@ -17,6 +17,8 @@ namespace Arbeitsplan.Win
         readonly string[] variants;
         public Catalog Result;
         bool loading, noAsk;
+        public string PackageFolder;   // gesetzt: beim Umbenennen darf der Code auch in den Paketdateien geaendert werden (P6)
+        public readonly Dictionary<string, string> PackRename = new Dictionary<string, string>();   // urspruenglicher Code -> neuer Code, wird erst nach dem Speichern des Katalogs ausgefuehrt
         ProductProfile prod;
         int changes;
         string lastAction = "";
@@ -180,9 +182,17 @@ namespace Arbeitsplan.Win
             string old = prod.Code;
             if (codeChanged && Msg("Bestehende Pakete und der Plan verwenden weiter den Code " + old + "; für sie gilt dann nicht mehr dieses Profil.\n\nCode trotzdem ändern?",
                 MessageBoxButtons.YesNo, MessageBoxIcon.Warning, MessageBoxDefaultButton.Button2) != DialogResult.Yes) return;
+            bool inPk = codeChanged && PackageFolder != null && Msg("Auch alle Pakete dieses Produkts ändern?\n(Die Paketdateien im Paketordner bekommen beim Speichern den Code " + code + ". Der Plan bleibt unverändert.)",
+                MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button1) == DialogResult.Yes;
+            if (inPk)
+            {
+                string orig = old;
+                foreach (KeyValuePair<string, string> kv in PackRename) if (kv.Value == old) { orig = kv.Key; break; }
+                PackRename.Remove(orig); if (orig != code) PackRename[orig] = code;
+            }
             prod.Code = code; prod.Name = name;
             SelectProduct(prod);
-            Touch(codeChanged ? "Code " + old + " zu " + code + " geändert. Bestehende Pakete und der Plan behalten den alten Code." : "Name von " + code + " geändert.");
+            Touch(codeChanged ? "Code " + old + " zu " + code + " geändert. " + (inPk ? "Pakete werden beim Speichern angepasst; der Plan behält den alten Code." : "Bestehende Pakete und der Plan behalten den alten Code.") : "Name von " + code + " geändert.");
         }
 
         void RemoveSelected()

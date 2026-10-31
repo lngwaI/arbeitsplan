@@ -53,17 +53,17 @@ namespace Arbeitsplan.Win
             return Group(text, fore, fnt, mode);
         }
 
-        // Kopfzeile "Puffer n: Name · Lauf m" ganz fett (ohne Namen "–" grau, Lauf-Angabe grau), Suchtreffer nur im Namen
-        List<Piece> BufferHead(int n, BufferItem b, bool search, out int hits)
+        // Kopfzeile "Name · Lauf m" ganz fett (ohne Namen "–" grau, Lauf-Angabe grau), Suchtreffer nur im Namen
+        List<Piece> BufferHead(BufferItem b, bool search, out int hits)
         {
-            string name = b.Name, lead = "Puffer " + n + ":", text = b.HeadText(n);
+            string name = b.Name, text = b.HeadText();
             int laufAt = text.Length - b.LaufText.Length;
             Color[] fore = new Color[text.Length];
             Font[] fnt = new Font[text.Length];
             int[] mode = new int[text.Length];
             for (int i = 0; i < text.Length; i++)
             {
-                fore[i] = i >= laufAt || (i > lead.Length && name.Length == 0) ? Theme.Current.Muted : Color.Black;
+                fore[i] = i >= laufAt || name.Length == 0 ? Theme.Current.Muted : Color.Black;
                 fnt[i] = bold;
             }
             hits = 0;
@@ -71,7 +71,7 @@ namespace Arbeitsplan.Win
             {
                 int[] nm = new int[name.Length];
                 hits = MarkQuery(name, nm);
-                Array.Copy(nm, 0, mode, lead.Length + 1, nm.Length);
+                Array.Copy(nm, 0, mode, 0, nm.Length);
             }
             return Group(text, fore, fnt, mode);
         }
@@ -86,7 +86,7 @@ namespace Arbeitsplan.Win
             {
                 BufferItem b = c.Buffers[i];
                 BufPart p = new BufPart(); p.Typ = b.Typ; p.Tip = TypTip(b.Typ) + (b.LaufRef > 0 ? "\nbedient Lauf " + b.LaufRef : "") + "\nKlick: Puffer bearbeiten";
-                p.Head = TextBlock.Build(BufferHead(i + 1, b, !c.Editing, out h2), Font, aw - 2 - mw); hits += h2;
+                p.Head = TextBlock.Build(BufferHead(b, !c.Editing, out h2), Font, aw - 2 - mw); hits += h2;
                 if (b.Text.Length > 0) { p.Body = TextBlock.Build(BufferPieces(b.Text, !c.Editing, out h2), Font, aw - BufIndent - 2); hits += h2; }
                 if (BufMade)
                 {

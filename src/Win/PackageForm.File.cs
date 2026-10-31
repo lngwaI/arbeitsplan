@@ -116,15 +116,20 @@ namespace Arbeitsplan.Win
 
         // Kampagnenstart (Startdatum, erste Laufnummer, Termine je Lauf, Modus) und Uebernahme in den Plan; true = Plan geaendert.
         // Auch direkt aus dem Menue "Pakete > Kampagne starten…" (ohne Editor), wenn das Paket vollstaendig ist (Ready).
-        public static bool StartCampaign(IWin32Window owner, Package p, IDataStore store, DateTime weekStart, User by, out DateTime start)
+        public static bool StartCampaign(IWin32Window owner, Package p, IDataStore store, DateTime weekStart, User by, out DateTime start, string file = null)
         {
             List<RunDate> schedule; ApplyMode mode; Package res;
             start = weekStart;
             if (!BelongsOk(owner, p, store.GetCatalog(), "übernommen")) return false;
-            using (CampaignForm cf = new CampaignForm(p, store, weekStart.Date, ApplyMode.FillEmpty))
+            using (CampaignForm cf = new CampaignForm(p, store, weekStart.Date, ApplyMode.FillEmpty, file != null))
             {
                 if (cf.ShowDialog(owner) != DialogResult.OK) return false;
                 start = cf.Start; schedule = cf.Schedule; mode = cf.Mode; res = cf.Result;   // Kopie mit Laufanzahl, Nummern, Ausfaellen
+                if (cf.SaveCode)
+                {
+                    try { p.ProductCode = res.ProductCode; p.Save(file); }
+                    catch (Exception ex) { MessageBox.Show(owner, "Der Produktcode konnte nicht im Paket gespeichert werden (gilt trotzdem für diese Kampagne).\n" + ex.Message, "Kampagne starten", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
+                }
             }
             try
             {

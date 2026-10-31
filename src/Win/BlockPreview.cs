@@ -13,7 +13,7 @@ namespace Arbeitsplan.Win
         public class Card { public string Room = "", Day = ""; public Entry Data; public bool Missing; }
         List<Card> cards = new List<Card>();
         readonly List<TextBlock> blocks = new List<TextBlock>();
-        readonly List<List<BufPart>> bufs = new List<List<BufPart>>();   // Puffer je Karte (UX-5b): eigener Ton, Kopf "Puffer n: Name · Lauf m", Abstand
+        readonly List<List<BufPart>> bufs = new List<List<BufPart>>();   // Puffer je Karte (UX-5b): eigener Ton, Kopf "Name · für Nr", Abstand
         const int Pad = 6, Gap = 8, StripeW = 3, BufIndent = 10;
 
         public event Action<int> Page;   // Pfeiltasten: -1 = voriger, +1 = naechster Eintrag
@@ -69,7 +69,7 @@ namespace Arbeitsplan.Win
                     {
                         BufferItem bi = c.Data.Buffers[i];
                         BufPart p = new BufPart(); p.Typ = bi.Typ;
-                        string head = bi.HeadText(i + 1);
+                        string head = bi.HeadText();
                         List<Piece> hp = new List<Piece>();
                         hp.Add(new Piece(head.Substring(0, head.Length - bi.LaufText.Length), bold, Color.Black, false, Color.Empty));
                         if (bi.LaufText.Length > 0) hp.Add(new Piece(bi.LaufText, bold, Theme.Current.Muted, false, Color.Empty));

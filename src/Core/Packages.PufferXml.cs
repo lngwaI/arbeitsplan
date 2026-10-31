@@ -56,6 +56,7 @@ namespace Arbeitsplan.Core
             {
                 w.WriteStartElement("Gemeinsam");
                 if (g.Scope != 0) w.WriteAttributeString("bereich", I(g.Scope));
+                if (g.After >= 0) w.WriteAttributeString("nach", I(g.After));
                 WriteEquip(w, g.Eq);
                 w.WriteEndElement();
             }
@@ -77,7 +78,7 @@ namespace Arbeitsplan.Core
                 }
                 else if (q.Name == "Gemeinsam")
                 {
-                    PufferShare g = new PufferShare(); g.Scope = Math.Max(0, ToInt(q.GetAttribute("bereich"), 0));
+                    PufferShare g = new PufferShare(); g.Scope = Math.Max(0, ToInt(q.GetAttribute("bereich"), 0)); g.After = Clamp(ToInt(q.GetAttribute("nach"), -1), -1, 99);
                     foreach (XmlElement x in Elements(q)) if (x.Name == "Equipment") { g.Eq = ReadEquip(x); break; }
                     s.PufferShared.Add(g);
                 }

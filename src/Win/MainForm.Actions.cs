@@ -115,6 +115,7 @@ namespace Arbeitsplan.Win
             foreach (RowInfo r in store.GetRows()) { if (r.Name.Length > 0) names.Add(r.Name); foreach (string v in r.VariantList()) if (!vars.Contains(v)) vars.Add(v); }
             using (ProductForm f = new ProductForm(store.GetCatalog(), names, vars.Count > 0 ? vars.ToArray() : null))
             {
+                f.PackageFolder = PackageFolder;
                 if (f.ShowDialog(this) != DialogResult.OK) return;
                 while (true)
                 {
@@ -124,6 +125,12 @@ namespace Arbeitsplan.Win
                         if (quiet || MessageBox.Show("Konnte nicht gespeichert werden.\n" + ex.Message + "\n\nErneut versuchen? Bei „Abbrechen“ gehen die Änderungen in „Produkte & Equipment“ verloren.",
                             "Speichern fehlgeschlagen", MessageBoxButtons.RetryCancel, MessageBoxIcon.Error) != DialogResult.Retry) return;
                     }
+                }
+                if (f.PackRename.Count > 0)
+                {
+                    List<string> errs = new List<string>();
+                    int n = Package.RenameProduct(PackageFolder, f.PackRename, errs);
+                    if (errs.Count > 0 && !quiet) MessageBox.Show(n + " Paket(e) angepasst, nicht geändert:\n" + string.Join("\n", errs.ToArray()), "Produktcode in Paketen", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 }
             }
             Status("Produkte & Equipment gespeichert", true);
@@ -252,7 +259,7 @@ namespace Arbeitsplan.Win
             catch (Exception ex) { MessageBox.Show("Paket konnte nicht gelesen werden.\n" + ex.Message, "Paket", MessageBoxButtons.OK, MessageBoxIcon.Error); return; }
             if (!PackageForm.Ready(p, store)) { OpenPackageEditor(p); return; }
             DateTime st;
-            if (PackageForm.StartCampaign(this, p, store, start, me, out st)) ShowWeekOf(st);
+            if (PackageForm.StartCampaign(this, p, store, start, me, out st, f)) ShowWeekOf(st);
         }
 
         // Pakete > Neue Kampagne…: Assistent (Produkt, Kampagne/Sonderlauf, Paket), dann der uebliche Kampagnenstart bzw. der Editor fuer ein neues Paket.
@@ -276,7 +283,7 @@ namespace Arbeitsplan.Win
             catch (Exception ex) { MessageBox.Show("Paket konnte nicht gelesen werden.\n" + ex.Message, "Paket", MessageBoxButtons.OK, MessageBoxIcon.Error); return; }
             if (!PackageForm.Ready(p, store)) { OpenPackageEditor(p); return; }
             DateTime st;
-            if (PackageForm.StartCampaign(this, p, store, start, me, out st)) ShowWeekOf(st);
+            if (PackageForm.StartCampaign(this, p, store, start, me, out st, file)) ShowWeekOf(st);
         }
 
         // Nach dem Uebernehmen: Woche des Kampagnenstarts zeigen (Ergebnis sofort sichtbar)

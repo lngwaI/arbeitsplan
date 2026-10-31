@@ -135,7 +135,7 @@ namespace Arbeitsplan.Win
                 && b2.Buffers[0].LaufText == " · für 12340002" && b2.Buffers[0].Name.IndexOf("1234000") < 0 && b2.Buffers[0].Text.IndexOf("1234000") < 0 && RunNumbers.Find(b2.Buffers[0].Name + "\n" + b2.Buffers[0].Text, null).Count == 0;
             bool okRuns = Package.PastRuns(la, "1234").Count == 2;   // nur die Laeufe, keine Puffer
             BufferItem oldB = new BufferItem(); oldB.Name = "A"; oldB.LaufRef = 3;
-            bool okOldT = oldB.LaufText == " · Lauf 3" && oldB.HeadText(1) == "Puffer 1: A · Lauf 3";
+            bool okOldT = oldB.LaufText == " · Lauf 3" && oldB.HeadText() == "A · Lauf 3";
             BufferItem k2 = b2.Buffers[0].Clone(); k2.LaufNo = "";
             bool okKey = !k2.SameCore(b2.Buffers[0]) && k2.Key() != b2.Buffers[0].Key() && !k2.SameValue(b2.Buffers[0]);
             StringBuilder xb = new StringBuilder();

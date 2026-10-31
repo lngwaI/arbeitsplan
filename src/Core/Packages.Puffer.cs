@@ -11,9 +11,10 @@ namespace Arbeitsplan.Core
     {
         public EquipAssign Eq = new EquipAssign();
         public int Scope;
+        public int After = -1;   // P6: Stelle in der Vorlage = Zahl eigener Zeilen davor (Plan); -1 = am Ende (alte Daten, nach Verschieben)
 
         public bool Covers(int k) { return Scope == 0 || (k >= 0 && k < 31 && ((Scope >> k) & 1) != 0); }
-        public PufferShare Clone() { PufferShare c = new PufferShare(); c.Eq = Eq.Clone(); c.Scope = Scope; return c; }
+        public PufferShare Clone() { PufferShare c = new PufferShare(); c.Eq = Eq.Clone(); c.Scope = Scope; c.After = After; return c; }
     }
 
     // Ein Puffer des Schritts: Name (leer = aus dem Schritt-Titel abgeleitet), Typ, eigene Equipment-Zeilen.
@@ -96,8 +97,12 @@ namespace Arbeitsplan.Core
         {
             List<string> r = new List<string>();
             int alt = run * sp.AltMul + sp.AltAdd;
-            foreach (EquipAssign a in sp.Lines) { string l = a.LineM(alt); if (l.Length > 0) r.Add(l); }   // mit Notiz-Marker (BufferSet.NoteMark)
-            foreach (PufferShare g in PufferShared) if (g.Covers(k)) { string l = g.Eq.LineM(run); if (l.Length > 0) r.Add(l); }
+            for (int i = 0; i <= sp.Lines.Count; i++)   // gemeinsame Zeilen an ihrer Stelle der Vorlage (After), sonst am Ende
+            {
+                foreach (PufferShare g in PufferShared)
+                    if (g.Covers(k) && (g.After == i || (i == sp.Lines.Count && (g.After < 0 || g.After > i)))) { string l = g.Eq.LineM(run); if (l.Length > 0) r.Add(l); }
+                if (i < sp.Lines.Count) { string l = sp.Lines[i].LineM(alt); if (l.Length > 0) r.Add(l); }   // mit Notiz-Marker (BufferSet.NoteMark)
+            }
             return r;
         }
 
@@ -160,7 +165,7 @@ namespace Arbeitsplan.Core
                     if (k > 0 && x.Scope == 0 && SameShort(x.Eq, a) && !SameLine(x.Eq, a)) x.Scope = k < 31 ? (1 << k) - 1 : int.MaxValue;
                 PufferShare g = s.PufferShared.Find(delegate(PufferShare x) { return SameLine(x.Eq, a); });
                 if (g != null && g.Scope == 0) continue;   // N7: "alle Puffer" gilt schon fuer den neuen
-                if (g == null) { g = new PufferShare(); g.Eq = a; s.PufferShared.Add(g); }
+                if (g == null) { g = new PufferShare(); g.Eq = a; g.After = sp.Lines.Count; s.PufferShared.Add(g); }
                 if (k < 31) g.Scope |= 1 << k;
             }
             if (sp.Name.Length == 0 && k > 0 && sp.NameNo == 0) sp.NameNo = k + 1;   // unbenannt: "Titel 2", "Titel 3" … (zentral)

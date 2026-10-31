@@ -171,7 +171,9 @@ namespace Arbeitsplan.Win
 
         PackageStep FromBaustein(Baustein b)
         {
-            return Package.FromBaustein(b, steps.Count == 0 ? 1 : NextDay(), NewRunNo());
+            PackageStep s = Package.FromBaustein(b, steps.Count == 0 ? 1 : NextDay(), NewRunNo());
+            if (RowInfo.IsFreezeName(b.Name)) s.Freeze = NewFreezeTemplate();   // P6: Freeze-Vorgang im Plan standardmaessig an (alte Pakete unveraendert)
+            return s;
         }
 
         // Erst die Art (Baustein oder "Sonstiges"), dann der Raum (vorbelegt, Pflicht)

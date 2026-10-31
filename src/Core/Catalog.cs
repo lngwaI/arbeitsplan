@@ -96,6 +96,27 @@ namespace Arbeitsplan.Core
             return c;
         }
 
+        // P6: Kurzformen umbenennen (map alt -> neu, einmalig je Verweis, also auch Tausch moeglich): Bausteine (Positionen, Anzahl), Gruppen,
+        // Produktprofile (Positionen, Pufferpakete). Bestehende Pakete bleiben unberuehrt.
+        public void RenameShorts(Dictionary<string, string> map)
+        {
+            if (map.Count == 0) return;
+            Func<string, string> m = delegate(string s) { string n; return s != null && map.TryGetValue(s, out n) ? n : s; };
+            foreach (Baustein b in Bausteine)
+            {
+                for (int i = 0; i < b.Positions.Count; i++) b.Positions[i] = m(b.Positions[i]);
+                Dictionary<string, int> c = new Dictionary<string, int>();
+                foreach (KeyValuePair<string, int> kv in b.Counts) c[m(kv.Key)] = kv.Value;
+                b.Counts = c;
+            }
+            foreach (EquipGroup g in Groups) for (int i = 0; i < g.Shorts.Count; i++) g.Shorts[i] = m(g.Shorts[i]);
+            foreach (ProductProfile p in Products)
+            {
+                foreach (ProfilePos x in p.Positions) x.Short = m(x.Short);
+                foreach (PufferTemplate t in p.Puffer) foreach (PufferTemplatePos x in t.Positions) x.Short = m(x.Short);
+            }
+        }
+
         public EquipPosition Position(string shortName)
         {
             foreach (EquipPosition p in Positions) if (string.Equals(p.Short, shortName, StringComparison.OrdinalIgnoreCase)) return p;

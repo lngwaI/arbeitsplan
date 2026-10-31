@@ -34,6 +34,11 @@ namespace Arbeitsplan.Win
         readonly ToolTip tip = new ToolTip();
         readonly CheckBox chkShift = new CheckBox(), chkRooms = new CheckBox(), chkRhythm = new CheckBox();
         readonly DataGridView grid = new DataGridView();
+        readonly TextBox tCode = new TextBox();                  // P6: Produktcode dieser Kampagne (Puffernamen im Plan), aenderbar
+        readonly CheckBox chkCode = new CheckBox();              // "auch im Paket speichern" (nur beim Start aus einer Paketdatei)
+        public bool SaveCode { get { return canSaveCode && chkCode.Checked && Result.ProductCode != origCode; } }
+        string origCode = "";
+        readonly bool canSaveCode;
         readonly List<int> gaps;
         readonly Dictionary<string, int> ids = new Dictionary<string, int>();
         List<RunDate> sched = new List<RunDate>();
@@ -83,10 +88,10 @@ namespace Arbeitsplan.Win
             }
         }
 
-        public CampaignForm(Package p, IDataStore store, DateTime start, ApplyMode mode)
+        public CampaignForm(Package p, IDataStore store, DateTime start, ApplyMode mode, bool canSaveCode0 = false)
         {
             this.store = store; initialMode = mode;
-            pkg = p.Clone();
+            pkg = p.Clone(); origCode = pkg.ProductCode; canSaveCode = canSaveCode0;
             DateTime? saved = pkg.Lauf1; pkg.Lauf1 = null;
             simple = pkg.Type == PackageType.Einzel;
             hand = pkg.HandNoSteps();
@@ -146,6 +151,12 @@ namespace Arbeitsplan.Win
             chkShift.Text = "Folgende mitverschieben"; chkShift.Checked = true; chkShift.SetBounds(10, y, 170, 22); Controls.Add(chkShift);
             chkRooms.Text = "Raum für ALLE Folgeläufe ändern"; chkRooms.SetBounds(185, y, 215, 22); Controls.Add(chkRooms);
             chkShift.Visible = chkRooms.Visible = !simple;
+            int cx = simple ? 10 : 410;
+            Label lc = L("Produktcode:", cx, y + 3); Controls.Add(lc);
+            tCode.MaxLength = 12; tCode.Text = pkg.ProductCode; tCode.SetBounds(lc.Right + 4, y, 80, 22); Ui.SimpleMenu(tCode); Controls.Add(tCode);
+            chkCode.Text = "auch im Paket speichern"; chkCode.AutoSize = true; chkCode.Location = new Point(tCode.Right + 8, y + 1); chkCode.Visible = canSaveCode0; Controls.Add(chkCode);
+            tip.SetToolTip(tCode, "Gilt für diese Kampagne (Puffernamen im Plan). Ohne Haken bleibt der Code im Paket unverändert.");
+            tCode.TextChanged += delegate { pkg.ProductCode = tCode.Text.Trim(); };
             Label lt = L("Datum in der Spalte „Gewünscht“ als TT.MM.JJJJ eintippen, oder mit „Tage −“ / „Tage +“ um einen Tag verschieben.", 10, y + 28); lt.ForeColor = Section.HelpColor; Controls.Add(lt);   // eigene Zeile
             lt.Visible = !simple;
 
@@ -192,12 +203,17 @@ namespace Arbeitsplan.Win
             cbMode.Items.AddRange(new object[] { "Nur leere Blöcke füllen", "Vorhandenes überschreiben", "An vorhandenen Text anhängen" });
             cbMode.SelectedIndex = (int)mode; cbMode.SelectionChangeCommitted += delegate { modeTouched = true; if (!building) UpdateAll(); }; Controls.Add(cbMode);
             ok.Text = "In Plan übernehmen"; ok.SetBounds(640, 556, 135, 28);
-            ok.Click += delegate { grid.EndEdit(); DialogResult = DialogResult.OK; };
+            ok.Click += delegate
+            {
+                grid.EndEdit();
+                if (pkg.ProductCode.Length > 0 && !Package.IsProductCode(pkg.ProductCode)) { MessageBox.Show(this, "Produktcode ungültig: 2–12 Zeichen aus Buchstaben, Ziffern und - _ . / + (ohne Leerzeichen).", "Kampagne starten", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
+                DialogResult = DialogResult.OK;
+            };
             Button cancel = new Button(); cancel.Text = "Abbrechen"; cancel.SetBounds(785, 556, 105, 28); cancel.DialogResult = DialogResult.Cancel;
             lWhy.SetBounds(358, 561, 274, 18); lWhy.AutoEllipsis = true; lWhy.ForeColor = Color.Firebrick; lWhy.UseMnemonic = false; Controls.Add(lWhy);
             Controls.Add(ok); Controls.Add(cancel); CancelButton = cancel; AcceptButton = ok;   // Enter = In Plan uebernehmen (nur wenn freigegeben), Esc = Abbrechen
             ok.Font = new Font(Font, FontStyle.Bold);
-            List<Control> tab = new List<Control> { dtLauf1, nRuns, tFirst };   // Tab-Reihenfolge = Lesereihenfolge
+            List<Control> tab = new List<Control> { dtLauf1, nRuns, tFirst, tCode, chkCode };   // Tab-Reihenfolge = Lesereihenfolge
             foreach (TextBox tp in tPacks) tab.Add(tp);
             tab.AddRange(new Control[] { chkRhythm, chkShift, chkRooms, grid, cbMode, ok, cancel });
             for (int i = 0; i < tab.Count; i++) tab[i].TabIndex = i;

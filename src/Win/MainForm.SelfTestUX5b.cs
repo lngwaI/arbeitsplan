@@ -95,7 +95,7 @@ namespace Arbeitsplan.Win
             try { ap = lp.Apply(ms, d0, ApplyMode.Overwrite, null); } catch (Exception ex) { ap = "Ausnahme: " + ex.Message; }
             Func<int, Entry> E = delegate(int day) { return ms.Get(d0.AddDays(day - 1), puf); };
             bool okLauf = Laufs(E(1)) == "Fa=1" && Laufs(E(2)) == "P1=1" && Laufs(E(4)) == "P1=2|P2=1" && Laufs(E(6)) == "P2=2" && Laufs(E(7)) == "Fb=3" && Laufs(E(8)) == "P1=3" && Laufs(E(10)) == "P2=3" && Laufs(E(12)) == "Fc=0";
-            bool okMulti = E(4) != null && E(4).Buffers.Count == 2 && E(4).Buffers[0].HeadText(1) == "Puffer 1: P1 · Lauf 2" && E(4).Buffers[1].HeadText(2) == "Puffer 2: P2 · Lauf 1" && E(12) != null && E(12).Buffers[0].HeadText(1) == "Puffer 1: Fc";
+            bool okMulti = E(4) != null && E(4).Buffers.Count == 2 && E(4).Buffers[0].HeadText() == "P1 · Lauf 2" && E(4).Buffers[1].HeadText() == "P2 · Lauf 1" && E(12) != null && E(12).Buffers[0].HeadText() == "Fc";
             // Luecke: Lauf 2 faellt aus -> Nummern bleiben (Lauf 3 bleibt Lauf 3), kein Puffer fuer Lauf 2
             lf.Skip.Add(1);
             MemoryStore ms2 = new MemoryStore();
@@ -110,11 +110,11 @@ namespace Arbeitsplan.Win
             bool okLx = wx.Contains(" lauf=\"2\"") && b4 != null && b4.Data.Buffers.Count == 2 && b4.Data.Buffers[0].LaufRef == 2 && b4.Data.Buffers[1].LaufRef == 1;
             Package wo = Package.FromXml(wx.Replace(" lauf=\"", " x=\"")); Package.Seen.Remove(wo);
             PackageBlock o4 = wo.Blocks.Find(delegate(PackageBlock b) { return b.Day == 4; });
-            okLx &= o4 != null && o4.Data.Buffers.Count == 2 && o4.Data.Buffers[0].LaufRef == 0 && o4.Data.Buffers[0].HeadText(1) == "Puffer 1: P1" && o4.Data.Buffers[0].Name == "P1";
+            okLx &= o4 != null && o4.Data.Buffers.Count == 2 && o4.Data.Buffers[0].LaufRef == 0 && o4.Data.Buffers[0].HeadText() == "P1" && o4.Data.Buffers[0].Name == "P1";
             byte[] bx = Backup.ToXml(ms.Snapshot());   // Sicherung/Datendatei: gleiches Format
             okLx &= Encoding.UTF8.GetString(bx).Contains(" lauf=\"2\"");
             BufferItem k1 = E(4) != null && E(4).Buffers.Count > 0 ? E(4).Buffers[0].Clone() : new BufferItem(), k2 = k1.Clone(); k2.LaufRef = 0;
-            okLx &= k1.LaufRef == 2 && !k1.SameValue(k2) && k1.Key() != k2.Key() && k1.SameValue(k1.Clone()) && k2.HeadText(1) == "Puffer 1: P1";
+            okLx &= k1.LaufRef == 2 && !k1.SameValue(k2) && k1.Key() != k2.Key() && k1.SameValue(k1.Clone()) && k2.HeadText() == "P1";
             sb.AppendLine("UX5b Lauf-Angabe: Plan je Lauf " + Ok(okLauf) + " mehrere Läufe am Tag, eigener Kopf " + Ok(okMulti) + " Lücke bleibt " + Ok(okGap) + " XML/alter Bestand " + Ok(okLx) + (ap != null && ap.StartsWith("Ausnahme") ? " " + ap : "") + " [" + Laufs(E(4)) + "]");
 
             sb.AppendLine(SelfTestUX5bPlan());   // Wochenansicht
@@ -139,7 +139,7 @@ namespace Arbeitsplan.Win
                 CellData c = CellOf(pr, 3);   // Donnerstag = Hauptlauf (Mittwoch) + 1
                 bool okShow = c != null && c.BufParts.Count == 3 && c.Buffers[0].LaufRef == 1 && c.Buffers[2].LaufRef == 1;
                 string h0 = okShow ? UxHead(c.BufParts[0]) : "", h1 = okShow ? UxHead(c.BufParts[1]) : "", h2 = okShow ? UxHead(c.BufParts[2]) : "";
-                bool okHead = h0.StartsWith("Puffer 1: " + Package.PlanBufferName(p.ProductCode, "Lösung A")) && h0.EndsWith("für " + p.LaufNoOf(1, wk.DayOfWeek)) && h1.StartsWith("Puffer 2: " + Package.PlanBufferName(p.ProductCode, "Lösung B")) && h1.EndsWith("für " + p.LaufNoOf(1, wk.DayOfWeek)) && h2.StartsWith("Puffer 3: " + Package.PlanBufferName(p.ProductCode, "Lösung C")) && h2.EndsWith("für " + p.LaufNoOf(1, wk.DayOfWeek));
+                bool okHead = h0.StartsWith(Package.PlanBufferName(p.ProductCode, "Lösung A")) && h0.EndsWith("für " + p.LaufNoOf(1, wk.DayOfWeek)) && h1.StartsWith(Package.PlanBufferName(p.ProductCode, "Lösung B")) && h1.EndsWith("für " + p.LaufNoOf(1, wk.DayOfWeek)) && h2.StartsWith(Package.PlanBufferName(p.ProductCode, "Lösung C")) && h2.EndsWith("für " + p.LaufNoOf(1, wk.DayOfWeek));
                 bool okGap = okShow, okOver = okShow;
                 if (okShow)
                     for (int i = 0; i + 1 < c.BufParts.Count; i++)
@@ -161,7 +161,7 @@ namespace Arbeitsplan.Win
                 store.Save(wk.AddDays(3), rowInfo[pr].Id, oc);
                 Rebuild(true); Expand(pr);
                 CellData c2 = CellOf(pr, 3);
-                bool okOld = c2 != null && c2.BufParts.Count == 3 && UxHead(c2.BufParts[0]).StartsWith("Puffer 1: " + Package.PlanBufferName(p.ProductCode, "Lösung A")) && !UxHead(c2.BufParts[0]).Contains("Lauf");
+                bool okOld = c2 != null && c2.BufParts.Count == 3 && UxHead(c2.BufParts[0]).StartsWith(Package.PlanBufferName(p.ProductCode, "Lösung A")) && !UxHead(c2.BufParts[0]).Contains("Lauf");
                 return "UX5b Wochenansicht: 3 Puffer " + Ok(okShow) + " Kopf mit Lauf " + Ok(okHead) + " Abstand " + Ok(okGap) + " keine Überlappung " + Ok(okOver) + " Farbwechsel " + Ok(okTint)
                     + " Zeilenhöhe synchron " + Ok(okRow) + " alter Bestand ohne Lauf " + Ok(okOld) + (res != null && res.StartsWith("Ausnahme") ? " " + res : "");
             }

@@ -19,8 +19,8 @@ namespace Arbeitsplan.Core
         public bool SameValue(BufferItem o) { return SameCore(o) && Made == o.Made; }
         public string Key() { return Id + "|" + Typ + "|" + Name + "|" + Text + (LaufRef > 0 ? "|L" + LaufRef : "") + (LaufNo.Length > 0 ? "|N" + LaufNo : "") + (Made ? "|M" : "") + ";"; }
 
-        // Kopfzeile wie im Plan: "Puffer 2: Name · für 12340003" (ohne Nummer "· Lauf 3", ohne Namen "–", ohne Lauf-Angabe nur "Puffer 2: Name")
-        public string HeadText(int n) { return "Puffer " + n + ": " + (Name.Length > 0 ? Name : "–") + LaufText; }
+        // Kopfzeile wie im Plan: "Name · für 12340003" (ohne Nummer "· Lauf 3", ohne Namen "–", ohne Lauf-Angabe nur "Puffer 2: Name")
+        public string HeadText() { return (Name.Length > 0 ? Name : "–") + LaufText; }
         public string LaufText { get { return LaufNo.Length > 0 ? " · für " + LaufNo : (LaufRef > 0 ? " · Lauf " + LaufRef : ""); } }
     }
 

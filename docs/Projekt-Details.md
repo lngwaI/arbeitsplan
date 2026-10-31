@@ -10,6 +10,7 @@ Kurzfassung und Regeln: `CLAUDE.md`. Die Abschnitte unten sind unverändert übe
 - [Nachtschicht 2026-10-27/28](#nachtschicht-2026-10-2728-branch-gmailnachtschicht-ci-grün) – Statusleiste, Pflichtpunkte, Rundgänge, Rollen, Equipment je Produkt, Plan teilen, Sicherung, Wochenansicht 2, Paket-Editor v3
 - [Paket-Editor v4 / Puffer-Liste / Notizen / Soft-Lock-Übernahme / Statusdatei](#paket-editor-v4--puffer-liste--notizen--soft-lock-übernahme--statusdatei-branch-gmailpaket-editor-v4-entwurf-docspaket-editor-v4md) – inkl. Vorführ-Version (D2)
 - [Stand 2026-10-30 (aktueller als obige Abschnitte)](#stand-2026-10-30-aktueller-als-obige-abschnitte)
+- [Stand 2026-10-31](#stand-2026-10-31) – P1–P6: neue Regeln (packen-tag, lauffolge, PackNo, LaufNo, Kurzform, Produktcode)
 
 ## Stack (entschieden)
 - C# / WinForms, .NET Framework 4.0-API, x86, eine exe. Gebaut mit dem Windows-eigenen `csc` (kein SDK): `build.cmd` → `bin\Arbeitsplan.exe`.
@@ -100,3 +101,16 @@ Dateien liegen nach Thema in `partial`-Dateien (`Backup.*`, `Packages.*`, `PlanV
 - Weitere Doku: `docs/Demo.md`, `beispiel/README.md` (Beispiel-Umgebung), `docs/Equipment-Status.md`, `docs/UX-Hilfen.md`.
 - Entfernen des Knopfs "+ Puffer" (aktuell beibehalten) betrifft `PlanView.Checks.cs:56,92` und `MainForm.Buffers.cs`.
 - P4: Kursiv = Notiz (ganz kursive Zeile, `Core/Notes.cs`; kein Notiz-Span mehr, alte `n`/`notiz`-Attribute werden als kursiv gelesen); Zyklen-Namen `FreezeItem.CycleNames` (Attribut `zyklen`); Rundgangsleiste einzeilig (Modus 0/1/2, `PlanView.Rounds.cs`).
+
+## Stand 2026-10-31
+- Regel `packen-tag` (Sperre): Packen und Back-Up liegen vor Lauf 1 (Back-Up am Lauftag oder davor, Packen mindestens einen Tag früher, auch raumübergreifend); Regel `lauffolge`: Läufe in Reihenfolge, auch gegen den Plan und mit Tage +/- im Kampagnenstart.
+- Zweites Packen mit eigenem Back-Up: `PackageStep.PackNo` (XML `packnr`), Packen und Back-Up tragen dieselbe Nummer; `AssignPackNo` vergibt die kleinste freie.
+- `BufferItem.LaufNo` (XML `laufnr`): volle Laufnummer des bedienten Laufs, steht nie in Name/Text (sonst zählte `RunNumbers.Find` sie als Lauf). Puffer-Kopf in Plan und Vorschau: `Name · für <Nummer>`, ohne Nummer `Name · Lauf n`, ohne Namen `–`; kein "Puffer n:" mehr (nur noch in Dialogen/Listen).
+- Abstand je Lauf: Puffer (und Schritte "zu jedem Lauf") haben `RunOffset`/`Shift` je Lauf; Ziehen in der Vorschau ändert nur diesen Lauf.
+- Kursiv = Notiz: ganz kursive Zeile, kein Notiz-Span (`Core/Notes.cs`). Zyklen-Namen: `FreezeItem.CycleNames`.
+- Freeze-Vorlage im Paket: Haken "Freeze-Vorgang im Plan anlegen"; beim neu angelegten Schritt aus einem Baustein mit "Freeze" im Namen standardmäßig an (alte Pakete unverändert). Uhrzeit offen ("Zeit offen", offene Pflichten), bis sie vorgegeben oder im Dialog eingetragen ist.
+- Export: Zuordnung der Läufe zu Kampagnen über die Laufnummer; Lücke bis 2 ausgefallene Läufe trennt die Kampagne nicht (`EquipExport.cs`, `shortcut`), größere Sprünge = neue Kampagne.
+- Begriff: "Unterpaket" = Pufferpaket (Puffer-Schritte als kleines Paket, `PackageForm.BufferPkg.cs`).
+- P6 Gemeinsam-Zeilen: `PufferShare.After` (XML `nach`) = Zahl eigener Zeilen davor in der Vorlage; der Plan setzt die Zeile dort ein, -1/fehlend = am Ende (alte Daten, nach manuellem Verschieben).
+- P6 Kurzform einer Position (Einrichten): beim Speichern werden Verweise im Katalog (Bausteine, Gruppen, Produkte, Pufferpakete) mitgezogen, doppelte Kurzform wird abgelehnt; bestehende Pakete behalten die alte Kurzform (Hinweis beim Speichern).
+- P6 Produktcode: Kampagnenstart zeigt ihn änderbar (gilt für die Kampagne = Puffernamen im Plan; "auch im Paket speichern" schreibt die Paketdatei). Produkt umbenennen fragt "auch alle Pakete dieses Produkts ändern?" und ändert beim Speichern die Dateien im Paketordner (`Package.RenameProduct`, Fehler je Datei gemeldet). Plan-Historie bleibt unverändert.

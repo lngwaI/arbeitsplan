@@ -184,7 +184,7 @@ namespace Arbeitsplan.Win
                 // Anzeige: Nummer = Position, Hoehe waechst, Suchtreffer im Namen zaehlen
                 CellData pc = CellOf(pr, 1);
                 bool okShow = pc.BufParts.Count == 3 && pc.RBuf.Height > 3 * Font.Height && pc.RContent.Top == pc.RBuf.Bottom && pc.RBuf.Top == pc.RChecks.Bottom && CellOf(pr, 2).RBuf.Height == 0
-                    && pc.BufParts[1].Y > pc.BufParts[0].Y && pc.BufParts[0].Head.Lines[0][0].Text == "Puffer";
+                    && pc.BufParts[1].Y > pc.BufParts[0].Y && pc.BufParts[0].Head.Lines[0][0].Text == "Lösung";
                 // bearbeiten
                 bn = "Lösung B2"; bt = "mobil"; bx = "neu"; view.TestClick(view.BufPoint(CellOf(pr, 1), 1));
                 e = store.Get(day, pid);
