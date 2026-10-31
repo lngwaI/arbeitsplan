@@ -68,6 +68,7 @@ namespace Arbeitsplan.Core
                     }
                     foreach (EquipAssign a in s.CompatEquipment()) WriteEquip(w, a);   // eigene Puffer: Zeilen von Puffer 1 + gemeinsame (aeltere exe)
                     WritePuffers(w, s);   // Version 8: <Puffer>/<Gemeinsam>
+                    if (s.Freeze != null) FreezeSet.WriteXml(w, new List<FreezeItem>(new[] { s.Freeze }));   // Freeze-Vorlage (zusaetzliches Kindelement, Format bleibt 8)
                     w.WriteEndElement();
                 }
                 foreach (PackageBlock b in Blocks)
@@ -170,6 +171,7 @@ namespace Arbeitsplan.Core
                     foreach (XmlElement q in Elements(e))
                         if (q.Name == "Equipment") s.Equipment.Add(ReadEquip(q));
                     ReadPuffers(e, s);   // Version 8: ersetzt die Kompat-Zeilen
+                    List<FreezeItem> fzv = FreezeSet.ReadXml(e); if (fzv.Count > 0) s.Freeze = fzv[0];
                     p.Steps.Add(s);
                 }
                 else if (e.Name == "Block")

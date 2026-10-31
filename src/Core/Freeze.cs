@@ -14,6 +14,7 @@ namespace Arbeitsplan.Core
         public int GwkAnlagen = 2, Kreislaeufe = 2;   // Tank-Freeze: GWK-Anlage 1..2, Kreislauf 1..2
         public int FreezeAnlagen = 3;                 // Bag-Freeze: Anlagen reihum (Rechenmodell FreezeCalc.Anlagen ist derzeit fest 3)
         public int DauerMin = 360, AbstandMin = 420, Cycles = 14;
+        public int Offset2Min = 60, Offset3Min = 120; // Versatz der Starts Z2/Z3 zu Z1, wenn nichts eingetragen ist
 
         public FreezeConfig Clone() { return (FreezeConfig)MemberwiseClone(); }
 
@@ -23,6 +24,7 @@ namespace Arbeitsplan.Core
             w.WriteAttributeString("gwk", c.GwkAnlagen.ToString(CultureInfo.InvariantCulture)); w.WriteAttributeString("kreislaeufe", c.Kreislaeufe.ToString(CultureInfo.InvariantCulture));
             w.WriteAttributeString("anlagen", c.FreezeAnlagen.ToString(CultureInfo.InvariantCulture)); w.WriteAttributeString("dauer", c.DauerMin.ToString(CultureInfo.InvariantCulture));
             w.WriteAttributeString("abstand", c.AbstandMin.ToString(CultureInfo.InvariantCulture)); w.WriteAttributeString("cycles", c.Cycles.ToString(CultureInfo.InvariantCulture));
+            w.WriteAttributeString("versatz2", c.Offset2Min.ToString(CultureInfo.InvariantCulture)); w.WriteAttributeString("versatz3", c.Offset3Min.ToString(CultureInfo.InvariantCulture));
             w.WriteEndElement();
         }
 
@@ -36,6 +38,7 @@ namespace Arbeitsplan.Core
                 c.GwkAnlagen = FreezeCalc.Num(e, "gwk", c.GwkAnlagen, 1, 9); c.Kreislaeufe = FreezeCalc.Num(e, "kreislaeufe", c.Kreislaeufe, 1, 9);
                 c.FreezeAnlagen = FreezeCalc.Num(e, "anlagen", c.FreezeAnlagen, 1, 9); c.DauerMin = FreezeCalc.Num(e, "dauer", c.DauerMin, 1, FreezeCalc.MaxMin);
                 c.AbstandMin = FreezeCalc.Num(e, "abstand", c.AbstandMin, 1, FreezeCalc.MaxMin); c.Cycles = FreezeCalc.Num(e, "cycles", c.Cycles, 1, FreezeCalc.MaxCycles);
+                c.Offset2Min = FreezeCalc.Num(e, "versatz2", c.Offset2Min, 0, FreezeCalc.MaxMin); c.Offset3Min = FreezeCalc.Num(e, "versatz3", c.Offset3Min, 0, FreezeCalc.MaxMin);
                 return;
             }
         }
@@ -53,6 +56,8 @@ namespace Arbeitsplan.Core
         public int Anlage = 1, Kreislauf = 1;                          // nur Tank: GWK-Anlage, Kreislauf
         public DateTime[] Start1to3 = new DateTime[3];                 // Bag: Cycle 1..3; Tank: [0]; Cycle 1 Pflicht, leere 2/3 werden geschaetzt
         public int DauerMin = 360, AbstandMin = 420, Cycles = 14;      // Abstand = Zeit zwischen zwei Cycles je Anlage
+        public int Offset2Min = 60, Offset3Min = 120;                  // Start Z2/Z3 ohne Eingabe = Z1 + Versatz (Attribut fehlt = 60/120, alte Vorgaenge rechnen gleich)
+        public bool TimeOpen;                                          // Tag steht fest (Start1to3[0] = Tag 00:00), Uhrzeit noch nicht: keine Zyklen, keine Folgetage
         public SortedDictionary<int, DateTime> Ist = new SortedDictionary<int, DateTime>();   // Cycle -> tatsaechlicher Start
         public string MainRef = "", SubNo = "", Tanks = "", Note = ""; // Hauptlauf (8 Stellen), Unterlauf (8 Stellen oder leer), Tanks (Komma-Liste)
         public string CycleNames = "";                                 // Namen der Zyklen, "|"-getrennt (leer/fehlend = "Z"+N)
@@ -71,7 +76,7 @@ namespace Arbeitsplan.Core
             return f;
         }
 
-        public bool Valid { get { return Start1to3[0] != DateTime.MinValue; } }
+        public bool Valid { get { return Start1to3[0] != DateTime.MinValue && !TimeOpen; } }
 
         // Alle Werte ohne Id; Grundlage von SameValue und Key
         public string Core()
@@ -81,7 +86,7 @@ namespace Arbeitsplan.Core
             foreach (DateTime d in Start1to3) sb.Append(FreezeCalc.Fmt(d)).Append(',');
             sb.Append('|').Append(DauerMin).Append('|').Append(AbstandMin).Append('|').Append(Cycles).Append('|');
             foreach (KeyValuePair<int, DateTime> kv in Ist) sb.Append(kv.Key).Append('=').Append(FreezeCalc.Fmt(kv.Value)).Append(',');
-            sb.Append('|').Append(MainRef).Append('|').Append(SubNo).Append('|').Append(Tanks).Append('|').Append(Note).Append('|').Append(CycleNames);
+            sb.Append('|').Append(MainRef).Append('|').Append(SubNo).Append('|').Append(Tanks).Append('|').Append(Note).Append('|').Append(CycleNames).Append('|').Append(Offset2Min).Append('|').Append(Offset3Min).Append('|').Append(TimeOpen);
             return sb.ToString();
         }
         public bool SameValue(FreezeItem o) { return o != null && Core() == o.Core(); }
@@ -117,13 +122,13 @@ namespace Arbeitsplan.Core
             int v; return int.TryParse(e.GetAttribute(a), NumberStyles.Integer, CultureInfo.InvariantCulture, out v) ? Math.Max(min, Math.Min(max, v)) : def;
         }
 
-        // Start von Cycle 1..3: Eingabe, sonst C1 + 1 h (C2) bzw. + 2 h (C3)
+        // Start von Cycle 1..3: Eingabe, sonst C1 + Versatz
         static DateTime StartOf(FreezeItem f, int n)
         {
             DateTime s = f.Start1to3[n - 1];
             if (s != DateTime.MinValue || n == 1) return s;
             DateTime c1 = f.Start1to3[0];
-            return c1 == DateTime.MinValue ? c1 : c1.AddHours(n - 1);
+            return c1 == DateTime.MinValue ? c1 : c1.AddMinutes(n == 2 ? f.Offset2Min : f.Offset3Min);
         }
 
         public static bool IsEstimated(FreezeItem f, int n) { return f.Art == FreezeArt.Bag && n >= 2 && n <= 3 && f.Start1to3[n - 1] == DateTime.MinValue && f.Start1to3[0] != DateTime.MinValue; }

@@ -31,6 +31,23 @@ namespace Arbeitsplan.Core
             return no.Length == 8 ? no : "";
         }
 
+        // Vorgang aus der Freeze-Vorlage am Tag day: Uhrzeit aus der Vorgabe, sonst offen; Hauptlauf = bedienter Lauf (lauf, 1 = erster)
+        public FreezeItem FreezeFor(PackageStep s, int run, int lauf, DateTime day, DayOfWeek day1)
+        {
+            FreezeItem f = s.Freeze.Clone();
+            f.TimeOpen = s.Freeze.Start1to3[0] == DateTime.MinValue;
+            f.Start1to3[0] = f.TimeOpen ? day.Date : day.Date + s.Freeze.Start1to3[0].TimeOfDay;
+            f.MainRef = LaufNoOf(lauf, day1); f.SubNo = s.SubNoFor(run, Prefix);
+            return f;
+        }
+
+        // Was neben dem Vorgang als Text im Block steht (Text, Equipment, Notizen): der Titel steckt schon im Vorgang
+        public Entry FreezeRest(PackageStep s, int run)
+        {
+            PackageStep c = s.Clone(); c.Title = "";
+            return c.EntryFor(run, Prefix);
+        }
+
         // Puffer dem bedienten Lauf zuordnen (Plan und Vorschau)
         public List<BufferItem> WithLauf(List<BufferItem> l, int lauf, DayOfWeek day1)
         {

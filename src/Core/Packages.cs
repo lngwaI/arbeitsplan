@@ -153,6 +153,11 @@ namespace Arbeitsplan.Core
                     Target t;
                     if (!map.TryGetValue(k, out t)) { t = new Target(); t.Day = day; t.RowId = id; t.Data = new Entry(); map[k] = t; order.Add(t); }
                     if (s.IsBuffer) { int lauf = LaufOf(plan, rd, start.DayOfWeek) + 1; BufferSet.AddRange(t.Data.Buffers, WithLauf(WithCode(split ? s.BuffersAt(rd.Run, Prefix, lauf, dl) : s.BuffersFor(rd.Run, Prefix, lauf)), lauf, start.DayOfWeek)); }   // mehrere Puffer am Tag: anhaengen
+                    else if (s.Freeze != null && rows.Exists(delegate(RowInfo r) { return r.Id == id && r.Freeze; }))   // Vorgang nur in Freeze-Zeilen sichtbar; sonst bleibt es Text (nichts geht unsichtbar verloren)
+                    {
+                        FreezeSet.Add(t.Data.Freezes, FreezeFor(s, rd.Run, LaufOf(plan, rd, start.DayOfWeek) + 1, day, start.DayOfWeek));
+                        AppendText(t.Data, FreezeRest(s, rd.Run));
+                    }
                     else AppendText(t.Data, s.EntryFor(rd.Run, Prefix));   // Notizzeilen und Kennung (Format) kommen mit
                 }
             }

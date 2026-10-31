@@ -415,6 +415,7 @@ namespace Arbeitsplan.Win
             SelfTestUX6(sb);  // UX-6: Puffer-/Produkt-Dialoge (MainForm.SelfTestUX6.cs + partielle Methoden der Dialog-Tests)
             SelfTestUX7(sb);  // UX-7: Usability-Befunde (Details bei 1024x768, Enter/Esc, Hinweis Info, Datumsformat, Klartext, Zyklus) (MainForm.SelfTestUX7.cs)
             SelfTestP4(sb);   // P4: Rundgangsleiste einzeilig, Zyklen-Namen, Kursiv = Notiz (MainForm.SelfTestP4.cs)
+            SelfTestP5b(sb);   // P5b: Freeze-Vorlage im Paket, Zeit offen, Versatz, FZ-E-Vorschlag (MainForm.SelfTestP5b.cs)
             SelfTestP1(sb);   // P1: Standardschritte, Tagesregel, Lauffolge, Entfernen, Reihenfolge, Abstand je Lauf, LaufNo, Ansatz (PackageForm.TestP1.cs)
             using (MainForm mx = new MainForm("ux4", true, null, null)) { mx.FitToCursorScreen(); sb.AppendLine("UX4 Hauptfenster startet maximiert: " + Ok(mx.WindowState == FormWindowState.Maximized)); }
             quiet = false;

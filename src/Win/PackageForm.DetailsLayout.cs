@@ -89,6 +89,7 @@ namespace Arbeitsplan.Win
             bMore.SetBounds(0, y, w, bMore.Height); y = bMore.Bottom + 4;
             gExtra.Visible = more;   // Zusaetze direkt unter "Mehr Optionen", vor den Puffer-/Equipment-Karten
             if (more) { gExtra.SetBounds(0, y, w, hExtra); y = gExtra.Bottom + g; }
+            y = LayoutFreeze(s, w, y);   // Freeze-Vorlage (PackageForm.Freeze.cs)
             gEquip.Visible = !s.IsBuffer; gPuf.Visible = s.IsBuffer;   // Puffer-Schritt: je Puffer eine Karte statt der gemeinsamen Equipment-Liste
             if (s.IsBuffer) { gPuf.Width = w; gPuf.SetBounds(0, y, w, ArrangePuffer(w - 16)); y = gPuf.Bottom; }
             else { gEquip.SetBounds(0, y, w, ArrangeEquip(w - 16)); y = gEquip.Bottom; }

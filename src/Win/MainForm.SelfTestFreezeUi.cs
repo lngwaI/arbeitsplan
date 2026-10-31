@@ -23,11 +23,13 @@ namespace Arbeitsplan.Win
             try { FzuPerf(sb); } catch (Exception ex) { sb.AppendLine("Freeze Laden: Ausnahme " + ex.GetType().Name + ": " + ex.Message); }
         }
 
-        // Testfenster: --form freeze (Bag mit Verzoegerung), freeze2 (Tank), freeze3 (neu), freeze4 (nur lesen)
+        // Testfenster: --form freeze (Bag mit Verzoegerung), freeze2 (Tank), freeze3 (neu), freeze4 (nur lesen), freezeo (Zeit offen), freezepkg (Paket-Editor), freezecat (Katalog)
         Form TestFreezeForm(string which)
         {
+            if (which == "freezecat") return new CatalogForm(store.GetCatalog(), new List<string>()).TestFreezeTab();
+            if (which == "freezepkg") return PackageForm.P5bForm(store, equip, start);
             int fr = rowInfo.FindIndex(delegate(RowInfo r) { return r.Freeze; });
-            DateTime day = start.AddDays(which == "freeze2" ? 3 : 1);
+            DateTime day = start.AddDays(which == "freeze2" ? 3 : which == "freezeo" ? 4 : 1);
             Entry e = store.Get(day, rowInfo[fr].Id) ?? new Entry();
             FreezeChoice ch = new FreezeChoice(); ch.Cfg = store.GetCatalog().FreezeDefaults;
             ch.Where = BlockTitle(CellFor(fr, day)) + " · " + Ui.DayText(day);

@@ -68,6 +68,7 @@ namespace Arbeitsplan.Win
         public static string FreezeHead(FreezeItem f, bool brief)
         {
             List<string> bits = new List<string>();
+            if (f.TimeOpen) bits.Add("Zeit offen");
             if (f.Art == FreezeArt.Tank)
             {
                 bits.Add("GWK" + f.Anlage + " K" + f.Kreislauf);
@@ -92,7 +93,8 @@ namespace Arbeitsplan.Win
                   .Append(f.Art == FreezeArt.Bag ? ", " + FreezeCalc.Count(f) + " Zyklen, Abstand " + FreezeCalc.Dur(f.AbstandMin) : "");
             foreach (FreezeCycle c in today)
                 if (c.DelayMin != 0) sb.Append("\n").Append(c.Label).Append(" ").Append(FreezeCalc.DelayText(c.DelayMin)).Append(c.HasIst ? " (eingetragen)" : " (folgt aus früherem Zyklus)");
-            foreach (FreezeCycle c in today) if (c.Estimated) { sb.Append("\n" + f.CycleName(2) + "/" + f.CycleName(3) + " ohne Eingabe: geschätzt (kursiv)"); break; }
+            if (f.TimeOpen) sb.Append("\nStartzeit noch offen: Klick trägt sie ein, danach werden die Zyklen berechnet.");
+            foreach (FreezeCycle c in today) if (c.Estimated) { sb.Append("\n" + f.CycleName(2) + "/" + f.CycleName(3) + " ohne Eingabe: geschätzt, Z1 + " + FreezeCalc.Dur(f.Offset2Min) + " / + " + FreezeCalc.Dur(f.Offset3Min) + " (kursiv)"); break; }
             foreach (string h in FreezeCalc.Hints(f)) sb.Append("\nHinweis: ").Append(h);
             sb.Append(cont ? "\nFortsetzung aus " + Ui.DayText(origin) + " – Klick öffnet den Vorgang." : "\nKlick: Vorgang bearbeiten");
             return sb.ToString();
@@ -156,13 +158,13 @@ namespace Arbeitsplan.Win
             return p.Segs.Count == 0 ? 0 : y + lh;
         }
 
-        List<Piece> FreezePieces(string text, bool cont, bool search, bool boldFont, out int hits)
+        List<Piece> FreezePieces(string text, bool cont, bool search, bool boldFont, out int hits, Color? color = null)
         {
             Color[] fore = new Color[text.Length];
             Font[] fnt = new Font[text.Length];
             int[] mode = new int[text.Length];
             Font plain = FontCache.Get(Font.Name, Font.SizeInPoints, FontStyle.Regular, Font);
-            for (int i = 0; i < text.Length; i++) { fore[i] = Color.Black; fnt[i] = boldFont ? bold : plain; }
+            for (int i = 0; i < text.Length; i++) { fore[i] = color ?? Color.Black; fnt[i] = boldFont ? bold : plain; }
             hits = search && !cont ? MarkQuery(text, mode) : 0;
             return Group(text, fore, fnt, mode);
         }
@@ -172,7 +174,7 @@ namespace Arbeitsplan.Win
             int h2;
             FrzPart p = new FrzPart(); p.Id = f.Id; p.Origin = cont ? origin : c.Day; p.Cont = cont;
             string head = (cont ? "(aus " + Wd(origin) + ") " : "") + FreezeHead(f, cont);
-            p.Head = TextBlock.Build(FreezePieces(head, cont, !c.Editing, true, out h2), Font, aw - 2); hits += h2;
+            p.Head = TextBlock.Build(FreezePieces(head, cont, !c.Editing, true, out h2, f.TimeOpen ? FreezeStyle.Delay : (Color?)null), Font, aw - 2); hits += h2;
             p.BodyY = FrzPad + p.Head.Height;
             p.SegH = f.Art == FreezeArt.Bag ? FlowSegs(p, cys, cont, aw - FrzIndent - 2) : 0;
             int h = p.BodyY + p.SegH;

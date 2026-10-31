@@ -59,6 +59,13 @@ namespace Arbeitsplan.Core
                         }
                         if (weekOpen && !any) res.Add(Item(mon, true, rows[ri], ri, name, "KW offen", mon.AddDays(6) < today));
                     }
+                for (int ri = 0; ri < rows.Count; ri++)   // Freeze aus dem Paket: Tag steht, Uhrzeit fehlt noch
+                    for (int i = 0; rows[ri].Freeze && i < 7; i++)
+                    {
+                        Entry e = s.Get(mon.AddDays(i), rows[ri].Id);
+                        if (e != null) foreach (FreezeItem f in e.Freezes)
+                            if (f.TimeOpen) res.Add(Item(mon.AddDays(i), false, rows[ri], ri, "Freeze-Start" + (f.MainRef.Length > 0 ? " Lauf " + f.MainRef : ""), "Zeit offen", mon.AddDays(i) <= today));
+                    }
                 List<WeekMark> marks = s.GetWeekMarks(mon);
                 foreach (RoundDef r in cfg.Rounds)
                 {
