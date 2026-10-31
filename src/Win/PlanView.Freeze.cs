@@ -286,7 +286,7 @@ namespace Arbeitsplan.Win
         }
         public Point FreezeAddPoint(CellData c)
         {
-            foreach (CheckSlot s in slots[c.RowIndex]) if (s.Freeze) return new Point(c.RChecks.X + s.R.X + s.R.Width / 2, c.RChecks.Y + s.R.Y + s.R.Height / 2);
+            foreach (CheckSlot s in slots[c.RowIndex]) if (s.Freeze) { Rectangle sr = SlotRect(c, s); return new Point(sr.X + sr.Width / 2, sr.Y + sr.Height / 2); }
             return Point.Empty;
         }
 #endif

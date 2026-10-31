@@ -7,7 +7,7 @@ using Arbeitsplan.Core;
 namespace Arbeitsplan.Win
 {
     // Platz eines Eintrags der Pruefleiste, relativ zur Leiste: Knopf "+ Puffer" (Add) oder Pflichtpunkt (Def).
-    class CheckSlot { public int Def = -1; public bool Add, Freeze; public int W; public Rectangle R; }   // Freeze = Knopf "+ Freeze" (Freeze-Zeile)
+    class CheckSlot { public int Def = -1; public bool Add, Freeze, Narrow; public int W; public Rectangle R; }   // Freeze = Knopf "+ Freeze" (Freeze-Zeile); Narrow = Kopf-Feld ohne Kurzname
 
     // Pruefleiste je Block: Knopf "+ Puffer" (Zeilen mit Puffer-Typen), Pflichtpunkte mit Zustand
     // (Tagesprobe auto/fehlt/entfaellt …); nur LKZ: ein grosses, zentriertes Feld "LKZ gemessen?".
@@ -52,6 +52,15 @@ namespace Arbeitsplan.Win
             List<CheckSlot> l = new List<CheckSlot>();
             if (!HasChecks(r)) { slots[r] = l.ToArray(); return 0; }
             List<CheckDef> d = DefsOf(r);
+            if (InHead(r))   // Plan-Stil, nur ein Pruefpunkt: kompaktes Feld im Zeilenkopf, keine eigene Leiste
+            {
+                CheckSlot hs = new CheckSlot(); hs.Def = 0;
+                foreach (CellData c in Cells) if (c.RowIndex == r) hs.W = Math.Max(hs.W, TextW(HeadChipText(c), Font) + (HasBox(c, 0) ? Theme.Current.CheckBox + 10 : 8));
+                if (hs.W > iw - 30 - TextW(Rows[r].Name, HeadFont)) { hs.Narrow = true; hs.W = TextW("!", bold) + Theme.Current.CheckBox + 10; }   // schmale Spalte: Zeilenname hat Vorrang
+                hs.R = new Rectangle(0, 0, hs.W, 0); l.Add(hs);
+                slots[r] = l.ToArray();
+                return 0;
+            }
             int x = TP, line = 0, max = iw - 2, box = Theme.Current.CheckBox;
             bool stacked = Rows[r].Variants.Length > 0;   // Puffer-Zeile: je Eintrag eine eigene Zeile
             if (Rows[r].Variants.Length > 0) { CheckSlot s = new CheckSlot(); s.Add = true; s.W = TextW("+ Puffer", bold) + 16; l.Add(s); }
@@ -72,6 +81,54 @@ namespace Arbeitsplan.Win
             return (line + 1) * LkzH;
         }
 
+        bool InHead(int r) { return Theme.Current.Dense && Single(r); }
+
+        // Kurztext im Kopf-Feld: Kurzname, offen zusaetzlich "! " davor (nicht nur Farbe)
+        string HeadChipText(CellData c)
+        {
+            CheckDef d = DefsOf(c.RowIndex)[0];
+            string t = d.Short.Length > 0 ? d.Short : d.Name;
+            return !On(c, d) && StateOf(c, 0) == DayState.Missing ? "! " + t : t;
+        }
+
+        // Platz eines Eintrags im Bild: in der Pruefleiste, im Plan-Stil bei einem Pruefpunkt rechts im Kopf vor dem Pfeil
+        Rectangle SlotRect(CellData c, CheckSlot s)
+        {
+            if (InHead(c.RowIndex)) return new Rectangle(c.RHead.Right - 20 - (c.Editing ? 20 : 0) - s.W, c.RHead.Y + 2, s.W, c.RHead.Height - 5);
+            return new Rectangle(c.RChecks.X + s.R.X, c.RChecks.Y + s.R.Y, s.R.Width, s.R.Height);
+        }
+
+        void PaintHeadChip(Graphics g, CellData c)
+        {
+            Theme th = Theme.Current;
+            const TextFormatFlags tf = TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis;
+            CheckSlot s = slots[c.RowIndex][0];
+            CheckDef def = DefsOf(c.RowIndex)[0];
+            DayState st = StateOf(c, 0);
+            bool on = On(c, def), box = HasBox(c, 0);
+            Color fill, fg, edge; CheckColors(on, st, out fill, out fg, out edge);
+            Rectangle chip = SlotRect(c, s); chip.Width -= 1;
+            int bs = th.CheckBox;
+            if (!fill.IsEmpty) Fill(g, fill, chip);
+            if (st != DayState.NA) g.DrawRectangle(th.Pen(edge, 1), chip);
+            string text = !s.Narrow ? HeadChipText(c) : !on && st == DayState.Missing ? "!" : "";   // schmal: Name im Tooltip, offen bleibt nicht nur Farbe
+            Font tfont = s.Narrow ? bold : Font;
+            TextRenderer.DrawText(g, text, tfont, new Rectangle(chip.X + 4, chip.Y, chip.Width - (box ? bs + 6 : 6), chip.Height), fg, tf);
+            Point cp = new Point(chip.Right - bs - 2, chip.Y + (chip.Height - bs) / 2);
+            if (box) th.DrawCheck(g, cp, on, bs);
+            else if (st == DayState.Auto) TextRenderer.DrawText(g, "✓", bold, new Rectangle(cp.X, chip.Y, bs, chip.Height), th.DoneText, tf);
+        }
+
+        static void CheckColors(bool on, DayState st, out Color fill, out Color fg, out Color edge)
+        {
+            Theme th = Theme.Current;
+            fill = Color.Empty; fg = th.LkzText; edge = th.ChipOff;
+            if (on) { fill = th.LkzOn; edge = th.CheckMark; fg = th.DoneText; }
+            else if (st == DayState.Missing) { fill = th.CheckMissing; fg = th.CheckMissingText; edge = th.CheckMissingText; }
+            else if (st == DayState.Auto) { fill = th.CheckAuto; fg = th.DoneText; edge = th.CheckAuto; }
+            else if (st == DayState.NA || st == DayState.NotNeeded) fg = th.Muted;
+        }
+
         bool HasBox(CellData c, int i) { DayState st = StateOf(c, i); return st != DayState.Auto && st != DayState.NA; }   // Auto zeigt ein Haekchen ohne Kasten
 
         static bool On(CellData c, CheckDef d) { return d.Key == CheckDef.LkzKey ? c.Lkz : c.Marks.Contains(d.Key); }
@@ -88,8 +145,8 @@ namespace Arbeitsplan.Win
             Fill(g, back, c.RChecks);
             foreach (CheckSlot s in slots[r])
             {
-                Rectangle sr = new Rectangle(c.RChecks.X + s.R.X, c.RChecks.Y + s.R.Y, s.R.Width, s.R.Height);
-                Rectangle chip = new Rectangle(sr.X, sr.Y + 3, sr.Width - 1, sr.Height - 7);
+                Rectangle sr = SlotRect(c, s);
+                Rectangle chip = th.Dense ? new Rectangle(sr.X, sr.Y + 2, sr.Width - 1, sr.Height - 4) : new Rectangle(sr.X, sr.Y + 3, sr.Width - 1, sr.Height - 7);
                 if (s.Add || s.Freeze)   // Knopf "+ Puffer" / "+ Freeze": Umriss in Akzentfarbe
                 {
                     Fill(g, Color.White, chip); g.DrawRectangle(th.Pen(th.ChipOn, 1), chip);
@@ -99,11 +156,7 @@ namespace Arbeitsplan.Win
                 CheckDef def = d[s.Def];
                 DayState st = StateOf(c, s.Def);
                 bool on = On(c, def), box = HasBox(c, s.Def);
-                Color fill = Color.Empty, fg = th.LkzText, edge = th.ChipOff;
-                if (on) { fill = th.LkzOn; edge = th.CheckMark; fg = th.DoneText; }
-                else if (st == DayState.Missing) { fill = th.CheckMissing; fg = th.CheckMissingText; edge = th.CheckMissingText; }
-                else if (st == DayState.Auto) { fill = th.CheckAuto; fg = th.DoneText; edge = th.CheckAuto; }
-                else if (st == DayState.NA || st == DayState.NotNeeded) fg = th.Muted;
+                Color fill, fg, edge; CheckColors(on, st, out fill, out fg, out edge);
                 if (single)   // nur LKZ: ganze Leiste einfaerben, Text + grosse Checkbox mittig
                 {
                     string text = on ? def.Name : st == DayState.NotNeeded ? def.Short + " nicht nötig" : st == DayState.Missing ? "! " + (def.Short.Length > 0 ? def.Short : def.Name) + " offen" : def.Name + "?";   // rot: zusaetzlich "!" + "offen"
@@ -126,9 +179,9 @@ namespace Arbeitsplan.Win
         // Eintrag der Pruefleiste unter p (null = keiner)
         CheckSlot SlotAt(CellData c, Point p)
         {
-            if (Collapsed[c.RowIndex] || !c.RChecks.Contains(p)) return null;
+            if (Collapsed[c.RowIndex] || !(c.RChecks.Contains(p) || (InHead(c.RowIndex) && c.RHead.Contains(p)))) return null;
             foreach (CheckSlot s in slots[c.RowIndex])
-                if (new Rectangle(c.RChecks.X + s.R.X, c.RChecks.Y + s.R.Y, s.R.Width, s.R.Height).Contains(p)) return s;
+                if (SlotRect(c, s).Contains(p)) return s;
             return null;
         }
 
@@ -137,7 +190,7 @@ namespace Arbeitsplan.Win
         public Point SlotPoint(CellData c, int def)
         {
             foreach (CheckSlot s in slots[c.RowIndex])
-                if (s.Add ? def < 0 : s.Def == def) return new Point(c.RChecks.X + s.R.X + s.R.Width / 2, c.RChecks.Y + s.R.Y + s.R.Height / 2);
+                if (s.Add ? def < 0 : s.Def == def) { Rectangle sr = SlotRect(c, s); return new Point(sr.X + sr.Width / 2, sr.Y + sr.Height / 2); }
             return Point.Empty;
         }
         public void TestClick(Point p) { OnMouseDown(new MouseEventArgs(MouseButtons.Left, 1, p.X, p.Y, 0)); }

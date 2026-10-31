@@ -18,6 +18,8 @@ namespace Arbeitsplan.Win
         public bool Stripe;          // win10: Akzentstreifen oben + 2-px-Auswahlrahmen
         public bool FlatButtons;     // flache Schaltflaechen mit Hover, Farbfelder mit Auswahlrahmen
         public bool ShiftSep;        // duenne Trennlinien zwischen den Schichten
+        public bool Dense;           // Plan-Stil: dichte Darstellung
+        public int ShiftLines = 3;   // Mindestzeilen eines Schichtfelds (waechst bei Bedarf)
 
         // ---- Masse (Pixel) ----
         public int HeadH, LkzH = 22, LW, Pad, Gap, HeadTextX, ButtonH, BarH;
@@ -70,14 +72,20 @@ namespace Arbeitsplan.Win
                 t.ButtonBack = Color.White; t.ButtonBorder = C(205, 210, 219); t.ButtonHover = C(232, 238, 248); t.ButtonDown = C(213, 224, 242);
                 t.ButtonOn = C(214, 228, 248); t.SwatchSelected = C(40, 100, 200); t.SwatchBorder = C(205, 210, 219);
             }
+            if (name == "plan")   // Plan-Stil: dicht (kleinere Koepfe/Abstaende, 1-zeilige Schichtfelder, helle Flaechen); Grundschrift gleich
+            {
+                t.Dense = true; t.ShiftLines = 1; t.HeadH = 22; t.LkzH = 20; t.Pad = 4; t.Gap = 4; t.CheckBox = 14;
+                t.ShiftBack = new Color[] { C(255, 253, 246), C(255, 251, 246), C(248, 250, 254) };
+                t.ShiftLabel = new Color[] { C(255, 240, 192), C(255, 226, 196), C(207, 218, 241) };
+            }
             return t;
         }
 
-        // Bleibt als Einstieg fuer Program.cs; es gibt nur noch einen Look.
+        // Look waehlen: "plan" = Plan-Stil, sonst Standard ("win10"). Alte GDI-Objekte werden freigegeben.
         public static void Select(string name)
         {
             Current.FreeGdi();
-            Current = Make("win10");
+            Current = Make(name == "plan" ? "plan" : "win10");
             ToolStripManager.Renderer = new FlatRenderer();
         }
 

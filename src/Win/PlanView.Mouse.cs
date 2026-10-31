@@ -42,7 +42,8 @@ namespace Arbeitsplan.Win
             base.OnMouseDown(e);
             if (RoundsMouse(e.Location, e.Clicks == 1 ? e.Button : MouseButtons.None)) return;
             CellData c = CellAt(e.Location);
-            bool head = c != null && c.RHead.Contains(e.Location);
+            CheckSlot s = c != null ? SlotAt(c, e.Location) : null;   // Plan-Stil: Pruefpunkt im Kopf geht vor dem Zuklappen
+            bool head = c != null && s == null && c.RHead.Contains(e.Location);
             MenuPara = e.Button == MouseButtons.Right && c != null && !c.Editing && !Collapsed[c.RowIndex] && c.CB != null && c.RContent.Contains(e.Location)
                 ? c.CB.ParaAt(e.Location.Y - (c.RContent.Y + TV)) : -1;   // Textzeile unter dem Mauszeiger (Rechtsklick-Menue "Als Notiz markieren")
             // Auswahl nur durch Klick in einen Block; freie Flaeche und Linksklick auf den Zeilenkopf (Zuklappen) heben sie auf.
@@ -50,7 +51,6 @@ namespace Arbeitsplan.Win
             CellData sel = c == null || (head && e.Button == MouseButtons.Left) ? null : c;
             if (sel != Selected) { Selected = sel; Invalidate(); }
             if (c == null || e.Button != MouseButtons.Left) return;
-            CheckSlot s = head ? null : SlotAt(c, e.Location);
             if (e.Clicks != 1) return;
             if (head) { if (RowToggled != null) RowToggled(c.RowIndex); return; }
             if (s == null)

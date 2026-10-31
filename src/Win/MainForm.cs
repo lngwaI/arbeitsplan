@@ -69,6 +69,7 @@ namespace Arbeitsplan.Win
         MainForm(string login, bool failSaves, AppConfig cfg, FileStore fs, PlanSnapshot plan)
         {
             this.cfg = cfg; shownPlan = plan;
+            LoadLook();   // gespeicherter Look vor dem Aufbau der Ansicht (MainForm.Look.cs)
             StartPosition = FormStartPosition.CenterScreen;
             ClientSize = new Size(1280, 720);
             MinimumSize = new Size(900, 600);

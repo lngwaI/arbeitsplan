@@ -60,6 +60,8 @@ namespace Arbeitsplan.Win
             if (c.RFrz.Height > 0 || c.RSplit.Height > 0) PaintFreeze(g, c, back);   // PlanView.Freeze.cs
 
             if (!c.Editing) c.CB.Draw(g, c.RContent.X + TP, c.RContent.Y + TV);
+            if (th.Dense && !c.Editing && c.TitleH > 0 && c.TitleMore)   // Plan-Stil: feine Linie unter dem Titel
+                g.DrawLine(th.Pen(th.Separator, 1), c.RContent.X, c.RContent.Y + TV + c.TitleH, c.RContent.Right - 1, c.RContent.Y + TV + c.TitleH);
             bool task = ri.Mode == ShiftMode.Task;
             for (int s = 0; s < 3; s++)
             {

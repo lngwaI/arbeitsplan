@@ -395,6 +395,7 @@ namespace Arbeitsplan.Win
             SelfTestNotesUi(sb);   // Notizzeilen in Ansicht und Editor
             SelfTestG(sb);   // Puffer-Varianten, Migration, 2 Wochen, Hervorhebung, Offene Pflichten (MainForm.SelfTestG.cs)
             SelfTestA(sb);
+            SelfTestLook(sb);   // Look Plan-Stil (MainForm.SelfTestLook.cs)
             SelfTestAnsicht2(sb);   // Chips, LKZ dringend, Rundgang-Datum, Auswahlrahmen (MainForm.SelfTestAnsicht2.cs)
             sb.AppendLine(PackageForm.TestFlow(store, equip, start));
             SelfTestPaket2(sb);   // Produktcode frei, Laufnummer 8-stellig, Hinweis-Klick, Puffer-Variante, Bausteine (MainForm.SelfTestPaket2.cs)

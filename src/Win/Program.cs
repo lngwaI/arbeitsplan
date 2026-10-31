@@ -119,6 +119,7 @@ namespace Arbeitsplan.Win
             string login = Arg(args, "--user") ?? Environment.UserName;
             bool nosave = Array.IndexOf(args, "--nosave") >= 0;
             string shot = Arg(args, "--shot");
+            MainForm.LookFile = shot == null;   // Testbilder/Selbsttest beruehren die Nutzerdatei "ansicht" nie
             // Test: --4x3 startet im Fenster 1024x768 (4:3), --size BxH beliebig (auch ohne --shot)
             string sz = Arg(args, "--size") ?? (Array.IndexOf(args, "--4x3") >= 0 ? "1024x768" : null);
             Size cs = new Size(1280, 720);
@@ -186,6 +187,7 @@ namespace Arbeitsplan.Win
             f.ClientSize = cs;
             f.TopMost = true;
             f.Show();
+            if (Arg(args, "--look") != null) f.TestLook(Arg(args, "--look"));   // Test: --look plan = Plan-Stil
             string edit = Arg(args, "--edit");
             if (edit != null) f.TestEdit(int.Parse(edit.Split(',')[0]), int.Parse(edit.Split(',')[1]));
             if (Arg(args, "--applypkg") != null) f.TestApply(Arg(args, "--applypkg"), Arg(args, "--runs") != null ? int.Parse(Arg(args, "--runs")) : 0);   // --runs n: Laufanzahl wie im Kampagnenstart aendern

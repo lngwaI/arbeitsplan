@@ -56,6 +56,11 @@ namespace Arbeitsplan.Win
                 g.DrawEllipse(th.Pen(th.Muted, 1), c.RHead.Right - 28, c.RHead.Y + (c.RHead.Height - 6) / 2, 6, 6);
                 nr.Width -= 12;
             }
+            if (!collapsed && InHead(c.RowIndex) && c.RowIndex < slots.Length && slots[c.RowIndex].Length > 0)   // Plan-Stil: Pruefpunkt im Kopf
+            {
+                nr.Width -= slots[c.RowIndex][0].W + 4;
+                PaintHeadChip(g, c);
+            }
             nr.Width -= PaintNote(g, c, nr);   // Hinweis "KW offen" / dringend, auch zugeklappt
             TextRenderer.DrawText(g, ri.Name, HeadFont, nr, collapsed ? th.HeadTextCollapsed : th.HeadText,
                 TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
@@ -75,6 +80,7 @@ namespace Arbeitsplan.Win
             foreach (string x in tries) if (TextW(x, f) <= room) { t = x; break; }
             if (t == null)   // zu schmal: Plakette "!" (Text im Tooltip, Kopf bei "dringend" ohnehin rot)
             {
+                if (InHead(c.RowIndex) && !c.Urgent) return 0;   // Plan-Stil: Pruefpunkt im Kopf zeigt den Zustand, Zeilenname hat Vorrang
                 int d = 15, y = nr.Y + (nr.Height - d) / 2;
                 System.Drawing.Drawing2D.SmoothingMode sm = g.SmoothingMode;
                 g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;

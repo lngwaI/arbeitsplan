@@ -171,6 +171,22 @@ namespace Arbeitsplan.Win
             line.Add(it);
         }
 
+        // Titel: fuehrende nicht leere Zeilen, deren groesste Schrift ueber der Grundschrift liegt. Rueckgabe = Hoehe (0 = keiner), more = danach folgt Text.
+        public int TitleHeight(float baseSize, out bool more)
+        {
+            int h = 0, i = 0;
+            more = false;
+            for (; i < Lines.Count; i++)
+            {
+                float mx = 0; bool txt = false;
+                foreach (Item it in Lines[i]) if (it.Text.Trim().Length > 0) { txt = true; mx = Math.Max(mx, it.Font.SizeInPoints); }
+                if (!txt || mx <= baseSize + 0.01f) break;
+                h += LineH[i];
+            }
+            if (h > 0) for (int k = i; k < Lines.Count && !more; k++) foreach (Item it in Lines[k]) if (it.Text.Trim().Length > 0) { more = true; break; }
+            return h;
+        }
+
         // Absatz (Zeile des Inhalts) an der Hoehe py (relativ zum Textursprung); -1 ausserhalb
         public int ParaAt(int py)
         {

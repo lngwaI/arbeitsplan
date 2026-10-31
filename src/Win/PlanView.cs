@@ -38,6 +38,7 @@ namespace Arbeitsplan.Win
         public bool Urgent;                                 // Wochenpflicht (LKZ) nach Sonntag nicht erfuellt: Kopf rot, Hinweis fett
         public Rectangle R, RHead, RChecks, RBuf, RContent;
         public List<BufPart> BufParts = new List<BufPart>(); // Puffer-Zeilen (PlanView.Buffers.cs)
+        public int TitleH; public bool TitleMore;           // Titel = fuehrende Zeilen mit groesserer Schrift (Hoehe, 0 = keiner); TitleMore: danach folgt Text
         public int BufH;                                    // Hoehe des Puffer-Bereichs (0 = keine Puffer)
         public List<FreezeCycle> Conts = new List<FreezeCycle>();   // Fortsetzungen von Freeze-Vorgaengen frueherer Tage (PlanView.Freeze.cs, nur Freeze-Zeile)
         public List<FrzPart> FrzParts = new List<FrzPart>(); // Freeze-Vorgaenge dieses Tages
@@ -51,7 +52,7 @@ namespace Arbeitsplan.Win
     // Nur beim Bearbeiten legt MainForm Eingabefelder ueber Inhalt und Kuerzel des aktiven Blocks.
     partial class PlanView : Control
     {
-        public const int TP = 3, TV = 3, ShiftLines = 3, TaskLines = 1;
+        public const int TP = 3, TV = 3, TaskLines = 1;
         public static int HeadH { get { return Theme.Current.HeadH; } }
         public static int LkzH { get { return Theme.Current.LkzH; } }
         public static int LW { get { return Theme.Current.LW; } }
@@ -115,6 +116,7 @@ namespace Arbeitsplan.Win
         public bool[] DefaultFold()
         {
             bool[] d = new bool[Rows.Count];
+            if (Theme.Current.Dense) return d;   // Plan-Stil: alle Zeilen offen
             for (int r = 0; r < d.Length; r++) d[r] = true;
             foreach (CellData c in Cells) if (c.RowIndex < d.Length && (!c.Cur.IsBlank || c.Conts.Count > 0)) d[c.RowIndex] = false;
             return d;
@@ -197,7 +199,14 @@ namespace Arbeitsplan.Win
         int RowNeeds(int r, int lh, out int[] sh)
         {
             RowInfo ri = Rows[r];
-            int minC = ri.MinLines * lh + 2 * TV, ch = minC, min = (ri.Mode == ShiftMode.Task ? TaskLines : ShiftLines) * lh + 2 * TV;
+            int ml = ri.MinLines;
+            if (Theme.Current.Dense && !Collapsed[r])   // Plan-Stil: Zeile ohne jeden Inhalt in der Woche = 1 Textzeile (waechst beim Tippen)
+            {
+                bool any = false;
+                foreach (CellData c in Cells) if (c.RowIndex == r && (c.Content.Trim().Length > 0 || c.BufH + c.FrzH + c.SplitH > 0 || c.Conts.Count > 0 || c.Editing)) { any = true; break; }
+                if (!any) ml = Math.Min(ml, 1);
+            }
+            int minC = ml * lh + 2 * TV, ch = minC, min = (ri.Mode == ShiftMode.Task ? TaskLines : Theme.Current.ShiftLines) * lh + 2 * TV;
             sh = new int[3];
             for (int s = 0; s < 3; s++) sh[s] = ri.HasShift(s) ? min : 0;
             if (Collapsed[r]) return ch;

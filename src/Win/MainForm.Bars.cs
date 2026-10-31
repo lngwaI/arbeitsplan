@@ -23,6 +23,7 @@ namespace Arbeitsplan.Win
             bool usr = me.Has(Perm.UserCreate) || me.Has(Perm.UserEdit) || me.Has(Perm.UserDelete);
 
             ToolStripMenuItem file = new ToolStripMenuItem("Woche");
+            AddLookMenu(file);
             file.DropDownItems.Add("Meine Schichten…", null, delegate { ShowPersons(); });
             file.DropDownItems.Add("Offene Pflichten dieser Woche…", null, delegate { ShowOpenDuties(); });
             file.DropDownItems.Add(new ToolStripSeparator());

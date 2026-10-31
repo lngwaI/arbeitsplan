@@ -32,6 +32,11 @@ namespace Arbeitsplan.Core
                     FormatSpan sp = new FormatSpan(); sp.Start = e.Content.IndexOf("LKZ"); sp.Length = 10; sp.Rgb = 0xC00000; sp.Bold = true; sp.Size = 11;
                     e.Spans.Add(sp);
                 }
+                if (d == 4)   // Beispiel Titelzeile (groessere Schrift am Anfang): Plan-Stil zieht darunter eine Linie
+                {
+                    FormatSpan sp = new FormatSpan(); sp.Start = 0; sp.Length = e.Content.IndexOf('\n'); sp.Bold = true; sp.Size = 11;
+                    e.Spans.Add(sp);
+                }
                 if (d == 1)   // Beispiel Notizzeilen (kursiv, zaehlen nicht als Inhalt)
                 {
                     e.Content += "\nProbe bis 10:00 zur QC bringen\nBei Abweichung Schichtleiter informieren";
