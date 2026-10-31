@@ -21,8 +21,11 @@ namespace Arbeitsplan.Core
                 if (d.Step < 0 || d.Step >= Steps.Count) continue;
                 int id = RowId(rows, d.Row.Length > 0 ? d.Row : Steps[d.Step].Row);
                 if (id < 0) continue;
-                DateTime day = start.AddDays(d.Day - 1);
-                if (seen.Add(day.Ticks + "|" + id) && Occupied(store.Get(day, id))) n++;
+                foreach (int dl in CardsSplit(Steps[d.Step], start.DayOfWeek) ? Steps[d.Step].CardDeltas() : new List<int>(new[] { 0 }))   // Karten mit eigenem Versatz liegen an anderen Tagen
+                {
+                    DateTime day = start.AddDays(d.Day - 1 + dl);
+                    if (seen.Add(day.Ticks + "|" + id) && Occupied(store.Get(day, id))) n++;
+                }
             }
             return n;
         }

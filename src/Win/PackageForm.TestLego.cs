@@ -31,6 +31,7 @@ namespace Arbeitsplan.Win
         {
             StringBuilder sb = new StringBuilder(); int seen = Package.Seen.Count;   // eigene Pakete nicht in den Golden-Test
             try { LegoCore(sb); } catch (Exception ex) { sb.AppendLine("Lego Kern: Ausnahme " + ex.GetType().Name + ": " + ex.Message + " " + ex.StackTrace.Split('\n')[0]); }
+            sb.AppendLine(TestLego3());
             sb.AppendLine(LegoForm(store, equip, start));
             if (Package.Seen.Count > seen) Package.Seen.RemoveRange(seen, Package.Seen.Count - seen);
             return sb.ToString();

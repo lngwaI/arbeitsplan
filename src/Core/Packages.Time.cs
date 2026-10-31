@@ -44,7 +44,8 @@ namespace Arbeitsplan.Core
         }
 
         // Laufanzahl aendern (Kampagnenstart): Hauptlauf bekommt n Laeufe, eigene Wiederholungen "fuer alle Laeufe" folgen, Ausfaelle ab n entfallen
-        public void SetRunCount(int n)
+        // keepHand (Kampagnenstart): Shift/Move ab Lauf n bleiben stehen (wirken erst wieder, wenn der Lauf existiert); Paket-Editor entfernt sie
+        public void SetRunCount(int n, bool keepHand = false)
         {
             PackageStep h = Head;
             if (h == null) return;
@@ -54,18 +55,20 @@ namespace Arbeitsplan.Core
             h.RunCount = n;
             foreach (PackageStep s in Steps)
             {
-                if (s != h && s.Bind == StepBind.Frei && s.Until == 0 && s.Repeat != RepeatMode.DayList && old > 1 && s.Count == old && !s.IsBackup) { s.Count = n; DropRunsFrom(s, n); }
-                if (s != h && s.Bind == StepBind.JeLauf) DropRunsFrom(s, n);   // Abstand je Lauf eines Puffers entfaellt mit dem Lauf
+                if (s != h && s.Bind == StepBind.Frei && s.Until == 0 && s.Repeat != RepeatMode.DayList && old > 1 && s.Count == old && !s.IsBackup) { s.Count = n; DropRunsFrom(s, n, keepHand); }
+                if (s != h && s.Bind == StepBind.JeLauf) DropRunsFrom(s, n, keepHand);   // Abstand je Lauf eines Puffers entfaellt mit dem Lauf
             }
-            DropRunsFrom(h, n);
+            DropRunsFrom(h, n, keepHand);
+            SyncBackups(Steps);   // Back-Up folgt seinem Packen (Laufzahl kann dessen Wiederholungen aendern)
         }
 
         // Ausfaelle, Verschiebungen und Kennungs-Texte von Hand ab Lauf n (0-basiert) entfernen (der Lauf existiert nicht mehr)
-        static void DropRunsFrom(PackageStep s, int n)
+        static void DropRunsFrom(PackageStep s, int n, bool keepHand)
         {
             s.Skip.RemoveAll(delegate(int r) { return r >= n; });
-            foreach (Dictionary<int, int> m in new[] { s.Move, s.Shift })
-                foreach (int k in new List<int>(m.Keys)) if (k >= n) m.Remove(k);
+            if (!keepHand)
+                foreach (Dictionary<int, int> m in new[] { s.Move, s.Shift })
+                    foreach (int k in new List<int>(m.Keys)) if (k >= n) m.Remove(k);
             foreach (int k in new List<int>(s.IdentOver.Keys)) if (k >= n) s.IdentOver.Remove(k);
         }
 
@@ -106,9 +109,10 @@ namespace Arbeitsplan.Core
             if (main >= 0)
             {
                 mainDay = Steps[main].Days(day1);
+                List<int> baseDay = Steps[main].BaseDays(day1);   // ohne Handverschiebung: sie hat Vorrang vor gaps und bleibt in mainDay
                 for (int r = 0; r < mainDay.Count; r++)
                 {
-                    int plan = r == 0 ? 0 : mainDay[r] - mainDay[r - 1];   // geplanter Abstand (alle x Tage, Wochentage, Tagesliste)
+                    int plan = r == 0 ? 0 : baseDay[r] - baseDay[r - 1];   // geplanter Abstand (alle x Tage, Wochentage, Tagesliste)
                     shift.Add(r == 0 ? 0 : shift[r - 1] + (gaps != null && r - 1 < gaps.Count ? gaps[r - 1] : plan) - plan);
                 }
             }

@@ -172,7 +172,7 @@ namespace Arbeitsplan.Core
         // Von Hand gesetzter Lauf (PackageStep.Pinned): der Verstoss bleibt sichtbar, sperrt aber nicht
         PackageProblem Hand(PackageProblem p, int step, int run, int step2 = -1, int run2 = -1)
         {
-            bool pin = (step >= 0 && step < Steps.Count && Steps[step].Pinned(run)) || (step2 >= 0 && step2 < Steps.Count && Steps[step2].Pinned(run2));
+            bool pin = (step >= 0 && step < Steps.Count && Steps[step].ByHand(run)) || (step2 >= 0 && step2 < Steps.Count && Steps[step2].ByHand(run2));
             if (pin) { p.Severity = Severity.Hinweis; p.Text += " – von Hand gesetzt"; }
             return p;
         }

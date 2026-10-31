@@ -224,7 +224,7 @@ namespace Arbeitsplan.Win
 
             dtLauf1.ValueChanged += delegate { Recalc(); };
             tFirst.TextChanged += delegate { Recalc(); };
-            nRuns.ValueChanged += delegate { if (!building) { pkg.SetRunCount((int)nRuns.Value); Recalc(); } };
+            nRuns.ValueChanged += delegate { if (!building) { pkg.SetRunCount((int)nRuns.Value, true); Recalc(); } };
             chkRhythm.CheckedChanged += delegate { Recalc(); };
             building = false;
             Recalc();

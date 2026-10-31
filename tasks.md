@@ -36,8 +36,12 @@
 - [x] P6 Puffer-Kopf ohne "Puffer n:", Gemeinsam-Zeilen an Vorlagenstelle, Kurzform umbenennen mit Verweisen, Produktcode (Kampagne/Pakete), Freeze-Haken Standard an (G-Mail / 2. Account, erledigt, 2026-10-31)
 
 ### Ansicht Plan-Stil (Branch gmail/plan-stil)
-- [x] Umschaltbarer Look "Plan-Stil" neben "Standard" (Woche → Ansicht): kompakte Zeilen, Prüfpunkt im Kopf, alle Zeilen offen, Titel + Details; Selbsttest 0 FEHLER, nicht von Hand geklickt, nicht committet (G-Mail / 2. Account, erledigt, 2026-10-31 16:40)
+- [x] Umschaltbarer Look "Plan-Stil" neben "Standard" (Woche → Ansicht): kompakte Zeilen, Prüfpunkt im Kopf, alle Zeilen offen, Titel + Details; Selbsttest 0 FEHLER, nicht von Hand geklickt (G-Mail / 2. Account, erledigt, 2026-10-31 16:40)
 - [ ] Text-Vorschläge entscheiden: `_privat/Text-Vorschlaege.md` (Nutzer, offen, 2026-10-31 16:40)
+
+### Paket-Editor aufgeräumt, Bausteine ziehen, Puffer-Rhythmus (Branch gmail/paket-lego)
+- [x] Editor verdichtet, große Vorschau mit Puffer-Palette, Blöcke einzeln ziehen, Puffer-Rhythmus (auch beim Kampagnenstart), Absatz im Paket, Freeze-Zyklen je Zeile, Pfeil hoch beim Hauptlauf, Review-Funde; Selbsttest 0 FEHLER, nicht von Hand geklickt (G-Mail / 2. Account, erledigt, 2026-10-31 18:40)
+- [ ] Handtest nach der Klickliste in `docs/HANDOFF.md`, danach Merge entscheiden (Nutzer, offen, 2026-10-31 18:40)
 
 ## Nächste Schritte (Stand 2026-10-28, nach Nachtschicht; alles bis hier ist in main)
 - [x] Plan Teil B: Baustein "Packen (Back-Up)" (`Packages.Backup.cs`, `PackageStep.BackupOf`, Paketformat 6, Regel in Load/Apply/Editor, folgt Packen im Editor und Kampagnenstart) und Teil A: Kampagnen-Assistent `CampaignWizard` (Pakete → "Neue Kampagne…", `PackagePicker.Product` mit freien Codes + Produktfilter); Selbsttests `SelfTestBackup`, Testschalter `--form wizard|wizard3` (Sonnet-Agent, erledigt, 2026-10-28 17:00). Offen: Teil C/D des Plans, Back-Up-Equipment wird nur beim Anlegen aus dem Packen-Ausweich übernommen (danach frei)

@@ -42,7 +42,7 @@ namespace Arbeitsplan.Win
             SyncDay1();
             string over = pkg.Overflow();
             Package view = pkg.Clone();   // ohne Ausfaelle: auch ausgefallene Laeufe bleiben als Zeile sichtbar (zum Zuruecknehmen)
-            foreach (PackageStep s in view.Steps) s.Skip.Clear();
+            foreach (PackageStep s in view.Steps) { s.Skip.Clear(); s.RunEvery = 1; }   // alle Laeufe als Zeile; pkg (real) entscheidet
             sched = view.Schedule(chkRhythm.Checked ? gaps : null);
             sched.Sort(delegate(RunDate a, RunDate b) { return a.Day != b.Day ? a.Day.CompareTo(b.Day) : (a.Step != b.Step ? a.Step.CompareTo(b.Step) : a.Run.CompareTo(b.Run)); });
             string firstLabel = "";
@@ -141,8 +141,13 @@ namespace Arbeitsplan.Win
         {
             int id;
             if (skipped[i] || !ids.TryGetValue(Room(i), out id)) return null;
-            Entry e = store.Get(Start.AddDays(sched[i].Day + Off(i) - 1), id);
-            return Package.Occupied(e) ? e : null;
+            PackageStep s = pkg.Steps[sched[i].Step];
+            foreach (int dl in pkg.CardsSplit(s, Start.DayOfWeek) ? s.CardDeltas() : new List<int>(new[] { 0 }))   // Karten mit eigenem Versatz: eigener Tag
+            {
+                Entry e = store.Get(Start.AddDays(sched[i].Day + Off(i) - 1 + dl), id);
+                if (Package.Occupied(e)) return e;
+            }
+            return null;
         }
 
         void UpdateRow(int i)

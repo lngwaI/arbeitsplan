@@ -91,7 +91,15 @@ namespace Arbeitsplan.Core
         // mit eigenem Abstand zu diesem Lauf. false = nicht moeglich (vor Tag 1, Versatz zu gross).
         public bool DragRun(PackageStep s, int run, int delta, bool onlyRun)
         {
-            if (!DragRunRaw(s, run, delta, onlyRun)) return false;
+            if (delta != 0 && s.IsPack && s.Bind != StepBind.JeLauf && run == 0 && s.Days(Day1).Count == 1)   // einmaliges Packen gezogen = von Hand gesetzt: echter Shift (Schloss, Hinweis statt Sperre, bleibt beim Speichern; zurueckgezogen = wieder Regel)
+            {
+                int day = s.Days(Day1)[0];
+                if (day + delta < 1) ShiftOrigin(1 - (day + delta));
+                int v; s.Shift.TryGetValue(0, out v); v += delta;
+                if (v == 0) s.Shift.Remove(0); else s.Shift[0] = v;
+                SyncBackups(Steps);
+            }
+            else if (!DragRunRaw(s, run, delta, onlyRun)) return false;
             Normalize(false);   // JeLauf-Schritte mit negativem Versatz (Puffer -1) duerfen nie vor Tag 1 landen
             return true;
         }
@@ -137,6 +145,9 @@ namespace Arbeitsplan.Core
 
         // Lauf ist von Hand verschoben (Ausnahme oder Move-Ansatz): im Kalender mit Schloss, bleibt bei Regelaenderungen an seinem Tag
         public bool Pinned(int run) { return Shift.ContainsKey(run) || Move.ContainsKey(run); }
+
+        // Wie Pinned, dazu die Folgelaeufe eines Umschalt-Verschiebens (Move ab Lauf k wirkt auf alle Laeufe >= k)
+        public bool ByHand(int run) { if (Pinned(run)) return true; foreach (int k in Move.Keys) if (k <= run) return true; return false; }
 
         // Zurueck auf die Regel: Move/Shift dieses Laufs entfernen. false = war nicht verschoben.
         public bool ResetRun(int run) { bool a = Shift.Remove(run), b = Move.Remove(run); return a || b; }

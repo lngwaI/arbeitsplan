@@ -80,7 +80,7 @@ namespace Arbeitsplan.Win
         protected override void OnResize(EventArgs e)
         {
             bool narrow = ClientSize.Width < 1150;   // schmales Fenster: mehr Platz fuer Schritt-Details und Kalender, schmalere Hinweis-/Vorschauspalte
-            left.Width = Math.Max(360, Math.Min(600, ClientSize.Width * (narrow ? 38 : 46) / 100));
+            left.Width = Math.Max(narrow ? 300 : 360, Math.Min(600, ClientSize.Width * (narrow ? 30 : 46) / 100));
             if (hintsCol != null) { hintsCol.Width = narrow ? 210 : 290; pagerCol.Width = narrow ? 290 : 372; }
             base.OnResize(e);
             ClampPane();

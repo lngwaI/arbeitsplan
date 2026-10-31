@@ -80,6 +80,7 @@ namespace Arbeitsplan.Core
                     + days + (days == 1 ? " Tag" : " Tage") + " vor dem Kampagnen-Start – beim Übernehmen würde ein Block außerhalb des gezeigten Zeitraums geschrieben", d.Step, d.Run);
                 p.Action = "eigenen Versatz der Karte verkleinern oder Lauf 1 (Startdatum) entsprechend später legen";
                 Hand(p, d.Step, d.Run);
+                if (!p.Blocks) done.Remove(d.Step);   // ein von Hand gesetzter Lauf darf die Sperre eines anderen Laufs nicht verdecken
             }
         }
 
@@ -105,7 +106,8 @@ namespace Arbeitsplan.Core
                     List<string> late = new List<string>();
                     if (s.Puffers.Count == 0) { if (s.RunOffset > 0) late.Add("alle Puffer"); }
                     else for (int k = 0; k < s.Puffers.Count; k++) if (s.CardOffset(s.Puffers[k]) > 0) late.Add("Puffer " + (k + 1));
-                    foreach (KeyValuePair<int, int> kv in s.Shift) if (s.RunOffset + kv.Value > 0) late.Add("für Lauf " + (kv.Key + 1));
+                    int nRuns = Steps[HeadIndex(day1)].RunCountFor(day1);   // Handverschiebungen ab Lauf nRuns sind (noch) ohne Wirkung
+                    foreach (KeyValuePair<int, int> kv in s.Shift) if (kv.Key < nRuns && s.RunOffset + kv.Value > 0) late.Add("für Lauf " + (kv.Key + 1));
                     if (late.Count > 0)
                         Add(res, Severity.Hinweis, "pufnach", "Puffer „" + StepName(i) + "“ (" + string.Join(", ", late.ToArray()) + ") liegt nach dem Lauf, den er bedient", i).Action = "Versatz auf „vor dem Lauf“ oder „am Tag des Laufs“ stellen";
                     continue;

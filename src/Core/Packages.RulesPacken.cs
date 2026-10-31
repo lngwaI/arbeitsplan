@@ -32,7 +32,7 @@ namespace Arbeitsplan.Core
                     p = Add(res, Severity.Sperre, "packen-tag", StepName(d.Step) + " liegt nach Lauf " + (first.Run + 1) + " (gepackt wird immer vor dem ersten Lauf)", d.Step, d.Run);
                     p.Step2 = main; p.Run2 = first.Run;
                 }
-                if (p != null) { p.Action = "Packen z. B. 2 Tage vor Lauf 1 legen (der Back-Up liegt 1 Tag danach)"; Hand(p, d.Step, d.Run); }
+                if (p != null) { p.Action = "Packen z. B. 2 Tage vor Lauf 1 legen (der Back-Up liegt 1 Tag danach)"; Hand(p, d.Step, d.Run, p.Step2, p.Run2); }
             }
         }
 

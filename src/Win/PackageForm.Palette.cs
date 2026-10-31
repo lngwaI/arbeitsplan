@@ -29,11 +29,24 @@ namespace Arbeitsplan.Win
             if (palette == null) return;
             while (palette.Controls.Count > 0) { Control c = palette.Controls[0]; palette.Controls.RemoveAt(0); c.Dispose(); }
             int y = 4, w = palette.ClientSize.Width - 8;
-            Label head = new Label(); head.Text = "Puffer-Bausteine – auf einen Tag ziehen"; head.SetBounds(4, y, w, Font.Height * 3); palette.Controls.Add(head); y += head.Height + 6;
+            AddGroup("Auf einen Tag ziehen", ref y, w, false);
+            bool first = true;
             foreach (PackageStep s in Ordered())
-                if (!s.IsEmpty && IsPuffer(s)) { AddChip(TitleOf(s), Theme.Current.BufColors[TypIndex(s)], new PalItem { Step = s }, ref y, w); }
+                if (!s.IsEmpty && IsPuffer(s))
+                {
+                    if (first) { AddGroup("Vorhanden", ref y, w, true); first = false; }
+                    AddChip(TitleOf(s), Theme.Current.BufColors[TypIndex(s)], new PalItem { Step = s }, ref y, w);
+                }
+            AddGroup("Neu anlegen", ref y, w, true);
             if (cat.Baustein_(Package.PufferMobilName) != null) AddChip("+ Puffer mobil", Theme.Current.BufColors[0], new PalItem { NewName = Package.PufferMobilName }, ref y, w);
             if (cat.Baustein_(Package.PufferStationaerName) != null) AddChip("+ Puffer stationär", Theme.Current.BufColors[1], new PalItem { NewName = Package.PufferStationaerName }, ref y, w);
+        }
+
+        void AddGroup(string text, ref int y, int w, bool bold)
+        {
+            Label l = new Label(); l.Text = text; l.AutoEllipsis = true; l.ForeColor = bold ? SystemColors.ControlText : SystemColors.GrayText;
+            if (bold) l.Font = new Font(Font, FontStyle.Bold);
+            l.SetBounds(4, y + (bold ? 4 : 0), w, Font.Height + 4); palette.Controls.Add(l); y += l.Height + (bold ? 6 : 2);
         }
 
         void AddChip(string text, Color typ, PalItem item, ref int y, int w)
