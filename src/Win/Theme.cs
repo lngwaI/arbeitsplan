@@ -41,6 +41,10 @@ namespace Arbeitsplan.Win
             PlanWeekend = C(246, 248, 251), PlanHead = C(231, 235, 242), PlanHeadWeekend = C(224, 228, 237), Urgent = C(200, 20, 20), UrgentBack = C(255, 214, 214), ChipOn = C(0, 105, 180), ChipOff = C(160, 168, 182);
         public readonly Color[] BufColors = { C(0, 120, 180), C(115, 80, 175), C(0, 135, 110) };   // Seitenstrich der Puffer je Typ (Reihenfolge RowInfo.Variants: mobil blau, stationaer violett)
 
+        // Kampagnen-Kalender: je Produkt eine Farbe (kraeftig = Lauf), CalSoft = Puffer/Vorlauf
+        public readonly Color[] CalPalette = { C(0, 120, 200), C(215, 90, 30), C(30, 150, 80), C(150, 70, 180), C(200, 40, 90), C(0, 150, 160), C(170, 130, 0), C(90, 100, 200), C(120, 150, 30), C(190, 80, 160), C(110, 90, 70), C(70, 130, 130) };
+        public Color CalSoft(Color c) { return Color.FromArgb(c.R + (255 - c.R) * 62 / 100, c.G + (255 - c.G) * 62 / 100, c.B + (255 - c.B) * 62 / 100); }
+
         static Color C(int r, int g, int b) { return Color.FromArgb(r, g, b); }
 
         public static Theme Make(string name)
