@@ -20,7 +20,7 @@ namespace Arbeitsplan.Win
             for (int i = 1; i <= n; i++)
                 if (i == n || fore[i] != fore[s] || mode[i] != mode[s] || fnt[i] != fnt[s])
                 {
-                    res.Add(new Piece(text.Substring(s, i - s), fnt[s], fore[s], mode[s] != 0, mode[s] == 1 ? Yellow : mode[s] == 3 ? Theme.Current.NoteBack : Green));
+                    res.Add(new Piece(text.Substring(s, i - s), fnt[s], fore[s], mode[s] != 0, mode[s] == 1 ? Yellow : Green));
                     s = i;
                 }
             return res;
@@ -63,8 +63,8 @@ namespace Arbeitsplan.Win
                     fnt[i] = f;
                 }
             }
-            foreach (int[] nl in Notes.NoteLines(c.Cur))   // Notizzeile (ganz kursiv): abgesetzt (Suchtreffer gelb gewinnt unten)
-                for (int i = nl[1]; i < nl[1] + nl[2] && i < fore.Length; i++) { if (fore[i] == Color.Black) fore[i] = Theme.Current.NoteText; mode[i] = 3; }
+            foreach (int[] nl in Notes.NoteLines(c.Cur))   // Notizzeile (ganz kursiv): nur Schriftfarbe, kein Hintergrund
+                for (int i = nl[1]; i < nl[1] + nl[2] && i < fore.Length; i++) if (fore[i] == Color.Black) fore[i] = Theme.Current.NoteText;
             // Erkannte Equipment-Nummer: Statusfarbe; Status unbekannt/nicht abrufbar -> Standard schwarz (Lesbarkeit).
             foreach (Match m in EquipmentMatcher.Pattern.Matches(text))
             {
